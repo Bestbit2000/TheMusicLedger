@@ -1,5 +1,6 @@
-// ML-204 Phase 2: reading MusicXML that ISN'T our own export - what "Create from file" and PDF/OMR
-// import actually receive. Expected blocks are written out in full so any change in how a real
+// ML-204 Phase 2: reading MusicXML that ISN'T our own export - what "Import from MusicXML"
+// actually receives (from a notation app, or a music-scanning app's output). Expected blocks
+// are written out in full so any change in how a real
 // file is interpreted shows up here as a deliberate diff.
 
 import { test } from 'node:test';

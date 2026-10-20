@@ -3,7 +3,7 @@
 ## 1. Metadata
 - **Name:** Rest screen (`.rest-screen`, `.rest-ring`, `.rest-ring-svg`, `.rest-ring-track`, `.rest-ring-left`,
   `.rest-ring-num`, `.rest-card`, `.rest-art`, `.rest-kind`, `.rest-title`, `.rest-body`, `.rest-breath`,
-  `.rest-breath-word`, `.rest-next`)
+  `.rest-breath-word`, `.rest-next`); the count-in cover (`.count-in-cover`, ML-542)
 - **Category:** Feedback / status
 - **Status:** New (ML-390)
 
@@ -18,7 +18,11 @@ next block starts by itself at 0.
   messages): why we stop, a breath, loosening up, thinking like a musician, a fact, looking after yourself, kind words.
 - **Breathing ones** show a circle that grows for 4 seconds and shrinks for 6 (`--duration-breath`), with "in" /
   "out" in it - three breaths fill the rest.
-- **Don't use** these colours or this panel anywhere but the rest.
+- **The count-in (ML-542)** borrows the ring: while a count-in clicks on the play screen, in Warm-ups or in Scales,
+  `.count-in-cover` lays the rest panel's colour over the controls with the ring and the beats left in it (4, 3, 2, 1 -
+  the ring empties a beat at a time). It covers only the controls - the metronome card (Warm-ups, Scales) or the
+  play screen's metronome - never the stave or the bars to play, and taps go through it. `showCountIn` in app.js.
+- **Don't use** these colours or this panel anywhere but the rest and the count-in.
 
 ## 3. Anatomy
 `.rest-screen` › `.rest-ring` (`svg.rest-ring-svg` › `circle.rest-ring-track` + `circle.rest-ring-left`
@@ -32,7 +36,8 @@ or `.rest-breath` › `.rest-breath-word`, `.rest-kind`, `h2.rest-title`, `.rest
 `--rest-ring` (ring and breathing circle edge), `--rest-track`, `--text-color`, `--label-color`; `--radius-xl`,
 `--radius-lg`, `--radius-circle`; `--space-2`…`--space-5`; `--touch-target`, `--icon-xl`; `--font-xs`, `--font-lg`,
 `--font-2xl`; `--duration-pulse` (ring), `--duration-breath` (breathing). Run-time: `--rest-left` (0-1, the time
-left - set by `renderRest`, read by `.rest-ring-left`).
+left - set by `renderRest`, read by `.rest-ring-left`). The count-in adds `--font-3xl` (its number) and
+`--z-sticky` (over the controls); its `--rest-left` is the beats left of the count-in (`showCountIn`).
 
 ## 5. Props / API
 - Runner: app.js, "The 30-second rest (ML-390)" - `startRest`, `renderRestMessage`, `renderRest`, `endRest`.
@@ -47,6 +52,7 @@ left - set by `renderRest`, read by `.rest-ring-left`).
 | Breathing message | `.rest-breath` grows and shrinks; the word flips "in" / "out" |
 | Reduced motion | the circle stays still at 1.6x; the ring doesn't animate |
 | Offline | a built-in breathing message is shown |
+| Count-in (ML-542) | `.count-in-cover` shown over the controls; hidden (`hidden-group`) when the count-in ends, on pause and on reset |
 
 ## 7. Code example
 ```html
@@ -70,3 +76,5 @@ pattern) · docs/practice-sessions.md ("The rest").
 - Text pairs are in contrast-pairs.json for both themes: `--rest-text` / `--text-color` / `--label-color` on
   `--rest-bg` and `--rest-surface`, and the ring at 3:1.
 - The breathing circle and ring stop moving with `prefers-reduced-motion`.
+- The count-in cover is `aria-hidden` - the screen's own "Get ready… 3" line (Warm-ups, Scales) and the metronome
+  row's "Count-in" label (play screen) say it for a screen reader.

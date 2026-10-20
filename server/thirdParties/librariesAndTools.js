@@ -76,8 +76,8 @@ export const build = [
     group: 'build',
     status: 'in_use',
     who: 'GitHub, Inc. (USA)',
-    provides: 'Holds the code (one private repository); Vercel deploys from it. Admin → Security also reads a public repository through GitHub\'s API.',
-    usedIn: 'The git remote; server/services/securityReview.js (optional GITHUB_TOKEN)',
+    provides: 'Holds the code (one private repository); Vercel deploys from it.',
+    usedIn: 'The git remote',
     plan: 'Free plan',
     cost: 'Free',
     licence: 'GitHub terms of service',
@@ -94,13 +94,12 @@ export const build = [
       { text: 'One person per login - no sharing accounts or tokens.' }
     ],
     watch: [
-      'Without a token the API allows 60 requests an hour per IP address, and Vercel shares its addresses - so set GITHUB_TOKEN for Admin → Security.',
       'Free has no branch protection on a private repository.'
     ],
     limits: [
       { what: 'Private repositories', allowance: 'Unlimited' },
       { what: 'File size', allowance: 'Blocked above 100 MB; keep the repository under 1 GB' },
-      { what: 'API requests', allowance: '60 an hour without a token, 5,000 with one' },
+      { what: 'API requests (not used by the app)', allowance: '60 an hour without a token, 5,000 with one' },
       { what: 'Actions minutes (not used)', allowance: '2,000 a month' }
     ],
     nextTier: 'Pro - $4 a month: branch protection on private repositories, 3,000 Actions minutes.',
@@ -214,7 +213,7 @@ export const build = [
     status: 'in_use',
     who: 'Google (open-source project)',
     provides: 'The list of known security holes in open-source code, looked up by the security review.',
-    usedIn: 'server/services/securityReview.js, scripts/omr-security-review.mjs',
+    usedIn: 'server/services/securityReview.js (osvLookup), for the site security review\'s package check',
     plan: 'No plan',
     cost: 'Free (no price is published)',
     licence: 'No terms of service found. The data is under open licences, mostly CC-BY 4.0.',

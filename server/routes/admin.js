@@ -37,7 +37,6 @@ import { listFlowsForAdmin, exportFlows, previewImport, previewSummary, commitIm
 import { listNotificationsForAdmin, createNotification, updateNotification, setNotificationWithdrawn, deleteNotification } from '../services/notifications.js';
 import { listRecordingsForAdmin, removeRecordingOnRequest, renameBandOnRequest } from '../services/recordingRemovals.js';
 import { closeReport } from '../services/contentReports.js';
-import { getSecurityReview, runSecurityReviewNow } from '../services/securityReview.js';
 import { getSiteSecurityReview, runSiteSecurityReviewNow } from '../services/siteSecurityReview.js';
 import thirdPartyRegister from '../thirdParties/register.js';
 import { costsAndUsage, addCost, updateCost, deleteCost, readMeters, recordManualReading, sendUsageWarnings } from '../services/thirdPartyUsage.js';
@@ -860,12 +859,13 @@ router.post('/flows/import', requireAuth, resolveAccount, requireSuperAdmin, req
 });
 
 // ========================================
-// SECURITY (ML-192) - repeatable review of the OMR service (solfascribe-omr). GET is the whole
-// page (checks, latest results, verdict, history); POST runs the automated checks now and records
-// them. The deep review's results come from the repo, not these routes - see securityReview.js.
+// SECURITY (ML-231) - the repeatable review of this site. GET is the whole page (checks, latest
+// results, verdict, history); POST runs the automated checks now and records them. The deep review's
+// results come from the repo (server/securityReviews/site.js), not these routes. (The ML-192 review of
+// the old PDF import's music-scanning service went with that import - ML-543.)
 // ========================================
 // ML-470: the reviews that come round (data protection, the Children's Code, the breach plan, and the
-// two security reviews): when each was last done, when it is due, and "Mark as reviewed".
+// site security review): when each was last done, when it is due, and "Mark as reviewed".
 router.get('/reviews', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await getReviews());
@@ -886,7 +886,7 @@ router.post('/reviews/:key', requireAuth, resolveAccount, requireSuperAdmin, req
 
 router.get('/security-review', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
-    res.json(req.query.target === 'site' ? await getSiteSecurityReview() : await getSecurityReview());
+    res.json(await getSiteSecurityReview());
   } catch (error) {
     sendError(res, error);
   }
@@ -894,13 +894,9 @@ router.get('/security-review', requireAuth, resolveAccount, requireSuperAdmin, r
 
 router.post('/security-review/run', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
-    // ML-231: ?target=site reviews this site; with nothing, the PDF import service (ML-192)
-    if (req.query.target === 'site') {
-      const runId = await runSiteSecurityReviewNow(req.accountId, process.env.APP_URL || `${req.protocol}://${req.get('host')}`);
-      return res.json({ runId, ...(await getSiteSecurityReview()) });
-    }
-    const runId = await runSecurityReviewNow(req.accountId);
-    res.json({ runId, ...(await getSecurityReview()) });
+    // ML-231: this site (the page still sends ?target=site; it is the only target since ML-543)
+    const runId = await runSiteSecurityReviewNow(req.accountId, process.env.APP_URL || `${req.protocol}://${req.get('host')}`);
+    res.json({ runId, ...(await getSiteSecurityReview()) });
   } catch (error) {
     sendError(res, error);
   }

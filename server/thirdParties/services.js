@@ -510,38 +510,5 @@ export default [
       'The model\'s answer is checked field by field before it is used (PieceRead.normalise) and anything shown from it must be escaped like any member-typed text.'
     ],
     hosts: ['ai-gateway.vercel.sh']
-  },
-  {
-    key: 'omr-service',
-    name: 'Audiveris and solfascribe-omr',
-    group: 'service',
-    status: 'not_in_use',
-    statusNote: 'Not deployed. PDF import stays off until the security conditions on Admin → Security are met.',
-    who: 'Audiveris project (open source); solfascribe-omr by James Eissah Aidoo',
-    provides: 'Reads a scanned score (PDF) and turns it into MusicXML, for "Create from file". It would run as our own separate service that the app calls.',
-    usedIn: 'server/services/scoreImport.js (AUDIVERIS_SERVICE_URL, AUDIVERIS_SERVICE_TOKEN); docs/omr-security-review.md',
-    plan: 'Self-hosted',
-    cost: 'Free software; hosting it would cost something (not chosen yet)',
-    licence: 'Audiveris: GNU AGPL v3. solfascribe-omr: MIT. It also bundles Tesseract (Apache 2.0).',
-    terms: [
-      { label: 'Audiveris licence', url: 'https://github.com/Audiveris/audiveris/blob/development/LICENSE' },
-      { label: 'solfascribe-omr licence', url: 'https://github.com/James-Aidoo/solfascribe-omr/blob/main/LICENSE' },
-      { label: 'AGPL v3', url: 'https://www.gnu.org/licenses/agpl-3.0.en.html' }
-    ],
-    termsCheckedOn: CHECKED,
-    says: [
-      'AGPL does not forbid commercial use.',
-      'Run unmodified as a separate service the app calls: nothing has to be published, and the app\'s own code is not pulled under the AGPL.',
-      'If we change Audiveris, everyone who uses it over the network must be offered our changed source, free, under the AGPL.',
-      'If we hand the built image to anyone else, the licence and source (or a link to it) must go with it.'
-    ],
-    asks: [
-      { text: 'Run Audiveris unmodified, as a separate service - never copy its code into the app.' },
-      { text: 'Keep a link to the Audiveris source (it is in this entry).' },
-      { text: 'Keep the wrapper\'s MIT notice if we copy or change it.' }
-    ],
-    watch: [
-      'The wrapper is one person\'s new project - see the security review before turning PDF import on.'
-    ]
   }
 ];

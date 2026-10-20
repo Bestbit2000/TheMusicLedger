@@ -1,12 +1,11 @@
 // ML-470: Admin -> Security -> Reviews. One list of the reviews that come round - data protection, the
-// Children's Code, the breach plan, and the two security reviews - with when each was last done, by
+// Children's Code, the breach plan, and the site security review - with when each was last done, by
 // whom, what was noted, and when it is due again. "Mark as reviewed" adds a line to review_log
 // (migration 112) and never changes an old one: the table is the audit trail.
 // Where the app can check something itself, it does (checks, below). The rules are in reviewRules.js.
 import fs from 'node:fs';
 import pool from '../config/db.js';
 import { REVIEWS, MARKED_KEYS, reviewState, needsDoing, policyDate, policyCheck, sayDay } from './reviewRules.js';
-import { getSecurityReview } from './securityReview.js';
 import { getSiteSecurityReview } from './siteSecurityReview.js';
 import thirdPartyRegister from '../thirdParties/register.js';
 import { listRecords } from './thirdPartyRecords.js';
@@ -61,7 +60,7 @@ function securityState(review, data) {
       const headers = (data.latest || {})['security-headers'];
       if (headers) checks.push({ ok: headers.status === 'pass', text: `Security headers on the live site: ${headers.summary || headers.status}` });
     }
-    if (data.upstreamChangedSinceDeepReview) checks.push({ ok: false, text: review.key === 'site-security' ? 'A release has gone out since the last full review.' : 'The service has changed since its last full review.' });
+    if (data.upstreamChangedSinceDeepReview) checks.push({ ok: false, text: 'A release has gone out since the last full review.' });
   }
   return {
     last: auto && dayOf(auto.at) ? { on: dayOf(auto.at), by: 'the automated checks', note: deep && dayOf(deep.at) ? `Last full review: ${sayDay(dayOf(deep.at))}` : 'No full review recorded' } : null,
@@ -72,13 +71,13 @@ function securityState(review, data) {
 export async function getReviews(today = new Date()) {
   const { rows } = await pool.query(
     `SELECT review_key, to_char(reviewed_on, 'YYYY-MM-DD') AS on, reviewed_by AS by, note FROM review_log ORDER BY reviewed_on DESC, id DESC`);
-  const [site, omr] = await Promise.all([part(getSiteSecurityReview), part(getSecurityReview)]);
+  const site = await part(getSiteSecurityReview);
   const reviews = [];
   for (const r of REVIEWS) {
     const history = rows.filter((x) => x.review_key === r.key).map(({ on, by, note }) => ({ on, by, note }));
     let last = history[0] || null;
     let checks = [];
-    if (r.kind === 'checks') ({ last, checks } = securityState(r, r.key === 'site-security' ? site : omr));
+    if (r.kind === 'checks') ({ last, checks } = securityState(r, site));
     else if (r.key === 'data-protection') checks = await dataProtectionChecks(last && last.on);
     reviews.push({ key: r.key, kind: r.kind, name: r.name, about: r.about, where: r.where, links: r.links || [], months: r.months, tab: r.tab || null,
       last, history: r.kind === 'marked' ? history : [], checks, ...reviewState(r, last && last.on, today) });
@@ -86,8 +85,8 @@ export async function getReviews(today = new Date()) {
   return { reviews, due: reviews.filter((r) => r.kind === 'marked' && needsDoing(r)).length };
 }
 
-// How many marked reviews are due or never done - for the Dashboard and the menu. (The security
-// reviews have their own lines there already.)
+// How many marked reviews are due or never done - for the Dashboard and the menu. (The site security
+// review has its own lines there already.)
 export async function reviewsDue(today = new Date()) {
   const { rows } = await pool.query(
     `SELECT review_key, to_char(max(reviewed_on), 'YYYY-MM-DD') AS on FROM review_log WHERE review_key = ANY($1) GROUP BY review_key`, [MARKED_KEYS]);

@@ -50,9 +50,11 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
 3. **What goes in?** (`#sessionContentView`) One row per kind of block in the plan: **Warm-up** (which warm-up
    list - it plays on a loop), **Scales** (your grade's scales in the Scales tool - or, with Scales Levels on, a card: see "Scales Levels"), **Skills** (which skills
    list). **Pieces** come from a **practice list**, **pieces you choose** (one or several, the Add pieces pick
-   list) or **all your pieces** with Levels. **Auto** (on by default) picks the bars; off, you pick each Pieces
-   block's bars on Ready. The card shows the next goal ("every 1 up to 2") and each piece's Level bar (how many bars at each Level,
-   the key under the list - an unset bar is "Not known" there) and where it is on its path.
+   list) or **all your pieces** with Levels. **Auto** (on by default; its switch on its own row with its line, ML-546) picks
+   the bars; off, you pick each Pieces block's bars on Ready. The card shows each prepared piece's Level bar (how many bars
+   at each Level, the key under the list - the empty "Not known" box only when a bar has bars with no level, ML-548; a
+   piece not prepared has no bar, just its line) and where it is on its path. No "Next goal: every 1 up to 2" line any more
+   (ML-547) - only "First: prepare the new pieces" or "Next: play them through" when that is what comes next.
 4. **Ready** (`#sessionPlanView`) - the strip and the timeline; tap a block to swap it; **Start**. A Pieces block
    offers what Auto would pick from the pieces chosen at step 3, and **"A different piece..."** (owner, 4 Oct 2026):
    any piece of yours, then which part of it (its Prepare, a focus section, a play-through part) - so one block can
@@ -78,7 +80,7 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
 - **When a block's time is up** (or Next block): Play Flow pauses where it is and any other tool is left (which
   stops it). A Pieces block asks **"Did you nail it?"** - one tap: **Yes! Level up** (a short star celebration) or
   **Not yet**; "Too fast? Back to Level N" is a link under them, and **Move up even further** opens the jumps to
-  higher Levels (owner, 1 Oct 2026). Under it, the piece's next goal with its Level bar. A Warm-ups/Scales skill asks "Got it?". Then the rest, or the next block.
+  higher Levels (owner, 1 Oct 2026). (The piece's next goal under it was taken out, ML-547.) A Warm-ups/Scales skill asks "Got it?". Then the rest, or the next block.
 - **No "Keep going" on a block** any more (owner, 30 Sept 2026): the rest always happens. For more time, pick a
   longer session or Open ended.
 - **Open ended sessions** ("Keep going" before ML-413): there's always the next block planned (the rest needs to know what's next); a new
@@ -199,7 +201,13 @@ opened from a practice list, Play Flow's menu (My Levels) and a session's Prepar
      a new bit should start (tap again to join it up); Type bars instead for from-to. The summary shows the focus
      bits (below Level 4) and about how many blocks to get them all to 4.
    Saving replaces the piece's chunks with the bits (an old chunk with the same bars keeps its id and history).
-2. **Practise** - five-minute blocks on the focus sections until **every bar is at Level 4**. On the play screen the
+2. **Practise** - five-minute blocks on the focus sections until **every bar is at Level 4**. While a block plays, the
+   session bar at the top says what's being played **now** - "Now: Floral Dance · Bars 12–20" (ML-540; it said what
+   came next, so the bars to play were only ever on the rest screen). **When the block's time runs out** part way
+   through a go, the go is finished first and the bar says "Last go"; then it stops (ML-541, `sessionGoToFinish` in
+   app.js). A go that has only just started - its gap bar or count-in, or its first bar - stops straight away. A
+   warm-up block finishes the time through the exercise it's on the same way. Next block always stops at once. The
+   count-in before a block shows big, over the play screen's metronome (ML-542). On the play screen the
    **Level** button picks a faster or slower Level while you play (ML-537 - it was a Level up button), saved as it
    happens; the **sub beats** switch starts the way the Level would set them (on when a bar's beat is slow at that
    speed) and turns them on or off for the rest of the block.

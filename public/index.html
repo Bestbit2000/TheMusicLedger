@@ -1247,10 +1247,13 @@
             <div class="flex-row gap-sm items-center">
                 <span class="kind-block kind-pieces kind-block-icon" aria-hidden="true"><span class="material-symbols-outlined">music_note</span></span>
                 <span class="grow"><strong id="sessPiecesTitle">Pieces</strong><br><span class="text-sm text-muted" id="sessPiecesSource"></span></span>
-                <label class="toggle-switch"><input type="checkbox" id="sessAutoToggle" checked aria-describedby="sessAutoNote"><span class="toggle-slider"></span><span class="visually-hidden">Auto - pick the bars for me</span></label>
             </div>
             <button type="button" class="btn-nav mt-3" id="sessPiecesSourceBtn" aria-haspopup="dialog">Choose where the pieces come from</button>
-            <p class="text-sm text-muted" id="sessAutoNote"></p>
+            <!-- ML-546: Auto, its line and its switch on one row (the switch was up by the Pieces heading, away from its words) -->
+            <div class="flex-row gap-sm items-center mt-3 mb-3">
+                <span class="grow"><strong id="sessAutoLbl">Auto</strong><br><span class="text-sm text-muted" id="sessAutoNote"></span></span>
+                <label class="toggle-switch"><input type="checkbox" id="sessAutoToggle" checked aria-labelledby="sessAutoLbl" aria-describedby="sessAutoNote"><span class="toggle-slider"></span></label>
+            </div>
             <p class="session-goal hidden-group" id="sessGoal"></p>
             <div id="sessPiecesList"></div>
         </section>
@@ -1722,20 +1725,17 @@
             <!-- ML-246: a photo of the part, or a PDF, read into Quick entry. Hidden until piece_from_photo is on
                  for you (applyFlowImportFormats). While it reads, its help line says what is happening. -->
             <button type="button" class="metroBlk-entry-choice hidden-group" id="metroBlkEntryPhotoBtn"><span class="material-symbols-outlined" aria-hidden="true">photo_camera</span><strong>From a photo or PDF</strong><span class="metro-help-text" aria-live="polite">Photograph the part, then check what was read</span></button>
-            <!-- ML-204: two gates share this tile - flow_import_musicxml ("Import from MusicXML") and
-                 flow_import_from_file (PDF/scan via OMR, ML-190). Starts hidden; its label and help line
-                 follow whichever are on (applyFlowImportFormats). -->
+            <!-- ML-204: "Import from MusicXML", behind flow_import_musicxml. Starts hidden
+                 (applyFlowImportFormats). The PDF/scan import that once shared this tile was removed by
+                 ML-543 - a photo or PDF is read by the tile above (ML-246). -->
             <button type="button" class="metroBlk-entry-choice hidden-group" id="metroBlkEntryFromFileBtn"><span class="material-symbols-outlined" aria-hidden="true">upload_file</span><strong id="metroBlkEntryFromFileLabel">Import from MusicXML</strong><span class="metro-help-text" id="metroBlkEntryFromFileHelp">Open a MusicXML or .mxl file from notation software</span></button>
         </div>
     </div>
 
-    <!-- ML-79: "Create from file". Phase 1 (MusicXML/.mxl, parsed directly - server/services/
-         scoreImport.js) landed first; Phase 2 adds PDF/scan import via an external OMR service
-         (runOmr - AUDIVERIS_SERVICE_URL, not deployed anywhere yet) that turns the scan into
-         MusicXML first, then runs it through that exact same parser. A PDF pick still works end to
-         end here even with no OMR service configured - it just surfaces that as a clear toast at
-         the /flows/from-file step (scoreImport.js's runOmr) rather than failing silently or
-         pretending PDF isn't accepted. Reuses the Media tab's own upload-progress markup/classes
+    <!-- ML-79: "Import from MusicXML" - a MusicXML/.mxl file, parsed directly (server/services/
+         musicXmlImport.js, the /flows/from-file route). The PDF/scan import through an outside music-
+         scanning service that once shared this screen was removed by ML-543; a photo or PDF of a part
+         is read by "From a photo or PDF" (ML-246). Reuses the Media tab's own upload-progress markup/classes
          (flow-upload-progress*) rather than inventing a second version of the same thing.
          handleFromFileUpload (app.js) drives the upload + parse. "Continue to flow" then hands over
          to the exact same Create flow journey as "Create your own" (ML-204). -->
@@ -1748,14 +1748,13 @@
         <button type="button" class="flow-from-file-dropzone" id="flowFromFileDropBtn">
             <span class="material-symbols-outlined" aria-hidden="true">upload_file</span>
             <strong>Tap to browse score file</strong>
-            <span class="metro-help-text" id="flowFromFileDropHelp">Select a PDF scan, MusicXML, or .mxl</span>
+            <span class="metro-help-text" id="flowFromFileDropHelp">Select a MusicXML or .mxl file</span>
             <div class="flow-from-file-chip-row">
-                <span class="flow-pill" id="flowFromFilePdfChip">PDF</span>
                 <span class="flow-pill">MUSICXML</span>
                 <span class="flow-pill">MXL</span>
             </div>
         </button>
-        <input type="file" id="flowFromFileInput" class="hidden-group" accept=".pdf,.musicxml,.mxl,application/pdf,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml">
+        <input type="file" id="flowFromFileInput" class="hidden-group" accept=".musicxml,.mxl,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml">
 
         <div class="flow-upload-progress hidden-group" id="flowFromFileProgress">
             <div class="flow-upload-progress-text"><span id="flowFromFileProgressLabel">Uploading&hellip;</span><span id="flowFromFileProgressPercent">0%</span></div>
@@ -1989,6 +1988,8 @@
         <div class="flow-media-carousel-viewport" id="flowMediaViewport">
             <div class="flow-media-carousel-track" id="flowMediaTrack">
                 <div class="flow-media-slide" data-slide-type="metronome">
+                    <!-- ML-542: the big count-in, over the controls (never the music) - showCountIn in app.js -->
+                    <div class="count-in-cover hidden-group" id="flowCountIn" aria-hidden="true"><div class="rest-ring"><svg class="rest-ring-svg" viewBox="0 0 120 120"><circle class="rest-ring-track" cx="60" cy="60" r="52"></circle><circle class="rest-ring-left" cx="60" cy="60" r="52" pathLength="100"></circle></svg><div class="rest-ring-num"><strong>4</strong><span>get ready</span></div></div></div>
                     <div class="metroBlk-rows">
                         <div class="metroBlk-row metroBlk-row-current">
                             <div class="metroBlk-row-head">
@@ -3230,6 +3231,8 @@
             <button type="button" class="btn-text hidden-group" id="scalesLevelLink" aria-haspopup="dialog">Level 1 - change</button>
         </section>
         <section class="flow-card scales-staff-card scales-metronome-card" aria-labelledby="scalesMetronomeLbl">
+            <!-- ML-542: the big count-in, over the controls (never the music) - showCountIn in app.js -->
+            <div class="count-in-cover hidden-group" id="scalesCountIn" aria-hidden="true"><div class="rest-ring"><svg class="rest-ring-svg" viewBox="0 0 120 120"><circle class="rest-ring-track" cx="60" cy="60" r="52"></circle><circle class="rest-ring-left" cx="60" cy="60" r="52" pathLength="100"></circle></svg><div class="rest-ring-num"><strong>4</strong><span>get ready</span></div></div></div>
             <div class="scales-staff-head">
                 <h2 class="scales-staff-title" id="scalesMetronomeLbl">Use metronome</h2>
                 <label class="toggle-switch" id="scalesMetronomeSwitch"><input type="checkbox" id="scalesMetronomeToggle" aria-labelledby="scalesMetronomeLbl"><span class="toggle-slider"></span></label>
@@ -3280,12 +3283,6 @@
          Previous / Next / Shuffle / Select under it; then Use metronome. Exercises come from /api/warmups
          (Admin -> Warm-ups); drawn by public/warmups.js + Notation.staff. See specs/components/warmups.md. -->
     <div id="warmupsView" class="hidden-group">
-        <!-- ML-390: in a practice session's Warm-up block the list plays on a loop until the block ends -
-             one exercise after another, each round a little faster (PracticePlan.warmupRoundBpm). -->
-        <section class="warmup-loop hidden-group" id="warmupsLoopCard" aria-live="polite">
-            <span class="material-symbols-outlined warmup-loop-icon" aria-hidden="true">sync</span>
-            <span class="grow"><strong id="warmupsLoopTitle">On a loop for the whole block</strong><br><span class="text-sm" id="warmupsLoopText"></span></span>
-        </section>
         <div class="metro-transport-grid scales-setting-row is-centred">
             <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="warmupsSettingsBtn" aria-haspopup="dialog" aria-label="Warm-ups - your instrument and the topics"><strong><span class="material-symbols-outlined" aria-hidden="true">playlist_add_check</span></strong><span class="metroBlk-ctrl-value-label">warm-ups</span></button>
             <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="warmupsClefBtn" aria-haspopup="dialog" aria-label="Clef - tap to change"><strong id="warmupsClefVal">Treble</strong><span class="metroBlk-ctrl-value-label">clef</span></button>
@@ -3308,6 +3305,8 @@
             </div>
         </section>
         <section class="flow-card scales-staff-card scales-metronome-card" aria-labelledby="warmupsMetronomeLbl">
+            <!-- ML-542: the big count-in, over the controls (never the music) - showCountIn in app.js -->
+            <div class="count-in-cover hidden-group" id="warmupsCountIn" aria-hidden="true"><div class="rest-ring"><svg class="rest-ring-svg" viewBox="0 0 120 120"><circle class="rest-ring-track" cx="60" cy="60" r="52"></circle><circle class="rest-ring-left" cx="60" cy="60" r="52" pathLength="100"></circle></svg><div class="rest-ring-num"><strong>4</strong><span>get ready</span></div></div></div>
             <div class="scales-staff-head">
                 <h2 class="scales-staff-title" id="warmupsMetronomeLbl">Use metronome</h2>
                 <label class="toggle-switch"><input type="checkbox" id="warmupsMetronomeToggle" aria-labelledby="warmupsMetronomeLbl"><span class="toggle-slider"></span></label>
@@ -3986,10 +3985,6 @@
         <div class="hidden-group" id="levelRateMore">
             <p class="text-sm fw-bold mb-2 hidden-group" id="levelRateJumpLabel">It was easy - jump to</p>
             <div class="level-picker hidden-group" id="levelRateJump" role="group" aria-labelledby="levelRateJumpLabel"></div>
-        </div>
-        <div class="session-goal-card hidden-group" id="levelRateGoal">
-            <p class="text-sm fw-bold no-margin" id="levelRateGoalText"></p>
-            <div class="mt-1" id="levelRateGoalBar"></div>
         </div>
     </div>
 </div>

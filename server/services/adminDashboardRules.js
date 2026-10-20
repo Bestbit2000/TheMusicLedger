@@ -19,8 +19,6 @@ export function needsYou({ feedback, attention, limits, tests, security, reviews
   if (security && security.siteFailing) list.push({ level: 'fail', page: 'security', text: `${plural(security.siteFailing, 'security check on this site is', 'security checks on this site are')} failing` });
   if (security && security.siteRunDue) list.push({ level: 'warn', page: 'security', text: 'The monthly security checks on this site are due' });
   if (security && security.siteChanged) list.push({ level: 'info', page: 'security', text: 'A release has gone out since this site\'s last full security review' });
-  if (security && security.upstreamChanged) list.push({ level: 'warn', page: 'security', text: 'The PDF import service has changed since its last full security review' });
-  if (security && security.runDue) list.push({ level: 'warn', page: 'security', text: 'The automated security checks are due to be run again' });
   if (reviews) list.push({ level: 'warn', page: 'security', text: `${plural(reviews, 'review is', 'reviews are')} due - data protection, the Children's Code or the breach plan` }); // ML-470
   if (feedback) list.push({ level: 'info', page: 'feedback', text: `${plural(feedback, 'piece', 'pieces')} of feedback not looked at yet` });
   if (attention) list.push({ level: 'info', page: 'third-parties', text: `${plural(attention, 'third-party item needs', 'third-party items need')} attention` });

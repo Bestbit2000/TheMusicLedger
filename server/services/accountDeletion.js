@@ -15,6 +15,7 @@ import pool from '../config/db.js';
 import { deletedEmailHash, forgetTokenVersion } from './tokenVersions.js';
 import { forgetAccountLevel } from './accounts.js';
 import { sendMail, emailOutcome } from './mail.js';
+import { sweepReadUploads, readUploadPrefix } from './pieceReads.js';
 
 // Tables whose rows stay attached to the anonymised account: the statistics, and the bands the
 // member started (a band carries on for its other members).
@@ -120,6 +121,8 @@ export async function deleteMyAccount(accountId) {
   if (blobUrls.length) {
     try { await del(blobUrls); } catch (error) { console.error(`Account deletion: ${blobUrls.length} stored file(s) could not be removed:`, error.message); }
   }
+  // ML-553: any photo or PDF pages still waiting in the account's read folder go too
+  await sweepReadUploads({ prefix: readUploadPrefix(accountId), olderThanMs: -1 }).catch((error) => console.error('Account deletion: photo read pages not removed:', error.message));
   return { deleted: true, filesRemoved: blobUrls.length };
 }
 

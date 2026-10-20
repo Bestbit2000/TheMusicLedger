@@ -357,16 +357,15 @@
         <!-- ML-170: triage. Two independent filter rows rather than one combined list of options -
              status and category answer different questions ("what still needs doing" vs "what kind
              of thing is it") and are routinely used together, e.g. untriaged + under review. -->
-        <!-- ML-192: security review of third-party services - checks, latest results, run history.
+        <!-- ML-231: the security review of this site - checks, latest results, run history.
              Automated checks re-run from here ("Run now"); the deep review is done by Claude Code
-             in a session and recorded in server/securityReviews/ (docs/omr-security-review.md). -->
+             in a session and recorded in server/securityReviews/site.js (docs/site-security-review.md). -->
         <section id="security-section" class="admin-section hidden-group">
             <h1>Security</h1>
-            <!-- ML-231: two reviews on one page - this site, and the PDF import service (ML-192).
-                 ML-470: and Reviews - every review that comes round, with when it was last done and when it is due. -->
+            <!-- ML-231: this site's review. ML-470: and Reviews - every review that comes round, with when it
+                 was last done and when it is due. (The PDF import service's tab, ML-192, went with that import - ML-543.) -->
             <div class="admin-subtabs" role="tablist" aria-label="What is reviewed">
                 <button type="button" class="admin-subtab-item active" role="tab" aria-selected="true" data-security-target="site">This site</button>
-                <button type="button" class="admin-subtab-item" role="tab" aria-selected="false" data-security-target="omr">PDF import service</button>
                 <button type="button" class="admin-subtab-item" role="tab" aria-selected="false" data-security-target="reviews">Reviews</button>
             </div>
             <p class="admin-intro" id="securityIntro"></p>
@@ -500,7 +499,7 @@
             <div class="form-group"><label for="warmupTitleInput">Title</label><input type="text" id="warmupTitleInput" maxlength="80" placeholder="e.g. Long tones down from G"></div>
             <div class="form-group"><label for="warmupKindInput">Kind</label><select id="warmupKindInput"></select></div>
             <div class="form-group"><label for="warmupBpmInput">Tempo (bpm)</label><input type="number" id="warmupBpmInput" min="30" max="200"></div>
-            <div class="form-group"><label for="warmupBeatsInput">Beats in a bar</label><select id="warmupBeatsInput"><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option></select></div>
+            <div class="form-group"><label for="warmupBeatsInput">Beats in a bar</label><select id="warmupBeatsInput"><option value="3">3</option><option value="4">4</option></select></div>
         </div>
         <div class="form-group"><label for="warmupTipInput">Tip (shown with the exercise)</label><textarea id="warmupTipInput" rows="2" maxlength="200"></textarea></div>
         <div class="setting-row setting-row-grouped">
@@ -658,7 +657,7 @@
         <div class="form-group"><label for="featureDescInput">Description</label><textarea id="featureDescInput" rows="3"></textarea></div>
         <!-- ML-190: shown for both add and edit (unlike durationActiveRow's edit-only equivalent) -
              unlike a duration preset, a feature can meaningfully be created already disabled, same
-             as flow_import_from_file's own seed row (042_features_enabled.sql). Label-then-switch,
+             as the old PDF import's own seed row was (042_features_enabled.sql). Label-then-switch,
              space-between - same convention as Settings' own Dark mode/Show flats toggles
              (index.html), not the switch-then-label order the duration/time signature/speed forms
              above use. -->

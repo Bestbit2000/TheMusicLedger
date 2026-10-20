@@ -25,7 +25,7 @@ if (!Number.isInteger(accountId)) {
 const { default: pool } = await import('../server/config/db.js');
 const { createFlow, updateFlowMetadata, addYouTubeRecording, deleteFlow } = await import('../server/services/flows.js');
 const { createFlowBlock } = await import('../server/services/flowBlocks.js');
-const { resolveBlocksForAccount } = await import('../server/services/scoreImport.js');
+const { resolveBlocksForAccount } = await import('../server/services/musicXmlImport.js');
 
 try {
   const { rows: existing } = await pool.query(

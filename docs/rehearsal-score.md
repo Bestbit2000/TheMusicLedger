@@ -235,7 +235,7 @@ permission for... If it is a recording of people, make sure they know it is bein
 migration 119, `POST /api/account/upload-rights`); after that it is not asked again.
 
 - Every button that opens a file chooser for music goes through `withUploadRights` (app.js): a piece's
-  recording and document, Quick entry's two, Create from file, and the Recordings tool.
+  recording and document, Quick entry's two, Import from MusicXML, and the Recordings tool.
 - It is the app asking, not the server refusing: an upload is not blocked on the server for an account
   that has not confirmed. The terms of use carry the same rule for everyone.
 - The date is the member's own information: it is in Download my information and is cleared when the
@@ -316,7 +316,7 @@ note is his to keep with the self-assessment (`compliance-documents/`, not in th
 | Best interests, detrimental use | A recording of the band is the band's music. No comments, no marking of places, nothing that singles out a player. Met. |
 | Impact assessment | Recordings of rehearsals with children in them is new. **The impact assessment needs a section on it** (drafted in the note). |
 | Transparency | The policy's "Young players" part says what is known about a young player "is all" - it needs a line on recordings. **The owner's wording; a draft is in the note.** |
-| Default settings | A recording is private to whoever uploaded it. Only a band's organiser can put it on a band's piece. Met. |
+| Default settings | A recording is private to whoever uploaded it. On a band's piece, only an organiser - or a member an organiser has given "change music" - can add one; through the Recordings tool, only an organiser. Nobody can give anyone else that right except an organiser (the owner, 20 Oct 2026, ML-231 review). Met. |
 | Data minimisation | **Changed:** the tool now takes sound only. A video of a youth band is far more than practising needs. |
 | Data sharing | Heard only by the band it was given to. A public piece never carries a recording. Vercel, which stores it, is under contract. Met. |
 | Nudge techniques, profiling | The limit is said once and blocks nothing else. Nothing is worked out about a player from a recording. Met. |

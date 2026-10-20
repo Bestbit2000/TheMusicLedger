@@ -6,7 +6,6 @@ One file format, one parser, for every way a Flow leaves or enters the app as no
 |---|---|---|
 | Copy flows between environments (e.g. production → dev/sandbox for testing) | Admin panel → **Flows** (export / import, bulk, any owner) | super admin only |
 | Create a flow from a `.musicxml`/`.mxl` file | Flow start screen → **Import from MusicXML** (`/api/flows/from-file`) | `flow_import_musicxml` |
-| Create a flow from a PDF/scan | Same screen, shown as **Create from file** when this is on - OMR/AI turns the scan into MusicXML first (`scoreImport.js`'s `runOmr`), then the same parser | `flow_import_from_file` (off until the OMR dependency's security review - [`omr-security-review.md`](omr-security-review.md), currently "not yet") |
 | Download one of your flows | Flow library ⋮ → **Export to MusicXML** (`GET /api/flows/:id/musicxml`) | `flow_export_musicxml` |
 | Local dev | `scripts/seed-flow-fixtures.mjs`, `scripts/export-flow-musicxml.mjs` |
 
@@ -17,13 +16,12 @@ Code:
 | `server/services/flowMusicXml.js` | `flowToMusicXml` - the writer. Pure, no DB. |
 | `server/services/flowMusicXmlReader.js` | `musicXmlToFlow` - the reader. Pure, no DB. |
 | `server/services/flowTransfer.js` | DB side: admin list, export (single file / `.zip`), import preview + commit |
-| `server/services/scoreImport.js` | Create-from-file front end: `.mxl` unzipping, OMR for PDFs, time-signature id resolution |
+| `server/services/musicXmlImport.js` | Import-from-MusicXML front end: `.mxl` unzipping (with the zip-bomb cap), the own-store and capped-read guards, time-signature id resolution |
 | `server/test/` | `npm test` in `server/` - see "Tests" below |
 
 ## Why MusicXML (not a private JSON format)
 
-Flows had to come *in* as MusicXML anyway (create-from-file, and PDF import via OMR/AI, which
-produces MusicXML). Using the same format for environment-to-environment copies means there's
+Flows had to come *in* as MusicXML anyway (Import from MusicXML, from notation software). Using the same format for environment-to-environment copies means there's
 exactly one parser, and every improvement to it helps both jobs. MusicXML already has a standard
 element for almost every Flow field; the few app-only settings travel in MusicXML's own extension
 slots, which other software ignores - so an exported flow also opens meaningfully in MuseScore,
@@ -91,7 +89,7 @@ denominator's.)
 - **Our own export** (block markers present): block boundaries from the markers, fields from the
   standard elements, app-only fields from the extension. **Lossless** - proven by the round-trip
   test for every fixture, and end-to-end on dev (file → DB → file is byte-identical).
-- **Anything else** (notation apps, OMR/AI output, or one of our exports edited and re-saved in
+- **Anything else** (notation apps, a music-scanning app's output, or one of our exports edited and re-saved in
   another program - which drops the extension): standard elements only. Bars are grouped into
   blocks wherever something structural starts or ends (time/tempo change, repeat, volta, sign,
   jump, rehearsal mark, double/final barline, the pickup), so identical bars in between become one
@@ -117,10 +115,12 @@ marking at all (100 bpm).
 "For every action there should be a re-action": if you can import MusicXML, you can export it.
 
 - **Import from MusicXML** (Flow start screen): one `.musicxml`/`.mxl` file → a new personal flow,
-  the file itself attached to its Media. The start-screen label, help text, accepted file types
-  and screen title follow whichever import gates are on (`applyFlowImportFormats`, `app.js`), so
-  it never offers a format the server would refuse - and the server enforces the same split by
-  file *content* (a PDF is detected by its `%PDF` header, not its name). Any reader warnings are
+  the file itself attached to its Media. The start-screen tile shows only while
+  `flow_import_musicxml` is on (`applyFlowImportFormats`, `app.js`) and the file chooser takes
+  `.musicxml`/`.mxl` only; the server refuses a PDF by its *content* (its `%PDF` header, not its
+  name) and points to "From a photo or PDF" instead. (Until ML-543, 20 Oct 2026, a PDF/scan import
+  through an outside music-scanning service, `flow_import_from_file`, shared this screen; it was
+  removed - a photo or PDF of a part is read by ML-246, `docs/piece-from-photo.md`.) Any reader warnings are
   listed on the result card under "Worth checking". "Continue to flow" then hands over to **exactly the same Create flow
   journey as "Create your own"** - Create mode, Details tab first, the same sticky-bar buttons ("Add
   media" / "Done" on Bars, which ends on My music - ML-400) - the only difference being "Review bars >" instead of "Add bars >"
@@ -167,7 +167,8 @@ preview says so.
 | `flowMusicXml.test.js` | Writer output, element by element; committed fixture files match a fresh render |
 | `musicXmlSchema.test.js` | Every written file validates against the official MusicXML 4.0 XSD (`test/schema/`, via `xmllint-wasm`) |
 | `flowMusicXmlRoundTrip.test.js` | Lossless write → read for every fixture, compared after `validateSegmentPayload` |
-| `flowMusicXmlForeign.test.js` | Hand-written notation-app-style and OMR-style files, the demo score, and our own exports with the extension stripped |
+| `flowMusicXmlForeign.test.js` | Hand-written notation-app-style and scanning-app-style (OMR) files, the demo score, and our own exports with the extension stripped |
+| `musicXmlImportGuards.test.js` | The import's guards: only this app's own file store, capped reads, an `.mxl` zip bomb refused (honest and forged size headers) |
 
 Fixture flows (`server/test/fixtures/flowFixtures.js`) cover every block-editor option across
 five flows (jumps are one-per-piece, so D.S. al Coda / D.S. al Fine / D.C. al Coda / D.C. al Fine

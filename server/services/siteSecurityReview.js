@@ -1,5 +1,5 @@
-// ML-231: a repeatable security review of this site itself, shown on Admin -> Security beside the
-// OMR service's review (ML-192) and built on the same pieces (securityReview.js): a list of checks in
+// ML-231: a repeatable security review of this site itself, shown on Admin -> Security and built on the
+// shared pieces in securityReview.js (from the ML-192 review it began beside): a list of checks in
 // sections, automated ones re-run by "Run now" and kept in the database, and deep ones done by Claude
 // Code in a session and recorded in server/securityReviews/site.js. Full write-up:
 // docs/site-security-review.md.

@@ -106,8 +106,10 @@ Worth knowing about the figures:
 - **Vercel Pro is in "Invite only"**, not just the paid scenarios: Vercel's data processing agreement
   covers only its paid plans. It is the owner's decision; switching it off shows the bare cost.
 - **A domain is in "Invite only"**: without one the app's email can only come from a Gmail account. (The app has had one, notablybetter.com, since October 2026.)
-- **Estimates**, marked as such on the page: a solicitor's read of the terms, the domain, a server for PDF
-  import, paid uptime checks, and the 3,000 members at which a paid email plan is assumed to start (no provider is chosen yet).
+- **Estimates**, marked as such on the page: a solicitor's read of the terms, the domain, paid uptime
+  checks, and the 3,000 members at which a paid email plan is assumed to start (no provider is chosen yet).
+  (A small server for PDF import was a starting cost until ML-543 removed that import on 20 October 2026;
+  a plan saved before then keeps the line until it is taken off on the page.)
 - **Placeholders:** the member numbers for years 2 to 5, and the counts for other income. They are there
   to be typed over.
 - **Not confirmed** when the figures were read: Apple's price in pounds, the pound price of Claude Max

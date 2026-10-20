@@ -1281,6 +1281,8 @@
     .metroBlk-entry-choice strong { font-size: var(--font-md); }
     .metroBlk-ctrl-value-btn { position: relative; height: 60px; min-width: 74px; padding: 0 var(--space-3); border: 1px solid var(--control-border); border-radius: var(--radius-lg); background: var(--input-bg); color: var(--text-color); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: var(--line-height-snug); box-sizing: border-box; }
     .metroBlk-ctrl-value-btn strong { font-size: var(--font-md); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; }
+    /* ML-550: a value too long for the box (the repeat's 101–124) - smaller, on two lines */
+    .metroBlk-ctrl-value-btn strong.is-two-line { font-size: var(--font-sm); line-height: var(--line-height-tight); }
     /* Caption under a control's icon/value. Inherits the button's text colour so it always matches the
        icon above it (Play/Reset/Start/Stop on their filled fills) - only a neutral value box mutes it. */
     .metroBlk-ctrl-value-label { font-size: var(--font-xs); color: inherit; white-space: nowrap; }
@@ -1719,7 +1721,7 @@
     .flow-action-btn .material-symbols-outlined { font-size: var(--icon-md); }
     .flow-action-btn-wide { width: 100%; margin-top: var(--space-3); box-sizing: border-box; }
 
-    /* ML-79 Phase 1: "Create from file" (flowFromFileView) - the tip banner ahead of the dropzone,
+    /* ML-79 Phase 1: "Import from MusicXML" (flowFromFileView) - the tip banner ahead of the dropzone,
        same "informational, not a warning" tone as elsewhere, so it reads as a plain lightbulb tip
        (--secondary-color's pale wash) rather than borrowing --warning-color/--info-color, which
        already carry a specific meaning (toasts) elsewhere in this app. */
@@ -2871,6 +2873,12 @@
     .rest-ring-left { stroke: var(--rest-ring); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 60px 60px; stroke-dasharray: 100 100; stroke-dashoffset: calc(100 - var(--rest-left, 1) * 100); transition: stroke-dashoffset var(--duration-pulse) linear; }
     .rest-ring-num { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; font-size: var(--font-sm); color: var(--label-color); }
     .rest-ring-num strong { font-size: var(--font-2xl); line-height: var(--line-height-tight); color: var(--rest-text); font-variant-numeric: tabular-nums; }
+    /* ML-542: the big count-in - the rest ring on the rest panel's colour, with the beats left in it, covering the
+       controls (Warm-ups' and Scales' metronome card, the play screen's metronome) while the count-in clicks. It
+       never covers the music: the stave and the bars sit outside its box. Taps go through to the buttons under it. */
+    .scales-metronome-card, .flow-media-slide { position: relative; }
+    .count-in-cover { position: absolute; inset: 0; z-index: var(--z-sticky); display: grid; place-items: center; border-radius: inherit; background: var(--rest-bg); pointer-events: none; }
+    .count-in-cover .rest-ring-num strong { font-size: var(--font-3xl); }
     .rest-card { width: 100%; box-sizing: border-box; display: grid; justify-items: center; gap: var(--space-2); padding: var(--space-5) var(--space-4); border-radius: var(--radius-xl); background: var(--rest-surface); text-align: center; }
     .rest-art { min-height: calc(var(--touch-target) * 2); display: grid; place-items: center; }
     .rest-art .material-symbols-outlined { font-size: calc(var(--icon-xl) * 2); color: var(--rest-text); }
@@ -2931,8 +2939,6 @@
     .levelup-pair .level-chip { width: calc(var(--touch-target) + var(--space-2)); height: calc(var(--touch-target) + var(--space-2)); font-size: var(--font-xl); border-radius: var(--radius-lg); }
 
     /* A session's Warm-up block on a loop (ML-390) */
-    .warmup-loop { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); margin-bottom: var(--space-3); border: 2px solid var(--kind-warmup); border-radius: var(--radius-lg); background: var(--kind-warmup-tint); }
-    .warmup-loop-icon { color: var(--kind-warmup-text); font-size: var(--icon-lg); }
     @media (prefers-reduced-motion: reduce) {
         .time-block.is-new, .build-slot.is-new, .levelup.is-celebrating .levelup-stars .material-symbols-outlined, .levelup.is-celebrating .levelup-pair .level-chip:last-child { animation: none; }
         .rest-breath { animation: none; transform: scale(1.6); }
@@ -2961,7 +2967,7 @@
        (flowKeepLitTileInView; --play-pin-h is the top bar's height plus the pinned part's, set by app.js). Not on a screen too
        short to leave room for the tiles. */
     @media (min-height: 600px) {
-        #flowPlayView > .play-side { display: block; position: sticky; top: var(--header-h, var(--space-0)); z-index: var(--z-sticky); background: var(--container-bg); margin-top: calc(-1 * var(--space-3)); padding: var(--space-3) 0 var(--space-2); } /* the tuner starts --space-3 above its place (its own negative margin): the top padding, taken back by the margin, keeps that inside the pinned box instead of under the top bar */
+        #flowPlayView > .play-side { display: block; position: sticky; top: var(--header-h, var(--space-0)); z-index: var(--z-sticky); background: var(--container-bg); margin-top: calc(-1 * var(--space-3)); padding: calc(var(--space-3) * 2) 0 var(--space-2); } /* the tuner starts --space-3 above its place (its own negative margin): the top padding, taken back by the margin, keeps that inside the pinned box instead of under the top bar. ML-549: and --space-3 more, so the metronome / video switch isn't squeezed up against the top bar (or the session bar) */
     }
     #flowPlayTiles > * { scroll-margin-top: calc(var(--play-pin-h) + var(--space-2)); }
     .nav-rail-head { display: none; }

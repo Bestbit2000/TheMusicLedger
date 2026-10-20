@@ -109,9 +109,9 @@ is in the Google OAuth app's authorised redirect URIs. Left as-is:
 Vercel's own Deployment Protection still gates the sandbox Preview behind a
 Vercel account login - intentional for now, not something this ticket
 needed to change. `AUDIVERIS_SERVICE_URL` (mentioned in the original
-ticket as possibly needing a per-environment value) isn't set for *any*
-environment yet, matching `flow_import_from_file` still being feature-gated
-off - nothing sandbox-specific to add there until that ships.
+ticket as possibly needing a per-environment value) was never set for any
+environment, and is no longer read at all: the PDF import it served was
+removed by `ML-543` (20 Oct 2026). If it is found set anywhere, delete it.
 1a. **ML-179**: attach a Vercel Blob store to the project (Vercel dashboard),
     which auto-provisions `BLOB_READ_WRITE_TOKEN` for production/preview -
     then copy that same token into local `.env` (see `.env.example`) for

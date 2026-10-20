@@ -16,10 +16,11 @@ describe('vercel.json carries the security headers for the pages', () => {
     assert.ok(rule, 'vercel.json has no "headers" rule for /(.*)');
     assert.equal(rule.headers.length, Object.keys(declared).length, 'a header is declared twice');
   });
-  test('it is the same list the app sends from Express', () => {
-    // The content security policy is either report-only or enforced (ML-474) - the same policy either way
-    const enforced = 'Content-Security-Policy' in declared;
-    assert.deepEqual(declared, securityHeaders({ enforceCsp: enforced }), HINT);
+  test('it is the same list the app sends from Express - with the policy enforced', () => {
+    // ML-555: the policy has been switched on for the pages since 7 Oct 2026 (ML-474). A plain run of the sync script once
+    // put them back to report-only (0.63.0) and nothing noticed, so a report-only vercel.json now fails the release.
+    assert.ok('Content-Security-Policy' in declared, 'vercel.json declares the content security policy report-only - run `npm run sync-vercel-headers` (enforced is its default)');
+    assert.deepEqual(declared, securityHeaders({ enforceCsp: true }), HINT);
   });
   test('the review would pass a page that carries them', () => {
     const page = { ...declared, 'Strict-Transport-Security': 'max-age=63072000' }; // Vercel adds this one itself

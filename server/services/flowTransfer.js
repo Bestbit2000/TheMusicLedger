@@ -16,7 +16,7 @@ import { listFlowBlocksUnchecked, createFlowBlock } from './flowBlocks.js';
 import { validateSegmentPayload } from './metronomeSegments.js';
 import { flowToMusicXml, musicXmlFileName } from './flowMusicXml.js';
 import { musicXmlToFlow } from './flowMusicXmlReader.js';
-import { extractMusicXmlText, resolveBlocksForAccount } from './scoreImport.js';
+import { extractMusicXmlText, resolveBlocksForAccount } from './musicXmlImport.js';
 export { musicXmlFileName } from './flowMusicXml.js';
 
 // Comfortably inside Vercel's ~4.5MB request body cap - a flow exports to single-digit KB, so this

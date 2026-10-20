@@ -6,8 +6,7 @@
   `.plan-card-head`, `.plan-row` with `.has-menu`, `.kind-strip`, `.kind-strip-compact`, `.kind-strip-more`, `.kind-key`, `.kind-block`, `.kind-block-label`, `.kind-block-icon`,
   `.is-empty`, `.kind-warmup`, `.kind-scales`, `.kind-skills`, `.kind-pieces`, `.kind-theory`, `.build-slots`, `.build-slot`,
   `.build-slot-time`, `.build-palette`, `.build-add`, `.session-goal`, `.session-goal-card`, `.session-piece`,
-  `.session-piece-head`, `.levelup`, `.levelup-stars`, `.levelup-pair`, `.is-celebrating`, `.warmup-loop`,
-  `.warmup-loop-icon`)
+  `.session-piece-head`, `.levelup`, `.levelup-stars`, `.levelup-pair`, `.is-celebrating`)
 - **Category:** Flow / input
 - **Status:** New (ML-390)
 
@@ -27,7 +26,6 @@ the Pick a plan pop-up; the plan's blocks in colour underneath), **What's in it*
   `.build-slot`; tap a slot to empty it.
 - **"Did you nail it?"** (`.levelup` in `#levelRateModal`): the Level pair (1 -> 2), one-tap Yes / Not yet, and a
   short star pop on a Yes (`.is-celebrating`, none with reduced motion).
-- **The warm-up loop card** (`.warmup-loop`) tops the Warm-ups screen during a session's Warm-up block.
 - **Don't use** the kind colours for anything but kinds of practice block.
 
 ## 3. Anatomy
@@ -49,8 +47,9 @@ the Pick a plan pop-up; the plan's blocks in colour underneath), **What's in it*
 - Build: `.build-slots` › `button.kind-block.build-slot` (`.build-slot-time` - in the kind's `-text` colour on a filled
   slot, `--label-color` on an empty one - icon, `.kind-block-label`) ›
   `.build-palette` › `button.kind-block.build-add` × 4.
-- Step 3: `.history-item.settings-link` rows with a `.kind-block` in the icon slot; the Pieces `.flow-card` ›
-  `.session-goal` ("Next goal: every 1 up to 2") › `.session-piece` rows with a `.level-strip`.
+- Step 3: `.history-item.settings-link` rows with a `.kind-block` in the icon slot; the Pieces `.flow-card` › the
+  source button › the Auto row (label and line, then the `.toggle-switch`, ML-546) › `.session-goal` (only "First: prepare
+  the new pieces" / "Next: play them through" - ML-547) › `.session-piece` rows with a `.level-bar`.
 - Ready: `.kind-strip` › block rows (`.history-item` › `.level-row-body` › `.session-block-time` + `.kind-block`).
 
 ## 4. Tokens used

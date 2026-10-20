@@ -333,6 +333,9 @@ app already does well: contracts with two providers, three short written records
   (`accounts.token_version`). The admin panel is closed to everyone but super admins on the server, not
   just hidden. The one outside service that handles uploads (PDF import) has had a recorded security
   review and stays switched off until its conditions are met (`docs/omr-security-review.md`).
+  *Note, 20 October 2026 (ML-543): that PDF import, its outside service and its review have since been
+  removed, so no outside service handles uploads for it any more; the review document is in git history
+  only. A photo or PDF is now read by ML-246 (`docs/piece-from-photo.md`).*
 - **Met, new.** The app no longer leaves a member's data on a shared device after sign-out (ML-220).
 - **Gap.** The live site sends HSTS but no Content-Security-Policy, X-Content-Type-Options, X-Frame-Options
   or Referrer-Policy. The sign-in token is kept in the browser's storage, so a script-injection bug would

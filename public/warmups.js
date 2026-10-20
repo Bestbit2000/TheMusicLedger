@@ -29,6 +29,9 @@
     const PITCH_RE = /^([A-G])(bb|b|#|x)?([0-8])$/;
     // The written range an exercise may use (treble clef): a low F# (lowest brass valve note) to high C.
     const RANGE = ['F#3', 'C6'];
+    // ML-539: the beats in a bar a warm-up can be saved with (the count-in is one bar - 3 or 4 clicks). check()
+    // still reads 2-6, so nothing old fails to draw.
+    const SAVE_BEATS = [3, 4];
 
     const beatsOf = (n) => LENGTHS[n.d] * (n.dot ? 1.5 : 1);
     function midi(p) {
@@ -117,7 +120,9 @@
     // Each row also has its slurs (Notation spans, ML-361): a run of notes marked `sl` and the note
     // after it; a slur that runs past the end of a row runs on to the row's end (openEnd) and comes in
     // from the start of the next (openStart), as printed.
-    function rows(ex, clef = 'treble', { perRow = 8, barsPerRow = 4, cls = 'warmup-note' } = {}) {
+    // repeat (ML-538): it's played more than once in a row - the end is a repeat sign (back to the start), not
+    // the final barline.
+    function rows(ex, clef = 'treble', { perRow = 8, barsPerRow = 4, cls = 'warmup-note', repeat = false } = {}) {
         const { bars } = check(ex);
         const notes = ex.notes || [];
         const out = [];
@@ -157,7 +162,7 @@
                     items.push({ type: 'note', pitch: p, accidental: show, head, dots: n.dot ? 1 : 0, cls: c });
                 });
                 const lastBar = r === out.length - 1 && b === rowBars.length - 1;
-                items.push({ type: 'barline', glyph: lastBar ? 'barlineFinal' : 'barlineSingle' });
+                items.push({ type: 'barline', glyph: lastBar ? (repeat ? 'repeatRight' : 'barlineFinal') : 'barlineSingle' });
             });
             const spans = [];
             let start = null;
@@ -201,6 +206,6 @@
     // The other way round (tests, and the migration that added the seed exercises' slurs).
     const format = (notes) => notes.map(n => `${n.p === null ? 'r' : n.p}${n.d}${n.dot ? '.' : ''}${n.sl ? '^' : ''}`).join(' ');
 
-    const api = { KINDS, KIND_IDS, LENGTHS, LENGTH_NAMES, RANGE, beatsOf, midi, check, trimEndRests, toBassClef, pitchFor, timeline, noteAt, rows, span, stepRange, parse, format };
+    const api = { KINDS, KIND_IDS, LENGTHS, LENGTH_NAMES, RANGE, SAVE_BEATS, beatsOf, midi, check, trimEndRests, toBassClef, pitchFor, timeline, noteAt, rows, span, stepRange, parse, format };
     root.Warmups = api;
 })(typeof self !== 'undefined' ? self : globalThis);

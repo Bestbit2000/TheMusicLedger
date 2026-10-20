@@ -28,7 +28,9 @@ play. A building block of practice sessions, alongside Scales (ML-9).
   next go or the next warm-up. Saving trims them (`Warmups.trimEndRests`, server and editor alike); migration 088
   trimmed the eight seeded long tones that had one.
 - **Stored** as `notes`: `[{ p: 'G4' | null (rest), d: 'w'|'h'|'q'|'e', dot?: true, sl?: true }]` and
-  `beats_per_bar` (2-6). Bars come from the lengths; a note can't run over a bar line; the last bar
+  `beats_per_bar` - **3 or 4** (ML-539, owner 20 Oct 2026: the count-in is one bar, and the two clicks of a quick 2/4
+  were too few to come in on; `Warmups.SAVE_BEATS`, checked on save; migration 136 made the seeded 2/4 March tune
+  4/4 - two bars make one, no note moves. The engine's `check` still reads 2-6, so nothing old fails to draw). Bars come from the lengths; a note can't run over a bar line; the last bar
   may be short.
 - **Six kinds**, in this order: long tones, lip slurs, flexibility, articulation, finger patterns,
   easy melodies. `sort_order` sets the order the tool plays them in (Previous / Next); Shuffle jumps to a random
@@ -80,8 +82,18 @@ or dotted crotchets (`setNotesPerBeat(2)`), and each note lights for its own len
 four clicks). A count-in bar first (optional), then once, twice or looped, at the exercise's own
 tempo unless you change it.
 
-In a practice session's Warm-up block (ML-390) the list plays on a loop: the whole loop is one metronome
-**sequence** (the player's ML-193 sequence mode) - each warm-up is a passage (its count-in bar, then its notes),
+**The repeat sign (ML-538).** When a warm-up plays more than once in a row - always in a session, or the tool set
+to twice or until stopped - its stave ends with a repeat sign (`Warmups.rows(..., { repeat: true })`, Bravura's
+`repeatRight`) instead of the final barline.
+
+In a practice session's Warm-up block (ML-390) the list plays on a loop: **each warm-up twice in a row, then the
+next** (ML-538, `SESSION_WARMUP_TIMES` in app.js - it used to be once each, with the second go a whole list later),
+each round of the list a little faster. The whole loop is one metronome
+**sequence** (the player's ML-193 sequence mode) - each warm-up is a passage (its count-in bar, then its notes twice),
 and the player asks for the next one on the beat the last ends, so it carries straight on in time and the screen
 moves on with the next warm-up's first click. (Stopping and restarting the player between warm-ups played the
 next bar's first click twice.)
+
+**The count-in** shows big (ML-542): the beats left in a ring over the metronome card (`showCountIn`, the rest
+screen's ring - specs/components/rest-screen.md); the stave is never under it. When a session's block runs out of
+time part way through an exercise, the time through it's on is finished first (ML-541, docs/practice-sessions.md).

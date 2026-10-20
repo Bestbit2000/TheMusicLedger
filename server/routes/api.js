@@ -31,13 +31,12 @@ import { listTimeSignatureOptions, createCustomTimeSignature, listCustomTimeSign
 import { renameAdhocSetup, deleteAdhocSetup, getAdhocSetupWithSegments, createQuickPlaySetup, listQuickPlayHistory, HISTORY_SHOWN_DEFAULT, setAdhocSetupFavorite, overwriteQuickPlayHistorySegments, duplicateQuickPlayHistory } from '../services/metronomeSetups.js';
 import { listActivePlaybackSpeeds } from '../services/playbackSpeeds.js';
 import { handleUpload } from '@vercel/blob/client';
-import { put } from '@vercel/blob';
 import { listInstruments, listAccountInstruments, setAccountInstruments, setAccountInstrumentClef, resolveSessionInstrument } from '../services/instruments.js';
 import { assertRangeEnabled, getRange, setRange, recordGo, moveRange } from '../services/range.js';
 import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, setFlowArchived, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, setRecordingClip, setRecordingMarks, setRecordingMovement, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks, replaceAllFlowBlocks } from '../services/flowBlocks.js';
-import { importScoreFromFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/scoreImport.js';
-import { readForAccount, markSaved as markPieceReadSaved, readUploadPrefix, testUploadPrefix, READ_CONTENT_TYPES } from '../services/pieceReads.js';
+import { importMusicXmlFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/musicXmlImport.js';
+import { readForAccount, discardReadFiles, sweepReadUploads, markSaved as markPieceReadSaved, readUploadPrefix, testUploadPrefix, READ_CONTENT_TYPES } from '../services/pieceReads.js';
 import { MAX_READ_BYTES } from '../services/pieceReader.js';
 import { MAX_PIECE_FILE_BYTES, MAX_BAND_LOGO_BYTES, BAND_LOGO_TYPES } from '../services/blobUrls.js';
 import { isFeatureEnabled, listEnabledFeatureKeys, getLimit, listLimits } from '../services/features.js';
@@ -895,7 +894,9 @@ router.get('/cron/usage-readings', async (req, res) => {
     const retention = await runRetention().catch((error) => { console.error('Daily job: retention not run:', error.message); return null; });
     // Old invites, band invitations and dealt-with feedback go every day, whatever the retention switch says
     const cleared = await clearOldRecords().catch((error) => { console.error('Daily job: old records not cleared:', error.message); return null; });
-    res.json({ read: results.filter((r) => r.ok).length, notRead: results.filter((r) => !r.ok).map((r) => r.key), warnings: warnings.length, retention, cleared });
+    // ML-553: the pages of a photo or PDF read that were never read (or never deleted) go after a day
+    const readPages = await sweepReadUploads().catch((error) => { console.error('Daily job: photo read pages not cleared:', error.message); return null; });
+    res.json({ read: results.filter((r) => r.ok).length, notRead: results.filter((r) => !r.ok).map((r) => r.key), warnings: warnings.length, retention, cleared, readPages });
   } catch (error) {
     sendError(res, error);
   }
@@ -1723,39 +1724,29 @@ router.delete('/flows/:id/documents/:documentId', requireAuth, resolveAccount, a
   }
 });
 
-// ML-79: "Create from file" - PDF/MusicXML/.mxl. No flow exists yet at upload time, unlike every
-// other /flows/:id/documents/... route above, so this isn't scoped to one. application/pdf is
-// back in the allowed list as of Phase 2 (OMR via runOmr - scoreImport.js); until
-// AUDIVERIS_SERVICE_URL is actually configured a PDF still uploads fine here, it just fails with a
-// clear message at the /flows/from-file step below, same as any other OMR failure.
+// ML-79: "Import from MusicXML" - MusicXML/.mxl. No flow exists yet at upload time, unlike every
+// other /flows/:id/documents/... route above, so this isn't scoped to one.
 // application/octet-stream stays in for the same reason the general documents route keeps it -
 // browsers frequently don't have a registered MIME type for either MusicXML format and fall back
 // to it.
 //
-// Two gates (ML-204): flow_import_musicxml covers .musicxml/.mxl (no third-party dependency);
-// flow_import_from_file (ML-190) now means PDF/scan import only - off until the OMR dependency,
-// solfascribe-omr, has had its security review. Checked here too, not just the entry-screen button
-// being hidden - otherwise a file would still upload to Blob (wasted storage) even though the
-// actual import at /flows/from-file below would then refuse it anyway.
-async function fileImportGates() {
-  const [pdf, musicxml] = await Promise.all([isFeatureEnabled('flow_import_from_file'), isFeatureEnabled('flow_import_musicxml')]);
-  return { pdf, musicxml };
-}
-const PDF_NOT_AVAILABLE = "PDF import isn't available right now - use a MusicXML or .mxl file instead.";
+// Behind flow_import_musicxml (ML-204), checked here too, not just the entry-screen button being
+// hidden - otherwise a file would still upload to Blob (wasted storage) even though the actual
+// import at /flows/from-file below would then refuse it anyway. ML-543 removed the PDF/scan import
+// that once shared these routes (flow_import_from_file, through an outside music-scanning
+// service); a photo or PDF of a part is read by /piece-read (ML-246) instead.
+const PDF_NOT_HERE = "A PDF can't be imported here - use \"From a photo or PDF\" on Add a piece, or a MusicXML or .mxl file.";
 
-router.post('/flows/from-file/upload-token', requireAuthFromQueryOrHeader, resolveAccount, async (req, res) => {
+router.post('/flows/from-file/upload-token', requireAuthFromQueryOrHeader, resolveAccount, requireFeature('flow_import_musicxml'), async (req, res) => {
   try {
-    const gates = await fileImportGates();
-    if (!gates.pdf && !gates.musicxml) throw withStatus(403, "This feature isn't available right now.");
     const result = await handleUpload({
       body: req.body,
       request: req,
       onBeforeGenerateToken: async (pathname) => {
         await limitCalls('upload-token', req.accountId); // ML-476
-        if (/\.pdf$/i.test(pathname) && !gates.pdf) throw withStatus(403, PDF_NOT_AVAILABLE);
+        if (/\.pdf$/i.test(pathname)) throw withStatus(403, PDF_NOT_HERE);
         return {
           allowedContentTypes: [
-            ...(gates.pdf ? ['application/pdf'] : []),
             'application/vnd.recordare.musicxml+xml', 'application/vnd.recordare.musicxml', 'application/xml', 'text/xml', 'application/octet-stream'
           ],
           // ML-192: Blob enforces this at upload time, so nothing bigger ever reaches /flows/from-file.
@@ -1771,21 +1762,16 @@ router.post('/flows/from-file/upload-token', requireAuthFromQueryOrHeader, resol
   }
 });
 
-// The actual import: parses the file already sitting in Blob (see scoreImport.js), creates the
+// The actual import: parses the file already sitting in Blob (see musicXmlImport.js), creates the
 // flow from what it found, and attaches the file to the new flow's Media regardless of how much
 // of it the parse actually used ("store it anyway, may reuse it for dynamics later" per the
-// request) - re-parsing later reads this same file back rather than needing a re-upload. For a
-// PDF, the MusicXML that OMR produced along the way gets saved too, as a second Media document
-// (uploaded server-side, not by the browser - see put() below) - a future re-parse (e.g. once
-// dynamics are supported) can read that clean structured file directly rather than re-running OMR
-// on the original scan. Deletes the auto-seeded starter block POST /flows always creates before
+// request) - re-parsing later reads this same file back rather than needing a re-upload.
+// Deletes the auto-seeded starter block POST /flows always creates before
 // writing the real ones - same fix ML-163's "Save metronome to Flows" needed, and for the same
 // reason (a metronome/file import's own blocks ARE the content, not a placeholder to build on top
 // of).
-router.post('/flows/from-file', requireAuth, resolveAccount, async (req, res) => {
+router.post('/flows/from-file', requireAuth, resolveAccount, requireFeature('flow_import_musicxml'), async (req, res) => {
   try {
-    const gates = await fileImportGates();
-    if (!gates.pdf && !gates.musicxml) throw withStatus(403, "This feature isn't available right now.");
     const { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType, bandId } = req.body || {};
     if (!blobUrl || !blobPathname || !fileName) throw withStatus(400, 'Missing uploaded file details.');
     // ML-400: the band picked on Add a piece - checked before the file is read, not after the parse.
@@ -1796,16 +1782,13 @@ router.post('/flows/from-file', requireAuth, resolveAccount, async (req, res) =>
 
     const fileResponse = await fetch(blobUrl, { redirect: 'error' }).catch(() => null);
     // 422, not the more "correct" 502 - sendError only passes a withStatus message through to the
-    // client below 500 (see scoreImport.js's runOmr, same reasoning).
+    // client below 500.
     if (!fileResponse?.ok) throw withStatus(422, "Couldn't read the uploaded file - try uploading it again.");
     const buffer = await readCappedBody(fileResponse, MAX_SCORE_FILE_BYTES, 'That file is larger than this app accepts.');
     // By content, not the file name - the name is the client's to choose.
-    const isPdf = buffer.length >= 4 && buffer.toString('ascii', 0, 4) === '%PDF';
-    if (isPdf ? !gates.pdf : !gates.musicxml) {
-      throw withStatus(403, isPdf ? PDF_NOT_AVAILABLE : "MusicXML import isn't available right now.");
-    }
+    if (buffer.length >= 4 && buffer.toString('ascii', 0, 4) === '%PDF') throw withStatus(422, PDF_NOT_HERE);
 
-    const { flow: parsed, blocks, omrXmlText } = await importScoreFromFile(req.accountId, buffer);
+    const { flow: parsed, blocks } = await importMusicXmlFile(req.accountId, buffer);
 
     const flow = await createFlow(req.accountId, { name: parsed.title || undefined, bandId: bandId || undefined });
     const { composer, arranger, publisher, description } = parsed;
@@ -1824,17 +1807,6 @@ router.post('/flows/from-file', requireAuth, resolveAccount, async (req, res) =>
     for (const block of blocks) await createFlowBlock(req.accountId, flow.id, block);
 
     await addDocument(req.accountId, flow.id, { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType });
-
-    if (omrXmlText) {
-      const derivedName = `${fileName.replace(/\.[^.]+$/, '')} (converted).musicxml`;
-      const derivedBlob = await put(`flows/from-file/${Date.now()}-${derivedName}`, omrXmlText, {
-        access: 'public', contentType: 'application/vnd.recordare.musicxml+xml', addRandomSuffix: true
-      });
-      await addDocument(req.accountId, flow.id, {
-        blobUrl: derivedBlob.url, blobPathname: derivedBlob.pathname,
-        fileName: derivedName, fileSizeBytes: Buffer.byteLength(omrXmlText), mimeType: 'application/vnd.recordare.musicxml+xml'
-      });
-    }
 
     // importWarnings: anything in the file the reader couldn't represent exactly (see
     // flowMusicXmlReader.js) - additive to the usual flow detail shape.
@@ -1897,6 +1869,7 @@ router.post('/piece-read', requireAuth, resolveAccount, requireFeature('piece_fr
     await limitCalls('piece-read', req.accountId);
     res.json(await readForAccount(req.accountId, req.body?.files, { joinMovements: await isFeatureEnabled('piece_movements') }));
   } catch (error) {
+    await discardReadFiles(req.accountId, req.body?.files); // ML-553: refused or failed - the pages still go
     sendError(res, error);
   }
 });

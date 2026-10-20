@@ -25,15 +25,16 @@ saves, what it costs and where it goes wrong. What has to happen before any memb
 
 ## Why a model and not a music scanner
 
-ML-246 began as "deploy the OMR service" (Audiveris behind solfascribe-omr, on a rented machine - see
-[`omr-security-review.md`](omr-security-review.md)). The owner asked for something he already uses instead.
+ML-246 began as "deploy the OMR service" (Audiveris behind solfascribe-omr, on a rented machine, for the old
+"Create from file" PDF import). The owner asked for something he already uses instead. That import, the
+service's register entry and its security review were removed by ML-543 (20 Oct 2026): this replaces it.
 
 A piece here is rhythm and structure only: the reader throws the notes away. A music scanner spends minutes
 working out every pitch, wants a flat 300 dpi scan, and needs a server of its own that has to be patched. A
 vision model is asked only for what the app keeps, copes with a hurried phone photo, answers in about a
-minute, and is reached through the Vercel account the app is already hosted on. Audiveris stays in the
-register as the fallback if the cost per piece turns out too high: self-hosted, it costs the machine and
-nothing per piece.
+minute, and is reached through the Vercel account the app is already hosted on. Audiveris was kept in the
+register at first as a fallback if the cost per piece turned out too high; the trial below showed it is not
+one, and it left the register with the old PDF import (ML-543).
 
 ## The trial (10 Oct 2026)
 
@@ -100,7 +101,7 @@ proven.**
 
 **Audiveris 5.11.0 on the same 20 PDFs, on the owner's PC** (the Windows console build with Tesseract's
 English data; 30 to 95 seconds a piece, free). Its MusicXML was scored straight from the file, with every
-multi-bar rest it marked opened out to its count - kinder than "Create from file" would be, since the app's
+multi-bar rest it marked opened out to its count - kinder than the old "Create from file" would have been, since the app's
 reader (`flowMusicXmlReader.js`) does not open out `<multiple-rest>` at all:
 
 - **No piece came out with the right bar count: 0 of 18**, and only one within two bars. 2 more would not
@@ -285,7 +286,10 @@ one-time "I have the right to upload it" (ML-278) comes first, as for any music.
 1. The pages go from the browser to the file store, into `piece-read/<account>/` - a request to the server
    can't carry them (Vercel's ~4.5 MB cap). The tile's help line says how far it has got.
 2. `POST /api/piece-read` fetches them (only from our own store, only from that account's folder), has them
-   read, **deletes them**, turns the read's time signatures into the account's own (making one of the
+   read, **deletes them** - also when the read is refused or fails before it starts (`discardReadFiles`); anything
+   left in `piece-read/` (an upload that failed part way, a tab closed before the read) goes in the daily job after a
+   day, and an account's folder is cleared when it is deleted (`sweepReadUploads`, ML-553) - turns the read's time
+   signatures into the account's own (making one of the
    account's own where the shared list hasn't got it), logs the read, and answers with the outline and rating
    for each piece. A short piece takes 20 to 90 seconds and a long part a few minutes: the reader is given four
    and a half (`PIECE_READER_TIMEOUT_MS`, 270 seconds) and the server function five (`vercel.json`). It was 110
@@ -347,5 +351,5 @@ page is the bill.
   has to remove them (`docs/account-deletion.md`).
 - **A back-test** for the screen (it needs a stand-in for the read, which costs money and takes a minute).
 - The Online Safety and "members need telling" questions for the release that opens it up.
-- Then decide whether "Create from file" for a PDF (`runOmr` in `scoreImport.js`) is pointed at this, and
-  whether the OMR service entry stays in the register.
+- Decided (ML-543, 20 Oct 2026): the old "Create from file" PDF import was removed rather than pointed at
+  this, and the OMR service's register entry and security review went with it.

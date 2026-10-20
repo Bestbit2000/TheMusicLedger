@@ -258,7 +258,7 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-flows-import-error { color: var(--danger-text); }
 .admin-flows-import-note { color: var(--label-color); }
 
-/* ML-192 - Security (review of the OMR service). Cards, tiles, run rows and badges are the shared
+/* ML-192 / ML-231 - Security (the review of this site). Cards, tiles, run rows and badges are the shared
    admin ones; these add the two statuses a security check has that a back-test doesn't (warn, info),
    the check row's title/badge line (not clickable - unlike .admin-test-case-head), and the native
    <details> disclosure used for evidence and history (keyboard/screen-reader behaviour for free). */

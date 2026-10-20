@@ -1,8 +1,9 @@
 # Site security review (ML-231)
 
-A repeatable check that this site is secure: **Admin → Release and checks → Security → This site**. It sits
-beside the review of the PDF import service (ML-192, `docs/omr-security-review.md`) and is built on the
-same pieces. It is a careful review by Claude, not a penetration test by a specialist firm.
+A repeatable check that this site is secure: **Admin → Release and checks → Security → This site**. It is
+built on the pieces first made for the review of the old PDF import's music-scanning service (ML-192), which
+went with that import (ML-543, 20 October 2026). It is a careful review by Claude, not a penetration test by
+a specialist firm.
 
 ## Where things are
 
@@ -14,7 +15,7 @@ same pieces. It is a careful review by Claude, not a penetration test by a speci
 | Fetching a member's web address safely | [`server/utils/publicUrl.js`](../server/utils/publicUrl.js) |
 | Tests | `server/test/siteSecurity.test.js` (includes the real route files), `server/test/publicUrl.test.js` |
 | The admin panel's "prove it's you" check (ML-518) | [`docs/admin-passkey.md`](admin-passkey.md) - every admin route needs `requireAdminCheck` as well as `requireSuperAdmin`; the route-guard check and its unit test cover both, and "Administrators' sign-in" fails if the check is not being asked |
-| Shared with the OMR review | `buildReview`, `saveRun`, `osvLookup` in `server/services/securityReview.js`; tables `security_review_runs` / `_results` |
+| The shared machinery | `buildReview`, `saveRun`, `osvLookup` in `server/services/securityReview.js`; tables `security_review_runs` / `_results` |
 
 ## Two kinds of check
 
@@ -86,11 +87,12 @@ Until it is switched on the policy is **report-only**: the browser's console say
 stopped, and stops nothing. Switching it on is the owner's step, sandbox first:
 
 1. On **sandbox**, with the release that has ML-474 in it, open the app with the browser's console open and
-   use every tool, including a PDF import, a recording upload and a YouTube link. Anything the console
+   use every tool, including an import from MusicXML, a photo or PDF read, a recording upload and a YouTube link. Anything the console
    reports as "would have been blocked" is an outside address missing from `CSP` - add it (and to the
    third-party register) before going on. A local run can't show this for the analytics and the file store.
 2. Set `CSP_ENFORCE=true` in Vercel for sandbox (the data answers), run
-   `npm run sync-vercel-headers -- --enforce` (the pages - `vercel.json`) and release that change.
+   `npm run sync-vercel-headers` (the pages - `vercel.json`; enforced is its default since ML-555 - it took `--enforce`
+   then) and release that change.
    `server/test/vercelHeaders.test.js` must agree with the setting you are releasing.
 3. Check a page with `curl -sI`: `content-security-policy`, not `...-report-only`. Use the app again.
 4. Then the same on production. Admin -> Security -> This site -> "Security headers" then shows the
@@ -120,6 +122,43 @@ on port 3100 with the policy enforced (it needs a file `.claude/csp-enforce.tmp.
 `CSP_ENFORCE=true`).
 
 ## Reviews so far
+
+### 20 October 2026 - version 0.63.0 and the next release - verdict: conditional
+
+**Sound for members once the next release is out.** No member can reach another member's private practice, and a
+conductor or organiser sees nothing of anyone's practice or readiness. Nothing high was found in the code, but the
+live pages' content security policy had slipped back to report-only, and four medium gaps were found. All five are
+fixed in the next release (uncommitted on the branch when reviewed); until it is out, the live site has them.
+
+| What | How serious | The fix |
+|---|---|---|
+| The pages' content security policy went back to **report-only** in 0.63.0: the header sync script's default was report-only, and a plain run of it in the ML-534 change undid the 7 Oct switch. The data answers still enforced it. | High | Enforced is now the script's default (`--report-only` to go back, on the owner's say-so), `server/test/vercelHeaders.test.js` fails on a report-only `vercel.json`, and `vercel.json` is enforcing again. **ML-555** |
+| "A file in this app's own store" accepted any Vercel customer's store, so a member could attach a file from their own (beyond the size and type limits, changeable after the check, out of reach of Admin -> Recordings). | Medium | The store id is taken from the upload key (`ownStoreHost`, `blobUrls.js`). **ML-551** |
+| A band's name another member chose was put on the History page unescaped. | Medium | Escaped. **ML-552** |
+| The pages of a photo or PDF read were only deleted inside the read - not after a refused or failed read, a part-failed upload or a closed tab, nor with the account. | Medium (the privacy policy says they are deleted) | Deleted on every refusal or failure, swept daily after a day, cleared with the account (`discardReadFiles`, `sweepReadUploads`). **ML-553** |
+| "An organiser is an adult" was only asked when inviting or setting up sharing, and an organiser can be one without confirming. | Medium | Every organiser action asks (logo, members' levels, removing someone); stepping yourself down doesn't. **ML-554** |
+
+The owner's rule, confirmed during the review: a member an organiser has given "change music" may add recordings,
+videos and documents to a band's piece - only an organiser can give that level. The Recordings tool puts a recording
+on a band's piece for organisers only. `docs/rehearsal-score.md` and CLAUDE.md said "only an organiser" and are corrected.
+
+Recorded, not fixed (low): a piece's `list_count` counts every member's practice lists (an organiser can see how many
+members have a band piece on a list); a band list shows titles a viewer can't open; inviting a member says whether an
+address has an account; the server never checks the "right to upload" confirmation; three upload tokens don't fix the
+folder, and file sizes and types are kept as the browser sent them; removing a Recordings-tool recording on Admin ->
+Recordings leaves the tool's row; the sign-in token rides in the upload token request's address; three IPv6 forms are
+treated as public, and DNS rebinding is still open; the initials on an avatar aren't escaped (only your own).
+
+Checked and sound: every one of 182 app routes that takes an id limits the row to the caller; all 111 admin routes are
+super admins only and 104 ask the admin check (the other 7 make it); no query is built from request input; the only
+member-typed address the server fetches goes through `publicUrl.js`; `npm audit` reports nothing; no secret in any
+file or anywhere in the git history (a pattern search - Gitleaks wasn't installed); the test logins refuse on
+production; errors give nothing away.
+
+Not done this time: the bodies of the admin handlers; the inside of the password, two-step, email change and
+recording removal services; a true line-by-line read of all of `app.js`; Gitleaks itself; whether the AI Gateway
+honours zero data retention on the endpoint the photo reader uses (check against Vercel's documentation).
+
 
 ### 6 October 2026 - version 0.45.0 - verdict: conditional
 

@@ -2267,7 +2267,7 @@
         document.getElementById('warmupTitleInput').value = ex ? ex.title : '';
         document.getElementById('warmupTipInput').value = ex ? ex.tip : '';
         document.getElementById('warmupBpmInput').value = ex ? ex.bpm : 72;
-        document.getElementById('warmupBeatsInput').value = String(ex ? ex.beatsPerBar : 4);
+        document.getElementById('warmupBeatsInput').value = String(ex && W.SAVE_BEATS.includes(ex.beatsPerBar) ? ex.beatsPerBar : 4); // ML-539: 3 or 4
         document.getElementById('warmupActiveInput').checked = ex ? ex.isActive : true;
         warmupSetRadio('warmupPreviewClef', 'treble');
         warmupSetRadio('warmupLength', 'q');
@@ -2883,9 +2883,10 @@
     }
 
     // ========================================
-    // Security (ML-192) - repeatable review of the OMR service. Everything below is read-only
+    // Security (ML-231) - the repeatable review of this site. Everything below is read-only
     // except "Run now", which re-runs the automated checks server-side and records them. The deep
-    // review's results come from the repo (server/securityReviews/), shown alongside.
+    // review's results come from the repo (server/securityReviews/site.js), shown alongside. (Built
+    // for the ML-192 review of the old PDF import's service, which went with that import - ML-543.)
     // ========================================
     const SECURITY_STATUS_LABELS = { pass: 'Pass', warn: 'Warn', fail: 'Fail', info: 'Info', not_run: 'Not run', error: 'Error' };
     // Maps a result status onto an .admin-badge modifier (pill-badge spec) - "error" is a failure
@@ -2908,7 +2909,7 @@
     function renderSecurityCheck(check, result) {
         const kindLabel = check.mode === 'automated' ? 'Automated' : 'Deep review';
         const meta = result
-            ? `${kindLabel} &middot; ${fmtDate(result.at)} &middot; ${securityWord()} ${escapeHtml(shortSha(result.upstreamCommitSha))}`
+            ? `${kindLabel} &middot; ${fmtDate(result.at)} &middot; version ${escapeHtml(shortSha(result.upstreamCommitSha))}`
             : `${kindLabel} &middot; never run`;
         return `
             <div class="admin-test-case">
@@ -2937,7 +2938,7 @@
             <div class="admin-test-case">
                 <details class="admin-security-details">
                     <summary>${fmtDate(run.at)} &middot; ${run.kind === 'automated' ? 'Automated run' : 'Deep review'}${run.by ? ` by ${escapeHtml(run.by)}` : ''} &middot; ${escapeHtml(counts || 'no results')}</summary>
-                    <p class="admin-test-case-meta">${securityTarget === 'site' ? 'App version' : 'Upstream commit'} ${escapeHtml(shortSha(run.upstreamCommitSha))}${verdict ? ` &middot; verdict: ${verdict[1]}` : ''}</p>
+                    <p class="admin-test-case-meta">App version ${escapeHtml(shortSha(run.upstreamCommitSha))}${verdict ? ` &middot; verdict: ${verdict[1]}` : ''}</p>
                     ${run.tools && run.tools.length ? `<p class="admin-run-notes"><strong>Tools:</strong> ${run.tools.map(escapeHtml).join('; ')}</p>` : ''}
                     ${run.results.map((r) => `
                         <div class="admin-run-row">
@@ -2963,9 +2964,9 @@
         const tiles = `
             <div class="admin-stat-tiles">
                 <div class="admin-stat-tile"><div class="admin-stat-tile-label">Verdict</div><div class="admin-stat-tile-value">${verdict ? verdict[1] : '-'}</div></div>
-                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Last deep review</div><div class="admin-stat-tile-value">${fmtDay(deep?.at)}</div><div class="admin-stat-tile-sub">${securityWord()} ${escapeHtml(shortSha(deep?.upstreamCommitSha))}</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Last deep review</div><div class="admin-stat-tile-value">${fmtDay(deep?.at)}</div><div class="admin-stat-tile-sub">version ${escapeHtml(shortSha(deep?.upstreamCommitSha))}</div></div>
                 <div class="admin-stat-tile"><div class="admin-stat-tile-label">Last automated run</div><div class="admin-stat-tile-value">${auto ? fmtDay(auto.at) : 'Never'}</div><div class="admin-stat-tile-sub">${data.automatedRunDue ? `Due - over ${data.automatedDueAfterDays} days` : 'Up to date'}</div></div>
-                <div class="admin-stat-tile"><div class="admin-stat-tile-label">${escapeHtml(t.changeLabel || 'Upstream since deep review')}</div><div class="admin-stat-tile-value">${!auto ? 'Unknown' : data.upstreamChangedSinceDeepReview ? 'Changed' : 'Unchanged'}</div><div class="admin-stat-tile-sub">${auto ? `${securityTarget === 'site' ? 'now on' : 'head'} ${escapeHtml(shortSha(auto.upstreamCommitSha))}` : 'run the automated checks'}</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">${escapeHtml(t.changeLabel || 'Upstream since deep review')}</div><div class="admin-stat-tile-value">${!auto ? 'Unknown' : data.upstreamChangedSinceDeepReview ? 'Changed' : 'Unchanged'}</div><div class="admin-stat-tile-sub">${auto ? `now on ${escapeHtml(shortSha(auto.upstreamCommitSha))}` : 'run the automated checks'}</div></div>
             </div>`;
 
         const verdictCard = `
@@ -2973,7 +2974,7 @@
                 <div class="admin-feature-header">
                     <div class="admin-feature-header-text">
                         <h2>${escapeHtml(t.name)}</h2>
-                        <p><a href="https://github.com/${encodeURI(t.repo)}" target="_blank" rel="noopener">github.com/${escapeHtml(t.repo)}</a> &middot; <a href="https://bestbit2000.atlassian.net/browse/${encodeURIComponent(t.jiraKey)}" target="_blank" rel="noopener">${escapeHtml(t.jiraKey)}</a> &middot; gates <code>${escapeHtml(t.gatedFeature)}</code></p>
+                        <p><a href="https://github.com/${encodeURI(t.repo)}" target="_blank" rel="noopener">github.com/${escapeHtml(t.repo)}</a> &middot; <a href="https://bestbit2000.atlassian.net/browse/${encodeURIComponent(t.jiraKey)}" target="_blank" rel="noopener">${escapeHtml(t.jiraKey)}</a></p>
                     </div>
                     ${verdict ? `<span class="admin-badge ${verdict[0]}">${verdict[1]}</span>` : ''}
                 </div>
@@ -2983,7 +2984,7 @@
                     <ul class="admin-security-evidence">
                         ${(data.verdict.conditions || []).map((c) => `<li><strong>${c.done ? 'Done' : 'To do'}:</strong> ${escapeHtml(c.text)}</li>`).join('')}
                     </ul>
-                    ${data.upstreamChangedSinceDeepReview ? `<p class="admin-run-notes"><strong>${securityTarget === 'site' ? 'A release has gone out since this verdict' : 'The upstream repo has changed since this verdict'}</strong> - re-run the deep review before relying on it.</p>` : ''}
+                    ${data.upstreamChangedSinceDeepReview ? `<p class="admin-run-notes"><strong>A release has gone out since this verdict</strong> - re-run the deep review before relying on it.</p>` : ''}
                 </div>` : ''}
             </div>`;
 
@@ -3430,7 +3431,7 @@
         renderThirdParties(await apiCall('/api/admin/third-parties'));
     }
 
-    // ML-231: the page reviews two things - this site (the first tab) and the PDF import service (ML-192)
+    // ML-231: the page reviews this site (the first tab). (Its PDF import service tab, ML-192, went with that import - ML-543.)
     // ---- ML-470: Reviews - every review that comes round, on Security's third tab ----
     const REVIEW_STATUS = { ok: ['pass', 'Up to date'], soon: ['warn', 'Due soon'], due: ['fail', 'Due'], never: ['never', 'Never done'] };
     const everyWords = (months) => (months === 1 ? 'Monthly' : months === 12 ? 'Yearly' : `Every ${months} months`);
@@ -3439,7 +3440,16 @@
     function renderReviews(data) {
         reviewsData = data;
         setNavCount('securityNavCount', data.due);
-        document.getElementById('securityReview').innerHTML = data.reviews.map((r) => {
+        // ML-544: at a glance - how many are up to date, and how many are left to do
+        const count = (s) => data.reviews.filter((r) => r.status === s).length;
+        const outstanding = count('due') + count('never');
+        const tile = (value, label, sub) => `<div class="admin-stat-tile"><div class="admin-stat-tile-label">${label}</div><div class="admin-stat-tile-value">${value}</div>${sub ? `<div class="admin-stat-tile-sub">${sub}</div>` : ''}</div>`;
+        const summary = `<div class="admin-stat-tiles" role="group" aria-label="Reviews at a glance">
+            ${tile(`${count('ok')} of ${data.reviews.length}`, 'Up to date')}
+            ${tile(outstanding, 'Outstanding', outstanding ? `${count('due')} due · ${count('never')} never done` : '')}
+            ${tile(count('soon'), 'Due soon')}
+        </div>`;
+        document.getElementById('securityReview').innerHTML = summary + data.reviews.map((r) => {
             const [badge, label] = REVIEW_STATUS[r.status] || REVIEW_STATUS.never;
             const left = r.daysLeft === null ? '' : r.daysLeft > 0 ? ` (in ${r.daysLeft} day${r.daysLeft === 1 ? '' : 's'})` : r.daysLeft === 0 ? ' (today)' : ` (${-r.daysLeft} day${r.daysLeft === -1 ? '' : 's'} ago)`;
             const history = r.history.length > 1 ? `<details class="admin-run-notes"><summary>Every time it was reviewed (${r.history.length})</summary>${r.history.map((h) => `<p class="admin-run-notes"><strong>${escapeHtml(fmtDay(h.on))}</strong>${h.by ? ` - ${escapeHtml(h.by)}` : ''}: ${escapeHtml(h.note)}</p>`).join('')}</details>` : '';
@@ -3492,12 +3502,10 @@
     }
 
     let securityTarget = 'site';
-    const securityWord = () => (securityTarget === 'site' ? 'version' : 'upstream');
-    const securityPath = (run) => `/api/admin/security-review${run ? '/run' : ''}${securityTarget === 'site' ? '?target=site' : ''}`;
+    const securityPath = (run) => `/api/admin/security-review${run ? '/run' : ''}?target=site`;
     const SECURITY_INTRO = {
         site: 'Security review of <strong>this site</strong> (ML-231): who can reach what, what members can type or upload, signing in, the browser\'s protections, packages and settings. <strong>Run now</strong> repeats the automated checks - do it once a month and after anything that touches sign-in or sharing. The deep review (a read of every route and every place member-typed text is shown) is done by Claude Code in a session: ask it to "re-run the ML-231 site security review". Full write-up: <code>docs/site-security-review.md</code>.',
-        reviews: 'Every review that comes round (ML-470): what it is, how often, when it was last done and by whom, and when it is due. <strong>Mark as reviewed</strong> records today\'s date with a note of what you checked - every line is kept, so this is the trail of each review. One that is due shows on the Dashboard under "Needs you". The written assessments themselves are in your compliance documents and in <code>docs/gdpr-assessment.md</code>.',
-        omr: 'Security review of <strong>solfascribe-omr</strong>, the third-party OMR service behind "Create from file" PDF import (ML-192). <strong>Run now</strong> repeats the automated checks. The deep review (code read, secret scan, dependency scans) is done by Claude Code in a session: ask it to "re-run the ML-192 OMR security review". Full write-up: <code>docs/omr-security-review.md</code>.'
+        reviews: 'Every review that comes round (ML-470): what it is, how often, when it was last done and by whom, and when it is due. <strong>Mark as reviewed</strong> records today\'s date with a note of what you checked - every line is kept, so this is the trail of each review. One that is due shows on the Dashboard under "Needs you". The written assessments themselves are in your compliance documents and in <code>docs/gdpr-assessment.md</code>.'
     };
     async function reloadSecurityReview() {
         document.getElementById('securityIntro').innerHTML = SECURITY_INTRO[securityTarget];
@@ -3546,7 +3554,7 @@
         ['Tools - Learn', ['theory_practice', 'theory_grades', 'theory_smart_learn', 'ear_training', 'tap_tempo', 'gap_trainer', 'range_trainer', 'rhythm_trainer']],
         ['Practice sessions', ['practice_levels', 'scales_levels']],
         ['Menu', ['flow_manage', 'manage_tutor', 'notifications', 'feedback', 'invite_members', 'member_setup']],
-        ['My music', ['flow_create', 'flow_import_musicxml', 'flow_import_from_file', 'flow_export_musicxml', 'flow_playback', 'flow_editor', 'flow_consistency_check']],
+        ['My music', ['flow_create', 'flow_import_musicxml', 'flow_export_musicxml', 'flow_playback', 'flow_editor', 'flow_consistency_check']],
         ['Metronome and tuner', ['metronome_history', 'metronome_save_to_flow', 'tuner_rewind']]
     ];
     // ML-383: limits (a number per account type, e.g. how many Metronome plays history lists) wait in

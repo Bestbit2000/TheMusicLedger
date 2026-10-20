@@ -22,10 +22,8 @@ export const REVIEWS = [
     where: 'Document 3 in your compliance documents' },
   { key: 'site-security', kind: 'checks', name: 'Site security review', months: 1, tab: 'site',
     about: 'The automated checks on this site, monthly. The full review by Claude Code is done after anything that touches sign-in, sharing or uploads.',
-    where: 'The "This site" tab; docs/site-security-review.md' },
-  { key: 'omr-security', kind: 'checks', name: 'PDF import service review', months: 1, tab: 'omr',
-    about: 'The automated checks on the third-party service behind PDF import.',
-    where: 'The "PDF import service" tab; docs/omr-security-review.md' }
+    where: 'The "This site" tab; docs/site-security-review.md' }
+  // (The PDF import service's review, 'omr-security', went with that import - ML-543.)
 ];
 export const MARKED_KEYS = REVIEWS.filter((r) => r.kind === 'marked').map((r) => r.key);
 

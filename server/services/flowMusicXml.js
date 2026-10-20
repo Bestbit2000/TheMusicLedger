@@ -1,5 +1,5 @@
 // ML-204: a Flow <-> MusicXML codec - the one file format for moving flows between environments
-// (admin export/import) AND for create-from-file / PDF->MusicXML (scoreImport.js). This file is
+// (admin export/import) AND for "Import from MusicXML" (musicXmlImport.js). This file is
 // pure (no DB access) so it can be unit-tested directly - see server/test/flowMusicXml.test.js,
 // and server/services/flowTransfer.js for loading a flow from the DB to feed into it.
 //

@@ -219,6 +219,13 @@ async function assertOrganiser(db, accountId, bandId) {
   const role = await assertMember(db, accountId, bandId);
   if (!ORGANISER_ROLES.includes(role)) throw fail(403, "Only the band's organisers can do that.");
 }
+// ML-554: every organiser action asks that the organiser has confirmed they are an adult - not just inviting and
+// setting up sharing. Someone can be an organiser without having confirmed it (invited at that level, raised later,
+// or made one when the last organiser left), so the question comes the first time they act as one.
+async function assertAdultOrganiser(db, accountId, bandId) {
+  await assertOrganiser(db, accountId, bandId);
+  await requireAdult(db, accountId);
+}
 
 // ========================================
 // My bands (ML-478; the owner's model, 6 Oct 2026). One list of the bands a member plays with - their
@@ -531,10 +538,10 @@ async function deleteLogoFile(url, bandId) {
   try { await del([url]); } catch (error) { console.error('Band logo: a stored file could not be removed:', error.message); }
 }
 export async function assertBandOrganiser(accountId, bandId) {
-  await assertOrganiser(pool, accountId, bandId);
+  await assertAdultOrganiser(pool, accountId, bandId); // the logo's upload (ML-534, ML-554)
 }
 export async function setBandLogo(accountId, bandId, { blobUrl, fileSizeBytes, mimeType, blobPathname } = {}) {
-  await assertOrganiser(pool, accountId, bandId);
+  await assertAdultOrganiser(pool, accountId, bandId);
   if (!isBandLogoFileUrl(blobUrl, bandId)) throw fail(400, 'That file is not one this app stored for the band.');
   if (Number(fileSizeBytes) > MAX_BAND_LOGO_BYTES) throw fail(413, 'A logo can be up to 1 MB.');
   if (mimeType && !BAND_LOGO_TYPES.includes(String(mimeType))) throw fail(400, 'A logo has to be a picture: PNG, JPEG or WebP.');
@@ -546,7 +553,7 @@ export async function setBandLogo(accountId, bandId, { blobUrl, fileSizeBytes, m
   return listBandMembers(accountId, bandId);
 }
 export async function removeBandLogo(accountId, bandId) {
-  await assertOrganiser(pool, accountId, bandId);
+  await assertAdultOrganiser(pool, accountId, bandId);
   const old = await bandLogoUrl(bandId);
   await pool.query(`UPDATE bands SET logo_url = NULL, logo_pathname = NULL, logo_set_by_account_id = NULL, logo_set_at = NULL WHERE id = $1 AND kind = 'group'`, [bandId]);
   await deleteLogoFile(old, bandId);
@@ -577,7 +584,7 @@ async function requireName(db, accountId, message) {
 // each may do, what is shared. Before either, the member confirms once that they are 18 or over and
 // responsible for the band (accounts.organiser_adult_confirmed_on). No proof is asked for. `reason`
 // goes to the app with the words, so it can ask there and then (sendError).
-export const ADULT_BEFORE_ORGANISING = 'Running a band\'s space is for adults. To set up sharing or invite people, confirm that you are 18 or over and responsible for this band.';
+export const ADULT_BEFORE_ORGANISING = 'Running a band\'s space is for adults. To set up sharing, invite people, choose what members can do or change the band\'s logo, confirm that you are 18 or over and responsible for this band.';
 async function requireAdult(db, accountId) {
   const { rows } = await db.query('SELECT organiser_adult_confirmed_on FROM accounts WHERE id = $1', [accountId]);
   if (!rows.length || !rows[0].organiser_adult_confirmed_on) throw Object.assign(fail(409, ADULT_BEFORE_ORGANISING), { reason: 'needs-adult' });
@@ -834,7 +841,7 @@ export async function declineBandInvite(accountId, inviteId) {
 
 // An organiser takes someone out of the band (to go yourself, leave). What they added stays with the band.
 export async function removeBandMember(accountId, bandId, memberAccountId) {
-  await assertOrganiser(pool, accountId, bandId);
+  await assertAdultOrganiser(pool, accountId, bandId);
   if (Number(memberAccountId) === Number(accountId)) throw fail(400, 'To go yourself, leave the band.');
   const { rowCount } = await pool.query('DELETE FROM band_members WHERE band_id = $1 AND account_id = $2', [bandId, memberAccountId]);
   if (!rowCount) throw fail(404, 'They are not in this band.');
@@ -845,7 +852,9 @@ export async function removeBandMember(accountId, bandId, memberAccountId) {
 // An organiser sets what a member may do - another organiser, change music, or play only (themselves
 // included - stepping down - as long as one organiser is left).
 export async function setBandMemberLevel(accountId, bandId, memberAccountId, level) {
-  await assertOrganiser(pool, accountId, bandId);
+  // Stepping yourself down needs no confirmation - an organiser who isn't an adult must be able to stop being one
+  const steppingDown = Number(memberAccountId) === Number(accountId) && level !== 'organiser';
+  await (steppingDown ? assertOrganiser : assertAdultOrganiser)(pool, accountId, bandId);
   const role = roleOfLevel(level);
   if (level !== 'organiser') {
     const { rows } = await pool.query('SELECT COUNT(*) AS n FROM band_members WHERE band_id = $1 AND role = ANY($2) AND account_id <> $3', [bandId, ORGANISER_ROLES, memberAccountId]);

@@ -4,17 +4,27 @@
 // address is the member's word, so before it is kept it must be:
 //   - https, in a Vercel Blob public store, with no user name, password or port;
 //   - under this piece's own folder (flows/<piece id>/...), or the import folder (flows/from-file/...)
-//     that "Create from file" uploads to before the piece exists.
+//     that "Import from MusicXML" uploads to before the piece exists.
 // So a file uploaded for one piece can't be attached to another, and nothing that isn't a stored file
 // can be attached at all. (The name the upload was asked for and the name it was given differ - the
 // store adds a random ending - so the two are not compared.)
 const STORE_HOST = '.public.blob.vercel-storage.com';
 
+// ML-551: THIS app's store, not any Vercel customer's. The upload key (BLOB_READ_WRITE_TOKEN) is
+// vercel_blob_rw_<store id>_<secret>, and the store's files are served from <store id, lower case>.public.blob...
+// Without a key (the unit tests, a local run with no uploads) any store's host passes, as before.
+export function ownStoreHost(token = process.env.BLOB_READ_WRITE_TOKEN) {
+  const m = /^vercel_blob_rw_([A-Za-z0-9]+)_/.exec(String(token || ''));
+  return m ? `${m[1].toLowerCase()}${STORE_HOST}` : null;
+}
+
 // The path inside the store of an address that is safe to keep, or null.
-function storedPath(blobUrl) {
+export function storedPath(blobUrl) {
   let url;
   try { url = new URL(String(blobUrl)); } catch { return null; }
   if (url.protocol !== 'https:' || !url.hostname.endsWith(STORE_HOST) || url.hostname.length <= STORE_HOST.length) return null;
+  const own = ownStoreHost();
+  if (own && url.hostname !== own) return null; // a file in someone else's store: its size, type and content aren't ours to check
   if (url.username || url.password || url.port || url.search || url.hash) return null;
   let path;
   try { path = decodeURIComponent(url.pathname.slice(1)); } catch { return null; }

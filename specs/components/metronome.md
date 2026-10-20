@@ -1,7 +1,7 @@
 # Metronome
 
 ## 1. Metadata
-- **Name:** Metronome (`.metro-display*`, `.metro-tier`, `.metro-dot*`, `.metro-transport-*`, `.metro-play-btn`, `.metro-stop-btn`, `.metro-bpm-step`, `.metro-speed-*`, `.metro-volume-row`, `.metroBlk-*`, `.metroSeg-*`, `.qp-*`, `.metro-*`, `.timer-inline-*`, `.is-date` on a value box)
+- **Name:** Metronome (`.metro-display*`, `.metro-tier`, `.metro-dot*`, `.metro-transport-*`, `.metro-play-btn`, `.metro-stop-btn`, `.metro-bpm-step`, `.metro-speed-*`, `.metro-volume-row`, `.metroBlk-*`, `.metroSeg-*`, `.qp-*`, `.metro-*`, `.timer-inline-*`, `.is-date` on a value box, `.is-two-line` on a value box's value)
 - **Category:** Tool
 - **Status:** Stable. Largest single area of the stylesheet
 
@@ -52,7 +52,7 @@ gets it for free.
 - Disabled transport controls use `opacity: 0.4`. Converge on `--opacity-disabled`.
 
 ## 6. States
-Dot: off · lit · accent (downbeat) · fermata-holding (pulsing glow) · fermata-done. Transport: idle · playing · disabled. Repeat box: off · on (`.metroBlk-ctrl-value-btn-on`). Tile: plain · in the repeat (dashed) · sounding (solid).
+Dot: off · lit · accent (downbeat) · fermata-holding (pulsing glow) · fermata-done. Transport: idle · playing · disabled. Repeat box: off · on (`.metroBlk-ctrl-value-btn-on`) · bars too long for the box - `101–124` - smaller, the two numbers on two lines (`strong.is-two-line`, ML-550; `setLoopLabel` in app.js, used when the range is more than 5 characters). Tile: plain · in the repeat (dashed) · sounding (solid).
 
 ## 7. Code example
 ```html

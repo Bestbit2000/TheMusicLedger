@@ -66,8 +66,10 @@ function validated(body) {
   if (tip.length > 200) errors.push('Keep the tip to 200 characters.');
   if (!Warmups.KIND_IDS.includes(kind)) errors.push('Choose a kind.');
   if (!(bpm >= 30 && bpm <= 200)) errors.push('Tempo must be 30 to 200.');
+  // ML-539: 3/4 or 4/4 only - the count-in is one bar, and two beats of a quick 2/4 was too little to come in on
   const check = Warmups.check({ beatsPerBar, notes });
-  errors.push(...check.errors);
+  if (!Warmups.SAVE_BEATS.includes(beatsPerBar)) errors.push('A warm-up has 3 or 4 beats in a bar.');
+  else errors.push(...check.errors);
   if (errors.length) throw withStatus(400, errors.join(' '));
   return { title, tip, kind, beatsPerBar, bpm, notes, isActive: body.isActive !== false };
 }

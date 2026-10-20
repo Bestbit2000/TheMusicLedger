@@ -5,11 +5,11 @@
 // the owner keeps is a test case, and can be read again later (Admin -> Photo reads).
 // docs/piece-from-photo.md.
 
-import { del } from '@vercel/blob';
+import { del, list } from '@vercel/blob';
 import pool from '../config/db.js';
 import { withStatus } from './metronomeSetups.js';
 import { createCustomTimeSignature } from './timeSignatures.js';
-import { isOwnBlobUrl, readCappedBody } from './scoreImport.js';
+import { isOwnBlobUrl, readCappedBody } from './musicXmlImport.js';
 import { assertFlowAccess } from './flows.js';
 import { readPieceFromFiles, PieceRead, READ_VERSION, readerModel, mediaTypeOf, MAX_READ_BYTES, MAX_READ_FILES } from './pieceReader.js';
 
@@ -28,7 +28,7 @@ export function costUsd(model, unitsIn, unitsOut) {
 }
 
 // Only ever this app's own file store, at the pathname the upload returned, under the folder this account
-// was given a token for (the same guard as "Create from file" - ML-192).
+// was given a token for (the same guard as "Import from MusicXML" - ML-192).
 export function checkedFiles(files, prefix) {
   const list = Array.isArray(files) ? files : [];
   if (!list.length) throw withStatus(400, 'There is no photo or PDF to read.');
@@ -38,6 +38,32 @@ export function checkedFiles(files, prefix) {
     if (!isOwnBlobUrl(url, pathname) || !String(pathname).startsWith(prefix)) throw withStatus(400, "That doesn't look like a file uploaded to this app.");
     return { url, pathname };
   });
+}
+
+// ML-553: the pages are read and deleted - also when a read is refused or fails before it starts (the daily
+// limit, a file that fails its check), when one of several uploads failed, or when the tab was closed between
+// the upload and the read. discardReadFiles deletes the pages an account sent (only its own, in its own read
+// folder); sweepReadUploads is the daily job's clear-out of anything left in the read folders after a day, and
+// clears one account's folder when the account is deleted. A super admin's kept tests (piece-read-tests/) are
+// never touched.
+export async function discardReadFiles(accountId, rawFiles) {
+  const prefix = readUploadPrefix(accountId);
+  const urls = (Array.isArray(rawFiles) ? rawFiles : [])
+    .filter(f => f && isOwnBlobUrl(f.blobUrl, f.blobPathname) && String(f.blobPathname).startsWith(prefix))
+    .map(f => f.blobUrl);
+  if (urls.length) await del(urls).catch(() => {});
+}
+export async function sweepReadUploads({ prefix = 'piece-read/', olderThanMs = 24 * 60 * 60 * 1000, now = Date.now() } = {}) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN || !prefix.startsWith('piece-read/')) return { removed: 0 };
+  let cursor;
+  let removed = 0;
+  do {
+    const page = await list({ prefix, cursor, limit: 1000 });
+    const old = page.blobs.filter(b => now - new Date(b.uploadedAt).getTime() > olderThanMs).map(b => b.url);
+    if (old.length) { await del(old); removed += old.length; }
+    cursor = page.hasMore ? page.cursor : undefined;
+  } while (cursor);
+  return { removed };
 }
 
 async function fetchBuffers(files) {

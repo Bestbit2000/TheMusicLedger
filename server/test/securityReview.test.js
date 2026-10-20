@@ -1,112 +1,45 @@
-// ML-192: the pure rule helpers behind Admin -> Security's automated checks, plus the shape of the
-// deep-review history file (every result must hang off a check the page knows about).
+// The shared machinery behind Admin -> Security's site review (server/services/securityReview.js):
+// the OSV advisory lookup the site's "Installed packages" check is built on. (ML-543: the rule
+// helpers this file tested belonged to the review of the old PDF import's music-scanning service,
+// ML-192, and went with it. The site review's own checks are tested in siteSecurity.test.js.)
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 process.env.DATABASE_URL ??= 'postgres://test:test@localhost:5432/test';
-const {
-  CHECKS, SECTIONS, lockfilePackages, gradleDependencies, containerHardeningRules, supplyChainRules, serviceAuthRules, assistedRuns
-} = await import('../services/securityReview.js');
+const { osvLookup } = await import('../services/securityReview.js');
 
-// Trimmed from the real upstream files at a6325864 (the first deep review).
-const DOCKERFILE = `FROM eclipse-temurin:25-jdk AS audiveris-build
-ARG AUDIVERIS_VERSION=5.10.2
-RUN git clone --depth 1 --branch \${AUDIVERIS_VERSION} https://github.com/Audiveris/audiveris.git /build
-FROM eclipse-temurin:25-jre
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \\
-    && apt-get install -y --no-install-recommends nodejs
-RUN npm ci --omit=dev
-USER omr
-`;
-const COMPOSE = `services:
-  omr:
-    build: ../..
-    mem_limit: 10g
-    expose:
-      - "8480"
-
-  caddy:
-    image: caddy:2
-    ports:
-      - "80:80"
-`;
-
-test('container rules: non-root and memory limit pass, kernel restrictions flagged', () => {
-  const byRule = Object.fromEntries(containerHardeningRules(DOCKERFILE, COMPOSE).map((r) => [r.rule, r]));
-  assert.equal(byRule['Runs as a non-root user'].ok, true);
-  assert.equal(byRule['Memory limit set'].ok, true);
-  assert.equal(byRule['Service port not published on the host'].ok, true, 'caddy\'s ports must not count against omr');
-  for (const rule of ['All Linux capabilities dropped', 'no-new-privileges', 'Read-only root filesystem', 'Process count limit', 'CPU limit set']) {
-    assert.equal(byRule[rule].ok, false, rule);
-  }
-  const hardened = COMPOSE.replace('mem_limit: 10g', 'mem_limit: 10g\n    cpus: 2\n    pids_limit: 256\n    read_only: true\n    security_opt:\n      - no-new-privileges:true\n    cap_drop:\n      - ALL');
-  const again = Object.fromEntries(containerHardeningRules(DOCKERFILE, hardened).map((r) => [r.rule, r.ok]));
-  assert.equal(again['All Linux capabilities dropped'] && again['no-new-privileges'] && again['Read-only root filesystem'] && again['Process count limit'] && again['CPU limit set'], true);
-});
-
-test('supply chain rules flag tag-only images, curl | bash and a tag clone', () => {
-  const byRule = Object.fromEntries(supplyChainRules(DOCKERFILE).map((r) => [r.rule, r.ok]));
-  assert.deepEqual(byRule, {
-    'Base images pinned by digest': false,
-    'No curl | bash installs': false,
-    'Audiveris source pinned to a commit': false,
-    'npm install honours the lockfile': true,
-    'Dev dependencies left out of the image': true
-  });
-});
-
-test('auth rules: plain reverse_proxy and no hook = no auth; a header match or hook counts', () => {
-  assert.deepEqual(serviceAuthRules('server.register(cors)', '{$OMR_DOMAIN} {\n\treverse_proxy omr:8480\n}'), { codeAuth: false, proxyAuth: false });
-  assert.equal(serviceAuthRules('', '@ok header Authorization "Bearer {$OMR_TOKEN}"\nreverse_proxy @ok omr:8480').proxyAuth, true);
-  assert.equal(serviceAuthRules("server.addHook('onRequest', async (req) => { if (req.headers.authorization !== t) throw 401 })", '').codeAuth, true);
-});
-
-test('lockfilePackages reads names (scoped too) and dev flags', () => {
-  const pkgs = lockfilePackages({ packages: {
-    '': { name: 'root' },
-    'node_modules/fastify': { version: '5.1.0' },
-    'node_modules/@fastify/cors': { version: '10.0.1' },
-    'node_modules/vite/node_modules/esbuild': { version: '0.21.5', dev: true }
-  } });
-  assert.deepEqual(pkgs, [
-    { name: 'fastify', version: '5.1.0', dev: false },
-    { name: '@fastify/cors', version: '10.0.1', dev: false },
-    { name: 'esbuild', version: '0.21.5', dev: true }
-  ]);
-});
-
-test('gradleDependencies resolves ext versions and adds the aliased artifacts OSV knows', () => {
-  const gradle = `ext.jcppVersion = '1.5.12'
-ext.tessVersion = '5.5.1'
-plugins { id 'io.github.jwharm.flatpak-gradle-generator' version '1.7.0' }
-dependencies {
-  implementation(
-    'ch.qos.logback:logback-classic:1.4.14',
-    'org.apache.directory.studio:org.apache.commons.io:2.4',
-    "org.bytedeco:tesseract:\${tessVersion}-\${jcppVersion}",
-  )
-  runtimeOnly("org.bytedeco:tesseract:\${tessVersion}-\${jcppVersion}:linux-arm64")
-}`;
-  const deps = Object.fromEntries(gradleDependencies(gradle).map((d) => [d.name, d.version]));
-  assert.equal(deps['ch.qos.logback:logback-core'], '1.4.14');
-  assert.equal(deps['commons-io:commons-io'], '2.4');
-  assert.equal(deps['org.bytedeco:tesseract'], '5.5.1-1.5.12');
-});
-
-test('deep-review history only uses known check keys and statuses', () => {
-  const keys = new Set(CHECKS.map((c) => c.key));
-  const sections = new Set(SECTIONS.map((s) => s.key));
-  for (const c of CHECKS) assert.ok(sections.has(c.section), c.key);
-  const runs = assistedRuns();
-  assert.ok(runs.length >= 1);
-  for (const run of runs) {
-    assert.match(run.upstreamCommitSha, /^[0-9a-f]{40}$/);
-    assert.ok(['go', 'no-go', 'conditional'].includes(run.verdict.status));
-    for (const r of run.results) {
-      assert.ok(keys.has(r.checkKey), `unknown check ${r.checkKey}`);
-      assert.ok(!r.checkKey.startsWith('auto.'), 'automated checks are recorded by Run now, not the history file');
-      assert.ok(['pass', 'warn', 'fail', 'info', 'not_run', 'error'].includes(r.status), r.checkKey);
+// Answers as api.osv.dev does: one result per query, then each advisory's details by id.
+function fakeOsv(calls) {
+  return async (url, options = {}) => {
+    calls.push(url);
+    const reply = (body) => ({ ok: true, status: 200, json: async () => body });
+    if (url.endsWith('/v1/querybatch')) {
+      const { queries } = JSON.parse(options.body);
+      return reply({ results: queries.map((q) => (q.package.name === 'old-thing' ? { vulns: [{ id: 'GHSA-aaaa' }] } : {})) });
     }
-  }
+    if (url.endsWith('/v1/vulns/GHSA-aaaa')) return reply({ id: 'GHSA-aaaa', aliases: ['CVE-2026-1'], summary: 'Bad input', database_specific: { severity: 'high' } });
+    return { ok: false, status: 404, json: async () => ({}) };
+  };
+}
+
+test('osvLookup pairs each package with its advisories, details filled in', async (t) => {
+  const calls = [];
+  t.mock.method(globalThis, 'fetch', fakeOsv(calls));
+  const out = await osvLookup([
+    { package: { ecosystem: 'npm', name: 'old-thing' }, version: '1.0.0' },
+    { package: { ecosystem: 'npm', name: 'fine-thing' }, version: '2.0.0' }
+  ]);
+  assert.equal(out.length, 2);
+  assert.deepEqual(out[0].vulns, [{ id: 'GHSA-aaaa', aliases: ['CVE-2026-1'], summary: 'Bad input', severity: 'HIGH' }]);
+  assert.deepEqual(out[1].vulns, []);
+  assert.equal(out[1].query.package.name, 'fine-thing');
+  assert.ok(calls.every((u) => u.startsWith('https://api.osv.dev/')), 'only ever asks OSV');
+});
+
+test('osvLookup asks nothing for an empty list', async (t) => {
+  const calls = [];
+  t.mock.method(globalThis, 'fetch', fakeOsv(calls));
+  assert.deepEqual(await osvLookup([]), []);
+  assert.equal(calls.length, 0);
 });

@@ -1,16 +1,16 @@
-// ML-192 (OMR security review): the guards "Create from file" puts in front of everything it reads -
-// the uploaded file's URL, the size of every body it holds in memory, and what an .mxl unzips to.
-// The same checks run live from Admin -> Security (server/services/securityReview.js), so a
-// regression shows up there as well as here.
+// ML-192: the guards "Import from MusicXML" (and "A piece from a photo or PDF", ML-246) put in front
+// of everything they read - the uploaded file's URL, the size of every body held in memory, and
+// what an .mxl unzips to. (ML-543: this test was renamed when the PDF/scan import through an outside
+// music-scanning service that shared the same front end was removed; the guards stay.)
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import JSZip from 'jszip';
 
-// scoreImport.js imports the DB pool, which refuses to load without a connection string. Nothing
+// musicXmlImport.js imports the DB pool, which refuses to load without a connection string. Nothing
 // here queries it, so any well-formed value will do.
 process.env.DATABASE_URL ??= 'postgres://test:test@localhost:5432/test';
-const { isOwnBlobUrl, readCappedBody, extractMusicXmlText, MAX_MUSICXML_BYTES } = await import('../services/scoreImport.js');
+const { isOwnBlobUrl, readCappedBody, extractMusicXmlText, MAX_MUSICXML_BYTES } = await import('../services/musicXmlImport.js');
 
 const STORE = 'https://abc123xyz.public.blob.vercel-storage.com';
 
@@ -80,4 +80,15 @@ test('extractMusicXmlText still reads a normal .mxl and plain MusicXML', async (
   zip.file('score.musicxml', xml);
   assert.equal(await extractMusicXmlText(await zip.generateAsync({ type: 'nodebuffer' })), xml);
   assert.equal(await extractMusicXmlText(Buffer.from(xml)), xml);
+});
+
+test('ML-551: with the upload key set, isOwnBlobUrl only accepts this app’s own store', () => {
+  const saved = process.env.BLOB_READ_WRITE_TOKEN;
+  process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_AbC123XyZ_notarealsecret';
+  try {
+    assert.equal(isOwnBlobUrl(`${STORE}/flows/from-file/x.musicxml`, 'flows/from-file/x.musicxml'), true);
+    assert.equal(isOwnBlobUrl('https://someoneelse99.public.blob.vercel-storage.com/flows/from-file/x.musicxml', 'flows/from-file/x.musicxml'), false);
+  } finally {
+    if (saved === undefined) delete process.env.BLOB_READ_WRITE_TOKEN; else process.env.BLOB_READ_WRITE_TOKEN = saved;
+  }
 });

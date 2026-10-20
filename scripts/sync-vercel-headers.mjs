@@ -5,8 +5,10 @@
 // (/api/..., /auth/...). vercel.json's "headers" is what puts them on the pages too. This script copies
 // the one list into it, so the two can't drift; server/test/vercelHeaders.test.js fails if they have.
 //
-// Usage: npm run sync-vercel-headers             (the content security policy as report-only)
-//        npm run sync-vercel-headers -- --enforce (enforced - only together with CSP_ENFORCE=true, ML-474)
+// Usage: npm run sync-vercel-headers                 (the content security policy enforced - switched on 7 Oct 2026, ML-474)
+//        npm run sync-vercel-headers -- --report-only (only to go back to reporting, on the owner's say-so)
+// ML-555: enforced is the default. It was report-only, and running the script plainly in 0.63.0 put the live pages back
+// to reporting only; server/test/vercelHeaders.test.js now fails if vercel.json is report-only.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { securityHeaders } from '../server/middleware/securityHeaders.js';
 
@@ -15,7 +17,7 @@ const SOURCE = '/(.*)'; // every address: the pages, and the data answers too (t
 const file = new URL('../vercel.json', import.meta.url);
 const text = readFileSync(file, 'utf8');
 const config = JSON.parse(text);
-const headers = Object.entries(securityHeaders({ enforceCsp: process.argv.includes('--enforce') })).map(([key, value]) => ({ key, value }));
+const headers = Object.entries(securityHeaders({ enforceCsp: !process.argv.includes('--report-only') })).map(([key, value]) => ({ key, value }));
 const others = (config.headers || []).filter((h) => h.source !== SOURCE);
 const { rewrites, ...rest } = config;
 const out = JSON.stringify({ ...rest, headers: [{ source: SOURCE, headers }, ...others], ...(rewrites ? { rewrites } : {}) }, null, 2) + '\n';

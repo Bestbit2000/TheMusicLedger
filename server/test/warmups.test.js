@@ -75,6 +75,17 @@ describe('warm-ups (ML-294)', () => {
             for (const clef of ['treble', 'bass', 'tenor']) for (const r of W.rows(e, clef)) N.staff({ clef, items: r.items, stepRange: W.stepRange(e, clef) });
         }
     });
+    test('ML-539: a seeded 2/4 warm-up is still valid in 4/4 (migration 136) - two bars make one, no note moves', () => {
+        const sql = fs.readFileSync(new URL('../../db/migrations/055_warmups.sql', import.meta.url), 'utf8');
+        const twoFour = [...sql.matchAll(/'(\[\{.*?\}\])'::jsonb, (\d)/g)].filter(([, , bpb]) => bpb === '2').map(([, json]) => JSON.parse(json.replace(/''/g, "'")));
+        assert.ok(twoFour.length >= 1, 'the March tune was seeded in 2/4');
+        for (const notes of twoFour) {
+            const before = W.check({ beatsPerBar: 2, notes }), after = W.check({ beatsPerBar: 4, notes });
+            assert.ok(after.ok, after.errors.join(' '));
+            assert.equal(after.bars.length, Math.ceil(before.bars.length / 2));
+        }
+        assert.deepEqual([...W.SAVE_BEATS], [3, 4]);
+    });
     test('no rests after the last note: trimEndRests, and the eight seeded long tones lose their rest bar (088)', () => {
         assert.deepEqual(plain(W.trimEndRests(W.parse('C4h rh G4w rw rq'))), plain(W.parse('C4h rh G4w')));
         assert.deepEqual(plain(W.trimEndRests(W.parse('rq C4q'))), plain(W.parse('rq C4q')), 'a rest before the first note stays');

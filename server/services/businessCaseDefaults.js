@@ -37,8 +37,6 @@ const COSTS = [
     note: 'Worked out from the member numbers and the usage figures on the Overview. Free to 100 compute-hours a month, then $0.106 an hour and $0.35 a GB.', source: { label: 'neon.com', url: 'https://neon.com/pricing' } },
   { id: 'email-service', group: 'host', name: 'Email service, paid plan', amount: 20, currency: 'USD', every: 'month', from: AT_LAUNCH, minMembers: 3000, basis: 'estimate',
     note: 'No provider is chosen yet (the owner wants one based in Europe). A guess at what a paid plan costs once the free allowance runs out, and at the 3,000 members when that happens.' },
-  { id: 'pdf-server', group: 'host', name: 'A small server for PDF import', amount: 5, currency: 'GBP', every: 'month', from: AT_LAUNCH, basis: 'estimate',
-    note: 'Only if "Create from file" is switched on. It may cost nothing on a pay-per-use service, or £4-£6 a month on a small server of its own.' },
   { id: 'uptime-checks', group: 'host', name: 'Uptime checks (a paid plan)', amount: 10, currency: 'GBP', every: 'month', from: AT_LAUNCH, basis: 'estimate',
     note: 'Free plans are enough at this size. One free plan describes itself as for hobby and non-profit projects, so a business may need the paid one.' },
 

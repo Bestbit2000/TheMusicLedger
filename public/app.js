@@ -534,7 +534,7 @@
                 add: (flowId, data) => apiCall(`/api/flows/${flowId}/documents`, 'POST', data),
                 delete: (flowId, documentId) => apiCall(`/api/flows/${flowId}/documents/${documentId}`, 'DELETE')
             },
-            // ML-79 Phase 1 - "Create from file" (MusicXML/.mxl): the file's already in Blob
+            // ML-79 Phase 1 - "Import from MusicXML" (MusicXML/.mxl): the file's already in Blob
             // (fromFileUploadBtn's own upload, same client-upload shape as documents.add above) by
             // the time this runs - it parses that file server-side and creates the whole flow
             // (metadata + blocks + the file attached to Media) in one call, not a multi-step form.
@@ -1743,41 +1743,14 @@
         document.querySelectorAll('#toolsView .tool-group').forEach(g => setShown(g, [...g.querySelectorAll('.tool-icon-btn')].some(t => !t.classList.contains('hidden-group'))));
     }
 
-    // ML-204: one start-screen option and one import screen, shared by two gates - MusicXML
-    // (flow_import_musicxml, no third-party dependency) and PDF/scan via OMR (flow_import_from_file,
-    // ML-190). Label, help text, accepted formats and screen title all follow whichever are on, so
-    // the option never offers a format the server would refuse.
-    function flowImportGates() {
-        return { pdf: isFeatureEnabled('flow_import_from_file'), musicxml: isFeatureEnabled('flow_import_musicxml') };
-    }
-    function flowImportTitle() {
-        return flowImportGates().pdf ? 'Create from file' : 'Import from MusicXML';
-    }
+    // ML-204: the "Import from MusicXML" start-screen option and its import screen, behind
+    // flow_import_musicxml (no third-party dependency). The PDF/scan import that once shared them
+    // (flow_import_from_file, through an outside music-scanning service) was removed by ML-543 -
+    // a photo or PDF is read by "From a photo or PDF" (ML-246).
     function applyFlowImportFormats() {
-        const { pdf, musicxml } = flowImportGates();
-        const btn = document.getElementById('metroBlkEntryFromFileBtn');
-        btn?.classList.toggle('hidden-group', !pdf && !musicxml);
+        setShown('metroBlkEntryFromFileBtn', isFeatureEnabled('flow_import_musicxml'));
         setShown('metroBlkEntryQuickBtn', isFeatureEnabled('piece_quick_entry')); // ML-424
         setShown('metroBlkEntryPhotoBtn', isFeatureEnabled('piece_from_photo') && isFeatureEnabled('piece_quick_entry')); // ML-246: it ends in Quick entry
-        const label = flowImportTitle();
-        const help = pdf && musicxml ? 'Import from a PDF or MusicXML score'
-            : pdf ? 'Import from a PDF score' : 'Open a MusicXML or .mxl file from notation software';
-        const labelEl = document.getElementById('metroBlkEntryFromFileLabel');
-        const helpEl = document.getElementById('metroBlkEntryFromFileHelp');
-        if (labelEl) labelEl.innerText = label;
-        if (helpEl) helpEl.innerText = help;
-        const dropHelp = document.getElementById('flowFromFileDropHelp');
-        if (dropHelp) dropHelp.innerText = pdf && musicxml ? 'Select a PDF scan, MusicXML, or .mxl' : pdf ? 'Select a PDF scan' : 'Select a MusicXML or .mxl file';
-        document.getElementById('flowFromFilePdfChip')?.classList.toggle('hidden-group', !pdf);
-        document.querySelectorAll('#flowFromFileView .flow-from-file-chip-row .flow-pill:not(#flowFromFilePdfChip)')
-            .forEach(chip => chip.classList.toggle('hidden-group', !musicxml));
-        const input = document.getElementById('flowFromFileInput');
-        if (input) {
-            input.accept = [
-                ...(pdf ? ['.pdf', 'application/pdf'] : []),
-                ...(musicxml ? ['.musicxml', '.mxl', 'application/vnd.recordare.musicxml+xml', 'application/vnd.recordare.musicxml'] : [])
-            ].join(',');
-        }
     }
 
     // Archived organisations/teachers are hidden from pickers used for new
@@ -2505,7 +2478,7 @@
         if (viewName !== 'toolsView' && toolsEditing) { toolsEditing = false; renderToolStars(); } // ML-378: leaving ends choosing
         if (viewName !== 'statsHomeView' && statsEditing) { statsEditing = false; renderStatStars(); } // ML-387: the same for Home stats
         if (viewName === 'notificationsView') { document.getElementById('topTitle').innerText = 'Notifications'; renderNotificationsView(); checkNotifications(true); }
-        if (viewName === 'flowFromFileView') { document.getElementById('topTitle').innerText = flowImportTitle(); resetFlowFromFileScreen(); }
+        if (viewName === 'flowFromFileView') { document.getElementById('topTitle').innerText = 'Import from MusicXML'; resetFlowFromFileScreen(); }
         if (viewName === 'addPieceView') { document.getElementById('topTitle').innerText = 'Add a piece'; openAddPiece(isBack); }
         if (viewName === 'pieceOutlineView') { document.getElementById('topTitle').innerText = 'Add a piece'; renderOutline(); } // ML-424
         if (viewName === 'quickPlayView') {
@@ -3686,7 +3659,7 @@
 
                 div.innerHTML = `
                     <div class="history-details">
-                        <strong class="category-text">${categoryLabel(item.category)} ${item.who ? '('+item.who+')' : ''}</strong>
+                        <strong class="category-text">${categoryLabel(item.category)} ${item.who ? `(${escapeHtml(item.who)})` : ''}</strong>
                         ${dObj.getDate() || '?'} ${mNames[dObj.getMonth()] || '?'} ${dObj.getFullYear() || '?'} | ${Math.round(item.duration)} mins
                     </div>
                     <button type="button" class="list-item-menu-btn" data-session-history-menu-btn aria-label="Options for ${categoryLabel(item.category)} entry" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
@@ -4231,12 +4204,13 @@
     // one choice in Tidy my bands); a choice from a set opens the usual choice pop-up.
     const sessionsWord = (n) => `${n} session${n === 1 ? '' : 's'}`;
     // ML-506: an organiser is an adult. The server refuses to set up sharing or send an invitation for an
-    // account that hasn't confirmed it ('needs-adult'). Ask once, keep the day, then carry on with what
-    // they were doing. No proof is asked for - the same weight as the upload confirmation (ML-278).
+    // account that hasn't confirmed it ('needs-adult') - and, since ML-554, any organiser action: what a member
+    // can do, removing someone, the band's logo. Ask once, keep the day, then carry on with what they were
+    // doing. No proof is asked for - the same weight as the upload confirmation (ML-278).
     function organiserAdultNeeded(error, again) {
         if (error.reason !== 'needs-adult') return false;
         showConfirmModal('Running a band\'s space',
-            'Setting up sharing for a band, or inviting people to it, is for adults: you choose who is invited and what the band shares. Please confirm that you are 18 or over and responsible for this band.',
+            'Running a band\'s space - setting up sharing, inviting people, choosing what each member can do and the band\'s logo - is for adults: you choose who is in it and what it shares. Please confirm that you are 18 or over and responsible for this band.',
             async () => {
                 try {
                     await apiCall('/api/account/organiser-adult', 'POST');
@@ -4373,12 +4347,18 @@
         setShown('bandLogoRemoveBtn', !!d.logoUrl);
     }
     document.getElementById('bandLogoBtn')?.addEventListener('click', () => document.getElementById('bandLogoInput')?.click());
-    document.getElementById('bandLogoInput')?.addEventListener('change', async (e) => {
+    document.getElementById('bandLogoInput')?.addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
         e.target.value = '';
         if (!file || !bandMembers.bandId) return;
         if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) { showWarningToast('A logo has to be a picture: PNG, JPEG or WebP.'); return; }
         if (file.size > 1024 * 1024) { showWarningToast('A logo can be up to 1 MB.'); return; }
+        uploadBandLogo(file);
+    });
+    // ML-554: the upload itself is refused for an organiser who hasn't said they are an adult - asked first, so the
+    // file chosen goes up straight after (the file store's refusal doesn't carry the reason back)
+    async function uploadBandLogo(file) {
+        if (accountProfile && !accountProfile.organiserAdultConfirmedOn && organiserAdultNeeded({ reason: 'needs-adult' }, () => uploadBandLogo(file))) return;
         const btn = document.getElementById('bandLogoBtn');
         btn.disabled = true;
         try {
@@ -4392,16 +4372,15 @@
             renderBandMembers();
             showSuccessToast('The logo is on the band now');
         } catch (error) {
-            showWarningToast('The logo could not be added: ' + error.message);
+            if (!organiserAdultNeeded(error, () => uploadBandLogo(file))) showWarningToast('The logo could not be added: ' + error.message);
         } finally {
             btn.disabled = false;
         }
-    });
+    }
     document.getElementById('bandLogoRemoveBtn')?.addEventListener('click', () => {
         if (!bandMembers.bandId) return;
         showConfirmModal('Take the logo off?', 'The band goes back to having no logo. You can add one again at any time.', async () => {
-            try { bandMembers.data = await API.account.removeBandLogo(bandMembers.bandId); renderBandMembers(); }
-            catch (error) { showWarningToast(error.message); }
+            bandMembersDo(() => API.account.removeBandLogo(bandMembers.bandId)); // ML-554: asks for the adult confirmation if it's needed
         }, true, 'Take it off');
     });
     function renderBandMembers() {
@@ -6796,11 +6775,10 @@
             await createAndOpenFlow(addPieceTakeTarget());
         } finally { btn.disabled = false; }
     });
-    // Behind the import gates (applyFlowImportFormats shows/hides it once appData has loaded - this
+    // Behind flow_import_musicxml (applyFlowImportFormats shows/hides it once appData has loaded - this
     // listener just needs to agree, in case it's clicked before that's resolved).
     document.getElementById('metroBlkEntryFromFileBtn')?.addEventListener('click', () => {
-        const { pdf, musicxml } = flowImportGates();
-        if (!pdf && !musicxml) return;
+        if (!isFeatureEnabled('flow_import_musicxml')) return;
         addPieceTarget = addPieceTakeTarget();
         switchView('flowFromFileView');
     });
@@ -7007,9 +6985,11 @@
         root.querySelectorAll('.level-bar-part[data-bars]').forEach(p => p.style.setProperty('--bars', p.dataset.bars));
     }
     // The key under Level bars - as under a piece's map on its path, but an unset bar is "Not known" here (owner,
-    // 1 Oct 2026); "Not set" on the path and in Prepare, where you set them (ML-536).
-    const levelLegendHtml = (unset = 'Not known') => `<div class="level-legend mt-2" aria-hidden="true">
-        <span><span class="level-cell lv-0"></span>${unset}</span>
+    // 1 Oct 2026); "Not set" on the path and in Prepare, where you set them (ML-536). ML-548: the empty box is only in
+    // the key when a bar above it has bars with no level - a prepared piece has none, and one not prepared shows no bar.
+    // maps: the Level maps the key is under.
+    const levelLegendHtml = (maps, unset = 'Not known') => `<div class="level-legend mt-2" aria-hidden="true">
+        ${maps.some(m => m.some(v => !v)) ? `<span><span class="level-cell lv-0"></span>${unset}</span>` : ''}
         <span><span class="level-cell lv-1">1</span><span class="level-cell lv-2">2</span>Silver</span>
         <span><span class="level-cell lv-3">3</span><span class="level-cell lv-4">4</span>Gold</span>
         <span><span class="level-cell lv-5">5</span>Full speed</span></div>`;
@@ -7030,7 +7010,8 @@
         setShown('pathLevelBarBox', only && anySet);
         if (only && anySet) {
             const bar = document.getElementById('pathLevelBar');
-            bar.innerHTML = levelBarHtml(map.slice(levelsFrom() - 1, levelsTo())) + levelLegendHtml('Not set');
+            const scoped = map.slice(levelsFrom() - 1, levelsTo());
+            bar.innerHTML = levelBarHtml(scoped) + levelLegendHtml([scoped], 'Not set');
             sizeLevelBars(bar);
         }
         setShown('piecePath', !only);
@@ -7562,17 +7543,7 @@
         setShown('levelRateMoreBtn', jumps.length > 0);
         setShown('levelRateMore', false);
         document.getElementById('levelRateMoreBtn').setAttribute('aria-expanded', 'false');
-        // The piece's next goal - "Everyone up to 2" and its bar map.
-        const bits = levels.flowId === s.flowId ? focusBits() : [];
-        setShown('levelRateGoal', bits.length > 0);
-        if (bits.length) {
-            const low = Math.min(...bits.map(c => c.level));
-            const there = levels.chunks.filter(c => c.level != null).length - bits.filter(c => c.level === low).length;
-            document.getElementById('levelRateGoalText').textContent = `Next goal for ${levels.title}: every focus section up to Level ${low + 1} (${there} of ${levels.chunks.filter(c => c.level != null).length} there)`;
-            const goalBar = document.getElementById('levelRateGoalBar');
-            goalBar.innerHTML = levelBarHtml(levelsMap()) + levelLegendHtml();
-            sizeLevelBars(goalBar);
-        }
+        // (ML-547: the piece's "next goal" under the question is gone - it wasn't always right with one left behind)
         document.getElementById('levelRateUp').classList.remove('is-celebrating');
         showModal('levelRateModal');
         document.getElementById('flowSessionFinishBtn').setAttribute('aria-expanded', 'true');
@@ -8083,20 +8054,21 @@
         const src = sessPlan.source || { type: 'all' };
         document.getElementById('sessPiecesSource').textContent = src.type === 'list' ? `From ${src.listName || 'your practice list'}` : src.type === 'pieces' ? `${(src.scoreIds || []).length} piece${(src.scoreIds || []).length === 1 ? '' : 's'} you picked` : 'All your pieces with Levels';
         document.getElementById('sessAutoToggle').checked = sessPlan.auto;
-        document.getElementById('sessAutoNote').textContent = sessPlan.auto ? 'Auto: picks the bars that need you most, and gets every piece up a Level together.' : 'You\'ll pick each Pieces block\'s bars on the next screen.';
+        document.getElementById('sessAutoNote').textContent = sessPlan.auto ? 'Picks the bars that need you most, and gets every piece up a Level together.' : 'You\'ll pick each Pieces block\'s bars on the next screen.';
         const pool = PracticePlan.piecePool(sessPlan.pieces);
         const practise = pool.filter(x => x.stage === 'practise');
+        // ML-547: no "Next goal: every 1 up to 2" line - it wasn't always right with one left behind. A new piece still
+        // says it comes first, and a piece ready to play through says so.
         const goal = document.getElementById('sessGoal');
-        const low = practise.length ? Math.min(...practise.map(x => x.level)) : null;
-        goal.innerHTML = low != null ? `<span class="material-symbols-outlined" aria-hidden="true">trending_up</span> Next goal: every <span class="level-chip lv-${low}">${low}</span> up to <span class="level-chip lv-${low + 1}">${low + 1}</span>`
-            : pool.some(x => x.stage === 'prepare') ? '<span class="material-symbols-outlined" aria-hidden="true">construction</span> First: prepare the new pieces'
-            : pool.some(x => x.stage === 'playthrough') ? '<span class="material-symbols-outlined" aria-hidden="true">play_circle</span> Next: play them through' : '';
+        goal.innerHTML = !practise.length && pool.some(x => x.stage === 'prepare') ? '<span class="material-symbols-outlined" aria-hidden="true">construction</span> First: prepare the new pieces'
+            : !practise.length && pool.some(x => x.stage === 'playthrough') ? '<span class="material-symbols-outlined" aria-hidden="true">play_circle</span> Next: play them through' : '';
         setShown(goal, sessPlan.auto && !!goal.innerHTML);
         const list = document.getElementById('sessPiecesList');
-        list.innerHTML = sessPlan.pieces.length ? sessPlan.pieces.map(p => {
-            const map = FlowJourney.barLevels(p.totalBars, p.chunks);
-            return `<div class="session-piece"><span class="session-piece-head"><strong>${escapeHtml(p.title)}</strong><span class="text-sm text-muted">${escapeHtml(pieceStatus(p))}</span></span>${levelBarHtml(map)}</div>`;
-        }).join('') + levelLegendHtml() : `<p class="text-sm text-muted">${src.type === 'all' ? 'No pieces have Levels yet. Choose a practice list or some pieces and each gets a Prepare block first.' : 'No pieces here yet.'}</p>`;
+        // ML-548: a piece with no Levels yet shows no bar - its line says it needs preparing
+        const maps = sessPlan.pieces.map(p => (p.chunks || []).some(c => c.level != null) ? FlowJourney.barLevels(p.totalBars, p.chunks) : null);
+        list.innerHTML = sessPlan.pieces.length ? sessPlan.pieces.map((p, i) => {
+            return `<div class="session-piece"><span class="session-piece-head"><strong>${escapeHtml(p.title)}</strong><span class="text-sm text-muted">${escapeHtml(pieceStatus(p))}</span></span>${maps[i] ? levelBarHtml(maps[i]) : ''}</div>`;
+        }).join('') + (maps.some(Boolean) ? levelLegendHtml(maps.filter(Boolean)) : '') : `<p class="text-sm text-muted">${src.type === 'all' ? 'No pieces have Levels yet. Choose a practice list or some pieces and each gets a Prepare block first.' : 'No pieces here yet.'}</p>`;
         sizeLevelBars(list);
     }
     document.getElementById('sessAutoToggle')?.addEventListener('change', (e) => { sessPlan.auto = e.target.checked; renderSessContent(); });
@@ -8431,16 +8403,53 @@
             scalesLadder.nudged = true; // ML-391
             showSuccessToast('Time to decide: got it, or not yet?');
         }
-        if (!r.nudged && Number.isFinite(r.nudgeAt) && runElapsed() >= r.nudgeAt) sessionTimeUp();
+        if (!r.nudged && Number.isFinite(r.nudgeAt) && runElapsed() >= r.nudgeAt) sessionTimeUp({ ranOut: true });
+        else if (r.finishingGo && !sessionGoStillPlaying(r.finishingGo)) sessionTimeUp(); // paused or left while it finished
         renderPracticeRun();
+    }
+    // ML-541: when a block's time runs out part way through a go, the go is finished first - the piece's bars to
+    // the end of the go it's on, or a warm-up to the end of the time through it's on - then the block ends. A go
+    // that has only just started (its gap bar or count-in, or its first bar) stops straight away instead.
+    // Returns the go being finished ({ kind, pass, tag }), or null to stop now.
+    function sessionGoToFinish() {
+        const view = viewStack[viewStack.length - 1];
+        if (view === 'flowPlayView' && flowSession && flowSession.mode !== 'runthrough' && flowLoopPlan && flowPlayer.isPlaying()) {
+            const pos = flowScreenPosition();
+            const p = flowPlayQueue[flowPlayIndex];
+            if (!pos || !p || p.kind === 'rest' || p.kind === 'leadIn') return null;
+            const first = flowPlayQueue.findIndex(q => q.loopPass === p.loopPass && q.kind !== 'rest' && q.kind !== 'leadIn');
+            if (flowPlayIndex === first && pos.bar - pos.p.fromBar === 0) return null;
+            return { kind: 'flow', pass: p.loopPass };
+        }
+        const L = sessionWarmupLoop, tl = warmupsTimeline;
+        if (view === 'warmupsView' && L && L.tag && tl && warmupsPlayer.isPlaying()) {
+            const k = warmupsTick - 1 - warmupsCountInClicks; // the last click heard
+            if (k < 0 || k % tl.totalClicks < tl.clicksPerBar) return null;
+            return { kind: 'warmup', tag: L.tag, pass: Math.floor(k / tl.totalClicks) };
+        }
+        return null;
+    }
+    const sessionGoStillPlaying = (go) => (go.kind === 'flow' ? viewStack[viewStack.length - 1] === 'flowPlayView' && flowPlayer.isPlaying() : viewStack[viewStack.length - 1] === 'warmupsView' && warmupsPlayer.isPlaying());
+    // The go being finished has ended (called from the players' beats): now the block ends.
+    function sessionGoFinished() {
+        const r = practiceRun;
+        if (!r || !r.finishingGo) return;
+        if (r.finishingGo.kind === 'flow') flowPlayer.pause(); else warmupsPause();
+        sessionTimeUp();
     }
     // The block's time is up (or Next block): the sound stops - Play Flow pauses where it is, any other tool
     // is left for the session screen (leaving a tool stops it) - then "Did you nail it?" / "Got it?", then
     // the rest or the next block.
-    function sessionTimeUp() {
+    // opts.ranOut: the block's time ran out (not Next block) - a go part way through is finished first (ML-541).
+    function sessionTimeUp(opts) {
         const r = practiceRun;
         if (!r || r.done || r.phase === 'rest') return;
         r.nudged = true;
+        if (opts && opts.ranOut && !r.finishingGo) {
+            r.finishingGo = sessionGoToFinish();
+            if (r.finishingGo) { renderPracticeRun(); return; }
+        }
+        r.finishingGo = null;
         if (theoryBlock) theoryBlockEnd(); // ML-418: the Theory block's time is up - a round part-way through is dropped, unasked
         const view = viewStack[viewStack.length - 1];
         // ML-391: the scale a Scales block stopped on still gets its answer (taken before leaving ends the block)
@@ -8711,13 +8720,13 @@
         nextBtn.textContent = next ? 'Next block' : 'Finish the session';
         setShown(nextBtn, !resting);
         document.getElementById('sessionBarText').textContent = `${count} · ${resting ? 'Rest' : blockTitle(b)}`;
-        document.getElementById('sessionBarTime').textContent = r.pausedAt ? `Paused · ${time}` : time;
-        // While a block plays, the bar names the piece coming next.
-        const nextUp = r.blocks[r.index + 1];
-        const music = !resting && nextMusic(nextUp);
-        const barNext = document.getElementById('sessionBarNext');
-        barNext.textContent = music ? `Next: ${music.title}${music.to ? ` · ${levelsRange(music.from, music.to)}` : ''}` : '';
-        setShown(barNext, !!music);
+        document.getElementById('sessionBarTime').textContent = r.pausedAt ? `Paused · ${time}` : r.finishingGo ? 'Last go' : time; // ML-541: time's up, the go is finishing
+        // While a block plays, the bar names the piece and the bars being played now (ML-540 - it named the
+        // piece coming next, so the bars to play were only ever on the rest screen before).
+        const music = !resting && nextMusic(b);
+        const barNow = document.getElementById('sessionBarNext');
+        barNow.textContent = music ? `Now: ${music.title}${music.to ? ` · ${levelsRange(music.from, music.to)}` : ''}` : '';
+        setShown(barNow, !!music);
         // The block you're on fills in as its time goes (owner, 1 Oct 2026) - full in the rest after it, and
         // full for a Prepare, which has no end.
         const fill = resting || isPrepare || !(r.nudgeAt > 0) ? 1 : Math.min(1, Math.max(0, runElapsed() / r.nudgeAt));
@@ -8943,10 +8952,12 @@
         setShown(nc, f.notCounted.length > 0);
         nc.textContent = `Not counted: ${f.notCounted.join('; ')}.`;
         const box = document.getElementById('plPieces');
+        const shownMaps = []; // the bars drawn - the key's empty box only when one of them has bars with no level (ML-548)
         box.innerHTML = l.pieces.length ? l.pieces.map((p, i) => {
             // ML-530: a piece on the list as one movement - that movement's bars only
             const m = p.movement;
             const map = m ? FlowJourney.barLevels(m.endBar, p.chunks).slice(m.startBar - 1) : FlowJourney.barLevels(p.totalBars, p.chunks);
+            if (!f.pieces[i].archived && !f.pieces[i].prep) shownMaps.push(map);
             const name = m ? `${p.title} · ${FlowJourney.movementLabel(m, true)}` : p.title;
             const pb = f.pieces[i];
             // ML-334: a piece not set up yet is fine on a list - its first block is preparation for
@@ -8959,7 +8970,7 @@
                 </button>
                 <button type="button" class="list-item-menu-btn" data-piece-menu="${p.scoreId}" aria-label="Options for ${escapeHtml(p.title)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined" aria-hidden="true">more_vert</span></button>
             </div>`;
-        }).join('') + (f.pieces.some(pb => !pb.prep) ? levelLegendHtml() : '') : '<p class="text-sm text-muted">No pieces yet.</p>';
+        }).join('') + (shownMaps.length ? levelLegendHtml(shownMaps) : '') : '<p class="text-sm text-muted">No pieces yet.</p>';
         sizeLevelBars(box);
         box.querySelectorAll('[data-piece]').forEach(b => b.addEventListener('click', () => { const id = Number(b.dataset.piece); openPiecePath(id, { movement: (l.pieces.find(p => p.scoreId === id) || {}).movement }); }));
         box.querySelectorAll('[data-piece-menu]').forEach(b => b.addEventListener('click', (e) => {
@@ -10262,11 +10273,11 @@
     // abandoned, which is a reporting decision rather than a claim made here.
     window.addEventListener('pagehide', () => flowStatsSync(null, true));
 
-    // --- ML-79 Phase 1: "Create from file" (MusicXML/.mxl) - one upload-then-parse path
+    // --- ML-79 Phase 1: "Import from MusicXML" (MusicXML/.mxl) - one upload-then-parse path
     // (handleFromFileUpload) behind the dropzone. The heavy lifting (parsing, creating the
     // flow/blocks, attaching the file to Media) all happens server-side in one call
     // (API.flows.fromFile.create) - see server/routes/api.js's /flows/from-file and
-    // server/services/scoreImport.js. ---
+    // server/services/musicXmlImport.js. ---
     let flowFromFilePendingId = null;
 
     function resetFlowFromFileScreen() {
@@ -10304,10 +10315,8 @@
             });
             // The upload's own progress has nothing to report during the parse itself (one request,
             // no incremental feedback from the server) - the bar just holds at 100% with a relabel
-            // so it doesn't look stuck/finished right as the slower part actually starts. A PDF goes
-            // through OMR first (ML-79 Phase 2, can take a while) before the same parse the other
-            // formats skip straight to - "Scanning" sets that expectation rather than looking stuck.
-            labelEl.innerText = file.type === 'application/pdf' || /\.pdf$/i.test(file.name) ? 'Scanning score…' : 'Parsing score…';
+            // so it doesn't look stuck/finished right as the slower part actually starts.
+            labelEl.innerText = 'Parsing score…';
             percentEl.innerText = '100%';
             fillEl.style.setProperty('--progress', '100%');
 
@@ -14707,6 +14716,9 @@
             renderFlowPlaybackRow();
             return;
         }
+        // ML-541: the block's time ran out during a go - the next go's gap bar has begun, so that go is finished
+        const finishing = practiceRun && practiceRun.finishingGo;
+        if (finishing && finishing.kind === 'flow' && flowPlayQueue[beatInfo.tag] && flowPlayQueue[beatInfo.tag].loopPass > finishing.pass) { sessionGoFinished(); return; }
         const passageChanged = beatInfo.tag !== flowPlayIndex;
         const isFermataRepeat = !!(beatInfo.fermataHold && !beatInfo.fermataHold.isFirst);
         const prevBar = flowScreenPosition()?.bar;
@@ -14717,6 +14729,15 @@
         if (!pos) return;
         const block = flowPassageBlock(pos.p);
         const subFactor = flowPassageSubFactor(pos.p, block);
+        // ML-542: the count-in (the rest bars before the first go - not the gap bars between goes) counts down big
+        const cp = pos.p;
+        if (cp.kind === 'rest' && (cp.loopPass === 1 || !flowLoopPlan)) {
+            if (beatInfo.isConductorBeat) {
+                const bpb = beatInfo.conductorBeatsPerBar;
+                const total = flowPlayQueue.filter(q => q.kind === 'rest' && q.loopPass === cp.loopPass).length * bpb;
+                showCountIn('flowCountIn', total - (cp.restIndex * bpb + beatInfo.conductorBeatIndex), total);
+            }
+        } else showCountIn('flowCountIn', 0);
 
         // A new passage (a new block, a repeat, a jump) redraws the whole row; a new bar within the same
         // passage only refreshes its label and fermata/caesura glyphs - at the new bar's first click,
@@ -14967,7 +14988,7 @@
             const slide = flowMediaSlides.find(s => s.type !== 'metronome' && flowMediaSlideKey(s) === box.dataset.recControls);
             if (!slide) return;
             const loopBtn = box.querySelector('[data-rec-loop-btn]');
-            box.querySelector('[data-rec-loop-lbl]').textContent = loopOn ? `${flowLoop.startBar}–${flowLoop.endBar}` : 'off';
+            setLoopLabel(box.querySelector('[data-rec-loop-lbl]'), loopOn);
             loopBtn.classList.toggle('metroBlk-ctrl-value-btn-on', loopOn);
             loopBtn.setAttribute('aria-label', loopOn ? `Repeat bars - ${flowLoopRangeText()}. Tap to change` : 'Repeat bars - off. Tap to set up');
             box.querySelector('[data-rec-speed-lbl]').textContent = `${recSpeed}%`;
@@ -15840,6 +15861,18 @@
     function updateFlowPlayIcon() {
         const el = document.getElementById('flowPlayIcon');
         if (el) el.innerText = flowPlayer.isPlaying() ? 'pause' : 'play_arrow';
+        if (!flowPlayer.isPlaying()) showCountIn('flowCountIn', 0);
+    }
+    // ML-542: the big count-in on the play screen, Warm-ups and Scales - the beats left as a number in a ring
+    // that empties beat by beat (the rest screen's ring), covering the controls but never the music. The small
+    // "Get ready" line stays for screen readers. left 0 (or less) hides it.
+    function showCountIn(id, left, total) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        setShown(el, left > 0);
+        if (!(left > 0)) return;
+        el.querySelector('.rest-ring-num strong').textContent = left;
+        el.querySelector('.rest-ring').style.setProperty('--rest-left', (left / Math.max(left, total)).toFixed(4));
     }
 
     function playFlow() {
@@ -16135,13 +16168,22 @@
         return flowLoopPlan ? flowLoopRunsText(flowLoopPlan.runs) : '';
     }
 
+    // The repeat box's value: "21–30", or - when the bar numbers are too long for the box (101–124) - smaller, the two
+    // numbers on two lines (ML-550).
+    function setLoopLabel(lbl, on) {
+        const text = on ? `${flowLoop.startBar}–${flowLoop.endBar}` : 'off';
+        const twoLines = on && text.length > 5;
+        lbl.classList.toggle('is-two-line', twoLines);
+        if (twoLines) lbl.replaceChildren(document.createTextNode(`${flowLoop.startBar}–`), document.createElement('br'), document.createTextNode(String(flowLoop.endBar)));
+        else lbl.textContent = text;
+    }
     function renderFlowLoopButton() {
         renderRecScoreControls(); // ML-488: a recording's slide shows the same repeat
         const btn = document.getElementById('flowLoopBtn');
         const lbl = document.getElementById('flowLoopLbl');
         if (!btn || !lbl) return;
         const on = !!flowLoopPlan;
-        lbl.innerText = on ? `${flowLoop.startBar}–${flowLoop.endBar}` : 'off';
+        setLoopLabel(lbl, on);
         btn.classList.toggle('metroBlk-ctrl-value-btn-on', on);
         btn.setAttribute('aria-label', on
             ? `Repeat bars - ${flowLoopRangeText()}${flowLoop.restBars ? `, ${flowLoop.restBars} rest bar${flowLoop.restBars === 1 ? '' : 's'}` : ''}. Tap to change`
@@ -24028,11 +24070,11 @@
         const k = scalesTick++ - scalesCountInClicks;
         if (k < 0) {
             const remaining = Math.ceil(-k / scales.npb);
-            if (remaining !== scalesCountdown) { scalesCountdown = remaining; scalesShowSub(); }
+            if (remaining !== scalesCountdown) { scalesCountdown = remaining; scalesShowSub(); showCountIn('scalesCountIn', remaining, Math.round(scalesCountInClicks / scales.npb)); }
             scalesLight(-1);
             return;
         }
-        if (scalesCountdown) { scalesCountdown = 0; scalesShowSub(); }
+        if (scalesCountdown) { scalesCountdown = 0; scalesShowSub(); showCountIn('scalesCountIn', 0); }
         // The last bar is made up with rests (ML-386) - they light up in turn - then round again from the first.
         const pass = Math.ceil(w.notes.length / w.barLength) * w.barLength;
         const pos = k % pass;
@@ -24057,6 +24099,7 @@
     }
     function scalesPause() {
         scalesPlayer.pause();
+        showCountIn('scalesCountIn', 0);
         scalesUpdatePlayUi();
     }
     // Back to the start: the next Play counts in again (if the count-in is on).
@@ -24066,6 +24109,7 @@
         scalesPlayer.resetToBarStart();
         scalesTick = 0;
         scalesCountdown = 0;
+        showCountIn('scalesCountIn', 0);
         scalesLight(-1);
         scalesShowSub();
         if (wasPlaying) scalesPlay(); else scalesUpdatePlayUi();
@@ -24747,11 +24791,17 @@
     // ends - so it carries straight on in time. Stopping and restarting the player between exercises
     // sounded the next bar's first click twice (owner, 1 Oct 2026).
     // sessionWarmupLoop: { round, tag (the passage on screen), queued (the last one handed to the player) }.
+    // ML-538: each warm-up plays twice in a row (a repeat sign at its end), then the next - it used to be once
+    // each, with the second go only after the whole list.
+    const SESSION_WARMUP_TIMES = 2;
     function warmupsPassage(ex, round, tag) {
         const tl = Warmups.timeline(ex);
         const countIn = warmups.countIn ? ex.beatsPerBar * tl.notesPerBeat : 0;
-        return { bpm: PracticePlan.warmupRoundBpm(ex.bpm, round), beatsPerBar: ex.beatsPerBar, notesPerBeat: tl.notesPerBeat, startClick: 0, boundaryClicks: countIn + tl.totalClicks, tag };
+        return { bpm: PracticePlan.warmupRoundBpm(ex.bpm, round), beatsPerBar: ex.beatsPerBar, notesPerBeat: tl.notesPerBeat, startClick: 0, boundaryClicks: countIn + SESSION_WARMUP_TIMES * tl.totalClicks, tag };
     }
+    // The stave ends with a repeat sign when the warm-up plays more than once in a row: twice in a session, or
+    // the tool set to twice or until stopped.
+    const warmupsRepeats = () => !!sessionWarmupLoop || warmups.repeat !== 1;
     // The player's boundary call - a little ahead of the beat, while the clicks are being scheduled.
     function warmupsLoopBoundary() {
         const L = sessionWarmupLoop;
@@ -24777,16 +24827,7 @@
         warmupsCountInClicks = warmups.countIn ? q.ex.beatsPerBar * warmupsTimeline.notesPerBeat : 0;
         warmupsRenderBpm();
     }
-    function renderWarmupsLoop() {
-        const on = !!sessionWarmupLoop;
-        setShown('warmupsLoopCard', on);
-        if (!on) return;
-        const list = warmupsList();
-        const i = list.indexOf(warmupsCurrent());
-        document.getElementById('warmupsLoopText').textContent = `Round ${sessionWarmupLoop.round} · warm-up ${Math.max(1, i + 1)} of ${list.length}. Press play: one follows another until the block ends, each round a little faster.`;
-    }
     function renderWarmups() {
-        renderWarmupsLoop();
         const ex = warmupsCurrent();
         const list = warmupsList();
         const staff = document.getElementById('warmupsStaff');
@@ -24815,7 +24856,7 @@
         warmupsTimeline = Warmups.timeline(ex);
         const clef = warmupsClef();
         const stepRange = Warmups.stepRange(ex, clef);
-        const rows = Warmups.rows(ex, clef);
+        const rows = Warmups.rows(ex, clef, { repeat: warmupsRepeats() });
         const naturalWidth = (svg) => parseFloat(/width="([\d.]+)"/.exec(svg)[1]) / 10;
         const opts = (r, extra) => ({ clef, items: r.items, spans: r.spans, stepRange, noteGap: 2.4, label: `${ex.title}, notes ${r.from + 1} to ${r.to + 1}`, ...extra });
         const full = Math.max(...rows.filter((r, i) => i < rows.length - 1 || rows.length === 1).map(r => naturalWidth(Notation.staff(opts(r)))));
@@ -24844,19 +24885,24 @@
     warmupsPlayer.setVolume((warmups.volume ?? 80) / 100);
     let warmupsTick = 0, warmupsCountInClicks = 0, warmupsCountdown = 0;
     warmupsPlayer.onBeat((info) => {
+        // ML-541: the block's time ran out during a time through - it's finished when the next one (or the next
+        // warm-up) starts
+        const finishing = practiceRun && practiceRun.finishingGo;
+        if (finishing && finishing.kind === 'warmup' && warmupsTimeline
+            && ((info && info.tag && info.tag !== finishing.tag) || Math.floor((warmupsTick - warmupsCountInClicks) / warmupsTimeline.totalClicks) > finishing.pass)) { sessionGoFinished(); return; }
         if (sessionWarmupLoop && sessionWarmupLoop.tag && info && info.tag && info.tag !== sessionWarmupLoop.tag) warmupsLoopArrive();
         const tl = warmupsTimeline;
         if (!tl) return;
         const k = warmupsTick++ - warmupsCountInClicks;
         if (k < 0) {
             const remaining = Math.ceil(-k / tl.notesPerBeat);
-            if (remaining !== warmupsCountdown) { warmupsCountdown = remaining; warmupsShowSub(); }
+            if (remaining !== warmupsCountdown) { warmupsCountdown = remaining; warmupsShowSub(); showCountIn('warmupsCountIn', remaining, Math.round(warmupsCountInClicks / tl.notesPerBeat)); }
             warmupsLight(-1);
             return;
         }
-        if (warmupsCountdown) { warmupsCountdown = 0; warmupsShowSub(); }
+        if (warmupsCountdown) { warmupsCountdown = 0; warmupsShowSub(); showCountIn('warmupsCountIn', 0); }
         const pass = Math.floor(k / tl.totalClicks);
-        // (In a session's Warm-up block each exercise plays once - the sequence moves on by itself.)
+        // (In a session's Warm-up block each exercise plays twice - the sequence moves on by itself.)
         if (!sessionWarmupLoop && warmups.repeat && pass >= warmups.repeat) { warmupsReset(); return; } // played it the chosen number of times
         warmupsLight(Warmups.noteAt(tl, k % tl.totalClicks));
     });
@@ -24889,6 +24935,7 @@
     }
     function warmupsPause() {
         warmupsPlayer.pause();
+        showCountIn('warmupsCountIn', 0);
         warmupsUpdatePlayUi();
     }
     function warmupsReset() {
@@ -24897,6 +24944,7 @@
         if (sessionWarmupLoop) sessionWarmupLoop.tag = null; // the next Play starts the loop again from the warm-up on screen
         warmupsTick = 0;
         warmupsCountdown = 0;
+        showCountIn('warmupsCountIn', 0);
         warmupsLight(-1);
         warmupsShowSub();
         warmupsUpdatePlayUi();

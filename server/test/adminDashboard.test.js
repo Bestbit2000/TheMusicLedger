@@ -15,7 +15,7 @@ test('days to launch are left out when there is no launch month', () => {
 });
 
 test('nothing waiting gives an empty list', () => {
-  assert.deepEqual(needsYou({ feedback: 0, attention: 0, limits: [], tests: { failed: 0 }, security: { runDue: false, upstreamChanged: false } }), []);
+  assert.deepEqual(needsYou({ feedback: 0, attention: 0, limits: [], tests: { failed: 0 }, security: { siteFailing: 0, siteRunDue: false, siteChanged: false } }), []);
 });
 
 test('a part that could not be read is left out, not counted as a problem', () => {
@@ -27,10 +27,10 @@ test('the most pressing comes first, and each item names the page that deals wit
     feedback: 3, attention: 1,
     limits: [{ name: 'Database compute', percent: 92, level: 'fail' }],
     tests: { failed: 2 },
-    security: { runDue: true, upstreamChanged: true }
+    security: { siteRunDue: true, siteChanged: true }
   });
   assert.deepEqual(list.map((n) => n.page), ['release-tests', 'costs-usage', 'security', 'security', 'feedback', 'third-parties']);
-  assert.deepEqual(list.map((n) => n.level), ['fail', 'fail', 'warn', 'warn', 'info', 'info']);
+  assert.deepEqual(list.map((n) => n.level), ['fail', 'fail', 'warn', 'info', 'info', 'info']);
   assert.equal(list[0].text, '2 back-tests are failing');
   assert.equal(list[1].text, "Database compute is at 92% of the plan's limit");
   assert.equal(list[4].text, '3 pieces of feedback not looked at yet');

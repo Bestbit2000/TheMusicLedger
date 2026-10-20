@@ -2,7 +2,7 @@
 // (server/services/blobUrls.js). Pure. The addresses are in the shapes the store really gives.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isPieceFileUrl } from '../services/blobUrls.js';
+import { isPieceFileUrl, isBandLogoFileUrl, isRehearsalFileUrl, ownStoreHost } from '../services/blobUrls.js';
 
 const STORE = 'https://abc123xyz.public.blob.vercel-storage.com';
 
@@ -12,7 +12,7 @@ test('a recording or document uploaded for the piece is accepted - with spaces, 
   assert.equal(isPieceFileUrl(`${STORE}/flows/10/documents/plain.pdf`, '10'), true);
 });
 
-test('a file from "Create from file" is accepted for the piece it made', () => {
+test('a file from "Import from MusicXML" is accepted for the piece it made', () => {
   assert.equal(isPieceFileUrl(`${STORE}/flows/from-file/1790525229901-Teddy%20Bears%20Picnic-AeWFxdsUno951vi759dzm7kn7IEwGg.musicxml`, 68), true);
 });
 
@@ -77,4 +77,20 @@ test('a band logo is accepted in its own band\'s folder, and nowhere else', asyn
   assert.equal(isBandLogoFileUrl('/icons/icon-192.png', 12), false);
   assert.equal(isBandLogoFileUrl(`${STORE}/band-logos/12/logo.png`, 0), false);
   assert.equal(isBandLogoFileUrl(null, 12), false);
+});
+
+test('ML-551: with the upload key set, only a file in this app\'s own store is accepted - not another Vercel customer\'s', () => {
+  const saved = process.env.BLOB_READ_WRITE_TOKEN;
+  process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_AbC123XyZ_notarealsecret';
+  try {
+    assert.equal(ownStoreHost(), 'abc123xyz.public.blob.vercel-storage.com');
+    assert.equal(isPieceFileUrl(`${STORE}/flows/9/recordings/a-xyz.mp3`, 9), true);
+    const theirs = 'https://someoneelse99.public.blob.vercel-storage.com';
+    assert.equal(isPieceFileUrl(`${theirs}/flows/9/recordings/a-xyz.mp3`, 9), false);
+    assert.equal(isBandLogoFileUrl(`${theirs}/band-logos/4/logo.png`, 4), false);
+    assert.equal(isRehearsalFileUrl(`${theirs}/recordings/7/rehearsal.mp3`, 7), false);
+  } finally {
+    if (saved === undefined) delete process.env.BLOB_READ_WRITE_TOKEN; else process.env.BLOB_READ_WRITE_TOKEN = saved;
+  }
+  assert.equal(ownStoreHost(''), null);
 });

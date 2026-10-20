@@ -1,8 +1,8 @@
 // ML-204: MusicXML -> Flow reader, the counterpart of flowToMusicXml (flowMusicXml.js). The one
-// parser for every way a flow arrives as MusicXML: admin import between environments, "Create
-// from file" (.musicxml/.mxl), and PDF/scan import (OMR/AI output is just more MusicXML).
+// parser for every way a flow arrives as MusicXML: admin import between environments, "Import
+// from MusicXML" (.musicxml/.mxl), and any other app's or service's MusicXML.
 // Pure - no DB access; blocks come back with { numerator, denominator } time signatures for
-// resolveBlocksForAccount (scoreImport.js) to turn into ids.
+// resolveBlocksForAccount (musicXmlImport.js) to turn into ids.
 //
 // Two modes, picked automatically:
 //  - Our own export (block-start markers present - see flowMusicXml.js's file comment): block
