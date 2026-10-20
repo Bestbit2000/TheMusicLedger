@@ -2766,6 +2766,51 @@
         }
     });
 
+    // ===== ML-495: a banner for a planned outage =====
+    // A notice a super admin made a banner shows as a strip across the top of every screen while it is live -
+    // signed in or not (the sign-in screen has one too), whatever features the account has. It comes and goes
+    // with the notice's own times. Tap it for the whole message; its X hides it for this visit (sessionStorage -
+    // it is back next time, until it ends). One at a time, the oldest first. Read with a plain fetch, since
+    // there may be no one signed in; offline nothing new arrives and what was showing stays.
+    let noticeBanners = [];
+    const BANNERS_HIDDEN_KEY = 'tml.bannersHidden';
+    function hiddenBanners() {
+        try { return JSON.parse(sessionStorage.getItem(BANNERS_HIDDEN_KEY) || '[]'); } catch { return []; }
+    }
+    const shownBanner = () => noticeBanners.find(b => !hiddenBanners().includes(b.id)) || null;
+    function renderNoticeBanners() {
+        const b = shownBanner();
+        document.querySelectorAll('[data-notice-banner]').forEach(el => {
+            setShown(el, !!b);
+            if (b) el.querySelector('[data-notice-banner-open]').textContent = b.title;
+        });
+    }
+    async function checkNoticeBanners() {
+        try {
+            const res = await fetch('/api/notices/banner', { cache: 'no-store' });
+            if (!res.ok) return;
+            noticeBanners = (await res.json()).banners || [];
+        } catch { return; }
+        renderNoticeBanners();
+    }
+    document.querySelectorAll('[data-notice-banner-open]').forEach(btn => btn.addEventListener('click', () => {
+        const b = shownBanner();
+        if (!b) return;
+        document.getElementById('noticeBannerTitle').textContent = b.title;
+        document.getElementById('noticeBannerDate').textContent = b.expiresAt ? `Until ${formatNotificationDate(b.expiresAt)}` : '';
+        document.getElementById('noticeBannerBody').textContent = b.body;
+        showModal('noticeBannerModal');
+    }));
+    document.querySelectorAll('[data-notice-banner-close]').forEach(btn => btn.addEventListener('click', () => {
+        const b = shownBanner();
+        if (!b) return;
+        try { sessionStorage.setItem(BANNERS_HIDDEN_KEY, JSON.stringify([...hiddenBanners(), b.id])); } catch { noticeBanners = noticeBanners.filter(x => x.id !== b.id); }
+        renderNoticeBanners();
+    }));
+    checkNoticeBanners();
+    setInterval(() => { if (document.visibilityState !== 'hidden') checkNoticeBanners(); }, NOTIFICATIONS_POLL_MS);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkNoticeBanners(); });
+
     // ===== ML-463: an important notice - "Before you continue..." =====
     // Something a member should not find out by accident (a change to how their information is used).
     // It is shown when they next open the app or come back to it - never in the middle of something,

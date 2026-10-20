@@ -86,3 +86,15 @@ export async function createTargetedNotice(title: string, body: string, emails: 
     return Number(rows[0].id);
   });
 }
+
+// ML-495: a notice for everyone shown as a banner. startsInMinutes: negative = showing now.
+export async function createBannerNotice(title: string, body: string, startsInMinutes = -1, endsInMinutes: number | null = 60): Promise<number> {
+  return withClient(async (client) => {
+    const { rows } = await client.query(
+      `INSERT INTO notifications (title, body, banner, publish_at, expires_at)
+       VALUES ($1, $2, true, now() + make_interval(mins => $3), CASE WHEN $4::int IS NULL THEN NULL ELSE now() + make_interval(mins => $4::int) END) RETURNING id`,
+      [title, body, startsInMinutes, endsInMinutes]
+    );
+    return Number(rows[0].id);
+  });
+}

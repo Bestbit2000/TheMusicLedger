@@ -2715,6 +2715,17 @@
        its pop-up. specs/components/offline-status.md */
     .offline-bar { width: 100%; max-width: var(--app-max-width); box-sizing: border-box; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-5); min-height: var(--touch-target); background: var(--status-amber-bg); color: var(--status-amber-fg); font-size: var(--font-sm); font-weight: var(--font-weight-semibold); }
     .offline-bar-text { flex: 1; min-width: 0; }
+    /* ML-495: a banner for a planned outage - across the top of every screen while its notice is live, and of the
+       sign-in screen. Blue (the "scheduled" pair) so it isn't mistaken for the amber offline bar or an error.
+       The words are a button opening the whole message; the X hides it until next time. */
+    .notice-banner { width: 100%; max-width: var(--app-max-width); box-sizing: border-box; display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-1) 0 var(--space-5); min-height: var(--touch-target); background: var(--status-blue-bg); color: var(--status-blue-fg); font-size: var(--font-sm); font-weight: var(--font-weight-semibold); }
+    .notice-banner-icon { flex-shrink: 0; }
+    .notice-banner-text { flex: 1; min-width: 0; min-height: var(--touch-target); padding: 0; border: none; background: none; color: inherit; font: inherit; text-align: left; text-decoration: underline; cursor: pointer; }
+    .notice-banner-close { flex-shrink: 0; width: var(--touch-target); height: var(--touch-target); padding: 0; border: none; border-radius: var(--radius-circle); background: none; color: inherit; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .splash-screen .notice-banner { position: absolute; top: 0; left: 0; right: 0; max-width: none; }
+    .splash-screen:has(.notice-banner:not(.hidden-group)) { padding-top: calc(var(--touch-target) + var(--space-5)); } /* the sign-in picture starts under it */
+    .notice-banner-full .notification-body { display: block; -webkit-line-clamp: unset; }
+    #noticeBannerModal { z-index: var(--z-over-splash); } /* opened from the sign-in screen too, which sits on top of everything */
     .offline-bar-btn { flex-shrink: 0; min-height: var(--touch-target); padding: 0 var(--space-3); background: none; border: 1px solid var(--status-amber-fg); border-radius: var(--radius-sm); color: var(--status-amber-fg); font-family: var(--font-sans); font-size: var(--font-sm); font-weight: var(--font-weight-bold); cursor: pointer; }
     .offline-item { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--input-border); text-align: left; }
     .offline-item-text { flex: 1; min-width: 0; display: grid; gap: var(--space-0-5); }

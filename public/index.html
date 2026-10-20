@@ -31,8 +31,25 @@
 <!-- ML-356: display and reading preferences (dark mode, font, background, text size) before anything draws -->
 <script src="display-prefs.js"></script>
 
+<!-- ML-495: the banner's whole message - out here, not in #mainContainer, because the sign-in screen opens it too -->
+<div class="modal" id="noticeBannerModal" role="dialog" aria-modal="true" aria-labelledby="noticeBannerTitle" aria-describedby="noticeBannerBody">
+    <div class="modal-content notice-banner-full">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="noticeBannerTitle"></h2>
+        <div class="notification-date" id="noticeBannerDate"></div>
+        <p class="notification-body" id="noticeBannerBody"></p>
+    </div>
+</div>
+
 <!-- LOGIN / SPLASH SCREEN -->
 <div id="loginScreen" class="splash-screen">
+    <!-- ML-495: a banner for a planned outage (the sign-in screen too - owner, 8 Oct 2026) - a notice a super admin made a banner, while it is live.
+         Tap it for the whole message; the X hides it until the next visit. specs/components/notice-banner.md -->
+    <div class="notice-banner hidden-group" data-notice-banner role="region" aria-label="Notice">
+        <span class="material-symbols-outlined notice-banner-icon" aria-hidden="true">campaign</span>
+        <button type="button" class="notice-banner-text" data-notice-banner-open>Notice</button>
+        <button type="button" class="notice-banner-close" data-notice-banner-close aria-label="Hide this notice until next time"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
+    </div>
     <div class="splash-content">
         <img src="images/brands/notably-better-splash.jpg" alt="Notably Better" class="splash-image" id="splashImage">
         <h1 class="splash-title">Welcome</h1>
@@ -214,6 +231,14 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- ML-495: a banner for a planned outage (every screen, signed in) - a notice a super admin made a banner, while it is live.
+         Tap it for the whole message; the X hides it until the next visit. specs/components/notice-banner.md -->
+    <div class="notice-banner hidden-group" data-notice-banner role="region" aria-label="Notice">
+        <span class="material-symbols-outlined notice-banner-icon" aria-hidden="true">campaign</span>
+        <button type="button" class="notice-banner-text" data-notice-banner-open>Notice</button>
+        <button type="button" class="notice-banner-close" data-notice-banner-close aria-label="Hide this notice until next time"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
     </div>
 
     <!-- ML-220: no connection, or things logged offline still waiting to be sent. Sits under the top bar

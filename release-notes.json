@@ -1,4 +1,5 @@
 {
+  "ML-495": "We can now show a banner across the top of the app, and of the sign-in screen, to tell you ahead of time when the app will be away.",
   "ML-494": "We now delete old notices 12 months after they stopped being shown, with the record of who read them.",
   "ML-493": "We can now see who has seen an urgent or important notice, so we know it has reached everyone it was for.",
   "ML-492": "We now show who each notice is for on our notices page, and count its readers out of those people.",

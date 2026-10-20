@@ -48,7 +48,7 @@ import { startAuthoringSession, updateAuthoringSession, currentAppVersion } from
 import { exportFlowForUser } from '../services/flowTransfer.js';
 import { submitFeedback } from '../services/feedback.js';
 import { requestUpgrade } from '../services/upgradeRequest.js';
-import { listNotificationsForAccount, markNotificationRead, markAllNotificationsRead, clearNotification, clearAllNotifications, listImportantNotices, acknowledgeImportantNotice } from '../services/notifications.js';
+import { listBannerNotices, listNotificationsForAccount, markNotificationRead, markAllNotificationsRead, clearNotification, clearAllNotifications, listImportantNotices, acknowledgeImportantNotice } from '../services/notifications.js';
 import { saveTheoryAttempt, getTheoryHistory, getTheorySummary, getTheoryLevels, getTheoryWeights, getTheoryPlayed } from '../services/theoryPractice.js';
 import { assertDrillEnabled, saveDrillAttempt, getDrillHistory, getDrillSummary, getDrillWeights, getRhythmLevels, setRhythmWord } from '../services/drills.js';
 import { securityStatus, requirePasswordAccount, changeOwnPassword, passwordLoginEnabled, appUrl, createInvite, listMyInvites, invitesSentToday, cancelMyInvite, resendMyInvite, limitCalls, INVITE_LEVELS } from '../services/passwordAuth.js';
@@ -115,6 +115,16 @@ router.get('/notifications', requireAuth, resolveAccount, async (req, res) => {
   try {
     await assertNotificationsEnabled();
     res.json({ ...(await listNotificationsForAccount(req.accountId)), appVersion: currentAppVersion() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-495: the banners showing now (a planned outage). Deliberately open - no sign-in, no feature: the
+// sign-in screen shows them too (owner, 8 Oct 2026). Only notices for everyone that a super admin made a banner.
+router.get('/notices/banner', async (req, res) => {
+  try {
+    res.json(await listBannerNotices());
   } catch (error) {
     sendError(res, error);
   }

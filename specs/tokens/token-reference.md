@@ -308,6 +308,7 @@ one ladder, low to high. Never invent a number in a component.
 | `--z-modal-stacked` | `200` | a modal opened from inside another modal |
 | `--z-toast` | `1000` | toasts, anchored popups |
 | `--z-splash` | `9999` | login splash - always on top |
+| `--z-over-splash` | `10000` | a pop-up opened from the sign-in screen itself (ML-495: the banner's message) |
 
 ## Motion
 

@@ -2380,6 +2380,7 @@
                             <span class="admin-feedback-badge notification-status-${n.status}">${NOTIFICATION_STATUS_LABELS[n.status] || n.status}</span>
                             ${n.urgent ? '<span class="admin-feedback-badge notification-status-urgent">Urgent</span>' : ''}
                             ${n.important ? `<span class="admin-feedback-badge notification-status-urgent">Important${n.policyLink ? ' - with the privacy policy link' : ''}</span>` : ''}
+                            ${n.banner ? '<span class="admin-feedback-badge notification-status-scheduled">Banner</span>' : ''}
                             <span class="admin-feedback-badge cat">${n.audience === 'accounts' ? `For ${n.recipientCount} member${n.recipientCount === 1 ? '' : 's'}` : 'For everyone'}</span>
                             <span class="admin-feedback-badge cat">Read by ${n.readCount} of ${n.audience === 'accounts' ? n.recipientCount : data.accountCount}</span>
                         </div>
@@ -2449,6 +2450,8 @@
         document.getElementById('notificationUrgentInput').checked = !!(n && n.urgent); // ML-167
         document.getElementById('notificationImportantInput').checked = !!(n && n.important); // ML-463
         document.getElementById('notificationPolicyLinkInput').checked = !!(n && n.policyLink);
+        document.getElementById('notificationBannerInput').checked = !!(n && n.banner); // ML-495
+        setShown('notificationBannerRow', !n || n.audience === 'all'); // a notice for named members is never a banner
         setShown('notificationPolicyLinkRow', !!(n && n.important));
         syncNotificationPublishMode();
         showModal('notificationFormModal');
@@ -2469,7 +2472,8 @@
             expiresAt: fromLocalInputValue(document.getElementById('notificationExpiresAtInput').value),
             urgent: document.getElementById('notificationUrgentInput').checked, // ML-167
             important: document.getElementById('notificationImportantInput').checked, // ML-463
-            policyLink: document.getElementById('notificationImportantInput').checked && document.getElementById('notificationPolicyLinkInput').checked
+            policyLink: document.getElementById('notificationImportantInput').checked && document.getElementById('notificationPolicyLinkInput').checked,
+            banner: document.getElementById('notificationBannerInput').checked // ML-495
         };
         const btn = document.getElementById('notificationFormSaveBtn');
         btn.disabled = true;

@@ -65,6 +65,19 @@ export async function markNotificationRead(accountId, notificationId) {
   return listNotificationsForAccount(accountId);
 }
 
+// ML-495: the banners showing now - a notice for everyone, live, switched on as a banner. Read signed in or
+// not (the sign-in screen shows them too), so it gives nothing but each one's words and when it ends, and
+// never a notice for named members.
+export async function listBannerNotices() {
+  const { rows } = await pool.query(
+    `SELECT n.id, n.title, n.body, n.publish_at, n.expires_at FROM notifications n
+     WHERE ${LIVE_CONDITION} AND n.banner AND n.audience = 'all'
+     ORDER BY n.publish_at, n.id
+     LIMIT 3`
+  );
+  return { banners: rows.map(r => ({ id: Number(r.id), title: r.title, body: r.body, publishAt: r.publish_at, expiresAt: r.expires_at })) };
+}
+
 // ML-463: the important notices this member has not acknowledged yet - oldest first, the order they
 // are shown in. Not behind the "notifications" feature: every member must see these.
 export async function listImportantNotices(accountId) {
@@ -153,6 +166,7 @@ function toAdminDto(row) {
     urgent: !!row.urgent,
     important: !!row.important,
     policyLink: !!row.policy_link,
+    banner: !!row.banner, // ML-495
     publishAt: row.publish_at,
     expiresAt: row.expires_at,
     withdrawnAt: row.withdrawn_at,
@@ -213,7 +227,7 @@ function parseTimestamp(value, label) {
 
 // Shared by create and update: validates the whole shape, so an edit can't leave e.g. an expiry
 // before the (new) publish time.
-function validateNotification({ title, body, publishAt, expiresAt, urgent, important, policyLink }) {
+function validateNotification({ title, body, publishAt, expiresAt, urgent, important, policyLink, banner }) {
   const t = String(title ?? '').trim();
   const b = String(body ?? '').trim();
   if (!t) throw withStatus(400, 'A title is required.');
@@ -224,15 +238,15 @@ function validateNotification({ title, body, publishAt, expiresAt, urgent, impor
   const expires = parseTimestamp(expiresAt, 'Expiry');
   if (expires && expires <= publish) throw withStatus(400, 'Expiry must be after the publish time.');
   // ML-463: the link to the privacy policy belongs to an important notice (the pop-up is where it shows)
-  return { title: t, body: b, publishAt: publish, expiresAt: expires, urgent: urgent === true, important: important === true, policyLink: important === true && policyLink === true };
+  return { title: t, body: b, publishAt: publish, expiresAt: expires, urgent: urgent === true, important: important === true, policyLink: important === true && policyLink === true, banner: banner === true };
 }
 
 export async function createNotification(adminAccountId, data) {
   const v = validateNotification(data || {});
   const { rows } = await pool.query(
-    `INSERT INTO notifications (title, body, publish_at, expires_at, urgent, important, policy_link, created_by_account_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-    [v.title, v.body, v.publishAt, v.expiresAt, v.urgent, v.important, v.policyLink, adminAccountId]
+    `INSERT INTO notifications (title, body, publish_at, expires_at, urgent, important, policy_link, banner, created_by_account_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+    [v.title, v.body, v.publishAt, v.expiresAt, v.urgent, v.important, v.policyLink, v.banner, adminAccountId]
   );
   return getAdminNotification(rows[0].id);
 }
@@ -263,9 +277,11 @@ export async function createTargetedNotification(adminAccountId, { title, body, 
 
 export async function updateNotification(notificationId, data) {
   const v = validateNotification(data || {});
+  // ML-495: a banner reaches everyone, signed in or not - so a notice for named members can never be one
   const { rowCount } = await pool.query(
-    `UPDATE notifications SET title = $1, body = $2, publish_at = $3, expires_at = $4, urgent = $5, important = $6, policy_link = $7, updated_at = now() WHERE id = $8`,
-    [v.title, v.body, v.publishAt, v.expiresAt, v.urgent, v.important, v.policyLink, notificationId]
+    `UPDATE notifications SET title = $1, body = $2, publish_at = $3, expires_at = $4, urgent = $5, important = $6, policy_link = $7,
+            banner = $8 AND audience = 'all', updated_at = now() WHERE id = $9`,
+    [v.title, v.body, v.publishAt, v.expiresAt, v.urgent, v.important, v.policyLink, v.banner, notificationId]
   );
   if (!rowCount) throw withStatus(404, 'Notification not found');
   return getAdminNotification(notificationId);
