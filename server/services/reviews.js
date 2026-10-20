@@ -80,7 +80,7 @@ export async function getReviews(today = new Date()) {
     let checks = [];
     if (r.kind === 'checks') ({ last, checks } = securityState(r, r.key === 'site-security' ? site : omr));
     else if (r.key === 'data-protection') checks = await dataProtectionChecks(last && last.on);
-    reviews.push({ key: r.key, kind: r.kind, name: r.name, about: r.about, where: r.where, months: r.months, tab: r.tab || null,
+    reviews.push({ key: r.key, kind: r.kind, name: r.name, about: r.about, where: r.where, links: r.links || [], months: r.months, tab: r.tab || null,
       last, history: r.kind === 'marked' ? history : [], checks, ...reviewState(r, last && last.on, today) });
   }
   return { reviews, due: reviews.filter((r) => r.kind === 'marked' && needsDoing(r)).length };

@@ -15,7 +15,8 @@ export const REVIEWS = [
   // assessments to be reviewed at least yearly, and before any significant change to how the service works.
   { key: 'online-safety', kind: 'marked', name: 'Online Safety Act assessments', months: 12,
     about: 'Whether the Act applies, the illegal content risk assessment, the children\'s access assessment and the children\'s risk assessment. Ofcom asks for this at least once a year, and before any change to what one member can show another or to how members can contact each other. Confirm it with Ofcom\'s own checker and toolkit.',
-    where: 'docs/online-safety-assessment.md (ML-507), with what Ofcom\'s tools produce' },
+    where: 'docs/online-safety-assessment.md (ML-507), with what Ofcom\'s tools produce',
+    links: [{ label: 'Ofcom\'s online safety assessment tool', url: 'https://www.ofcom.org.uk/os-toolkit/assessment-tool' }] },
   { key: 'breach-plan', kind: 'marked', name: 'Data breach plan walk-through', months: 12,
     about: 'Read the plan through as if it had just happened: who you would tell, within 72 hours, and where the details are kept.',
     where: 'Document 3 in your compliance documents' },

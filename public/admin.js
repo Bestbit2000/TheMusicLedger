@@ -3454,6 +3454,7 @@
                 </div>
                 <div class="admin-test-case">
                     <p class="admin-run-notes">${escapeHtml(r.about)}</p>
+                    ${(r.links || []).map((l) => `<p class="admin-run-notes"><strong>Open:</strong> <a href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(l.label)}</a></p>`).join('')}
                     <p class="admin-run-notes"><strong>Last done:</strong> ${r.last ? `${escapeHtml(fmtDay(r.last.on))}${r.last.by ? ` by ${escapeHtml(r.last.by)}` : ''}${r.last.note ? ` - ${escapeHtml(r.last.note)}` : ''}` : 'never'}</p>
                     <p class="admin-run-notes"><strong>Due:</strong> ${r.dueOn ? `${escapeHtml(fmtDay(r.dueOn))}${left}` : 'now'}</p>
                     ${r.checks.map((c) => `<p class="admin-run-notes"><strong>${c.ok ? 'Checked by the app:' : 'Needs a look:'}</strong> ${escapeHtml(c.text)}</p>`).join('')}

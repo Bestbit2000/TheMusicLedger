@@ -65,6 +65,8 @@ export default {
     { host: '1stformations.co.uk', why: 'Business case: where a business address price was read' },
     { host: 'tinytax.co.uk', why: 'Business case: where the filing software price was read' },
     { host: 'debitam.com', why: 'Business case: where an accountant\'s price was read' },
-    { host: 'policybee.co.uk', why: 'Business case: where insurance starting prices were read' }
+    { host: 'policybee.co.uk', why: 'Business case: where insurance starting prices were read' },
+    // ML-507: a link on Admin -> Security -> Reviews to Ofcom's assessment tool - nothing is fetched
+    { host: 'ofcom.org.uk', why: 'Reviews: a link to Ofcom\'s online safety assessment tool' }
   ]
 };
