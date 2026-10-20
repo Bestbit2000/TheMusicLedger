@@ -568,7 +568,8 @@
             update: (id, data) => apiCall(`/api/practice/lists/${id}`, 'PUT', data),
             remove: (id) => apiCall(`/api/practice/lists/${id}`, 'DELETE'),
             // ML-530: each a piece id (keeps its movement) or { scoreId, movement }
-            setPieces: (id, pieces) => apiCall(`/api/practice/lists/${id}/pieces`, 'PUT', { pieces })
+            setPieces: (id, pieces) => apiCall(`/api/practice/lists/${id}/pieces`, 'PUT', { pieces }),
+            setPlan: (id, plan) => apiCall(`/api/practice/lists/${id}/plan`, 'PUT', plan) // ML-557: my own weekly plan
         },
         // ML-320: the practice session builder
         practice: {
@@ -616,7 +617,10 @@
         levels: {
             get: (flowId) => apiCall(`/api/flows/${flowId}/levels`),
             save: (flowId, chunks) => apiCall(`/api/flows/${flowId}/levels`, 'PUT', { chunks }),
-            setChunk: (chunkId, data) => apiCall(`/api/levels/chunks/${chunkId}`, 'POST', data)
+            setChunk: (chunkId, data) => apiCall(`/api/levels/chunks/${chunkId}`, 'POST', data),
+            // ML-557: bar by bar, and the member's own pace
+            progress: (flowId) => apiCall(`/api/flows/${flowId}/levels/progress`),
+            pace: () => apiCall('/api/practice/pace')
         },
         // ML-298/295/296: the drill tools - tool is tapTempo | gapTrainer | ear
         drills: {
@@ -2290,7 +2294,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'bandWelcomeView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView', 'setupView', 'tuningForkView'];
+    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'bandWelcomeView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'levelsProgressView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView', 'setupView', 'tuningForkView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     // ML-107 (owner's list, 12 Oct 2026): anywhere you have your instrument up while looking at the screen - the
@@ -2504,6 +2508,7 @@
 
         if (viewName === 'rehearseView') { document.getElementById('topTitle').innerText = 'Rehearse'; renderRehearseList(); rehearseRefresh(); openMusicTabs('rehearse', isBack); }
         // ML-390: a piece's path and its Prepare steps (the path's own title is the piece's, set as it renders).
+        if (viewName === 'levelsProgressView') document.getElementById('topTitle').innerText = levels.title || 'Bar by bar'; // ML-557
         if (viewName === 'piecePathView') { document.getElementById('topTitle').innerText = levels.title || 'My Levels'; if (isBack) renderPiecePath(); }
         if (viewName === 'prepareRunView') document.getElementById('topTitle').innerText = 'Prepare · 2 of 4';
         if (viewName === 'levelsPaintView') document.getElementById('topTitle').innerText = pieceStage() === 'prepare' ? 'Prepare · 3 of 4' : 'Set the levels';
@@ -7005,7 +7010,14 @@
         const anySet = map.slice(levelsFrom() - 1, levelsTo()).some(v => v);
         const only = prep.onlyPrepare;
         setShown('pathMapBox', anySet && !only);
-        if (anySet && !only) renderLevelMapInto(document.getElementById('pathMap'), map, sc ? [sc] : levelsMoves().length > 1 ? levelsMoves() : null);
+        if (anySet && !only) {
+            // ML-557: how many bars are at each Level, as one bar chart - the bar-by-bar detail is a tap away
+            const scoped = map.slice(levelsFrom() - 1, levelsTo());
+            const bar = document.getElementById('pathSummaryBar');
+            bar.innerHTML = levelBarHtml(scoped) + levelLegendHtml([scoped], 'Not set');
+            sizeLevelBars(bar);
+            fillPathCame();
+        }
         setShown('pathPrepIntro', only);
         setShown('pathLevelBarBox', only && anySet);
         if (only && anySet) {
@@ -7051,6 +7063,71 @@
         setShown('pathCutBtn', stage !== 'prepare');
         renderPathThrough(stage);
     }
+    // ===== ML-557: how far a piece has come =====
+    // Under the path's bar chart, said positively: the bars that have gone up since it was prepared, and the
+    // practice sessions and minutes on it. Never a shortfall. Bar by bar has the detail.
+    const plural = (n, one, many) => `${n} ${n === 1 ? one : many || one + 's'}`;
+    function progressInScope(p) {
+        const a = levelsFrom() - 1, z = levelsTo();
+        const cut = (xs) => (xs ? xs.slice(a, z) : null);
+        return { now: cut(p.now), start: cut(p.start), sessions: cut(p.sessions), minutes: cut(p.minutes), offset: a };
+    }
+    function cameText(p) {
+        const g = PracticePlan.levelsGained(progressInScope(p));
+        const parts = [];
+        if (g.up) parts.push(`${plural(g.up, 'bar')} ${g.up === 1 ? 'has' : 'have'} gone up since you prepared it - ${plural(g.gained, 'Level')} in all.`);
+        if (p.sessionsTotal) parts.push(`${plural(p.sessionsTotal, 'practice session')} and ${plural(p.minutesTotal, 'minute')} on it so far.`);
+        return parts.join(' ');
+    }
+    async function fillPathCame() {
+        const el = document.getElementById('pathCameLine');
+        setShown(el, false);
+        const id = levels.flowId;
+        try {
+            const p = await API.levels.progress(id);
+            if (levels.flowId !== id) return;
+            el.textContent = cameText(p);
+            setShown(el, !!el.textContent);
+        } catch { /* the bar chart is what matters here */ }
+    }
+    async function openLevelsProgress() {
+        switchView('levelsProgressView');
+        const runs = document.getElementById('lpRuns');
+        runs.textContent = 'Loading...';
+        try {
+            renderLevelsProgress(await API.levels.progress(levels.flowId));
+        } catch (e) {
+            runs.textContent = 'Not loaded: ' + e.message;
+        }
+    }
+    function renderLevelsProgress(p) {
+        const sc = levels.scope;
+        const s = progressInScope(p);
+        const bars = s.now.length;
+        document.getElementById('lpSub').textContent = `${plural(bars, 'bar')} · ${plural(p.sessionsTotal, 'practice session')} · ${plural(p.minutesTotal, 'minute')}`;
+        setShown('lpRebuilt', !!p.start && p.rebuilt);
+        setShown('lpNoStart', !p.start);
+        // The heat map - one square a bar, as it is now
+        const map = levelsMap();
+        renderLevelMapInto(document.getElementById('lpMap'), map, sc ? [sc] : levelsMoves().length > 1 ? levelsMoves() : null);
+        document.getElementById('lpLegend').innerHTML = levelLegendHtml([map.slice(levelsFrom() - 1, levelsTo())], 'Not set');
+        const chip = (n) => `<span class="level-chip lv-${n}">${n}</span>`;
+        document.getElementById('lpRuns').innerHTML = PracticePlan.barRuns(s).map(r => {
+            const from = r.from + s.offset, to = r.to + s.offset;
+            const what = r.sessions ? `${plural(r.sessions, 'practice session')} · ${plural(r.minutes, 'minute')}` : 'Not in a practice session yet';
+            const change = !r.now ? '<span class="text-sm text-muted">No level yet</span>'
+                : !r.start ? `<span class="text-sm text-muted">Start not known</span>${chip(r.now)}`
+                : r.start === r.now ? chip(r.now)
+                : `${chip(r.start)}<span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>${chip(r.now)}`;
+            const said = !r.now ? 'no level yet' : !r.start ? `Level ${r.now} now, start not known` : r.start === r.now ? `Level ${r.now}, as it started` : `Level ${r.start} when prepared, Level ${r.now} now`;
+            return `${levelsMovementHeadAt(from)}<div class="history-item">
+                <span class="grow"><strong>${levelsRange(from, to)}</strong><br><span class="text-sm text-muted">${what}</span></span>
+                <span class="level-change" role="img" aria-label="${said}">${change}</span>
+            </div>`;
+        }).join('');
+    }
+    document.getElementById('pathBarByBarBtn')?.addEventListener('click', openLevelsProgress);
+
     // How the piece is played through: one part when it fits a block, else two halves (suggested) or one
     // long go (a 10-minute block). Your own join-up groups count as parts too.
     function renderPathThrough(stage) {
@@ -8857,14 +8934,22 @@
         try {
             plState.list = await API.practiceLists.get(id);
             renderPracticeList();
+            loadPlPace(); // ML-557
         } catch (e) {
             showWarningToast('List not loaded: ' + e.message);
         }
     }
     // An archived piece stays on its lists but isn't counted: the forecast is worked out without it, and its
     // place in the answer (pieces[i] lines up with list.pieces[i]) says so.
+    // ML-557: SmartLearn uses the member's own pace (blocks per Level) once there are 10 Level-ups to go on
+    let plPace = null;
+    const plPaceUsed = () => (isFeatureEnabled('theory_smart_learn') && plPace && plPace.ready ? plPace.blocksPerLevel : null);
+    async function loadPlPace() {
+        if (!isFeatureEnabled('theory_smart_learn')) return;
+        try { plPace = await API.levels.pace(); if (plState.list) renderPracticeList(); } catch { /* the plain forecast stands */ }
+    }
     function plForecast(list) {
-        const f = PracticePlan.forecast({ pieces: list.pieces.filter(p => !p.archived), eventDate: list.eventDate, today: todayIso() });
+        const f = PracticePlan.forecast({ pieces: list.pieces.filter(p => !p.archived), eventDate: list.eventDate, today: todayIso(), pace: plPaceUsed() });
         let k = 0;
         return { ...f, pieces: list.pieces.map(p => (p.archived ? { title: p.title, archived: true, prep: false, blocks: 0 } : f.pieces[k++])) };
     }
@@ -8899,6 +8984,68 @@
         try { plState.list = await API.practiceLists.update(l.id, { name: l.name, eventDate: iso || null }); renderPracticeList(); }
         catch (e) { showWarningToast('List not saved: ' + e.message); }
     }
+    // ===== ML-557: my own weekly plan for a practice list =====
+    // Three value boxes beside the target date - sessions a week, minutes a session, the warm-up in it - each a
+    // pop-up. My own, even on a band's list (how often someone practises is never shown to the band). With the
+    // first two set: about how many weeks it takes, and how far I've come since I made the plan - never "behind".
+    function renderPlPlan(l, f) {
+        const plan = l.plan || {};
+        document.getElementById('plWeekLbl').textContent = plan.sessionsPerWeek || 'None';
+        document.getElementById('plMinsLbl').textContent = plan.sessionMinutes || 'None';
+        document.getElementById('plWarmLbl').textContent = plan.warmupMinutes ? `${plan.warmupMinutes} min` : 'None';
+        document.getElementById('plWeekBtn').setAttribute('aria-label', `Sessions a week: ${plan.sessionsPerWeek || 'none'} - tap to change`);
+        document.getElementById('plMinsBtn').setAttribute('aria-label', `Minutes a session: ${plan.sessionMinutes || 'none'} - tap to change`);
+        document.getElementById('plWarmBtn').setAttribute('aria-label', `Warm-up: ${plan.warmupMinutes ? plan.warmupMinutes + ' minutes' : 'none'} - tap to change`);
+        const text = document.getElementById('plPlanText');
+        const wp = l.plan ? PracticePlan.weeklyPlan({ blocks: f.total, ...plan }) : null;
+        text.textContent = !l.plan ? ''
+            : !plan.sessionsPerWeek || !plan.sessionMinutes ? 'Set sessions a week and minutes to see how many weeks it takes.'
+            : !wp ? 'The warm-up takes the whole session - leave time for the pieces.'
+            : !f.total ? 'Everything counted is ready.'
+            : `${plural(plan.sessionsPerWeek, 'session')} a week of ${plan.sessionMinutes} minutes${plan.warmupMinutes ? ` (${plan.warmupMinutes} of them warming up)` : ''} is ${plural(wp.perSession, 'block')} on the pieces a session: about ${plural(wp.weeks, 'week')} to be ready.`;
+        setShown(text, !!text.textContent);
+        // How far I've come since making the plan - the blocks done, out of done and still to do
+        const done = l.plan ? l.plan.blocksSince || 0 : 0;
+        const since = document.getElementById('plPlanSince');
+        setShown('plPlanTrack', !!l.plan && done > 0);
+        setShown(since, !!l.plan && (done > 0 || (l.plan.sessionsSince || 0) > 0));
+        if (l.plan) {
+            document.getElementById('plPlanTrackFill').style.setProperty('--pct', `${Math.round((done / Math.max(1, done + f.total)) * 100)}%`);
+            since.textContent = `Since you made the plan on ${new Date(l.plan.setAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}: ${plural(l.plan.sessionsSince || 0, 'practice session')} and ${plural(done, 'block')} on these pieces.`;
+        }
+        const pace = document.getElementById('plPaceText');
+        const used = plPaceUsed();
+        pace.textContent = used ? `Worked out from your own pace: about ${used} block${used === 1 ? '' : 's'} to move a focus section up a Level.`
+            : isFeatureEnabled('theory_smart_learn') && plPace && !plPace.ready ? `After ${plPace.needed} Level-ups this uses your own pace (${plPace.levelUps} so far).` : '';
+        setShown(pace, !!pace.textContent);
+    }
+    // Each choice shows at once and the saves go one after another, so two boxes set quickly don't undo each other
+    let plPlanSaving = Promise.resolve();
+    function plSavePlan(change) {
+        const l = plState.list;
+        if (!l) return;
+        const plan = { sessionsPerWeek: null, sessionMinutes: null, warmupMinutes: 0, ...(l.plan || {}), ...change };
+        l.plan = plan;
+        renderPracticeList();
+        const body = { sessionsPerWeek: plan.sessionsPerWeek, sessionMinutes: plan.sessionMinutes, warmupMinutes: plan.warmupMinutes };
+        plPlanSaving = plPlanSaving.then(async () => {
+            try {
+                const saved = await API.practiceLists.setPlan(l.id, body);
+                if (plState.list && plState.list.id === saved.id && plState.list.plan === plan) { plState.list = saved; renderPracticeList(); }
+            } catch (e) { showWarningToast('Plan not saved: ' + e.message); }
+        });
+    }
+    function plPlanChoice(title, key, values, word) {
+        const cur = (plState.list && plState.list.plan && plState.list.plan[key]) || null;
+        openFlowChoiceModal(title, [
+            { value: null, label: 'None', selected: !cur },
+            ...values.map(v => ({ value: v, label: word(v), selected: cur === v }))
+        ], (opt) => plSavePlan({ [key]: opt.value === null && key === 'warmupMinutes' ? 0 : opt.value }));
+    }
+    document.getElementById('plWeekBtn')?.addEventListener('click', () => plPlanChoice('Sessions a week', 'sessionsPerWeek', [1, 2, 3, 4, 5, 6, 7], v => plural(v, 'session') + ' a week'));
+    document.getElementById('plMinsBtn')?.addEventListener('click', () => plPlanChoice('Minutes a session', 'sessionMinutes', [10, 15, 20, 25, 30, 40, 45, 60, 90, 120], v => `${v} minutes`));
+    document.getElementById('plWarmBtn')?.addEventListener('click', () => plPlanChoice('Warm-up in each session', 'warmupMinutes', [5, 10, 15, 20], v => `${v} minutes`));
+
     document.getElementById('plDateBtn')?.addEventListener('click', openPlDateModal);
     document.getElementById('plDateCloseBtn')?.addEventListener('click', closePlDateModal);
     document.getElementById('plDateNoneBtn')?.addEventListener('click', () => plSaveDate(null));
@@ -8951,6 +9098,7 @@
         const nc = document.getElementById('plNotCounted');
         setShown(nc, f.notCounted.length > 0);
         nc.textContent = `Not counted: ${f.notCounted.join('; ')}.`;
+        renderPlPlan(l, f);
         const box = document.getElementById('plPieces');
         const shownMaps = []; // the bars drawn - the key's empty box only when one of them has bars with no level (ML-548)
         box.innerHTML = l.pieces.length ? l.pieces.map((p, i) => {
@@ -15945,6 +16093,9 @@
             setMovement: (n) => { setFlowMovement(n || null); return snapshot(); }, // ML-530
             // The bars as the editor currently holds them (staged, in Edit mode) - what a picker just set.
             blocks: () => JSON.parse(JSON.stringify({ leadIn: flowLeadInBlock, blocks: currentFlowBlocks })),
+            // ML-557: a piece's path, and a practice list
+            openPath: (id, opts) => openPiecePath(id, opts),
+            openList: (id) => openPracticeList(id),
             openBars: (id, mode = 'edit') => { currentFlowId = id; flowEditMode = mode; flowEditRequestedTab = 'blocks'; switchView('flowDetailsHubView'); },
             journey: () => JSON.parse(JSON.stringify({ end: flowJourney.end, steps: flowJourney.steps, passages: flowPlayQueue.map(({ block, ...rest }) => rest) })),
             issues: () => JSON.parse(JSON.stringify(FlowJourney.checkFlow(currentFlowBlocks, { leadIn: flowLeadInBlock }))),

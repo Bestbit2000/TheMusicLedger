@@ -1395,11 +1395,29 @@
                 <strong id="plDateBtnText">None</strong>
                 <span class="metroBlk-ctrl-value-label">target date</span>
             </button>
+            <!-- ML-557: my own weekly plan for this list - sessions a week, minutes a session, the warm-up in it -->
+            <button type="button" class="metroBlk-ctrl-value-btn" id="plWeekBtn" aria-haspopup="dialog">
+                <strong id="plWeekLbl">None</strong>
+                <span class="metroBlk-ctrl-value-label">a week</span>
+            </button>
+            <button type="button" class="metroBlk-ctrl-value-btn" id="plMinsBtn" aria-haspopup="dialog">
+                <strong id="plMinsLbl">None</strong>
+                <span class="metroBlk-ctrl-value-label">minutes</span>
+            </button>
+            <button type="button" class="metroBlk-ctrl-value-btn" id="plWarmBtn" aria-haspopup="dialog">
+                <strong id="plWarmLbl">None</strong>
+                <span class="metroBlk-ctrl-value-label">warm-up</span>
+            </button>
         </div>
         <section class="flow-card" id="plForecast" aria-live="polite">
             <div class="flow-card-header"><span class="flow-card-label" id="plVerdict">Readiness</span></div>
             <p class="text-sm no-margin" id="plVerdictText"></p>
             <p class="text-sm text-muted mt-3 no-margin hidden-group" id="plNotCounted"></p>
+            <!-- ML-557: the weekly plan - about how many weeks, and how far you've come since you made it -->
+            <p class="text-sm mt-3 no-margin hidden-group" id="plPlanText"></p>
+            <div class="plan-track mt-2 hidden-group" id="plPlanTrack" aria-hidden="true"><span class="plan-track-fill" id="plPlanTrackFill"></span></div>
+            <p class="text-sm text-muted mt-1 no-margin hidden-group" id="plPlanSince"></p>
+            <p class="text-sm text-muted mt-3 no-margin hidden-group" id="plPaceText"></p>
         </section>
         <div class="section-title">Pieces</div>
         <div id="plPieces"></div>
@@ -1445,15 +1463,13 @@
                 <div id="pathLevelBar"></div>
             </div>
         </div>
-        <!-- The heat map - one square a bar - once any bar has a level (ML-537: no empty squares before then) -->
-        <div class="hidden-group" id="pathMapBox">
-            <div class="level-map" id="pathMap" role="img"></div>
-            <div class="level-legend" aria-hidden="true">
-                <span><span class="level-cell lv-0"></span>Not set</span>
-                <span><span class="level-cell lv-1">1</span><span class="level-cell lv-2">2</span>Silver</span>
-                <span><span class="level-cell lv-3">3</span><span class="level-cell lv-4">4</span>Gold</span>
-                <span><span class="level-cell lv-5">5</span>Full speed</span>
-            </div>
+        <!-- ML-557: once any bar has a level - how many bars are at each Level, as one bar chart, and how far the
+             piece has come; the bar-by-bar detail (the heat map, each bar now against where it started, the
+             sessions and minutes) is a tap away on #levelsProgressView. -->
+        <div class="hidden-group mb-4" id="pathMapBox">
+            <div id="pathSummaryBar"></div>
+            <p class="text-sm mt-2 no-margin hidden-group" id="pathCameLine"></p>
+            <button type="button" class="btn-nav mt-3" id="pathBarByBarBtn">Bar by bar</button>
         </div>
         <ol class="piece-path" id="piecePath" aria-label="Your path for this piece"></ol>
         <section class="flow-card hidden-group" id="pathThroughCard" aria-labelledby="pathThroughTitle">
@@ -1465,6 +1481,18 @@
         <button type="button" class="btn-text hidden-group" id="pathSkipBtn">Skip play through and set the level directly</button>
         <button type="button" class="btn-nav hidden-group" id="pathPaintBtn">Set the levels again</button>
         <button type="button" class="btn-nav hidden-group" id="pathCutBtn">Focus sections</button>
+    </div>
+
+    <!-- ML-557: a piece's Levels bar by bar - the heat map, then each run of bars: where it started, where it is now,
+         and the practice sessions and minutes spent on it. specs/components/piece-path.md -->
+    <div id="levelsProgressView" class="hidden-group">
+        <p class="metro-help-text" id="lpSub"></p>
+        <p class="level-notice hidden-group" id="lpRebuilt" role="status">This piece was prepared before the app kept where each bar started, so its start is worked out from what was kept - for some bars it may be later than when you first prepared it.</p>
+        <p class="level-notice hidden-group" id="lpNoStart" role="status">Where these bars started wasn't kept. From the next time you set their levels it is.</p>
+        <div class="level-map" id="lpMap" role="img"></div>
+        <div id="lpLegend"></div>
+        <h2 class="section-title">Bar by bar</h2>
+        <div id="lpRuns"></div>
     </div>
 
     <!-- ML-390 Prepare 2 of 4: a run-through - the whole piece once. ML-537: it starts at full speed (no speed to

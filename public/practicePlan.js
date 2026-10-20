@@ -270,15 +270,18 @@
     // well you can play it, or play it through, so it gets its Levels). After that its Levels decide.
     const PREP_BLOCKS = 1;
 
-    // input: { pieces: [{ title, chunks }], eventDate (the target date, or null), today (YYYY-MM-DD) }.
+    // input: { pieces: [{ title, chunks }], eventDate (the target date, or null), today (YYYY-MM-DD),
+    //          pace (ML-557: blocks per Level from the member's own practice - SmartLearn, once there are 10
+    //          Level-ups; left out, one block is one Level) }.
     // ML-333: nothing to type in - the list works out how many five-minute blocks it takes and, with a
     // target date, the pace that gets there: blocks a day (rounded up) and the minutes that is.
     // Returns the per-piece blocks (prep: true for a piece still to prepare), the total, what isn't
     // counted, the days to go and the daily pace.
     function forecast(input) {
+        const pace = input.pace > 0 ? input.pace : 1;
         const pieces = (input.pieces || []).map(p => {
             const b = pieceBlocks(p.chunks);
-            return b.blocks === null ? { title: p.title, ...b, prep: true, blocks: PREP_BLOCKS } : { title: p.title, ...b, prep: false };
+            return b.blocks === null ? { title: p.title, ...b, prep: true, blocks: PREP_BLOCKS } : { title: p.title, ...b, blocks: Math.ceil(b.blocks * pace), prep: false };
         });
         const total = pieces.reduce((s, p) => s + p.blocks, 0);
         const notCounted = [];
@@ -288,7 +291,44 @@
         });
         const days = input.eventDate ? Math.max(0, dayNumber(input.eventDate) - dayNumber(input.today)) : null;
         const perDay = days && total ? Math.ceil(total / days) : null;
-        return { pieces, total, minutes: total * BLOCK_MINUTES, days, perDay, perDayMinutes: perDay === null ? null : perDay * BLOCK_MINUTES, notCounted };
+        return { pieces, total, minutes: total * BLOCK_MINUTES, days, perDay, perDayMinutes: perDay === null ? null : perDay * BLOCK_MINUTES, notCounted, pace };
+    }
+
+    // ===== ML-557: a weekly plan, and how far a piece has come =====
+    // A practice list's weekly plan: sessions a week of a session's minutes, the warm-up part of it. Every other
+    // five minutes is a block on the pieces (the owner's sum: 30 minutes with a 5-minute warm-up is 5 blocks).
+    // Returns the blocks a session and a week, and the weeks the list's blocks take (rounded up) - or null when
+    // the plan isn't complete or leaves no time for the pieces.
+    function weeklyPlan({ blocks, sessionsPerWeek, sessionMinutes, warmupMinutes = 0 }) {
+        if (!sessionsPerWeek || !sessionMinutes) return null;
+        const perSession = Math.floor((sessionMinutes - (warmupMinutes || 0)) / BLOCK_MINUTES);
+        if (perSession < 1) return null;
+        const perWeek = perSession * sessionsPerWeek;
+        return { perSession, perWeek, weeks: blocks > 0 ? Math.ceil(blocks / perWeek) : 0 };
+    }
+    // Bar by bar, folded into runs of bars that read the same - "Bars 1-8: Level 1 to 3, 4 sessions, 20 minutes".
+    // start may be null (no start kept); a 0 in it is a bar whose start isn't known; 0 in now is no Level yet.
+    function barRuns({ now, start, sessions, minutes }) {
+        const out = [];
+        (now || []).forEach((lv, i) => {
+            const row = { now: lv || 0, start: start ? start[i] || 0 : 0, sessions: (sessions || [])[i] || 0, minutes: (minutes || [])[i] || 0 };
+            const last = out[out.length - 1];
+            if (last && last.to === i && last.now === row.now && last.start === row.start && last.sessions === row.sessions && last.minutes === row.minutes) last.to = i + 1;
+            else out.push({ from: i + 1, to: i + 1, ...row });
+        });
+        return out;
+    }
+    // How far it has come, said positively: the bars that have gone up and the Levels gained, out of the bars
+    // whose start is known. Never a shortfall.
+    function levelsGained({ now, start }) {
+        let up = 0, gained = 0, known = 0;
+        (now || []).forEach((lv, i) => {
+            const s = start ? start[i] || 0 : 0;
+            if (!s || !lv) return;
+            known += 1;
+            if (lv > s) { up += 1; gained += lv - s; }
+        });
+        return { up, gained, known };
     }
 
     // ML-343: warm-up lists - what a session's Warm-up blocks play. Everyone has these four; your own
@@ -471,7 +511,7 @@
         THEORY_BREAK_SECONDS, THEORY_REPEATS, THEORY_SORTED_LEVEL, isTheoryBlock, restSeconds, theoryQueue,
         WARMUP_LISTS, warmupSequence,
         BLOCK_MINUTES, MIN_MINUTES, MAX_MINUTES, NUDGE_SECONDS, REST_SECONDS, OPEN_START_BLOCKS, TARGET_LEVEL, TEMPLATES, KINDS, STAGES, PLAN_KINDS, SKILL_TOOLS,
-        clampMinutes, blockKinds, stretch, planPattern, openKindAt, piecePool, fillBlocks, plan, blockState, toolLabel, pieceBlocks, forecast, PREP_BLOCKS, templateFocus, FOCUS_LABELS,
+        clampMinutes, blockKinds, stretch, planPattern, openKindAt, piecePool, fillBlocks, plan, blockState, toolLabel, pieceBlocks, forecast, PREP_BLOCKS, weeklyPlan, barRuns, levelsGained, templateFocus, FOCUS_LABELS,
         isPlayingBlock, restBefore, playSeconds, drawRest, warmupRoundBpm, WARMUP_ROUND_STEP
     };
 }));

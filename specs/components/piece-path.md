@@ -5,15 +5,33 @@
   `.path-steps`, `.path-step`, `.focus-summary`), setting the levels - ML-536, was "painting"; the class names stay
   (`.paint-page`, `.paint-section`, `.paint-section-head`, `.paint-bars`, `.paint-bar`, `.paint-bar-num`,
   `.paint-bar-level`, `.is-cut-before`, `.is-range-start`, `.paint-toolbox`,
-  `.paint-tools`, `.paint-tool`, `.paint-tool-label`, `.paint-pots`), focus sections (`.cut-bit`, `.is-too-long`)
+  `.paint-tools`, `.paint-tool`, `.paint-tool-label`, `.paint-pots`), focus sections (`.cut-bit`, `.is-too-long`),
+  how far it has come (ML-557: `.level-change` on Bar by bar; `.plan-track`, `.plan-track-fill` for a practice list's weekly plan)
 - **Category:** Flow / input
 - **Status:** New (ML-390; replaces ML-316's My Levels screen)
 
 ## 2. Overview
 Every piece follows three stops, drawn like a game map: **Prepare** (a run-through, set the level of each bar, cut
 into focus sections), **Practise** (five-minute blocks until every bar is at Level 4) and **Play-through** (the whole
-piece, 4 up to 5). Done stops are gold with a tick, the one now is ringed. The heat map above them (one square a
-bar) shows only once a bar has a level - no empty squares before then (ML-537).
+piece, 4 up to 5). Done stops are gold with a tick, the one now is ringed. Above them, once a bar has a level
+(ML-537), **how many bars are at each Level as one bar chart** (`.level-bar` and its key - ML-557, owner 20 Oct 2026:
+it was one square a bar), a line saying how far it has come - "8 bars have gone up since you prepared it - 16 Levels
+in all. 3 practice sessions and 15 minutes on it so far." (positive only; nothing said until there is something) -
+and **Bar by bar**.
+- **Bar by bar** (ML-557, `#levelsProgressView`, a narrow page): the bars, sessions and minutes; a `.level-notice`
+  when where the bars started was worked out afterwards (a piece prepared before ML-557) or wasn't kept; the heat map
+  (`.level-map`, one square a bar, as it is now) and its key; then **each run of bars that reads the same** as a
+  `.history-item` row - the bars ("Bars 1–8"), "4 practice sessions · 20 minutes" (or "Not in a practice session
+  yet"), and on the right `.level-change`: the Level it started at, an arrow, the Level now (one chip when they're
+  the same; "Start not known" before a chip when it isn't known). A movement's heading comes before its first bars.
+- **A practice list's weekly plan** (ML-557): three value boxes beside the target date - **a week** (sessions), **minutes**
+  (a session) and **warm-up** - each a pop-up with None first. The member's own, on a band's list too. With the first
+  two set, the readiness card says about how many weeks it takes ("3 sessions a week of 30 minutes (5 of them warming
+  up) is 5 blocks on the pieces a session: about 8 weeks to be ready."), then how far you've come since making it - a
+  `.plan-track` (`--input-bg` track, `--control-border` edge, a gold `.plan-track-fill` as wide as `--pct`: the
+  blocks done out of done and still to do) over "Since you made the plan on 20 October: 6 practice sessions and 27
+  blocks on these pieces." Never "behind" or "on track" (no pressure, ML-471). With SmartLearn, a line says whether the
+  forecast uses your own pace yet.
 - **From the Prepare tool** (ML-537) the page is Prepare alone: no stops, a short explanation of what's about to
   happen (the lower the number, the sooner those bars get practised), the levels now as one bar chart
   (`.level-bar`) when the bars have them, **Play it through** and **Skip play through and set the level directly**.

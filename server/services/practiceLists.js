@@ -186,6 +186,58 @@ async function movementsByPiece(ids) {
 // the forecast need. ML-530: a piece on the list as one movement has that `movement` and only the chunks inside
 // it, so the forecast and the sessions count just its bars; `movements` lists the piece's movements (none when it
 // has only one) for choosing.
+// ===== ML-557: a weekly plan on a practice list =====
+// Sessions a week, minutes a session and the warm-up in it - three optional boxes. Each member's own, even on a
+// band's list (how often someone practises is never shown to the band), so it is kept per member
+// (practice_list_plans), not on the list. With sessions and minutes set, the list says about how many weeks it
+// takes (PracticePlan.weeklyPlan, worked out in the browser) and how far you've come since the plan was made: the
+// practice sessions (that ended after it) and five-minute blocks on the list's pieces since then. Never "behind" or "on track".
+function toPlan(row) {
+  return {
+    sessionsPerWeek: row.sessions_per_week == null ? null : Number(row.sessions_per_week),
+    sessionMinutes: row.session_minutes == null ? null : Number(row.session_minutes),
+    warmupMinutes: Number(row.warmup_minutes || 0),
+    setAt: row.set_at,
+  };
+}
+async function listPlanFor(accountId, listId, scoreIds) {
+  const { rows } = await pool.query('SELECT * FROM practice_list_plans WHERE list_id = $1 AND account_id = $2', [listId, accountId]);
+  if (!rows.length) return null;
+  const plan = toPlan(rows[0]);
+  const { rows: done } = scoreIds.length
+    ? await pool.query(
+      `SELECT COUNT(DISTINCT s.id)::int AS sessions, COUNT(seg.id)::int AS blocks
+         FROM session_segments seg JOIN sessions s ON s.id = seg.session_id AND s.account_id = $1
+        WHERE seg.score_id = ANY($2::bigint[]) AND seg.start_bar IS NOT NULL AND s.started_at + make_interval(mins => s.total_duration_minutes) >= $3`,
+      [accountId, scoreIds, rows[0].set_at])
+    : { rows: [{ sessions: 0, blocks: 0 }] };
+  return { ...plan, sessionsSince: done[0].sessions, blocksSince: done[0].blocks };
+}
+const PLAN_LIMITS = { sessionsPerWeek: [1, 14, 1], sessionMinutes: [10, 120, 5], warmupMinutes: [0, 30, 5] };
+// Any member who can see the list sets their own plan (a "play" member too: it changes nothing anyone else sees).
+// Every box empty takes the plan away; a plan made again counts from then.
+export async function setPracticeListPlan(accountId, listId, data = {}) {
+  await assertListOwner(accountId, listId);
+  const v = {};
+  for (const [key, [min, max, step]] of Object.entries(PLAN_LIMITS)) {
+    const raw = data[key];
+    if (raw === null || raw === undefined || raw === '') { v[key] = key === 'warmupMinutes' ? 0 : null; continue; }
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < min || n > max || n % step) throw withStatus(400, `${key} must be ${min}-${max}${step > 1 ? ` in steps of ${step}` : ''}.`);
+    v[key] = n;
+  }
+  if (v.sessionsPerWeek === null && v.sessionMinutes === null && !v.warmupMinutes) {
+    await pool.query('DELETE FROM practice_list_plans WHERE list_id = $1 AND account_id = $2', [listId, accountId]);
+  } else {
+    if (v.sessionMinutes !== null && v.warmupMinutes >= v.sessionMinutes) throw withStatus(400, 'The warm-up must be shorter than the session.');
+    await pool.query(
+      `INSERT INTO practice_list_plans (list_id, account_id, sessions_per_week, session_minutes, warmup_minutes) VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (list_id, account_id) DO UPDATE SET sessions_per_week = $3, session_minutes = $4, warmup_minutes = $5, updated_at = now()`,
+      [listId, accountId, v.sessionsPerWeek, v.sessionMinutes, v.warmupMinutes]);
+  }
+  return getPracticeList(accountId, listId);
+}
+
 export async function getPracticeList(accountId, listId) {
   const list = toList(await assertListOwner(accountId, listId));
   const { rows: pieces } = await pool.query(
@@ -204,6 +256,7 @@ export async function getPracticeList(accountId, listId) {
       [accountId, ids])
     : { rows: [] };
   const moves = await movementsByPiece(ids);
+  list.plan = await listPlanFor(accountId, list.id, ids); // ML-557: this member's own weekly plan
   list.pieces = pieces.map(p => {
     const movements = moves.get(Number(p.id)) || [];
     const movement = p.movement_number == null ? null : movements.find(m => m.number === Number(p.movement_number)) || null;

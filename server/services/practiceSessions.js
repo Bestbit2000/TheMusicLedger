@@ -65,8 +65,10 @@ export async function savePracticeSession(accountId, { minutes, segments, instru
     for (const s of segs) {
       const chunkId = s.chunkId && own.has(s.chunkId) ? s.chunkId : null;
       await client.query(
-        `INSERT INTO session_segments (session_id, segment_type, order_index, planned_duration_minutes, actual_seconds, score_id, chunk_id, tool)
-         VALUES ($1, $2, $3, $4, $5, (SELECT score_id FROM piece_chunks WHERE id = $6), $6, $7)`,
+        // ML-557: the block's bars too, so the minutes on each bar outlast the piece being cut again
+        `INSERT INTO session_segments (session_id, segment_type, order_index, planned_duration_minutes, actual_seconds, score_id, chunk_id, tool, start_bar, end_bar)
+         VALUES ($1, $2, $3, $4, $5, (SELECT score_id FROM piece_chunks WHERE id = $6), $6, $7,
+                 (SELECT start_bar FROM piece_chunks WHERE id = $6), (SELECT end_bar FROM piece_chunks WHERE id = $6))`,
         [sessionId, s.type, s.order, s.planned, s.secs, chunkId, s.tool]
       );
     }

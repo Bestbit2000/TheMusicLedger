@@ -8,6 +8,7 @@ import pool from '../config/db.js';
 import { withStatus, assertFlowReadAccess } from './flows.js';
 import { isFeatureEnabled } from './features.js';
 import { listFlowBlocksUnchecked } from './flowBlocks.js';
+import { ensureLevelStarts, recordLevelStarts, getLevelsProgress } from './levelsProgress.js';
 
 const sandbox = { self: {} };
 vm.runInNewContext(fs.readFileSync(new URL('../../public/flowJourney.js', import.meta.url), 'utf8'), sandbox);
@@ -35,7 +36,7 @@ function toChunk(row) {
 }
 
 // The piece's length now: bars in its regular blocks (the lead-in isn't a numbered bar).
-async function pieceBarCount(scoreId, client = pool) {
+export async function pieceBarCount(scoreId, client = pool) {
   const { rows } = await client.query(
     'SELECT COALESCE(SUM(bar_count), 0)::int AS bars FROM metronome_segments WHERE parent_score_id = $1 AND NOT is_lead_in',
     [scoreId]
@@ -61,6 +62,12 @@ async function subBeatsBelow(accountId) {
 
 // A piece's chunks for this account, plus what the screens need alongside them.
 // barsChanged: the piece has a different number of bars now than when its chunks were saved.
+// ML-557: bar by bar - each bar's Level now and where it started, and the sessions and minutes spent on it
+export async function getPieceLevelsProgress(accountId, scoreId) {
+  await assertFlowReadAccess(accountId, scoreId);
+  return getLevelsProgress(accountId, scoreId, await pieceBarCount(scoreId));
+}
+
 export async function getPieceLevels(accountId, scoreId) {
   await assertFlowReadAccess(accountId, scoreId);
   const [{ rows }, totalBars, below] = await Promise.all([
@@ -114,6 +121,7 @@ export async function replacePieceChunks(accountId, scoreId, chunks) {
     await client.query('BEGIN');
     const totalBars = await pieceBarCount(scoreId, client);
     const incoming = validateChunks(chunks, totalBars);
+    await ensureLevelStarts(client, accountId, scoreId, totalBars); // ML-557: a piece prepared before keeps where it started
     const { rows: existingRows } = await client.query(
       'SELECT * FROM piece_chunks WHERE account_id = $1 AND score_id = $2 FOR UPDATE', [accountId, scoreId]
     );
@@ -151,6 +159,7 @@ export async function replacePieceChunks(accountId, scoreId, chunks) {
     const gone = [...existing.keys()].filter(id => !keep.has(id));
     if (gone.length) await client.query('DELETE FROM piece_chunks WHERE id = ANY($1::bigint[])', [gone]);
     await tidyPlaythrough(client, accountId, scoreId);
+    await recordLevelStarts(client, accountId, scoreId, totalBars); // ML-557: where each bar started
     await client.query('COMMIT');
   } catch (error) {
     await client.query('ROLLBACK');

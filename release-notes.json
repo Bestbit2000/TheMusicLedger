@@ -1,4 +1,5 @@
 {
+  "ML-557": "We now show how far each piece has come - its bars now against where they started, with the sessions and minutes spent - and let you add a weekly plan to a practice list.",
   "ML-555": "We switched the app's protection against harmful script back on for every page - an earlier update had turned it to warnings only.",
   "ML-554": "We now ask a band's organiser to confirm they are an adult before any organiser change, such as the band's logo or what a member can do.",
   "ML-553": "We made sure the pages of a photo or PDF read are always deleted, even when a read doesn't go through.",
