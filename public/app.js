@@ -2575,6 +2575,7 @@
             document.getElementById('topTitle').innerText = 'Play flow';
             document.getElementById('flowPlayTitleLabel').innerText = currentFlowDetail?.title || 'Flow';
             renderFlowPlaySummary();
+            updateFlowPlayIcon(); // ML-563: play when nothing is playing, whatever was showing last time
             flowPlayer.prewarm();
             loadFlowPlaybackSpeeds();
             // currentFlowBlocks/flowLeadInBlock were just re-fetched by goToFlowPlayView (or by
@@ -7706,7 +7707,7 @@
         const s = flowSession;
         if (!s) return;
         flowSession = null;
-        if (flowPlayer.isPlaying()) flowPlayer.pause();
+        if (flowPlayer.isPlaying()) { flowPlayer.pause(); updateFlowPlayIcon(); } // ML-563
         hideModal('levelRateModal');
         flowSubBeatsMode = s.saved.subMode;
         flowSubdivideOverride = s.saved.subOverride;
@@ -7722,7 +7723,7 @@
         if (!s) return;
         const word = levelWord(s.level).toLowerCase();
         document.getElementById('flowSessionLevelLbl').textContent = s.level;
-        document.getElementById('flowSessionLevelSub').textContent = `level · ${word}`;
+        document.getElementById('flowSessionLevelSub').textContent = 'level'; // ML-560: the word didn't fit - it's in the button's name
         document.getElementById('flowSessionLevelBtn').setAttribute('aria-label', `Level ${s.level}, ${word} - tap to change`);
         const subOn = flowSessionSubBeatsOn();
         const sub = document.getElementById('flowSessionSubBtn');
@@ -7770,23 +7771,23 @@
         try { await API.levels.setChunk(s.chunk.id, { level: s.level, source: 'during', percentPlayed: played }); }
         catch (e) { showWarningToast('Level not saved: ' + e.message); }
     }
-    // "Did you nail it?" - Yes (up one) and Not yet (stay) are one tap; "Too fast? Back to Level N" is a link
-    // under them, and "Move up even further" opens the jumps. Under it, the piece's next goal: every bit up to the next Level.
+    // "How did you get on?" (ML-559 - it was "Did you nail bars X to Y?", which ran off a phone and under the X) -
+    // Good (up one) and Needs a bit more (stay) are one tap; "Too fast? Back to Level N" is a link under them, and
+    // "Move up even further" opens the jumps. Which bars, and the Level played, are the line under the question.
     function openLevelRating() {
         const s = flowSession;
         if (!s) return;
-        if (flowPlayer.isPlaying()) flowPlayer.pause();
+        if (flowPlayer.isPlaying()) { flowPlayer.pause(); updateFlowPlayIcon(); } // ML-563
         if (s.mode === 'runthrough') { runThroughDone(); return; }
         const n = s.level;
         const through = s.chunk.kind === 'group';
         const name = FlowJourney.movementPrefix(FlowJourney.movements(currentFlowBlocks), s.chunk.startBar) + (s.chunk.label && !through ? s.chunk.label : levelsRange(s.chunk.startBar, s.chunk.endBar).replace(/^Bar/, 'bar')); // ML-530
-        document.getElementById('levelRateTitle').textContent = n >= 5 ? 'Still solid at full speed?' : through ? `Did you play ${name} all the way through?` : `Did you nail ${name}?`;
-        document.getElementById('levelRatePair').innerHTML = n < 5 ? `<span class="level-chip lv-${n}">${n}</span><span class="material-symbols-outlined">arrow_forward</span><span class="level-chip lv-${n + 1}">${n + 1}</span>` : `<span class="level-chip lv-5">5</span>`;
-        document.getElementById('levelRatePair').setAttribute('aria-label', n < 5 ? `Level ${n} to Level ${n + 1}` : 'Level 5');
-        document.getElementById('levelRateSub').textContent = `Played at Level ${n} (${levelWord(n).toLowerCase()}).`;
+        document.getElementById('levelRateTitle').textContent = 'How did you get on?';
+        const what = name.charAt(0).toUpperCase() + name.slice(1);
+        document.getElementById('levelRateSub').textContent = `${what}${through ? ', all the way through' : ''} - played at Level ${n} (${levelWord(n).toLowerCase()}).`;
         const main = n < 5
-            ? [[n + 1, `Yes! Level up to ${n + 1}`, 'btn-submit'], [n, `Not yet, keep it at ${n}`, 'btn-nav']]
-            : [[5, 'Yes - keep it at 5', 'btn-submit'], [4, 'Not quite - back to 4', 'btn-nav']];
+            ? [[n + 1, `Good - increase level to ${n + 1}`, 'btn-submit'], [n, `Needs a bit more, keep it at level ${n}`, 'btn-nav']]
+            : [[5, 'Good - keep it at level 5', 'btn-submit'], [4, 'Needs a bit more, back to level 4', 'btn-nav']];
         const box = document.getElementById('levelRateOptions');
         box.innerHTML = main.map(([lv, t, cls]) => `<button type="button" class="${cls}" data-rate="${lv}">${t}</button>`).join('');
         box.querySelectorAll('[data-rate]').forEach(b => b.addEventListener('click', () => rateLevelPractice(Number(b.dataset.rate))));
@@ -8312,9 +8313,13 @@
         setShown('sessPiecesCard', hasPieces);
         if (!hasPieces) return;
         const src = sessPlan.source || { type: 'all' };
-        document.getElementById('sessPiecesSource').textContent = src.type === 'list' ? `From ${src.listName || 'your practice list'}` : src.type === 'pieces' ? `${(src.scoreIds || []).length} piece${(src.scoreIds || []).length === 1 ? '' : 's'} you picked` : 'All your pieces with Levels';
+        document.getElementById('sessPiecesSource').textContent = src.type === 'list' ? (src.listName || 'My practice list') : src.type === 'pieces' ? `${(src.scoreIds || []).length} piece${(src.scoreIds || []).length === 1 ? '' : 's'} I picked` : 'All my pieces with Levels';
+        document.getElementById('sessPiecesSourceBtn').setAttribute('aria-label', `Where the pieces come from: ${document.getElementById('sessPiecesSource').textContent} - tap to change`);
         document.getElementById('sessAutoToggle').checked = sessPlan.auto;
-        document.getElementById('sessAutoNote').textContent = sessPlan.auto ? 'Picks the bars that need you most, and gets every piece up a Level together.' : 'You\'ll pick each Pieces block\'s bars on the next screen.';
+        // ML-562: what happens either way, whichever it is
+        document.getElementById('sessAutoNote').textContent = sessPlan.auto
+            ? 'On: the app picks the bars that need you most, and gets every piece up a Level together. Off: you choose each Pieces block on the next screen.'
+            : 'Off: you choose the piece and bars for each Pieces block on the next screen. On: the app picks the bars that need you most.';
         const pool = PracticePlan.piecePool(sessPlan.pieces);
         const practise = pool.filter(x => x.stage === 'practise');
         // ML-547: no "Next goal: every 1 up to 2" line - it wasn't always right with one left behind. A new piece still
@@ -8430,7 +8435,7 @@
     }
     function renderSessionPlan() {
         document.getElementById('sessReadyTitle').textContent = sessPlan.open ? 'Here\'s how it starts - open ended' : `Here's your ${sessPlan.minutes} minutes`;
-        document.getElementById('sessPlanStrip').innerHTML = sessPlan.blocks.map(b => kindBlockHtml(b)).join('') + (sessPlan.open ? '<span class="kind-strip-more">…</span>' : '');
+        // (ML-561: no row of block icons above the list any more - it showed the same blocks twice)
         let t = 0;
         document.getElementById('sessBlockList').innerHTML = sessPlan.blocks.map((b, i) => {
             const open = b.kind === 'rehearsal' && b.stage === 'prepare';
@@ -8694,7 +8699,7 @@
     function sessionGoFinished() {
         const r = practiceRun;
         if (!r || !r.finishingGo) return;
-        if (r.finishingGo.kind === 'flow') flowPlayer.pause(); else warmupsPause();
+        if (r.finishingGo.kind === 'flow') { flowPlayer.pause(); updateFlowPlayIcon(); } else warmupsPause(); // ML-563
         sessionTimeUp();
     }
     // The block's time is up (or Next block): the sound stops - Play Flow pauses where it is, any other tool
@@ -8714,7 +8719,7 @@
         const view = viewStack[viewStack.length - 1];
         // ML-391: the scale a Scales block stopped on still gets its answer (taken before leaving ends the block)
         const scaleOpen = scalesLadder && scalesLadder.current && !scalesLadder.busy ? { cur: scalesLadder.current, items: scalesLadder.items } : null;
-        if (view === 'flowPlayView') { if (flowPlayer.isPlaying()) flowPlayer.pause(); }
+        if (view === 'flowPlayView') { if (flowPlayer.isPlaying()) flowPlayer.pause(); updateFlowPlayIcon(); } // ML-563
         else if (view !== 'sessionRunView' && !(prep.fromSession && ['piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView'].includes(view))) switchView('sessionRunView');
         if (flowSession && flowSession.mode !== 'runthrough') { r.waitingForRating = true; openLevelRating(); return; }
         if (scaleOpen) { r.waitingForRating = true; askScaleRating(scaleOpen.cur, scaleOpen.items, () => { r.waitingForRating = false; sessionAfterBlock(); }); return; }
@@ -14955,7 +14960,7 @@
         const seen = new Map();
         flowJourney.steps.forEach(s => { if (s.kind === 'main' && s.pass > 1) seen.set(s.blockId, true); });
         flowRepeatedBlockIds = new Set(seen.keys());
-        if (flowPlayer.isPlaying()) flowPlayer.pause();
+        if (flowPlayer.isPlaying()) { flowPlayer.pause(); updateFlowPlayIcon(); } // ML-563
         jumpFlowToStart();
     }
 
@@ -15043,7 +15048,7 @@
 
     function onFlowBeat(beatInfo) {
         // ML-390: a Prepare run-through that has reached the end goes on to painting the bars.
-        if (beatInfo.ended && flowSession && flowSession.mode === 'runthrough') { flowPlayer.stop(); jumpFlowToStart(); runThroughDone(); return; }
+        if (beatInfo.ended && flowSession && flowSession.mode === 'runthrough') { flowPlayer.stop(); updateFlowPlayIcon(); jumpFlowToStart(); runThroughDone(); return; }
         if (beatInfo.ended) {
             // ML-250: the end of the piece - stop and go back to the start, ready to play again.
             flowPlayer.stop();

@@ -1285,16 +1285,21 @@
         <section class="flow-card hidden-group" id="sessPiecesCard" aria-labelledby="sessPiecesTitle">
             <div class="flex-row gap-sm items-center">
                 <span class="kind-block kind-pieces kind-block-icon" aria-hidden="true"><span class="material-symbols-outlined">music_note</span></span>
-                <span class="grow"><strong id="sessPiecesTitle">Pieces</strong><br><span class="text-sm text-muted" id="sessPiecesSource"></span></span>
+                <strong class="grow" id="sessPiecesTitle">Pieces</strong>
             </div>
-            <button type="button" class="btn-nav mt-3" id="sessPiecesSourceBtn" aria-haspopup="dialog">Choose where the pieces come from</button>
-            <!-- ML-546: Auto, its line and its switch on one row (the switch was up by the Pieces heading, away from its words) -->
-            <div class="flex-row gap-sm items-center mt-3 mb-3">
+            <!-- ML-562 (owner, 21 Oct 2026): where the pieces come from (one button, one pop-up), the pieces it gives right
+                 under it, then Auto at the bottom - its line says what happens either way. -->
+            <button type="button" class="metroBlk-ctrl-value-btn w-full mt-3" id="sessPiecesSourceBtn" aria-haspopup="dialog">
+                <strong id="sessPiecesSource">All my pieces with Levels</strong>
+                <span class="metroBlk-ctrl-value-label">where the pieces come from</span>
+            </button>
+            <p class="session-goal hidden-group" id="sessGoal"></p>
+            <div class="mt-3" id="sessPiecesList"></div>
+            <!-- ML-546: Auto, its line and its switch on one row -->
+            <div class="flex-row gap-sm items-center mt-3">
                 <span class="grow"><strong id="sessAutoLbl">Auto</strong><br><span class="text-sm text-muted" id="sessAutoNote"></span></span>
                 <label class="toggle-switch"><input type="checkbox" id="sessAutoToggle" checked aria-labelledby="sessAutoLbl" aria-describedby="sessAutoNote"><span class="toggle-slider"></span></label>
             </div>
-            <p class="session-goal hidden-group" id="sessGoal"></p>
-            <div id="sessPiecesList"></div>
         </section>
         <button type="button" class="btn-submit" id="sessToReadyBtn">Ready! See my session</button>
     </div>
@@ -1303,7 +1308,6 @@
          (sessionBlockModal). -->
     <div id="sessionPlanView" class="hidden-group">
         <h2 class="step-question" id="sessReadyTitle">Here's your session</h2>
-        <div class="kind-strip mb-3" id="sessPlanStrip" aria-hidden="true"></div>
         <div id="sessBlockList"></div>
         <p class="text-sm text-muted" id="sessReadyNote">Tap any block to swap it.</p>
         <button type="button" class="btn-submit" id="sessStartBtn">Start</button>
@@ -4043,7 +4047,6 @@
         <div class="levelup" id="levelRateUp">
             <span class="levelup-stars" aria-hidden="true"><span class="material-symbols-outlined">star</span><span class="material-symbols-outlined">star</span><span class="material-symbols-outlined">star</span></span>
             <h2 id="levelRateTitle">Did you nail it?</h2>
-            <span class="levelup-pair" id="levelRatePair" aria-hidden="true"></span>
         </div>
         <p class="metro-help-text" id="levelRateSub"></p>
         <div id="levelRateOptions"></div>

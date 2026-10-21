@@ -78,8 +78,8 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
   rest follows** (`PracticePlan.playSeconds`); otherwise it runs the full 5 minutes. A **Prepare** has no end -
   you move on when it's done (the time it took is logged).
 - **When a block's time is up** (or Next block): Play Flow pauses where it is and any other tool is left (which
-  stops it). A Pieces block asks **"Did you nail it?"** - one tap: **Yes! Level up** (a short star celebration) or
-  **Not yet**; "Too fast? Back to Level N" is a link under them, and **Move up even further** opens the jumps to
+  stops it). A Pieces block asks **"How did you get on?"** (ML-559) - one tap: **Good - increase level to X** (a short star
+  celebration) or **Needs a bit more, keep it at level Y**; "Too fast? Back to Level N" is a link under them, and **Move up even further** opens the jumps to
   higher Levels (owner, 1 Oct 2026). (The piece's next goal under it was taken out, ML-547.) A Warm-ups/Scales skill asks "Got it?". Then the rest, or the next block.
 - **No "Keep going" on a block** any more (owner, 30 Sept 2026): the rest always happens. For more time, pick a
   longer session or Open ended.
@@ -308,7 +308,7 @@ sub-beats, the 4:30 chunk length rule, the heat map, and the practice mode.
   - **"Plan a session for this"** opens the three steps on the list's pieces with the Concert plan (ML-390).
 - **Each member's forecast** uses their own Levels.
 - **Your own pace (ML-557, SmartLearn only):** the forecast above assumes one block moves a focus section up one Level.
-  Once a member has gone up **10 Levels** in practice (Level up while playing, or "Did you nail it?" - across all their
+  Once a member has gone up **10 Levels** in practice (Level up while playing, or "How did you get on?" - across all their
   pieces), a member with SmartLearn (`theory_smart_learn`) gets a forecast that uses their own pace instead: practice
   blocks on pieces per Level gained (`GET /api/practice/pace`, `server/services/levelsProgress.js`;
   `PracticePlan.forecast({ pace })` rounds each piece up). The card says so ("Worked out from your own pace: about 2.3

@@ -1,4 +1,9 @@
 {
+  "ML-563": "We fixed the play button showing pause when a piece opened in a practice session with nothing playing.",
+  "ML-562": "We made it clearer what Auto does on a practice session's pieces, and put where the pieces come from right above them.",
+  "ML-561": "We took out the second row of block icons on the screen before a practice session starts - the list is enough.",
+  "ML-560": "We made the Level button on the play screen fit, with just \"level\" under the number.",
+  "ML-559": "We changed the question after practising some bars to \"How did you get on?\", with clearer answers, and it now fits on a phone.",
   "ML-558": "We fixed Done preparing in the Prepare tool, which went back to the start - it now takes you back to the list of pieces to prepare.",
   "ML-501": "We added Settings - Notifications, where you can switch off each kind of notice the app sends you itself.",
   "ML-497": "We now tell you in Notifications when you are invited to a band, your band has new music, or something changes for you in a band.",

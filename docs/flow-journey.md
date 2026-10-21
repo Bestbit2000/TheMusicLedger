@@ -212,7 +212,7 @@ nothing saved as it plays; at the end (or Done) it goes on to setting the level 
 - **The tiles:** repeat, sub beats and speed are swapped for **Level** (a button: pick any Level, faster or
   slower, straight away - in a block it's saved as `during`; ML-537, it was a status plus a Level up button),
   **sub beats** (the switch) and **Finish**. The Level shows its number and word, never its % (ML-535).
-- **Finish:** "Did you nail it?" (ML-390) - Yes (up one, a short star celebration) / Not yet (stay) in one tap;
+- **Finish:** "How did you get on?" (ML-390, worded by ML-559) - Good (up one, a short star celebration) / Needs a bit more (stay) in one tap;
   "Too fast? Back to Level N" is a link under them, and "Move up even further" opens the jumps to higher Levels. Saved as `rating` with the speed played.
 - **Leaving:** leaving the play screen any other way ends the practice unrated. The player's own speed,
   sub-beat setting and repeat come back.

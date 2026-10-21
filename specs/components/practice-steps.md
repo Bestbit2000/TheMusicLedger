@@ -24,8 +24,10 @@ the Pick a plan pop-up; the plan's blocks in colour underneath), **What's in it*
   music note (practice), construction (Prepare), play circle (Play-through).
 - **Build my plan** is tap-to-add, not drag: tap a kind in `.build-palette` to drop it in the next empty
   `.build-slot`; tap a slot to empty it.
-- **"Did you nail it?"** (`.levelup` in `#levelRateModal`): the Level pair (1 -> 2), one-tap Yes / Not yet, and a
-  short star pop on a Yes (`.is-celebrating`, none with reduced motion).
+- **"How did you get on?"** (`.levelup` in `#levelRateModal`; ML-559, owner 21 Oct 2026 - it was "Did you nail bars X to
+  Y?", which ran off a phone and under the X): the stars and the question, a line saying which bars and the Level played,
+  one-tap **Good - increase level to X** / **Needs a bit more, keep it at level Y**, and a short star pop on Good
+  (`.is-celebrating`, none with reduced motion). No Level pair (1 -> 2) any more.
 - **Don't use** the kind colours for anything but kinds of practice block.
 
 ## 3. Anatomy
@@ -47,10 +49,14 @@ the Pick a plan pop-up; the plan's blocks in colour underneath), **What's in it*
 - Build: `.build-slots` › `button.kind-block.build-slot` (`.build-slot-time` - in the kind's `-text` colour on a filled
   slot, `--label-color` on an empty one - icon, `.kind-block-label`) ›
   `.build-palette` › `button.kind-block.build-add` × 4.
-- Step 3: `.history-item.settings-link` rows with a `.kind-block` in the icon slot; the Pieces `.flow-card` › the
-  source button › the Auto row (label and line, then the `.toggle-switch`, ML-546) › `.session-goal` (only "First: prepare
-  the new pieces" / "Next: play them through" - ML-547) › `.session-piece` rows with a `.level-bar`.
-- Ready: `.kind-strip` › block rows (`.history-item` › `.level-row-body` › `.session-block-time` + `.kind-block`).
+- Step 3: `.history-item.settings-link` rows with a `.kind-block` in the icon slot; the Pieces `.flow-card` › its heading ›
+  where the pieces come from as a value box (`.metroBlk-ctrl-value-btn.w-full`: "Cobham concert" over "where the pieces come
+  from", ML-562) › `.session-goal` (only "First: prepare the new pieces" / "Next: play them through" - ML-547) ›
+  `.session-piece` rows with a `.level-bar` › the Auto row at the bottom (label and line, then the `.toggle-switch`,
+  ML-546) - its line says what happens either way: on, the app picks the bars; off, you choose each Pieces block on the
+  next screen (ML-562).
+- Ready: block rows (`.history-item` › `.level-row-body` › `.session-block-time` + `.kind-block`). No `.kind-strip` above
+  them (ML-561 - it showed the same blocks twice).
 
 ## 4. Tokens used
 - **Kinds:** `--kind-warmup`, `--kind-scales`, `--kind-skills`, `--kind-pieces`, `--kind-theory` (edges), their `-text` variants
