@@ -56,7 +56,7 @@ That's the only inline style allowed, and the audit lets it through. The propert
 | `--bar-w` | `usageBar` (admin.js, ML-515) | `.usage-bar-fill` |
 | `--line-pos` | chart renderers | `.grid-line`, `.chart-y-label` |
 | `--series` | a `.series-*` class (charts spec), or inline on Admin → Design's category bars | `.chart-bar`, `.chart-bar-projection`, `.chart-legend-swatch` |
-| `--pct` | each slider's update function | `.slider-fill` (width), `.slider-thumb` (left) |
+| `--pct` | each slider's update function; a practice list's weekly plan (ML-557) | `.slider-fill` (width), `.slider-thumb` (left), `.plan-track-fill` (width) |
 | `--progress` | upload progress | `.flow-upload-progress-fill` |
 | `--remaining` | Theory round clock | `.theory-countdown-fill` (scaleX) |
 | `--needle-pos` | tuner | `.tuner-bar-needle`, `.metroBlk-mini-tuner-needle` |

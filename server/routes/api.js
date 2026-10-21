@@ -6,12 +6,13 @@
 
 import express from 'express';
 import { assertWarmupsEnabled, listActiveWarmups } from '../services/warmups.js';
-import { assertPracticeLevelsEnabled, getPieceLevels, replacePieceChunks, setChunkLevel, setSubBeatsBelow, listPracticePieces } from '../services/practiceLevels.js';
+import { assertPracticeLevelsEnabled, getPieceLevels, getPieceLevelsProgress, replacePieceChunks, setChunkLevel, setSubBeatsBelow, listPracticePieces } from '../services/practiceLevels.js';
+import { getPracticePace } from '../services/levelsProgress.js';
 import { nextRestMessage } from '../services/restMessages.js';
 import { assertScaleLevelsEnabled, getScaleLevels, answerScale, setScaleLevel } from '../services/scaleLevels.js';
 import { listPracticeChunks, savePracticeSession, listTemplates, saveTemplate, deleteTemplate, getActivePractice, putActivePractice, clearActivePractice } from '../services/practiceSessions.js';
 import { recordSkillResult, getSkillsAndLists, createSkillList, updateSkillList, deleteSkillList, listWarmupLists, saveWarmupList, deleteWarmupList } from '../services/skills.js';
-import { listPracticeLists, createPracticeList, updatePracticeList, deletePracticeList, setPracticeListPieces, getPracticeList, setPracticeListArchived } from '../services/practiceLists.js';
+import { setPracticeListPlan, listPracticeLists, createPracticeList, updatePracticeList, deletePracticeList, setPracticeListPieces, getPracticeList, setPracticeListArchived } from '../services/practiceLists.js';
 import { requireAuth, resolveAccount, requireAuthFromQueryOrHeader } from '../middleware/auth.js';
 import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
@@ -258,6 +259,25 @@ router.get('/flows/:id/levels', requireAuth, resolveAccount, async (req, res) =>
   }
 });
 
+// ML-557: bar by bar - now against where each bar started, with the sessions and minutes spent on it
+router.get('/flows/:id/levels/progress', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertPracticeLevelsEnabled();
+    res.json(await getPieceLevelsProgress(req.accountId, req.params.id));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+// ML-557: the member's own pace - blocks per Level gained, for the forecast (SmartLearn, once there are 10)
+router.get('/practice/pace', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertPracticeLevelsEnabled();
+    res.json(await getPracticePace(req.accountId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 router.put('/flows/:id/levels', requireAuth, resolveAccount, async (req, res) => {
   try {
     await assertPracticeLevelsEnabled();
@@ -330,6 +350,7 @@ router.get('/practice/lists', requireAuth, resolveAccount, practiceListRoute(req
 router.post('/practice/lists', requireAuth, resolveAccount, practiceListRoute(req => createPracticeList(req.accountId, req.body || {})));
 router.get('/practice/lists/:id', requireAuth, resolveAccount, practiceListRoute(req => getPracticeList(req.accountId, req.params.id)));
 router.put('/practice/lists/:id', requireAuth, resolveAccount, practiceListRoute(req => updatePracticeList(req.accountId, req.params.id, req.body || {})));
+router.put('/practice/lists/:id/plan', requireAuth, resolveAccount, practiceListRoute(req => setPracticeListPlan(req.accountId, req.params.id, req.body || {}))); // ML-557
 router.put('/practice/lists/:id/archive', requireAuth, resolveAccount, practiceListRoute(req => setPracticeListArchived(req.accountId, req.params.id, { archived: req.body?.archived === true, forAll: req.body?.forAll === true })));
 router.delete('/practice/lists/:id', requireAuth, resolveAccount, practiceListRoute(req => deletePracticeList(req.accountId, req.params.id)));
 // ML-530: pieces as [{ scoreId, movement }] (or plain ids, as before - a plain id keeps its movement)

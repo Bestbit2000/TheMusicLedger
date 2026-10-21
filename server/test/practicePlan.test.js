@@ -288,3 +288,30 @@ describe('Theory blocks and Quiet practice (ML-418)', () => {
         assert.deepEqual(keys(PP.theoryQueue(items, { 'keys|1': 1 }, false, 'keys|1')), ['symbols|1', 'noteNames|2', 'keys|2', 'symbols|2', 'noteNames|1', 'keys|1']);
     });
 });
+
+describe('how far a piece has come, and a weekly plan (ML-557)', () => {
+    const chunk = (level, startBar, endBar) => ({ kind: 'chunk', level, startBar, endBar });
+    test('the forecast uses the member\'s own pace when it is given, rounded up per piece', () => {
+        const pieces = [{ title: 'A', chunks: [chunk(1, 1, 8), chunk(3, 9, 16)] }]; // 3 + 1 to Level 4, + 1 play-through
+        assert.equal(PP.forecast({ pieces, today: '2026-10-20' }).total, 5);
+        assert.equal(PP.forecast({ pieces, today: '2026-10-20', pace: 2.3 }).total, 12);
+        assert.equal(PP.forecast({ pieces, today: '2026-10-20', pace: 0 }).total, 5); // no pace: one block a Level
+        // a piece still to prepare stays one block whatever the pace
+        assert.equal(PP.forecast({ pieces: [{ title: 'B', chunks: [] }], today: '2026-10-20', pace: 3 }).total, 1);
+    });
+    test('the weekly plan: the owner\'s example, 30 minutes with a 5-minute warm-up, is 5 blocks a session', () => {
+        assert.deepEqual(PP.weeklyPlan({ blocks: 114, sessionsPerWeek: 3, sessionMinutes: 30, warmupMinutes: 5 }), { perSession: 5, perWeek: 15, weeks: 8 });
+        assert.equal(PP.weeklyPlan({ blocks: 0, sessionsPerWeek: 3, sessionMinutes: 30 }).weeks, 0);
+        assert.equal(PP.weeklyPlan({ blocks: 10, sessionsPerWeek: null, sessionMinutes: 30 }), null); // not complete
+        assert.equal(PP.weeklyPlan({ blocks: 10, sessionsPerWeek: 2, sessionMinutes: 10, warmupMinutes: 10 }), null); // no time for the pieces
+    });
+    test('bars that read the same fold into one row', () => {
+        const runs = PP.barRuns({ now: [3, 3, 3, 2, 0], start: [1, 1, 1, 2, 0], sessions: [4, 4, 4, 0, 0], minutes: [20, 20, 20, 0, 0] });
+        assert.deepEqual(runs.map(r => [r.from, r.to, r.start, r.now, r.sessions, r.minutes]), [[1, 3, 1, 3, 4, 20], [4, 4, 2, 2, 0, 0], [5, 5, 0, 0, 0, 0]]);
+        assert.equal(PP.barRuns({ now: [1, 1], start: null, sessions: [0, 0], minutes: [0, 0] }).length, 1); // no start kept
+    });
+    test('how far it has come counts only the bars whose start is known, and only ever upwards', () => {
+        assert.deepEqual(PP.levelsGained({ now: [3, 3, 2, 4, 5], start: [1, 3, 3, 0, 4] }), { up: 2, gained: 3, known: 4 });
+        assert.deepEqual(PP.levelsGained({ now: [3], start: null }), { up: 0, gained: 0, known: 0 });
+    });
+});

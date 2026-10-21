@@ -211,6 +211,16 @@ opened from a practice list, Play Flow's menu (My Levels) and a session's Prepar
    **Level** button picks a faster or slower Level while you play (ML-537 - it was a Level up button), saved as it
    happens; the **sub beats** switch starts the way the Level would set them (on when a bar's beat is slow at that
    speed) and turns them on or off for the rest of the block.
+**How far it has come (ML-557, owner 20 Oct 2026).** Once a bar has a level, the path shows **how many bars are at each
+Level as one bar chart** (it was one square a bar), then a positive line - the bars that have gone up since it was
+prepared and the Levels gained, and the practice sessions and minutes on it - and **Bar by bar**: the heat map, then each
+run of bars that reads the same with the Level it started at, the Level now, and the sessions and minutes spent on it
+(`GET /api/flows/:id/levels/progress`). Where each bar started is `piece_level_starts` (saved when the piece is first
+prepared; for one prepared before ML-557, worked out once from the history that still lined up, with "start not known"
+where it didn't); the minutes on a bar come from the blocks whose bars cover it (`session_segments.start_bar`/
+`end_bar`, kept when the piece is cut again). Tests: `practicePlan.test.js` (`barRuns`, `levelsGained`), back-test
+case 88.
+
 3. **Play-through** - once every bar is at 4 the server makes the piece's **play-through parts** (its join-up groups,
    `piece_chunks` kind `group`): the whole piece when it plays once in a block at Level 4, otherwise the fewest equal
    parts that do - **two halves** for most pieces (`FlowJourney.playthroughParts`). On the path you can choose
@@ -297,6 +307,23 @@ sub-beats, the 4:30 chunk length rule, the heat map, and the practice mode.
     on-track / behind verdict - there's nothing to compare against.
   - **"Plan a session for this"** opens the three steps on the list's pieces with the Concert plan (ML-390).
 - **Each member's forecast** uses their own Levels.
+- **Your own pace (ML-557, SmartLearn only):** the forecast above assumes one block moves a focus section up one Level.
+  Once a member has gone up **10 Levels** in practice (Level up while playing, or "Did you nail it?" - across all their
+  pieces), a member with SmartLearn (`theory_smart_learn`) gets a forecast that uses their own pace instead: practice
+  blocks on pieces per Level gained (`GET /api/practice/pace`, `server/services/levelsProgress.js`;
+  `PracticePlan.forecast({ pace })` rounds each piece up). The card says so ("Worked out from your own pace: about 2.3
+  blocks to move a focus section up a Level"), and before then how many Level-ups it has so far. Without SmartLearn,
+  or before 10, nothing changes.
+- **A weekly plan (ML-557, owner 20 Oct 2026):** three value boxes beside the target date - **a week** (sessions),
+  **minutes** (a session) and **warm-up** (the part of it spent warming up), each a pop-up with None first. **It is the
+  member's own** (`practice_list_plans`, `PUT /api/practice/lists/:id/plan`), even on a band's list - how often
+  someone practises is never shown to the band - so a "play" member can make one too. With sessions and minutes set,
+  the card says about how many weeks the list takes (`PracticePlan.weeklyPlan`: every five minutes after the warm-up
+  is a block - 30 minutes with a 5-minute warm-up is 5), and then **how far you've come since making the plan**: a
+  gold track of the blocks done out of done and still to do, and "Since you made the plan on 20 October: 6 practice
+  sessions and 27 blocks on these pieces". Never "behind" or "on track" (no pressure). Every box back to None takes the
+  plan away; one made again counts from then. The columns ML-333 took off the screen (`sessions_per_week`,
+  `session_minutes` on `practice_lists`) stay unused.
 
 ## One movement on a list (ML-530)
 

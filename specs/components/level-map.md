@@ -34,7 +34,7 @@ the same colours on bigger squares ([piece-path](piece-path.md)).
   tool's notes past your range. In a strip an unset item is a plain `--level-unset-border` fill, not a dashed
   outline (ML-334). The strip never overflows its row.
 - **Legend (the key):** `.level-legend` › `span` › `.level-cell` + label: Not painted (Not known under a Level bar), 1 2
-  Silver, 3 4 Gold, 5 Full speed. Under a piece's map and under Level bars (`levelLegendHtml`). No bottom margin when it's the last thing in its box.
+  Silver, 3 4 Gold, 5 Full speed. Under a piece's map and under Level bars (`levelLegendHtml`). Space above it (`--space-3`) and below it (`--space-4`), so it never touches the piece above or the button under a list of pieces; no bottom margin only when it ends a card (`.flow-card`), whose padding is the space (owner, 21 Oct 2026).
 - **Chip:** `.level-chip.lv-N`, the Level at the start of a chunk / hard-passage row. The row is a
   `.history-item` with a `.level-row-body` button (the chip plus text) and any action buttons.
 - **Picker:** `.level-picker` › `.level-pick.lv-N` × 5. Each button shows the number and, under it
