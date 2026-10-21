@@ -635,8 +635,17 @@
         <button type="button" class="history-item settings-link" data-act="view" data-arg="settingsStatsView"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">bar_chart</span><span class="settings-link-text"><span class="settings-link-title">Stats</span><span class="settings-link-sub" id="settingsStatsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <button type="button" class="history-item settings-link" data-act="view" data-arg="settingsTunerView"><span class="settings-link-icon" data-tool-icon="tunerView" aria-hidden="true"></span><span class="settings-link-text"><span class="settings-link-title">Tuner</span><span class="settings-link-sub" id="settingsTunerSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <button type="button" class="history-item settings-link" data-act="view" data-arg="settingsPlaybackView"><span class="settings-link-icon" data-tool-icon="quickPlayView" aria-hidden="true"></span><span class="settings-link-text"><span class="settings-link-title">Metronome &amp; playback</span><span class="settings-link-sub" id="settingsPlaybackSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <!-- ML-501: which automatic notices I get (auto_notices) -->
+        <button type="button" class="history-item settings-link hidden-group" id="settingsNoticesLink" data-act="view" data-arg="settingsNoticesView"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">notifications</span><span class="settings-link-text"><span class="settings-link-title">Notifications</span><span class="settings-link-sub">Which notices the app sends you</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <!-- ML-517: the new member's three steps, to go through again (member_setup) -->
         <button type="button" class="history-item settings-link hidden-group" id="settingsSetupLink"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">checklist</span><span class="settings-link-text"><span class="settings-link-title">Set up again</span><span class="settings-link-sub">What I play, how it looks, who I play with</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+    </div>
+
+    <!-- ML-501: which notices the app sends you itself (ML-497) - a switch for each kind, all on until switched off.
+         Notices from the Notably Better team always come. Saved on the account. -->
+    <div id="settingsNoticesView" class="settings-subview hidden-group">
+        <p class="metro-help-text">The app tells you when something happens to your things. Switch off what you don't want. News from the Notably Better team always comes.</p>
+        <div id="settingsNoticesList"></div>
     </div>
 
     <!-- ML-356: Display and reading - saved on the account, so it follows you to every device. -->

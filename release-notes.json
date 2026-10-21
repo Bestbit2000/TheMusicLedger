@@ -1,4 +1,6 @@
 {
+  "ML-501": "We added Settings - Notifications, where you can switch off each kind of notice the app sends you itself.",
+  "ML-497": "We now tell you in Notifications when you are invited to a band, your band has new music, or something changes for you in a band.",
   "ML-496": "We can now send a notice to the members of one band, to one kind of account, or to named members, as well as to everyone.",
   "ML-495": "We can now show a banner across the top of the app, and of the sign-in screen, to tell you ahead of time when the app will be away.",
   "ML-494": "We now delete old notices 12 months after they stopped being shown, with the record of who read them.",

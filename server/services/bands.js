@@ -26,6 +26,7 @@ import { isBandLogoFileUrl, MAX_BAND_LOGO_BYTES, BAND_LOGO_TYPES } from './blobU
 import { sendMail, emailBody, emailOutcome } from './mail.js';
 import { passwordLinkForNewcomer } from './passwordAuth.js';
 import { isFeatureEnabled } from './features.js';
+import { noticeBandInvite, withdrawBandInviteNotice, noticeBandLevel, noticeBandRemoved } from './autoNotices.js'; // ML-497
 
 const fail = (status, message) => Object.assign(new Error(message), { status });
 
@@ -662,6 +663,7 @@ export async function inviteToBand(accountId, bandId, email, level = 'play', ori
      ON CONFLICT (band_id, email) DO UPDATE SET role = EXCLUDED.role${resend ? ', created_at = now(), invited_by_account_id = EXCLUDED.invited_by_account_id' : ''}`,
     [bandId, to, accountId, role]
   );
+  if (sending) await noticeBandInvite(bandId, to); // ML-497: someone already using the app also sees it in Notifications
   if (!sending) return { emailed: false };
   try {
     const { rows } = await pool.query(
@@ -698,6 +700,7 @@ export async function cancelBandInvite(accountId, bandId, inviteId) {
   await assertOrganiser(pool, accountId, bandId);
   const { rowCount } = await pool.query('DELETE FROM band_invites WHERE id = $1 AND band_id = $2', [inviteId, bandId]);
   if (!rowCount) throw fail(404, 'Invitation not found');
+  await withdrawBandInviteNotice(inviteId); // ML-497
 }
 
 // ML-478: an invitation attaches to the band you already have. The bands on the member's list that
@@ -832,11 +835,13 @@ export async function acceptBandInvite(accountId, inviteId, { labelId = null } =
     client.release();
   }
   await ensureOrganiser(pool, invite.band_id); // a band everyone had left
+  await withdrawBandInviteNotice(inviteId); // ML-497: answered - the notice about it goes
   return Number(invite.band_id);
 }
 export async function declineBandInvite(accountId, inviteId) {
   await myInvite(pool, accountId, inviteId);
   await pool.query('DELETE FROM band_invites WHERE id = $1', [inviteId]);
+  await withdrawBandInviteNotice(inviteId); // ML-497
 }
 
 // An organiser takes someone out of the band (to go yourself, leave). What they added stays with the band.
@@ -847,6 +852,7 @@ export async function removeBandMember(accountId, bandId, memberAccountId) {
   if (!rowCount) throw fail(404, 'They are not in this band.');
   await ensureLabels(pool, memberAccountId); // ML-478: it stays on their own list, no longer shared
   await ensureOrganiser(pool, bandId);
+  await noticeBandRemoved(bandId, memberAccountId); // ML-497
 }
 
 // An organiser sets what a member may do - another organiser, change music, or play only (themselves
@@ -860,8 +866,10 @@ export async function setBandMemberLevel(accountId, bandId, memberAccountId, lev
     const { rows } = await pool.query('SELECT COUNT(*) AS n FROM band_members WHERE band_id = $1 AND role = ANY($2) AND account_id <> $3', [bandId, ORGANISER_ROLES, memberAccountId]);
     if (!Number(rows[0].n)) throw fail(409, 'A band needs at least one organiser. Make someone else one first.');
   }
+  const before = (await pool.query('SELECT role FROM band_members WHERE band_id = $1 AND account_id = $2', [bandId, memberAccountId])).rows[0];
   const { rowCount } = await pool.query('UPDATE band_members SET role = $1 WHERE band_id = $2 AND account_id = $3', [role, bandId, memberAccountId]);
   if (!rowCount) throw fail(404, 'They are not in this band.');
+  if (before && levelOf(before.role) !== level) await noticeBandLevel(bandId, memberAccountId, level, accountId); // ML-497 (not when stepping down yourself)
 }
 
 function normalizeWebsiteUrl(input) {

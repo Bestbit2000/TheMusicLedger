@@ -48,6 +48,7 @@ import { startAuthoringSession, updateAuthoringSession, currentAppVersion } from
 import { exportFlowForUser } from '../services/flowTransfer.js';
 import { submitFeedback } from '../services/feedback.js';
 import { requestUpgrade } from '../services/upgradeRequest.js';
+import { getNoticePreferences, setNoticePreference } from '../services/autoNotices.js';
 import { listBannerNotices, listNotificationsForAccount, markNotificationRead, markAllNotificationsRead, clearNotification, clearAllNotifications, listClearedNotifications, restoreNotifications, listImportantNotices, acknowledgeImportantNotice } from '../services/notifications.js';
 import { saveTheoryAttempt, getTheoryHistory, getTheorySummary, getTheoryLevels, getTheoryWeights, getTheoryPlayed } from '../services/theoryPractice.js';
 import { assertDrillEnabled, saveDrillAttempt, getDrillHistory, getDrillSummary, getDrillWeights, getRhythmLevels, setRhythmWord } from '../services/drills.js';
@@ -175,6 +176,27 @@ router.post('/notifications/clear-all', requireAuth, resolveAccount, async (req,
     await assertNotificationsEnabled();
     await limitCalls('notifications', req.accountId);
     res.json({ ...(await clearAllNotifications(req.accountId)), appVersion: currentAppVersion() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-501: which automatic notices (ML-497) a member gets - one switch per kind, all on until switched off.
+async function assertAutoNoticesEnabled() {
+  if (!(await isFeatureEnabled('auto_notices')) || !(await isFeatureEnabled('notifications'))) throw withStatus(403, "This feature isn't available right now.");
+}
+router.get('/account/notice-preferences', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertAutoNoticesEnabled();
+    res.json(await getNoticePreferences(req.accountId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.put('/account/notice-preferences/:kind', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertAutoNoticesEnabled();
+    res.json(await setNoticePreference(req.accountId, req.params.kind, req.body?.enabled === true));
   } catch (error) {
     sendError(res, error);
   }

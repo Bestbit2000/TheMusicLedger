@@ -6,6 +6,7 @@
 import pool from '../config/db.js';
 import { withStatus, assertFlowReadAccess, FlowJourney } from './flows.js';
 import { BAND_CAN_CHANGE_SQL, PLAY_ONLY_MESSAGE } from './flowPermissions.js';
+import { noticeBandNews } from './autoNotices.js'; // ML-497
 
 function toList(row) {
   return {
@@ -97,6 +98,7 @@ export async function createPracticeList(accountId, data = {}) {
      VALUES ($1, $2, $3, $4, COALESCE($5, 3), COALESCE($6, 45)) RETURNING *`,
     [bandId === null ? accountId : null, bandId, f.name, f.eventDate ?? null, f.sessionsPerWeek ?? null, f.sessionMinutes ?? null]
   );
+  if (bandId !== null) await noticeBandNews(bandId, accountId, { type: 'list', id: rows[0].id }); // ML-497
   return getPracticeList(accountId, Number(rows[0].id));
 }
 

@@ -28,6 +28,7 @@ import { getConfigValue } from './appConfig.js';
 import { NOTE_VALUES } from './metronomeSegments.js';
 import { canDeleteFlow, BAND_CAN_CHANGE_SQL, PLAY_ONLY_MESSAGE } from './flowPermissions.js';
 import { isPieceFileUrl, MAX_PIECE_FILE_BYTES } from './blobUrls.js';
+import { noticeBandNews, noticePieceDeleted } from './autoNotices.js'; // ML-497
 const TOO_BIG = `That file is bigger than ${MAX_PIECE_FILE_BYTES / (1024 * 1024)} MB, which is the most a piece can hold.`;
 
 // ML-231: a stored file's address comes back from the browser after an upload, so it is checked before
@@ -262,6 +263,7 @@ export async function createFlow(accountId, { name, bandId } = {}) {
     await assertBandMembership(accountId, bandId);
     // ML-411: added_by_account_id - the one member who can delete it again
     const { rows } = await pool.query('INSERT INTO scores (title, owner_band_id, added_by_account_id) VALUES ($1, $2, $3) RETURNING id', [effectiveName, bandId, accountId]);
+    await noticeBandNews(bandId, accountId, { type: 'piece', id: rows[0].id }); // ML-497
     return getFlowDetail(accountId, rows[0].id);
   }
   const { rows } = await pool.query('INSERT INTO scores (title, owner_account_id) VALUES ($1, $2) RETURNING id', [effectiveName, accountId]);
@@ -385,6 +387,7 @@ export async function moveFlowToBand(accountId, scoreId, bandId) {
   await assertBandMembership(accountId, bandId);
   // ML-411: whoever moves it in is the one who added it to the band
   await pool.query('UPDATE scores SET owner_band_id = $1, owner_account_id = NULL, added_by_account_id = $3 WHERE id = $2', [bandId, scoreId, accountId]);
+  await noticeBandNews(bandId, accountId, { type: 'piece', id: scoreId }); // ML-497
   return getFlowDetail(accountId, scoreId);
 }
 
@@ -425,6 +428,7 @@ export async function setFlowAudience(accountId, scoreId, to, bandId) {
     if (!Number.isInteger(band) || band < 1) throw withStatus(400, 'Choose the band.');
     await assertBandMembership(accountId, band);
     await pool.query('UPDATE scores SET owner_band_id = $1, owner_account_id = NULL, added_by_account_id = $2, is_public = false WHERE id = $3', [band, accountId, scoreId]);
+    if (Number(score.owner_band_id) !== band) await noticeBandNews(band, accountId, { type: 'piece', id: scoreId }); // ML-497: new to this band
   } else if (to === 'me') {
     await pool.query('UPDATE scores SET owner_account_id = $1, owner_band_id = NULL, added_by_account_id = NULL, is_public = false WHERE id = $2', [accountId, scoreId]);
   } else {
@@ -490,6 +494,7 @@ export async function deleteFlow(accountId, scoreId) {
   const blobUrls = [...recordingRows, ...documentRows].map((r) => r.blob_url).filter(Boolean);
   await pool.query('DELETE FROM scores WHERE id = $1', [scoreId]);
   await delUnreferenced(blobUrls); // ML-231: after the rows have gone; a file another piece still uses stays
+  await noticePieceDeleted(score, accountId); // ML-497: someone else deleted a piece you added to a band
 }
 
 // Inserts the row for an mp3/mp4 that's already been uploaded straight to

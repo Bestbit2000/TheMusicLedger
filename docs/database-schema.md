@@ -629,8 +629,9 @@ and neither is wired to any endpoint yet.
 
 | Table | Purpose | Key columns |
 |---|---|---|
-| `notifications` | Announcements a super admin writes for every account's ☰ → Notifications | id, title (≤120), body (plain text, ≤4000), audience ('all' only for now), publish_at, expires_at, withdrawn_at, created_by_account_id, created_at, updated_at |
+| `notifications` | Announcements a super admin writes for every account's ☰ → Notifications | id, title (≤120), body (plain text, ≤4000), audience ('all' only for now), publish_at, expires_at, withdrawn_at, created_by_account_id, created_at, updated_at - ML-497: `kind` (what made an app-made notice; NULL = a super admin's), `details` (what it is about), `group_key` (the notice a later event adds to: a band's news for a member on a day, or an invitation) (142) |
 | `notification_reads` | Which account has read which notification - absence means unread; `cleared_at` set = cleared out of that member's list for good (ML-556) | notification_id, account_id (PK together), read_at, cleared_at |
+| `notice_preferences` | ML-501: the kinds of automatic notice (ML-497) a member has switched off - no row = on (the owner's default). Kinds: band_invite, band_change, band_news, piece_deleted | account_id, kind (PK together), enabled, updated_at (142) |
 
 - **No scheduler**: "live" is computed at query time (`publish_at <= now()`, not expired, not withdrawn), and clients poll every ~5 minutes - a scheduled notification just starts matching.
 - **Everyone sees every live notification**, including accounts created after it was published, until its optional expiry.

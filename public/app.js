@@ -666,6 +666,8 @@
             update: (data) => apiCall('/api/account', 'PUT', data),
             deleteMine: () => apiCall('/api/account', 'DELETE', { confirm: 'DELETE' }), // ML-430
             exportMine: () => apiCall('/api/account/export'), // ML-430
+            noticePreferences: () => apiCall('/api/account/notice-preferences'), // ML-501
+            setNoticePreference: (kind, enabled) => apiCall(`/api/account/notice-preferences/${kind}`, 'PUT', { enabled }),
             getBands: () => apiCall('/api/account/bands'),
             getInstruments: () => apiCall('/api/account/instruments'),
             setInstruments: (instrumentIds, primaryId) => apiCall('/api/account/instruments', 'PUT', { instrumentIds, primaryId }),
@@ -1710,6 +1712,7 @@
         renderNotificationIndicators();
         document.getElementById('feedbackNavItem')?.classList.toggle('hidden-group', !isFeatureEnabled('feedback'));
         document.getElementById('settingsSetupLink')?.classList.toggle('hidden-group', !isFeatureEnabled('member_setup')); // ML-517
+        document.getElementById('settingsNoticesLink')?.classList.toggle('hidden-group', !(isFeatureEnabled('auto_notices') && isFeatureEnabled('notifications'))); // ML-501
         renderInviteNav(); // ML-402
         document.getElementById('theoryToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('theory_practice'));
         document.getElementById('scalesToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('scales_practice'));
@@ -2062,7 +2065,7 @@
     const PANES = {
         rehearseView: { hint: 'Pick a piece to play.', details: ['flowPlayView'] },
         metroBuilderView: { hint: 'Pick a piece to open it.', details: ['flowPlayView'] },
-        settingsView: { hint: 'Pick a setting.', details: ['settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView'] },
+        settingsView: { hint: 'Pick a setting.', details: ['settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'settingsNoticesView'] },
         accountView: { hint: 'Pick what to look at.', details: ['accountSecurityView', 'accountDetailsView', 'accountBandsView', 'accountTeachersView'] },
         aboutView: { hint: 'Pick what to read.', details: ['aboutReleasesView', 'aboutGradesView'] }
     };
@@ -2295,7 +2298,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'bandWelcomeView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView', 'setupView', 'tuningForkView'];
+    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'bandWelcomeView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'settingsNoticesView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView', 'setupView', 'tuningForkView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     // ML-107 (owner's list, 12 Oct 2026): anywhere you have your instrument up while looking at the screen - the
@@ -2454,6 +2457,7 @@
             if (viewName === 'settingsView') { fillSettingsToolIcons(); renderSettingsSummaries(); }
             if (viewName === 'settingsPlaybackView') renderMetroCalibRow(); // ML-347
         }
+        if (viewName === 'settingsNoticesView') { document.getElementById('topTitle').innerText = 'Notifications'; loadNoticePreferences(); } // ML-501
         if (viewName === 'prepareListView') { document.getElementById('topTitle').innerText = 'Prepare'; openPrepareList(isBack); }
         if (viewName === 'recordingsView') { document.getElementById('topTitle').innerText = 'Recordings'; openRecordings(); } // ML-489
         if (viewName === 'inviteView') { document.getElementById('topTitle').innerText = 'Invite someone'; openInviteView(isBack); }
@@ -2769,6 +2773,32 @@
             checkNotifications();
         }
     });
+
+    // ===== ML-501: which automatic notices I get =====
+    // A switch for each kind (ML-497), all on until switched off - a yes/no is a toggle switch (design rules).
+    // Each change is saved at once; if it can't be, the switch goes back.
+    async function loadNoticePreferences() {
+        const box = document.getElementById('settingsNoticesList');
+        box.textContent = 'Loading...';
+        try {
+            const { kinds } = await API.account.noticePreferences();
+            box.innerHTML = kinds.map(k => `
+                <div class="setting-row setting-row-grouped">
+                    <span id="noticePref-${k.key}-label"><strong>${escapeHtml(k.title)}</strong><br><span class="text-sm text-muted">${escapeHtml(k.sub)}</span></span>
+                    <label class="toggle-switch"><input type="checkbox" data-notice-pref="${k.key}" aria-labelledby="noticePref-${k.key}-label"${k.enabled ? ' checked' : ''}><span class="toggle-slider"></span></label>
+                </div>`).join('');
+            box.querySelectorAll('[data-notice-pref]').forEach(input => input.addEventListener('change', async () => {
+                try {
+                    await API.account.setNoticePreference(input.dataset.noticePref, input.checked);
+                } catch (error) {
+                    input.checked = !input.checked;
+                    showWarningToast(error.offline ? error.message : 'Not saved: ' + error.message);
+                }
+            }));
+        } catch (error) {
+            box.textContent = error.offline ? error.message : 'Not loaded: ' + error.message;
+        }
+    }
 
     // ===== ML-495: a banner for a planned outage =====
     // A notice a super admin made a banner shows as a strip across the top of every screen while it is live -

@@ -7,6 +7,7 @@
 
 import pool from '../config/db.js';
 import { withStatus } from './flows.js';
+import { bandNewsWords } from './autoNotices.js';
 
 const MAX_TITLE_LENGTH = 120;
 const MAX_BODY_LENGTH = 4000;
@@ -45,7 +46,8 @@ function toUserDto(row) {
 // behaviour for ML-201, so a new user still hears about e.g. a recently added feature.
 export async function listNotificationsForAccount(accountId) {
   const { rows } = await pool.query(
-    `SELECT n.id, n.title, n.body, n.publish_at, n.urgent, n.important, n.policy_link, r.read_at
+    `SELECT n.id, n.title, n.body, n.publish_at, n.urgent, n.important, n.policy_link, n.kind, n.details, r.read_at,
+            (SELECT b.name FROM bands b WHERE b.id = (n.details->>'bandId')::bigint) AS band_name
      FROM notifications n
      LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.account_id = $1
      WHERE ${LIVE_CONDITION} AND ${FOR_ACCOUNT('$1')} AND r.cleared_at IS NULL
@@ -53,6 +55,8 @@ export async function listNotificationsForAccount(accountId) {
      LIMIT 100`,
     [accountId]
   );
+  // ML-497: a band's news is worked out again as it is read - each piece's name as it is now
+  for (const r of rows) if (r.kind === 'band_news' && r.details) Object.assign(r, await bandNewsWords(r.details, r.band_name || 'your band'));
   const notifications = rows.map(toUserDto);
   // ML-556 (owner, 21 Oct 2026): how many are cleared but still live - "Show cleared (3)" under the list
   const { rows: cleared } = await pool.query(
@@ -248,7 +252,8 @@ const ADMIN_SELECT = `SELECT n.*, a.email AS created_by_email,
      LEFT JOIN bands ab ON ab.id = n.audience_band_id`;
 
 export async function listNotificationsForAdmin() {
-  const { rows } = await pool.query(`${ADMIN_SELECT} ORDER BY n.publish_at DESC, n.id DESC`);
+  // ML-497: the notices the app sends itself are each to one or two members - not shown here
+  const { rows } = await pool.query(`${ADMIN_SELECT} WHERE n.kind IS NULL ORDER BY n.publish_at DESC, n.id DESC`);
   const { rows: totals } = await pool.query('SELECT COUNT(*) AS n FROM accounts WHERE deleted_at IS NULL');
   return { notifications: rows.map(toAdminDto), accountCount: Number(totals[0].n) };
 }
