@@ -1,5 +1,7 @@
 # Pick list
 
+> Also used by My music's **Archive several pieces** / **Restore several pieces** (ML-570, `#flowBulkArchiveModal`): the Add pieces layout - owner filter, search, Select all - over the pieces in My music (or the archived ones you can bring back), and "Archive N pieces" in the sticky footer; then, only if band pieces you may change are ticked, one "for who?" choice. Done is a toast with Undo.
+>
 > Also used by My music's **Delete several pieces** (ML-404, `#flowBulkDeleteModal`): the pieces you can delete as rows (your own, and band pieces you added - ML-411), the Select all bar, and a `.btn-submit.is-danger` "Delete N pieces" in the sticky footer, followed by the standard confirm pop-up.
 
 ## 1. Metadata

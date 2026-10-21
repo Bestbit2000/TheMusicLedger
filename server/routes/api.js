@@ -34,7 +34,7 @@ import { listActivePlaybackSpeeds } from '../services/playbackSpeeds.js';
 import { handleUpload } from '@vercel/blob/client';
 import { listInstruments, listAccountInstruments, setAccountInstruments, setAccountInstrumentClef, resolveSessionInstrument } from '../services/instruments.js';
 import { assertRangeEnabled, getRange, setRange, recordGo, moveRange } from '../services/range.js';
-import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, setFlowArchived, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, setRecordingClip, setRecordingMarks, setRecordingMovement, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
+import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, setFlowArchived, setFlowsArchived, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, setRecordingClip, setRecordingMarks, setRecordingMovement, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks, replaceAllFlowBlocks } from '../services/flowBlocks.js';
 import { importMusicXmlFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/musicXmlImport.js';
 import { readForAccount, discardReadFiles, sweepReadUploads, markSaved as markPieceReadSaved, readUploadPrefix, testUploadPrefix, READ_CONTENT_TYPES } from '../services/pieceReads.js';
@@ -1522,6 +1522,16 @@ router.post('/flows', requireAuth, resolveAccount, async (req, res) => {
     const defaults = await getFlowDefaultBlockSettings();
     await createFlowBlock(req.accountId, flow.id, defaults);
     res.json(await getFlowDetail(req.accountId, flow.id));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-570: archive (or bring back) several pieces at once: { items: [{ id, forAll }], archived } - each through
+// setFlowArchived's own checks; answers { done, failed }. Before /flows/:id so "archive" isn't read as an id.
+router.put('/flows/archive', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await setFlowsArchived(req.accountId, req.body?.items, { archived: req.body?.archived === true }));
   } catch (error) {
     sendError(res, error);
   }

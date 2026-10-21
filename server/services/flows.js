@@ -329,6 +329,27 @@ export async function setFlowArchived(accountId, scoreId, { archived, forAll } =
   return { id: Number(scoreId), archived: !!(rows[0].for_all || rows[0].mine), archivedForAll: !!rows[0].for_all };
 }
 
+// ML-570: several pieces archived (or brought back) in one go - My music's "Archive several pieces". Each goes
+// through setFlowArchived, so the same checks apply piece by piece; one that is refused (gone, not yours to
+// archive for the band...) is reported and the rest still happen. items: [{ id, forAll }].
+export const MAX_BULK_ARCHIVE = 500;
+export async function setFlowsArchived(accountId, items, { archived } = {}) {
+  if (!Array.isArray(items) || !items.length) throw withStatus(400, 'No pieces were chosen.');
+  if (items.length > MAX_BULK_ARCHIVE) throw withStatus(400, `At most ${MAX_BULK_ARCHIVE} pieces at a time.`);
+  const done = [];
+  const failed = [];
+  for (const item of items) {
+    const id = Number(item?.id);
+    if (!Number.isInteger(id) || id <= 0) { failed.push({ id: item?.id ?? null, error: 'Not a piece.' }); continue; }
+    try {
+      done.push(await setFlowArchived(accountId, id, { archived: !!archived, forAll: item.forAll === true }));
+    } catch (error) {
+      failed.push({ id, error: error.message });
+    }
+  }
+  return { done, failed };
+}
+
 export async function getFlowDetail(accountId, scoreId) {
   const score = await assertFlowReadAccess(accountId, scoreId);
   const canEdit = await canEditFlow(accountId, scoreId);

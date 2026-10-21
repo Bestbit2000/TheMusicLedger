@@ -1666,6 +1666,9 @@
                 <div id="metroBlkSetupsList">Loading...</div>
                 <!-- ML-404: tick several pieces and delete them in one go (#flowBulkDeleteModal).
                      Shown once there's a piece you can delete (renderFlowsList). -->
+                <!-- ML-570: tick several pieces and archive them in one go - or, with Archived showing, bring several back
+                     (#flowBulkArchiveModal). Shown once there's a piece to archive or restore (renderFlowsList). -->
+                <button type="button" class="btn-text hidden-group" id="flowBulkArchiveBtn" aria-haspopup="dialog">Archive several pieces</button>
                 <button type="button" class="btn-text hidden-group" id="flowBulkDeleteBtn">Delete several pieces</button>
             </div>
         </div>
@@ -3234,9 +3237,6 @@
         </div>
     </div>
 
-    <div class="modal" id="scalesMyRangeModal" role="dialog" aria-modal="true" aria-labelledby="scalesMyRangeTitle">
-        <div class="modal-content">
-            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
     <!-- ML-564: "See what's new" on the update strip - the notes for everything newer than this device is running -->
     <div class="modal" id="whatsNewModal" role="dialog" aria-modal="true" aria-labelledby="whatsNewTitle">
         <div class="modal-content">
@@ -3258,6 +3258,9 @@
         </div>
     </div>
 
+    <div class="modal" id="scalesMyRangeModal" role="dialog" aria-modal="true" aria-labelledby="scalesMyRangeTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
             <h2 id="scalesMyRangeTitle">Your range</h2>
             <p class="text-muted modal-intro hidden-group" id="scalesMyRangeInstrument"></p>
             <div class="scales-range-staff" id="scalesMyRangeStaff"></div>
@@ -3822,6 +3825,29 @@
         </div>
         <div class="metroSeg-sticky-footer">
             <button type="button" class="btn-submit is-danger no-margin" id="flowBulkDeleteDoneBtn" disabled>Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- ML-570: My music's "Archive several pieces" / "Restore several pieces" - the pick list of Add pieces (filter by
+     owner, search, Select all), the button pinned at the bottom. Band pieces you may change ask once: just me or
+     everyone in the band. Done, a toast with Undo. -->
+<div class="modal" id="flowBulkArchiveModal" role="dialog" aria-modal="true" aria-labelledby="flowBulkArchiveTitle">
+    <div class="modal-content modal-content-sticky-footer">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <div class="metroSeg-scroll-area">
+            <h2 id="flowBulkArchiveTitle">Archive pieces</h2>
+            <p class="metro-help-text" id="flowBulkArchiveIntro"></p>
+            <div class="filter-strip">
+                <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span></span>
+                <div class="filter-strip-pills" id="flowBulkArchiveFilterPills" role="group" aria-label="Show pieces"></div>
+            </div>
+            <input type="search" id="flowBulkArchiveSearch" class="mb-3" placeholder="Search by title or composer" aria-label="Search pieces by title or composer">
+            <div class="pick-bar" id="flowBulkArchivePickBar"></div>
+            <div id="flowBulkArchiveOptions"></div>
+        </div>
+        <div class="metroSeg-sticky-footer">
+            <button type="button" class="btn-submit no-margin" id="flowBulkArchiveDoneBtn" disabled>Archive</button>
         </div>
     </div>
 </div>

@@ -512,6 +512,7 @@
         flows: {
             list: () => apiCall('/api/flows').then(flowsStillThere).then(flowsSplitArchived), // ML-404: minus a new piece just taken away again; minus what is archived
             setArchived: (id, archived, forAll) => apiCall(`/api/flows/${id}/archive`, 'PUT', { archived, forAll: !!forAll }),
+            setArchivedMany: (items, archived) => apiCall('/api/flows/archive', 'PUT', { items, archived }), // ML-570: [{ id, forAll }]
             create: (data) => apiCall('/api/flows', 'POST', data),
             get: (id) => apiCall(`/api/flows/${id}`),
             update: (id, data) => apiCall(`/api/flows/${id}`, 'PUT', data),
@@ -2467,9 +2468,9 @@
         if (viewName === 'inviteView') { document.getElementById('topTitle').innerText = 'Invite someone'; openInviteView(isBack); }
         if (viewName === 'aboutView') { document.getElementById('topTitle').innerText = 'About'; renderAboutView(); }
         if (viewName === 'aboutReleasesView') { document.getElementById('topTitle').innerText = 'Release history'; renderAboutView(); } // ML-430
-        if (viewName === 'aboutGradesView') document.getElementById('topTitle').innerText = 'Exam grades';
         if (viewName === 'aboutPrivacyView') { document.getElementById('topTitle').innerText = 'Privacy policy'; renderAboutPolicy('privacy'); } // ML-564
         if (viewName === 'aboutTermsView') { document.getElementById('topTitle').innerText = 'Terms of use'; renderAboutPolicy('terms'); }
+        if (viewName === 'aboutGradesView') document.getElementById('topTitle').innerText = 'Exam grades';
         if (viewName === 'theoryView') { document.getElementById('topTitle').innerText = 'Theory'; renderTheoryList(); }
         if (viewName === 'scalesView') { document.getElementById('topTitle').innerText = 'Scales'; scalesUseMyClef(); renderScales(); scalesRenderBpm(); scalesRenderVolume(); scalesUpdatePlayUi(); scalesPlayer.prewarm(); }
         if (viewName === 'warmupsView') { document.getElementById('topTitle').innerText = 'Warm-ups'; openWarmupsView(); }
@@ -2675,9 +2676,9 @@
             </div>`).join('');
     }
 
-    async function renderAboutView() {
     // ML-430/564: Release history - every release, newest first, the one this device is running marked (a newer
     // one above it is what the update strip is about). About's own row says which version you're on.
+    async function renderAboutView() {
         const historyEl = document.getElementById('aboutReleaseHistory');
         historyEl.innerHTML = 'Loading...';
         try {
@@ -2687,7 +2688,6 @@
                 historyEl.innerHTML = '<div class="text-muted">No releases recorded yet.</div>';
                 return;
             }
-
             const yours = runningAppVersion || releases[0].version;
             document.getElementById('aboutReleasesSub').textContent = `You're on v${yours}`;
             historyEl.innerHTML = releases.map(r => `
@@ -2701,6 +2701,7 @@
             historyEl.innerHTML = `<div class="text-danger">Error loading releases: ${escapeHtml(err.message)}</div>`;
         }
     }
+
     // ML-564: the privacy policy and terms of use, read inside the app - in a pop-up below 1000px wide, beside
     // About's list from 1000px (owner, 21 Oct 2026). Each is a page of its own (privacy.html, terms.html) that
     // has to work signed out, so the app reads the same page in rather than keeping a second copy of the wording:
@@ -2742,7 +2743,6 @@
             el.innerHTML = `<p class="text-muted">The ${ABOUT_POLICIES[which].title.toLowerCase()} can't be shown just now - it needs a connection. Try again when you're back online.</p>`;
         }
     }
-
     // From 1000px: its own screen beside the list (switchView calls renderAboutPolicy).
     function renderAboutPolicy(which) { fillAboutPolicy(which, document.getElementById(ABOUT_POLICIES[which].el)); }
     function openAboutPolicy(which) {
@@ -2753,6 +2753,7 @@
         modal.querySelector('.modal-content').scrollTop = 0; // the other policy, from a link in this one, starts at its top
         if (!modal.classList.contains('show')) showModal('policyModal');
     }
+
     // ========================================
     // NOTIFICATIONS (Jira ML-201)
     // ========================================
@@ -2803,8 +2804,8 @@
         } catch {
             runningAppVersion = null; // no baseline -> no update notice, rather than a wrong one
         }
-        checkImportantNotices(); // ML-463: before anything else, as the app opens
         checkNoticeBanners(); // ML-564: now there is a baseline, the update strip can be shown
+        checkImportantNotices(); // ML-463: before anything else, as the app opens
         await checkNotifications(true);
         clearInterval(notificationsPollTimer);
         notificationsPollTimer = setInterval(() => checkNotifications(), NOTIFICATIONS_POLL_MS);
@@ -2872,8 +2873,8 @@
             if (body.appVersion) latestAppVersion = body.appVersion; // ML-564: for the update strip, whatever features the account has
         } catch { return; }
         renderNoticeBanners();
-    }
         renderUpdateBanner();
+    }
     document.querySelectorAll('[data-notice-banner-open]').forEach(btn => btn.addEventListener('click', () => {
         const b = shownBanner();
         if (!b) return;
@@ -2892,7 +2893,6 @@
     setInterval(() => { if (document.visibilityState !== 'hidden') checkNoticeBanners(); }, NOTIFICATIONS_POLL_MS);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkNoticeBanners(); });
 
-    // ===== ML-463: an important notice - "Before you continue..." =====
     // ===== ML-564: a new version is ready =====
     // When the code this device is running is older than the deployed release (an installed app resumed from the
     // background keeps its old code - docs/notifications.md), a strip across the top of every screen says so, with
@@ -2923,6 +2923,7 @@
         }
     });
 
+    // ===== ML-463: an important notice - "Before you continue..." =====
     // Something a member should not find out by accident (a change to how their information is used).
     // It is shown when they next open the app or come back to it - never in the middle of something,
     // so not on the minute-by-minute poll - and stays until "Got it", which is remembered on the
@@ -2992,8 +2993,8 @@
         notificationsClearedCount = res.clearedCount || 0;
         if (res.appVersion) latestAppVersion = res.appVersion;
         renderNotificationIndicators();
-        if (isShown('notificationsView')) renderNotificationsView();
         renderUpdateBanner(); // ML-564
+        if (isShown('notificationsView')) renderNotificationsView();
         showNextUrgentNotification();
     }
 
@@ -10062,6 +10063,7 @@
         if (!ui) return;
         renderFlowLibraryFilter();
         setShown('flowBulkDeleteBtn', flowsListCache.some(flowCanDelete));
+        renderFlowBulkArchiveBtn(); // ML-570
         if (!flowsListCache.length && !flowsArchivedCache.length) { ui.innerHTML = '<p>No pieces yet - tap "Add a piece" to make one.</p>'; return; }
         const visible = flowLibraryVisible();
         if (!visible.length) { ui.innerHTML = '<p class="text-muted">No pieces match.</p>'; return; }
@@ -10158,6 +10160,100 @@
             }
             await loadFlowsList();
         }, true, `Delete ${piecesWord(flows.length)}`);
+    });
+
+    // ===== ML-570: archive (or bring back) several pieces at once =====
+    // The pick list of Add pieces (filter by owner, search, Select all) over the pieces in My music - or, with the
+    // Archived filter showing, over the archived ones that can be brought back. Archiving is for you, as from a
+    // row's ⋮; band pieces you may change ask once for all of them: just me, or everyone in the band. One call
+    // for the lot (each piece checked on its own), then one toast with Undo. Nothing is deleted.
+    const flowBulkArchive = { restore: false, filter: 'all', query: '', picked: new Set() };
+    const flowCanRestore = (f) => !f.archivedForAll || f.canEdit; // as the ⋮ menu's Restore
+    const flowBulkArchiveOffered = () => (flowBulkArchive.restore ? flowsArchivedCache.filter(flowCanRestore) : flowsListCache);
+    function renderFlowBulkArchiveBtn() {
+        const restore = flowLibraryFilter === 'archived';
+        const btn = document.getElementById('flowBulkArchiveBtn');
+        if (!btn) return;
+        btn.textContent = restore ? 'Restore several pieces' : 'Archive several pieces';
+        setShown(btn, restore ? flowsArchivedCache.some(flowCanRestore) : flowsListCache.length > 0);
+    }
+    function openFlowBulkArchive() {
+        flowBulkArchive.restore = flowLibraryFilter === 'archived';
+        flowBulkArchive.filter = 'all';
+        flowBulkArchive.query = '';
+        flowBulkArchive.picked = new Set();
+        document.getElementById('flowBulkArchiveSearch').value = '';
+        document.getElementById('flowBulkArchiveTitle').textContent = flowBulkArchive.restore ? 'Restore pieces' : 'Archive pieces';
+        document.getElementById('flowBulkArchiveIntro').textContent = flowBulkArchive.restore
+            ? 'Tick the pieces to bring back to My music.'
+            : 'Tick the pieces you are done with. They leave My music until you choose Archived - nothing is deleted, and they stay on their practice lists.';
+        renderFlowBulkArchive();
+        showModal('flowBulkArchiveModal');
+    }
+    function renderFlowBulkArchive() {
+        const offered = flowBulkArchiveOffered();
+        const ownerName = (key) => key === 'mine' ? 'Mine' : key === 'public' ? 'Public' : (flowLibraryBandNames[Number(key.slice(5))] || 'Band');
+        const counts = { all: offered.length, mine: 0, public: 0 };
+        offered.forEach(f => { const k = flowLibraryFilterKey(f); counts[k] = (counts[k] || 0) + 1; });
+        const bandKeys = Object.keys(counts).filter(k => k.startsWith('band:')).sort((a, b) => ownerName(a).localeCompare(ownerName(b)));
+        if (flowBulkArchive.filter !== 'all' && !counts[flowBulkArchive.filter]) flowBulkArchive.filter = 'all';
+        const pills = document.getElementById('flowBulkArchiveFilterPills');
+        pills.innerHTML = ['all', 'mine', ...bandKeys, 'public'].filter(k => k === 'all' || counts[k]).map(k =>
+            `<button type="button" class="filter-pill${flowBulkArchive.filter === k ? ' active' : ''}" data-bulk-archive-filter="${escapeHtml(k)}" aria-pressed="${flowBulkArchive.filter === k}">${escapeHtml(k === 'all' ? 'All' : ownerName(k))} <span class="filter-pill-count">${counts[k] || 0}</span></button>`).join('');
+        pills.querySelectorAll('[data-bulk-archive-filter]').forEach(b => b.addEventListener('click', () => { flowBulkArchive.filter = b.dataset.bulkArchiveFilter; renderFlowBulkArchive(); }));
+        const q = flowBulkArchive.query;
+        const shown = offered.filter(f => (flowBulkArchive.filter === 'all' || flowLibraryFilterKey(f) === flowBulkArchive.filter)
+            && (!q || (f.title || '').toLowerCase().includes(q) || (f.composer || '').toLowerCase().includes(q)))
+            .sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base', numeric: true }));
+        const rows = shown.map(f => ({ key: f.id, html: `<strong>${escapeHtml(f.title)}</strong><br><span class="text-sm text-muted">${f.composer ? escapeHtml(f.composer) + ' &bull; ' : ''}${f.totalBars} bar${f.totalBars === 1 ? '' : 's'} &bull; ${escapeHtml(ownerName(flowLibraryFilterKey(f)))}${flowArchivedText(f)}</span>` }));
+        renderPickList(document.getElementById('flowBulkArchiveOptions'), document.getElementById('flowBulkArchivePickBar'), rows, flowBulkArchive.picked, renderFlowBulkArchiveDone,
+            `<p class="metro-help-text">${offered.length ? 'No pieces match.' : 'There are no pieces here to choose.'}</p>`);
+    }
+    function renderFlowBulkArchiveDone() {
+        const n = flowBulkArchive.picked.size;
+        const verb = flowBulkArchive.restore ? 'Restore' : 'Archive';
+        const btn = document.getElementById('flowBulkArchiveDoneBtn');
+        btn.disabled = !n;
+        btn.textContent = n ? `${verb} ${piecesWord(n)}` : verb;
+    }
+    // items: [{ id, forAll }]. Undo sends the same pieces back the other way.
+    async function flowBulkSetArchived(items, archived, undoable) {
+        let result;
+        try {
+            result = await API.flows.setArchivedMany(items, archived);
+        } catch (error) {
+            showWarningToast((archived ? 'Not archived: ' : 'Not brought back: ') + error.message);
+            return;
+        }
+        await loadFlowsList();
+        const done = result.done.length;
+        const word = archived ? 'archived' : 'brought back';
+        if (result.failed.length) {
+            showWarningToast(`${done ? `${piecesWord(done)} ${word}, but ` : ''}${piecesWord(result.failed.length)} couldn't be: ${result.failed[0].error}`);
+            return;
+        }
+        const doneIds = new Set(result.done.map(d => d.id));
+        const back = items.filter(i => doneIds.has(Number(i.id)));
+        if (undoable) showUndoToast(`${piecesWord(done)} ${word}`, () => flowBulkSetArchived(back, !archived, false));
+        else showSuccessToast(`${piecesWord(done)} ${word}`);
+    }
+    document.getElementById('flowBulkArchiveBtn')?.addEventListener('click', openFlowBulkArchive);
+    document.getElementById('flowBulkArchiveSearch')?.addEventListener('input', (e) => { flowBulkArchive.query = e.target.value.trim().toLowerCase(); renderFlowBulkArchive(); });
+    document.getElementById('flowBulkArchiveDoneBtn')?.addEventListener('click', () => {
+        const flows = flowBulkArchiveOffered().filter(f => flowBulkArchive.picked.has(f.id));
+        if (!flows.length) return;
+        hideModal('flowBulkArchiveModal');
+        // Bringing back: a piece archived for the whole band comes back for the band when you may change it (the ⋮ menu's rule)
+        if (flowBulkArchive.restore) return flowBulkSetArchived(flows.map(f => ({ id: f.id, forAll: !!(f.archivedForAll && f.canEdit) })), false, true);
+        const bandOnes = new Set(flows.filter(f => f.ownerBandId && f.canEdit && !f.isPublic).map(f => f.id));
+        if (!bandOnes.size) return flowBulkSetArchived(flows.map(f => ({ id: f.id, forAll: false })), true, true);
+        const bands = [...new Set(flows.filter(f => bandOnes.has(f.id)).map(flowBandName))];
+        const band = bands.length === 1 ? bands[0] : 'their band';
+        const them = bandOnes.size === 1 ? 'it' : 'them';
+        openFlowChoiceModal(`Archive ${bandOnes.size === 1 ? 'the band piece' : `the ${bandOnes.size} band pieces`} for who?`, [
+            { forAll: false, html: addPieceRow('Just me', `${bandOnes.size === 1 ? 'It stays' : 'They stay'} in ${band}'s music for everyone else`) },
+            { forAll: true, html: addPieceRow(bands.length === 1 ? `Everyone in ${band}` : 'Everyone in the band', `Nobody in the band sees ${them} until ${bandOnes.size === 1 ? 'it is' : 'they are'} brought back`) }
+        ], (c) => flowBulkSetArchived(flows.map(f => ({ id: f.id, forAll: c.forAll && bandOnes.has(f.id) })), true, true));
     });
 
     let flowLibraryMenuTargetId = null;
