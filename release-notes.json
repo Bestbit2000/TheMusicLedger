@@ -1,4 +1,5 @@
 {
+  "ML-576": "We made sure the live app runs with its live settings, as part of a security check of the app.",
   "ML-574": "We tightened how uploaded files are checked and stored, as part of a security check of the app.",
   "ML-573": "We count failing release tests on the admin menu, and let the person who runs the app show just the failing ones.",
   "ML-572": "We show the person who runs the app how many things are waiting for them in the admin panel, on the menu.",
