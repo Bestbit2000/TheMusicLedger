@@ -270,7 +270,7 @@ export default {
             'FIXED (ML-574) - size and type: what is kept is read from the file store, not what the browser said. A stored file over the limit, a video sent to the Recordings tool, or a logo that isn\'t PNG, JPEG or WebP is refused when it is kept.',
             'FIXED (ML-574) - Admin -> Recordings: removing a piece\'s copy of a Recordings-tool recording now removes the tool\'s own row too, and tells its owner. (The page already listed such a recording once, under the tool, so this was only reachable by asking the server directly.)',
             'Still sound: ML-551 (the store id from the upload key) and ML-553 (a photo or PDF read\'s pages always deleted), both live since 0.64.0.',
-            'Still open, low (sessions and tokens, 20 Oct): an upload token request carries the sign-in token in the address (?token=). A short-lived upload ticket would be better.'
+            'FIXED (ML-574) - the sign-in token no longer travels in the upload address; it goes as a header (see The sign-in token).'
           ] },
         { checkKey: 'dependency-audit', status: 'pass',
           summary: 'npm audit --omit=dev, run again: one new advisory since 20 Oct, in follow-redirects 1.16.0 (high), not reachable - updated to 1.16.1 in both lockfiles; npm audit now reports nothing in the root or in server/.',
@@ -287,9 +287,12 @@ export default {
         { checkKey: 'server-side-fetch', status: 'pass',
           summary: 'Not re-run on 21 Oct - the 20 Oct result stands. One new call to the file store: reading a kept file\'s size and type (head) for an address already checked to be this app\'s own.',
           details: ['Still recorded, low (20 Oct): three IPv6 forms treated as public; DNS rebinding still open. Still to check: whether the AI Gateway honours zero data retention on the endpoint the photo reader uses.'] },
-        { checkKey: 'sessions-and-tokens', status: 'warn',
-          summary: 'Not re-run on 21 Oct - the 20 Oct result stands: tokens are signed, tied to sign-out-everywhere, refused for a closed account, never cached, and carry none of Google\'s keys. One low still open.',
-          details: ['Low, open: every upload token request carries the 30-day sign-in token in the address (?token=). A short-lived upload ticket would be better.'] },
+        { checkKey: 'sessions-and-tokens', status: 'pass',
+          summary: 'Tokens are signed, tied to sign-out-everywhere, refused for a closed account, never cached, and carry none of Google\'s keys (20 Oct, not re-run). The one low left open on 20 Oct - the sign-in token in the upload address - is fixed (ML-574).',
+          details: [
+            'FIXED (ML-574) - every upload sent the 30-day sign-in token to its upload-token route in the address (?token=), where it reached request logs and the browser\'s history. The upload library (@vercel/blob 2.x) can send a header to that route - and only to that route, never on to the file store (read in its code) - so the app now sends the token as an Authorization header (uploadToStore in app.js) and no upload address carries it (server/test/uploadRules.test.js). Back-tests 9, 62-66, 82 and 84 upload real files this way, with the content security policy enforced on the local server.',
+            'For one release the server still accepts the address as well, so a device running the older app can upload until it reloads (the "keep the previous release working" rule). The release after drops it and the routes go back to requireAuth - ML-575. A short-lived upload ticket was not needed.'
+          ] },
         { checkKey: 'test-logins', status: 'pass',
           summary: 'Not re-run on 21 Oct - the 20 Oct result stands: neither shortcut works on the live site.',
           details: [] },

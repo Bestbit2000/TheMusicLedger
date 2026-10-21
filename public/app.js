@@ -4649,9 +4649,9 @@
         try {
             const bandId = bandMembers.bandId;
             const ext = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' }[file.type];
-            const blob = await window.vercelBlobUpload(`band-logos/${bandId}/logo.${ext}`, file, {
+            const blob = await uploadToStore(`band-logos/${bandId}/logo.${ext}`, file, {
                 access: 'public', contentType: file.type,
-                handleUploadUrl: `${API_BASE_URL}/api/account/bands/${bandId}/logo/upload-token?token=${encodeURIComponent(auth.token)}`
+                handleUploadUrl: `${API_BASE_URL}/api/account/bands/${bandId}/logo/upload-token`
             });
             bandMembers.data = await API.account.setBandLogo(bandId, { blobUrl: blob.url, blobPathname: blob.pathname, fileSizeBytes: file.size, mimeType: file.type });
             renderBandMembers();
@@ -9141,9 +9141,12 @@
     // The server asks for it too (security re-check 21 Oct 2026), so an upload waits for the day to be saved
     // (uploadToStore) - the file chooser is open while it is, so nobody waits in practice.
     let uploadRightsSaving = Promise.resolve();
-    async function uploadToStore(...args) {
+    // The sign-in token goes to our upload-token route as a header (ML-574) - never in the address, where it
+    // would reach request logs and the browser's history. upload() sends these headers to that route only,
+    // never on to the file store.
+    async function uploadToStore(pathname, body, options) {
         await uploadRightsSaving;
-        return window.vercelBlobUpload(...args);
+        return window.vercelBlobUpload(pathname, body, { ...options, headers: { ...(options.headers || {}), Authorization: `Bearer ${auth.token}` } });
     }
     function withUploadRights(go) {
         if (accountProfile && accountProfile.uploadRightsConfirmedOn) { go(); return; }
@@ -10851,7 +10854,7 @@
         try {
             const blob = await uploadToStore(`flows/from-file/${(accountProfile || await API.account.get()).id}/${Date.now()}-${file.name}`, file, { // the member's own import folder
                 access: 'public',
-                handleUploadUrl: `${API_BASE_URL}/api/flows/from-file/upload-token?token=${encodeURIComponent(auth.token)}`,
+                handleUploadUrl: `${API_BASE_URL}/api/flows/from-file/upload-token`,
                 onUploadProgress: (progress) => {
                     const pct = Math.round(progress.percentage);
                     percentEl.innerText = `${pct}%`;
@@ -11526,10 +11529,8 @@
             // it can't just rely on Blob's onUploadCompleted webhook).
             const blob = await uploadToStore(`flows/${currentFlowId}/recordings/${file.name}`, file, {
                 access: 'public',
-                // Token travels as a query param, not the usual Authorization header - upload()
-                // makes its own internal fetch() with a hardcoded header set (see
-                // requireAuthFromQueryOrHeader's own comment in server/middleware/auth.js).
-                handleUploadUrl: `${API_BASE_URL}/api/flows/${currentFlowId}/recordings/upload-token?token=${encodeURIComponent(auth.token)}`,
+                // The sign-in token goes as a header (uploadToStore), not in this address (ML-574).
+                handleUploadUrl: `${API_BASE_URL}/api/flows/${currentFlowId}/recordings/upload-token`,
                 onUploadProgress: (progress) => {
                     const pct = Math.round(progress.percentage);
                     percentEl.innerText = `${pct}%`;
@@ -11660,8 +11661,8 @@
         try {
             const blob = await uploadToStore(`flows/${currentFlowId}/documents/${file.name}`, file, {
                 access: 'public',
-                // See the recordings upload handler above for why the token is a query param here.
-                handleUploadUrl: `${API_BASE_URL}/api/flows/${currentFlowId}/documents/upload-token?token=${encodeURIComponent(auth.token)}`,
+                // The sign-in token goes as a header (uploadToStore), not in this address (ML-574).
+                handleUploadUrl: `${API_BASE_URL}/api/flows/${currentFlowId}/documents/upload-token`,
                 onUploadProgress: (progress) => {
                     const pct = Math.round(progress.percentage);
                     percentEl.innerText = `${pct}%`;
@@ -15985,7 +15986,7 @@
             const blob = await uploadToStore(`${recordingsData.folder}/${file.name}`, file, {
                 access: 'public',
                 multipart: true,
-                handleUploadUrl: `${API_BASE_URL}/api/recordings/upload-token?token=${encodeURIComponent(auth.token)}`,
+                handleUploadUrl: `${API_BASE_URL}/api/recordings/upload-token`,
                 onUploadProgress: (progress) => {
                     const pct = Math.round(progress.percentage);
                     percentEl.innerText = `${pct}%`;
@@ -22738,7 +22739,7 @@
                 // Straight from this browser to Blob storage, then attached to the piece - as the edit screen's Media tab does
                 const blob = await uploadToStore(`flows/${created.id}/${kind}/${file.name}`, file, {
                     access: 'public',
-                    handleUploadUrl: `${API_BASE_URL}/api/flows/${created.id}/${kind}/upload-token?token=${encodeURIComponent(auth.token)}`,
+                    handleUploadUrl: `${API_BASE_URL}/api/flows/${created.id}/${kind}/upload-token`,
                     onUploadProgress: (progress) => say(`Uploading ${i + 1} of ${files.length}: ${Math.round(progress.percentage)}%`)
                 });
                 const uploaded = { blobUrl: blob.url, blobPathname: blob.pathname, fileName: file.name, fileSizeBytes: file.size, mimeType: blob.contentType || file.type };
@@ -22814,7 +22815,7 @@
             const ext = (files[i].name.match(/\.[a-z0-9]{2,5}$/i) || [''])[0].toLowerCase();
             const blob = await uploadToStore(`${folder}/${accountProfile.id}/${Date.now()}-${i + 1}${ext}`, files[i], {
                 access: 'public',
-                handleUploadUrl: `${API_BASE_URL}/api/piece-read/upload-token?token=${encodeURIComponent(auth.token)}`,
+                handleUploadUrl: `${API_BASE_URL}/api/piece-read/upload-token`,
                 onUploadProgress: (progress) => say(`Sending ${files.length > 1 ? `${i + 1} of ${files.length}` : 'it'}: ${Math.round(progress.percentage)}%`)
             });
             sent.push({ blobUrl: blob.url, blobPathname: blob.pathname });

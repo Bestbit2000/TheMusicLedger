@@ -43,6 +43,16 @@ test('every upload token holds the upload to its own folder', () => {
   assert.match(route('/flows/from-file'), /startsWith\(fromFileFolder\(req\.accountId\)\)/);
 });
 
+// ML-574: the sign-in token goes to an upload-token route as a header, never in the address (where it reaches
+// request logs and the browser's history). Every upload goes through uploadToStore, which adds the header.
+test('the app sends the sign-in token for an upload as a header, not in the address', () => {
+  const app = fs.readFileSync(new URL('../../public/app.js', import.meta.url), 'utf8');
+  for (const m of app.matchAll(/handleUploadUrl:\s*`([^`]*)`/g)) assert.doesNotMatch(m[1], /token=/, m[1]);
+  assert.ok([...app.matchAll(/handleUploadUrl:/g)].length >= 7, 'every upload found');
+  assert.doesNotMatch(app.replace(/function uploadToStore[\s\S]*?\n {4}\}/, ''), /window\.vercelBlobUpload\(/, 'every upload goes through uploadToStore');
+  assert.match(app, /function uploadToStore\(pathname, body, options\)[\s\S]*?Authorization: `Bearer \$\{auth\.token\}`/);
+});
+
 test('an account that has not confirmed is refused, and is let through once it has', { skip: !onDev && 'needs the dev database' }, async () => {
   const id = Number((await pool.query(`INSERT INTO accounts (email, first_name, surname) VALUES ($1, 'Up', 'Load') RETURNING id`, [`upload-rules-${Date.now()}@themusicledger.local`])).rows[0].id);
   accounts.push(id);

@@ -60,11 +60,14 @@ export async function requireAuth(req, res, next) {
 }
 
 // ML-179: same check as requireAuth, but also accepts ?token=... as a fallback when the
-// Authorization header is missing. Needed only for the Blob upload-token routes -
-// @vercel/blob/client's upload() makes its own internal fetch() to handleUploadUrl with a
-// hardcoded header set (just content-type), with no option to attach a custom Authorization
-// header, so the token has to travel via the URL app.js builds instead. Deliberately a separate
-// function, not a change to requireAuth itself, so no other route gains a query-string auth path.
+// Authorization header is missing. Only the Blob upload-token routes (and the Recordings tool) use it.
+// It was needed because upload() once could not send our own header; @vercel/blob 2.x can (its
+// `headers` option, sent to our upload-token route only), and since ML-574 the app sends the token
+// as a header (uploadToStore in app.js), so it no longer reaches request logs or the browser history.
+// The address is still accepted for ONE release, so a device still running the older app can upload
+// until it reloads (the "keep the previous release working" rule, ML-565). Then these routes go back
+// to requireAuth and this function is removed - ML-575. Deliberately a separate function, not a
+// change to requireAuth itself, so no other route gains a query-string auth path.
 export async function requireAuthFromQueryOrHeader(req, res, next) {
   try {
     const authHeader = req.headers.authorization;

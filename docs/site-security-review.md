@@ -142,10 +142,17 @@ photo or PDF read's pages are always deleted, and every organiser action asks th
   recording on Admin -> Recordings removes the tool's row too.
 - **`npm audit`**: one new advisory since 20 October, in `follow-redirects` (high), not reachable - it comes in only
   through `axios`, which no code uses. Updated to the fixed version in both lockfiles anyway; `axios` could be taken out.
+- **The sign-in token is out of the upload address** (also ML-574). Every upload sent it to its upload-token route as
+  `?token=`, where it reached request logs and the browser's history. The upload library can send a header to that
+  route (and only that route), so the app now sends it as an `Authorization` header (`uploadToStore`). The server still
+  accepts the address for one release, for a device running the older app; ML-575 drops it in the release after.
+- **The content security policy** is enforced on the live site (pages and data answers, checked) and now on the
+  owner's own machine too (`CSP_ENFORCE=true` in `server/.env`); the upload and other back-tests pass with it enforced.
+  The two "report-only" lines on Security -> This site come from the last automated run, 6 October on a local machine -
+  before it was switched on. "Run now" on the live site clears them.
 
-Not re-run (the 20 October results stand): reaching another member's rows, queries, server fetches, tokens, the test
-logins, limits, the device, secrets, errors. Still open, low: the sign-in token in the upload token request's address;
-three IPv6 forms and DNS rebinding; `list_count` on a band piece; a band list showing a title a viewer can't open;
+Not re-run (the 20 October results stand): reaching another member's rows, queries, server fetches, the test
+logins, limits, the device, secrets, errors. Still open, low: three IPv6 forms and DNS rebinding; `list_count` on a band piece; a band list showing a title a viewer can't open;
 inviting says whether an address has an account. Still not done: the bodies of the admin handlers, the inside of the
 password, two-step, email change and recording removal services, a line-by-line read of `admin.js`, Gitleaks itself,
 and whether the AI Gateway honours zero data retention on the photo reader's endpoint.
