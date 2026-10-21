@@ -2783,7 +2783,7 @@
         try {
             const { kinds } = await API.account.noticePreferences();
             box.innerHTML = kinds.map(k => `
-                <div class="setting-row setting-row-grouped">
+                <div class="setting-row setting-row-grouped gap-md">
                     <span id="noticePref-${k.key}-label"><strong>${escapeHtml(k.title)}</strong><br><span class="text-sm text-muted">${escapeHtml(k.sub)}</span></span>
                     <label class="toggle-switch"><input type="checkbox" data-notice-pref="${k.key}" aria-labelledby="noticePref-${k.key}-label"${k.enabled ? ' checked' : ''}><span class="toggle-slider"></span></label>
                 </div>`).join('');
