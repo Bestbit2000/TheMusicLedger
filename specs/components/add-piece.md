@@ -53,7 +53,11 @@ ends there): `button.metroBlk-entry-choice#metroBlkEntryPhotoBtn` (icon `photo_c
 While the pages are sent and read - up to a minute and a half - the tile is disabled, `aria-busy`, and **its own
 help line says what is happening** ("Sending it: 40%", then "Reading the music: 1:20 so far", counting up - a long
 part takes a few minutes; the line is `aria-live="polite"`), with one info toast asking the member to stay on the
-screen. No new classes. When the read
+screen. **The help line ends with the reads left** (the allowance, `photo_reads_per_quarter`): "Photograph the part,
+then check what was read. 12 of 30 left this quarter." - asked each time Add a piece opens and after each read;
+with none left, "None left this quarter - they start again on 1 January.", and choosing files then says so in a
+warning toast instead of sending them. No line when the allowance is the most a limit can be (the owner's), and
+the tile isn't shown at all for an account type whose allowance is 0. No new classes. When the read
 comes back Quick entry opens filled in ([piece-outline](piece-outline.md)); a file with several pieces asks which
 first in `#flowChoiceModal`. A choice that can't be sent (not a photo or PDF, too many, too big) is a warning toast. **A read that fails
 is said in the confirm pop-up (`#confirmModal`), which stays until it is closed** - "The music couldn't be read",

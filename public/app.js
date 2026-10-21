@@ -7033,6 +7033,7 @@
         if (addPiece.bandId !== null && !bands.some(b => Number(b.id) === addPiece.bandId)) addPiece.bandId = null;
         if (typeof addPiece.listId === 'number' && !addPieceListsOffered().some(l => l.id === addPiece.listId)) addPiece.listId = null;
         renderAddPiece();
+        pieceReadShowAllowance(); // ML-246: the photo tile says how many reads are left
     }
     // The answers as a target for the new piece.
     function addPieceTakeTarget() {
@@ -22791,6 +22792,22 @@
     let pieceReadBusy = false;
     let pieceReadMore = null; // the pieces of a read not opened yet (a file can hold several): { read, pieces, target }
     let pieceReadAllowance = null; // asked for while the file chooser is open: { limit, used, left, startsAgainOn }
+    const pieceReadDay = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+    // The tile's help line ends with the reads left this quarter, asked for each time Add a piece opens and
+    // after each read. None at all for the account type: the tile isn't shown. No line for the owner's own
+    // allowance (the most a limit can be), or when the server can't be asked.
+    async function pieceReadShowAllowance() {
+        if (!pieceReadBtn || pieceReadBusy || !isFeatureEnabled('piece_from_photo') || !isFeatureEnabled('piece_quick_entry')) return;
+        const help = pieceReadBtn.querySelector('.metro-help-text');
+        if (!help.dataset.base) help.dataset.base = help.textContent;
+        const a = await apiCall('/api/piece-read/allowance').catch(() => null);
+        if (pieceReadBusy) return;
+        if (a && a.limit === 0) { setShown(pieceReadBtn, false); return; }
+        const left = !a || a.limit >= 100000 ? ''
+            : a.left === 0 ? ` None left this quarter - they start again on ${pieceReadDay(a.startsAgainOn)}.`
+            : ` ${a.left} of ${a.limit} left this quarter.`;
+        help.textContent = left ? `${help.dataset.base}.${left}` : help.dataset.base;
+    }
     pieceReadBtn?.addEventListener('click', () => {
         if (pieceReadBusy || !isFeatureEnabled('piece_from_photo')) return;
         pieceReadAllowance = apiCall('/api/piece-read/allowance').catch(() => null); // the server refuses anyway
@@ -22831,7 +22848,7 @@
         const allowance = await pieceReadAllowance;
         if (allowance && allowance.left === 0) {
             showWarningToast(allowance.limit === 0 ? "Reading a piece from a photo isn't included on your account."
-                : `You have used this quarter's ${allowance.limit} photo reads. They start again on ${new Date(`${allowance.startsAgainOn}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.`);
+                : `You have used this quarter's ${allowance.limit} photo reads. They start again on ${pieceReadDay(allowance.startsAgainOn)}.`);
             return;
         }
         const target = addPieceTakeTarget();
@@ -22865,6 +22882,7 @@
             pieceReadBtn.disabled = false;
             pieceReadBtn.removeAttribute('aria-busy');
             say(was);
+            pieceReadShowAllowance(); // one fewer left
         }
     }
     const pieceReadLevelWord = (level) => ({ high: 'High', medium: 'Medium', low: 'Low' }[level] || 'Medium');
