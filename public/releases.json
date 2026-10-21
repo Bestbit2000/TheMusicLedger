@@ -1,5 +1,86 @@
 [
   {
+    "version": "0.65.0",
+    "date": "2026-10-21",
+    "changes": [
+      {
+        "key": "ML-563",
+        "type": "Fixes",
+        "summary": "We fixed the play button showing pause when a piece opened in a practice session with nothing playing."
+      },
+      {
+        "key": "ML-562",
+        "type": "Fixes",
+        "summary": "We made it clearer what Auto does on a practice session's pieces, and put where the pieces come from right above them."
+      },
+      {
+        "key": "ML-561",
+        "type": "Fixes",
+        "summary": "We took out the second row of block icons on the screen before a practice session starts - the list is enough."
+      },
+      {
+        "key": "ML-560",
+        "type": "Fixes",
+        "summary": "We made the Level button on the play screen fit, with just \"level\" under the number."
+      },
+      {
+        "key": "ML-559",
+        "type": "Fixes",
+        "summary": "We changed the question after practising some bars to \"How did you get on?\", with clearer answers, and it now fits on a phone."
+      },
+      {
+        "key": "ML-558",
+        "type": "Fixes",
+        "summary": "We fixed Done preparing in the Prepare tool, which went back to the start - it now takes you back to the list of pieces to prepare."
+      },
+      {
+        "key": "ML-557",
+        "type": "New",
+        "summary": "We now show how far each piece has come - its bars now against where they started, with the sessions and minutes spent - and let you add a weekly plan to a practice list."
+      },
+      {
+        "key": "ML-556",
+        "type": "New",
+        "summary": "We let you clear notifications out of your list, one at a time or all at once - with Undo, and Show cleared to bring one back."
+      },
+      {
+        "key": "ML-501",
+        "type": "New",
+        "summary": "We added Settings - Notifications, where you can switch off each kind of notice the app sends you itself."
+      },
+      {
+        "key": "ML-497",
+        "type": "New",
+        "summary": "We now tell you in Notifications when you are invited to a band, your band has new music, or something changes for you in a band."
+      },
+      {
+        "key": "ML-496",
+        "type": "New",
+        "summary": "We can now send a notice to the members of one band, to one kind of account, or to named members, as well as to everyone."
+      },
+      {
+        "key": "ML-495",
+        "type": "New",
+        "summary": "We can now show a banner across the top of the app, and of the sign-in screen, to tell you ahead of time when the app will be away."
+      },
+      {
+        "key": "ML-494",
+        "type": "New",
+        "summary": "We now delete old notices 12 months after they stopped being shown, with the record of who read them."
+      },
+      {
+        "key": "ML-493",
+        "type": "New",
+        "summary": "We can now see who has seen an urgent or important notice, so we know it has reached everyone it was for."
+      },
+      {
+        "key": "ML-492",
+        "type": "New",
+        "summary": "We now show who each notice is for on our notices page, and count its readers out of those people."
+      }
+    ]
+  },
+  {
     "version": "0.64.0",
     "date": "2026-10-20",
     "changes": [
