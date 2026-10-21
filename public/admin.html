@@ -81,7 +81,7 @@
             <div class="admin-nav-group" data-nav-group="release">
                 <button type="button" class="admin-nav-group-head" aria-expanded="true" aria-controls="adminNavGroup-release"><span class="admin-nav-group-name">Release and checks</span><span class="admin-nav-count hidden-group" data-group-count></span><span class="material-symbols-outlined" aria-hidden="true" data-group-arrow>expand_more</span></button>
                 <div class="admin-nav-group-items" id="adminNavGroup-release">
-                <button class="admin-nav-item" data-section="release-tests" type="button">Release tests</button>
+                <button class="admin-nav-item" data-section="release-tests" type="button">Release tests <span id="releaseTestsNavCount" class="admin-nav-count hidden-group"></span></button>
                 <!-- ML-246: every piece read from a photo or PDF, and the test library -->
                 <button class="admin-nav-item" data-section="piece-reads" type="button">Photo reads</button>
                 <button class="admin-nav-item" data-section="security" type="button">Security <span id="securityNavCount" class="admin-nav-count hidden-group"></span></button>
@@ -128,6 +128,12 @@
             <p class="admin-intro">Back-test registry for ML-29 - ask Claude Code to add coverage for a feature or run the suite (<code>.claude/skills/backtest</code>); results land here.</p>
             <a href="#" id="viewTestCasesLink" class="admin-link">View all test cases &rarr;</a>
             <div id="backtestSummary" class="dashboard-grid admin-summary-grid"></div>
+            <!-- ML-573: All / Failing - the failing test cases straight away, without scrolling the whole list.
+                 There only when something is failing. -->
+            <div class="filter-strip hidden-group" id="releaseTestsFilterStrip">
+                <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span></span>
+                <div class="filter-strip-pills" id="releaseTestsFilterPills" role="group" aria-label="Show test cases"></div>
+            </div>
             <div id="featureList" class="admin-feature-list">Loading&hellip;</div>
         </section>
         <section id="test-cases-section" class="admin-section hidden-group">

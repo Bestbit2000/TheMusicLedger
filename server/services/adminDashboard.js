@@ -78,19 +78,27 @@ async function money() {
 }
 
 // ML-572: the numbers on the admin menu, added up, for the Administration item in the app's own ☰ menu - so a
-// super admin can see something is waiting without signing in to the panel. The same five counts the menu shows:
+// super admin can see something is waiting without signing in to the panel. The same counts the menu shows:
 // Feedback not looked at, open reports (Shared music), limits getting near (Costs and usage), reviews due
-// (Security) and third-party items needing attention. Numbers only - nothing about what they are. The stored
+// (Security), third-party items needing attention and back-tests failing (Release tests - ML-573: an active test
+// case whose latest result is FAIL). Numbers only - nothing about what they are. The stored
 // usage readings are read, not the providers' APIs, so it stays cheap.
 export async function adminWaitingCounts() {
-  const [feedback, reports, records, usage, reviews] = await Promise.all([
+  const [feedback, reports, records, usage, reviews, tests] = await Promise.all([
     part('feedback', async () => (await pool.query('SELECT count(*) FILTER (WHERE category IS NULL)::int AS n FROM feedback')).rows[0].n),
     part('reports', async () => (await pool.query('SELECT count(*)::int AS n FROM content_reports WHERE closed_at IS NULL')).rows[0].n),
     part('third-party records', listRecords),
     part('usage', usageSummary),
-    part('reviews', reviewsDue)
+    part('reviews', reviewsDue),
+    part('back-tests', async () => (await pool.query(
+      `SELECT count(*)::int AS n FROM (
+         SELECT DISTINCT ON (r.test_case_id) r.verdict
+           FROM test_run_results r JOIN test_runs tr ON tr.id = r.test_run_id JOIN test_cases t ON t.id = r.test_case_id
+          WHERE t.is_active ORDER BY r.test_case_id, tr.started_at DESC, r.id DESC) latest
+        WHERE verdict = 'FAIL'`)).rows[0].n)
   ]);
   const counts = {
+    tests: tests || 0,
     feedback: feedback || 0,
     reports: reports || 0,
     costs: (usage || []).filter((m) => m.status && (m.status.level === 'warn' || m.status.level === 'fail')).length,

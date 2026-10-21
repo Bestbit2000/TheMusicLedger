@@ -1,5 +1,6 @@
 // ML-572: the count of what is waiting in the admin panel, shown on the Administration item in the app's ☰ menu.
-// The route is super admins only and answers with numbers only; the total is the five menu counts added up.
+// The route is super admins only and answers with numbers only; the total is the menu counts added up (ML-573:
+// failing back-tests too).
 // The count itself runs against the dev database (node --env-file=../.env --test test/adminWaiting.test.js from
 // server/); under plain `npm test` that part is skipped.
 
@@ -20,9 +21,9 @@ test('the route is for super admins only, and is not under /api/admin', () => {
   assert.doesNotMatch(admin, /admin-waiting/);
 });
 
-test('numbers only: the five menu counts and their total', { skip: !onDev && 'needs the dev database' }, async () => {
+test('numbers only: the menu counts and their total', { skip: !onDev && 'needs the dev database' }, async () => {
   const counts = await adminWaitingCounts();
-  assert.deepEqual(Object.keys(counts).sort(), ['costs', 'feedback', 'reports', 'security', 'thirdParties', 'total']);
+  assert.deepEqual(Object.keys(counts).sort(), ['costs', 'feedback', 'reports', 'security', 'tests', 'thirdParties', 'total']);
   for (const [key, n] of Object.entries(counts)) assert.ok(Number.isInteger(n) && n >= 0, `${key} is a count`);
-  assert.equal(counts.total, counts.feedback + counts.reports + counts.costs + counts.security + counts.thirdParties);
+  assert.equal(counts.total, counts.feedback + counts.reports + counts.costs + counts.security + counts.thirdParties + counts.tests);
 });

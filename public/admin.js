@@ -146,13 +146,33 @@
         `;
     }
 
+    // ML-573: a test case is failing when it is active and its latest result is FAIL. They are counted on the menu
+    // (like Feedback or Security) and can be shown on their own - All / Failing at the top of the page - with their
+    // errors open. A test case linked to several features is counted once.
+    let releaseTestsData = null;
+    let releaseTestsFilter = 'all';
+    const testCaseFailing = (tc) => tc.isActive && tc.runs[0] && tc.runs[0].verdict === 'FAIL';
+    function renderReleaseTestsFilter(failing) {
+        if (!failing) releaseTestsFilter = 'all';
+        setShown('releaseTestsFilterStrip', failing > 0);
+        const total = new Set(releaseTestsData.features.flatMap(f => f.testCases.map(tc => tc.id))).size;
+        const box = document.getElementById('releaseTestsFilterPills');
+        box.innerHTML = [['all', 'All', total], ['failing', 'Failing', failing]].map(([key, label, n]) => `<button type="button" class="filter-pill${releaseTestsFilter === key ? ' active' : ''}" data-release-tests-filter="${key}" aria-pressed="${releaseTestsFilter === key}">${label} <span class="filter-pill-count">${n}</span></button>`).join('');
+        box.querySelectorAll('[data-release-tests-filter]').forEach(b => b.addEventListener('click', () => { releaseTestsFilter = b.dataset.releaseTestsFilter; renderFeatures(releaseTestsData); }));
+    }
     function renderFeatures(data) {
+        releaseTestsData = data;
         const el = document.getElementById('featureList');
+        const failingIds = new Set(data.features.flatMap(f => f.testCases.filter(testCaseFailing).map(tc => tc.id)));
+        setNavCount('releaseTestsNavCount', failingIds.size);
+        renderReleaseTestsFilter(failingIds.size);
         if (!data.features.length) {
             el.innerHTML = '<p>No features registered yet - ask Claude to add test coverage for a feature (see .claude/skills/backtest).</p>';
             return;
         }
-        el.innerHTML = data.features.map(f => `
+        const onlyFailing = releaseTestsFilter === 'failing';
+        const features = data.features.map(f => ({ ...f, testCases: onlyFailing ? f.testCases.filter(testCaseFailing) : f.testCases })).filter(f => f.testCases.length);
+        el.innerHTML = features.map(f => `
             <div class="admin-feature">
                 <div class="admin-feature-header">
                     <h2>${escapeHtml(f.name)}</h2>
@@ -161,6 +181,8 @@
                 ${f.testCases.map(renderTestCase).join('')}
             </div>
         `).join('');
+        // Failing only: each one's runs (the error and what was done) are open already
+        if (onlyFailing) el.querySelectorAll('.admin-run-history').forEach((h) => h.classList.add('show'));
 
         el.querySelectorAll('.admin-test-case-head').forEach((head) => {
             head.addEventListener('click', () => {
