@@ -7628,6 +7628,9 @@
             applyPieceLevels(await API.levels.save(levels.flowId, body));
             showSuccessToast('Your bars are saved');
             if (prep.fromSession && practiceRun && !practiceRun.done) { prep.fromSession = false; prepareDoneInSession(); return; }
+            // ML-558 (owner, 21 Oct 2026): from the Prepare tool, back to its list - the piece has left it, the next is ready
+            // to pick. (Its path there is Prepare alone, so going back to it looked like starting again.)
+            if (prep.onlyPrepare && viewStack.includes('prepareListView')) { prep.onlyPrepare = false; backToView('prepareListView'); return; }
             backToView('piecePathView');
             renderPiecePath();
         } catch (e) {

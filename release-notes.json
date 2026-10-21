@@ -1,4 +1,5 @@
 {
+  "ML-558": "We fixed Done preparing in the Prepare tool, which went back to the start - it now takes you back to the list of pieces to prepare.",
   "ML-501": "We added Settings - Notifications, where you can switch off each kind of notice the app sends you itself.",
   "ML-497": "We now tell you in Notifications when you are invited to a band, your band has new music, or something changes for you in a band.",
   "ML-496": "We can now send a notice to the members of one band, to one kind of account, or to named members, as well as to everyone.",
