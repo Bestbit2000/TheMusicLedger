@@ -2897,12 +2897,15 @@
     // When the code this device is running is older than the deployed release (an installed app resumed from the
     // background keeps its old code - docs/notifications.md), a strip across the top of every screen says so, with
     // Reload and "See what's new" (the notes for everything newer, in a pop-up). Its X hides it for this visit - kept
-    // per version, so a newer one still shows. Nothing reloads unless Reload is tapped.
+    // per version, so a newer one still shows. Nothing reloads unless Reload is tapped. It waits while a practice
+    // session is running, so nobody is asked to reload mid-session (owner, 21 Oct 2026 - ML-565 decision 6): the
+    // session's start and end call renderUpdateBanner again.
     const UPDATE_HIDDEN_KEY = 'tml.updateHidden';
     function renderUpdateBanner() {
         let hidden = null;
         try { hidden = sessionStorage.getItem(UPDATE_HIDDEN_KEY); } catch { /* shown, that's all */ }
-        setShown('updateBanner', auth.isAuthenticated && isAppUpdateAvailable() && hidden !== latestAppVersion);
+        const inSession = !!(practiceRun && !practiceRun.done);
+        setShown('updateBanner', auth.isAuthenticated && isAppUpdateAvailable() && hidden !== latestAppVersion && !inSession);
     }
     document.getElementById('updateBannerClose')?.addEventListener('click', () => {
         try { sessionStorage.setItem(UPDATE_HIDDEN_KEY, latestAppVersion); } catch { /* hidden until the next check */ }
@@ -8683,6 +8686,7 @@
             open: sessPlan.open, template: sessPlan.template, focus: sessPlan.focus, auto: sessPlan.auto, source: sessPlan.source
         };
         practiceRun = r;
+        renderUpdateBanner(); // ML-564: no "new version" strip during a practice session
         startSessionTimer(); // ML-421: the Timer runs for the whole session, in the top bar
         sessExtendOpen(r);
         r.nudgeAt = PracticePlan.playSeconds(r.blocks, 0);
@@ -9005,6 +9009,7 @@
         if (!r || r.done) return;
         if (early && r.phase !== 'rest') { const b = r.blocks[r.index]; b.seconds += runElapsed(); b.started = true; }
         r.done = true;
+        renderUpdateBanner(); // ML-564: the session is over, so a waiting "new version" strip can show now
         clearInterval(practiceTick);
         stopSessionTimer(); // ML-421
         API.practice.clearActive().catch(() => { /* gone when it goes stale */ });
@@ -9971,6 +9976,7 @@
         clearInterval(practiceTick);
         practiceTick = setInterval(practiceRunTick, 1000);
         renderPracticeRun();
+        renderUpdateBanner(); // ML-564
         showSuccessToast(`Practice session carried on - block ${st.index + 1}${practiceRun.open ? '' : ` of ${st.blocks.length}`}. Tap the bar at the top.`);
     }
 

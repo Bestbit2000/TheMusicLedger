@@ -84,7 +84,9 @@ same source as the About page and feedback's version stamp). When the server's i
 - Notifications shows **Update available: vX** at the top, with the release notes for everything
   newer than the running version and a **Reload now** button (reloading = closing and reopening),
 - **a strip across the top of every screen** says "A new version is ready", with **Reload** and **See what's new**
-  (the same notes in a pop-up) - ML-564. Its × hides it for this visit, for that version. It reaches **every member**,
+  (the same notes in a pop-up) - ML-564. Its × hides it for this visit, for that version. It **waits while a
+  practice session is running** and shows once the session is over, so nobody is asked to reload mid-session
+  (owner's decision, ML-565). It reaches **every member**,
   not only those with the notifications feature: the banner check (`GET /api/notices/banner`, open, every minute)
   also returns `appVersion`. Spec: `specs/components/notice-banner.md`.
 - About's Release history marks "You're on this version" against the release this device is running.

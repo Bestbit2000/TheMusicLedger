@@ -35,7 +35,8 @@ the strip's own colour) and **See what's new** (`.notice-banner-text`, underline
 for every release newer than the one this device is running, and Reload now) - and the × (`.notice-banner-close`),
 which hides it **for this visit, for this version** (a newer version shows again). On a phone it is a grid: icon,
 words and × on the first line, the two buttons under the words. From 700px it is one line.
-It shows when the device's code is older than the deployed release - [docs/notifications.md](../../docs/notifications.md),
+It waits while a practice session is running (`practiceRun`, not yet done) and shows once it is over - nobody is
+asked to reload mid-session (owner, ML-565). It shows when the device's code is older than the deployed release - [docs/notifications.md](../../docs/notifications.md),
 "Why update available exists". It never reloads by itself.
 
 ## 4. Tokens used
