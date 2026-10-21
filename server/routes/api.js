@@ -38,7 +38,7 @@ import { assertRangeEnabled, getRange, setRange, recordGo, moveRange } from '../
 import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, setFlowArchived, setFlowsArchived, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, setRecordingClip, setRecordingMarks, setRecordingMovement, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks, replaceAllFlowBlocks } from '../services/flowBlocks.js';
 import { importMusicXmlFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/musicXmlImport.js';
-import { readForAccount, discardReadFiles, sweepReadUploads, markSaved as markPieceReadSaved, readUploadPrefix, testUploadPrefix, READ_CONTENT_TYPES } from '../services/pieceReads.js';
+import { readForAccount, discardReadFiles, sweepReadUploads, markSaved as markPieceReadSaved, readUploadPrefix, testUploadPrefix, READ_CONTENT_TYPES, readAllowance, assertReadLeft } from '../services/pieceReads.js';
 import { MAX_READ_BYTES } from '../services/pieceReader.js';
 import { MAX_PIECE_FILE_BYTES, MAX_BAND_LOGO_BYTES, BAND_LOGO_TYPES } from '../services/blobUrls.js';
 import { isFeatureEnabled, listEnabledFeatureKeys, getLimit, listLimits } from '../services/features.js';
@@ -1988,6 +1988,7 @@ router.post('/piece-read/upload-token', requireAuthFromQueryOrHeader, resolveAcc
         // Keeping a file is the owner's test library - never a member's (it would break "the photo is not kept").
         if (forTest && req.realAccountLevel !== 'super_admin') throw withStatus(403, "This feature isn't available right now.");
         if (!forTest && !pathname.startsWith(readUploadPrefix(req.accountId))) throw withStatus(400, "That isn't somewhere a photo can be sent.");
+        if (!forTest) await assertReadLeft(req.accountId); // the allowance: refused before the pages go up
         await assertUploadRightsConfirmed(req.accountId); // ML-278, checked here too
         await limitCalls('upload-token', req.accountId);
         return { allowedContentTypes: READ_CONTENT_TYPES, maximumSizeInBytes: MAX_READ_BYTES, addRandomSuffix: true };
@@ -2003,9 +2004,19 @@ router.post('/piece-read/upload-token', requireAuthFromQueryOrHeader, resolveAcc
 router.post('/piece-read', requireAuth, resolveAccount, requireFeature('piece_from_photo'), async (req, res) => {
   try {
     await limitCalls('piece-read', req.accountId);
+    await assertReadLeft(req.accountId);
     res.json(await readForAccount(req.accountId, req.body?.files, { joinMovements: await isFeatureEnabled('piece_movements') }));
   } catch (error) {
     await discardReadFiles(req.accountId, req.body?.files); // ML-553: refused or failed - the pages still go
+    sendError(res, error);
+  }
+});
+
+// How many reads this account has left this quarter, and when they start again (the allowance).
+router.get('/piece-read/allowance', requireAuth, resolveAccount, requireFeature('piece_from_photo'), async (req, res) => {
+  try {
+    res.json(await readAllowance(req.accountId));
+  } catch (error) {
     sendError(res, error);
   }
 });

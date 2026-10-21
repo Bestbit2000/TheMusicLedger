@@ -305,8 +305,15 @@ one-time "I have the right to upload it" (ML-278) comes first, as for any music.
    Usage sets it beside Quick entry and bar by bar, release by release. Then `PUT /api/piece-read/:id/saved`
    puts the outline as saved in the log beside what was read.
 
-Limits: 20 reads an hour per account (`CALL_LIMITS['piece-read']`), on top of the feature's gate. There is no
-monthly allowance yet - see "Before any member can use it".
+Limits: 20 reads an hour per account (`CALL_LIMITS['piece-read']`), on top of the feature's gate, and **the
+allowance** (built 21 Oct 2026, ready for the feature to be opened up): `photo_reads_per_quarter` on Admin →
+Feature access, Limits - 0 for Standard, 30 for Premium, Beta tester, Teacher and Band admin, the most a limit
+can be (100000) for Super admin. A quarter is a calendar quarter in UK time (from 1 January, 1 April, 1 July,
+1 October). Only a read that gave an answer counts (`piece_reads.status = 'read'`) - not a failed one, and not
+a "Read again" of a kept test. `readAllowance` / `assertReadLeft` in `pieceReads.js`: the upload token refuses
+when none are left (before the pages go up), `POST /api/piece-read` refuses again, and
+`GET /api/piece-read/allowance` lets the tile say so as soon as the files are chosen. Two reads at the same
+moment can both pass the last one left - the hourly limit keeps that small.
 
 ## The log, and the test library
 
@@ -339,17 +346,18 @@ page is the bill.
 
 - **The owner's own testing** (11 Oct 2026): more pieces, to see the time saved against Quick entry and what
   the rating is worth. The last line is still where it goes wrong, and High does not vouch for it.
-- **The privacy policy** has to say that a photo of music sent to be read goes to Vercel and on to the model's
-  maker, and is not kept. The wording is the owner's. Until then the register entry says why it isn't in the
-  policy (only the owner uses it), and the third-party audit will fail if that reason is removed without the
-  policy naming it.
-- **The allowance**: the owner's thinking is none for Standard and about 30 reads a quarter for Premium
-  (11 Oct 2026). Not built - today the only limits are the gate and 20 an hour.
-- **A budget** in Vercel (AI Gateway → Budgets), and a meter on Admin → Costs and usage.
+- Done 21 Oct 2026: **the privacy policy** names it, in the owner's words ("Vercel AI Gateway" under "Who
+  helps us run it"); **the allowance** above; **a budget** of $20 a month on AI Gateway (Vercel emails at 75%
+  and 100%), and the meter "Photo reads, in dollars" on Admin → Costs and usage, added up from the log;
+  `AI_GATEWAY_API_KEY` is on Production, Preview and Preview (sandbox) (since 11 Oct 2026).
+- **Young players**: Anthropic's Usage Policy asks a product that lets minors reach its models to follow its
+  guidelines for products serving minors. Read them, and check the Children's Code self-assessment, before
+  the feature is opened to an account type a young player may have.
 - **Account deletion**: the log's rows go with the account (they hang off `piece_reads.account_id`). A kept
   test's pages in the file store do not - today only a super admin can keep one. If that ever widens, deletion
   has to remove them (`docs/account-deletion.md`).
 - **A back-test** for the screen (it needs a stand-in for the read, which costs money and takes a minute).
-- The Online Safety and "members need telling" questions for the release that opens it up.
+- The Online Safety and "members need telling" questions for the release that opens it up - the policy
+  changing is itself a reason to tell members, once they can use it.
 - Decided (ML-543, 20 Oct 2026): the old "Create from file" PDF import was removed rather than pointed at
   this, and the OMR service's register entry and security review went with it.

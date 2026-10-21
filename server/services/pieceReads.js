@@ -11,6 +11,7 @@ import { withStatus } from './metronomeSetups.js';
 import { createCustomTimeSignature } from './timeSignatures.js';
 import { isOwnBlobUrl, readCappedBody } from './musicXmlImport.js';
 import { assertFlowAccess } from './flows.js';
+import { getLimit } from './features.js';
 import { readPieceFromFiles, PieceRead, READ_VERSION, readerModel, mediaTypeOf, MAX_READ_BYTES, MAX_READ_FILES } from './pieceReader.js';
 
 // Where the browser puts the pages: read once and deleted. And where a kept test's pages stay.
@@ -25,6 +26,31 @@ const PRICES = { 'anthropic/claude-opus-5.5': [4, 20] };
 export function costUsd(model, unitsIn, unitsOut) {
   const p = PRICES[model];
   return p ? (unitsIn * p[0] + unitsOut * p[1]) / 1e6 : null;
+}
+
+// The allowance: how many reads one person can have a quarter, by account type (the feature limit
+// photo_reads_per_quarter - Admin -> Feature access). A quarter is a calendar quarter in UK time, and only a
+// read that gave an answer counts: not one that failed, and not a "Read again" of a kept test.
+const QUARTER_START = "date_trunc('quarter', now() AT TIME ZONE 'Europe/London')";
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const sayDay = (iso) => { const [y, m, d] = iso.split('-').map(Number); return `${d} ${MONTHS[m - 1]} ${y}`; };
+export async function readAllowance(accountId) {
+  const [limit, { rows }] = await Promise.all([
+    getLimit('photo_reads_per_quarter', 0),
+    pool.query(
+      `SELECT count(*)::int AS used, to_char(${QUARTER_START} + interval '3 months', 'YYYY-MM-DD') AS next
+         FROM piece_reads WHERE account_id = $1 AND status = 'read' AND created_at >= ${QUARTER_START} AT TIME ZONE 'Europe/London'`, [accountId])
+  ]);
+  const allowed = Number.isFinite(limit) && limit >= 0 ? limit : 0;
+  return { limit: allowed, used: rows[0].used, left: Math.max(0, allowed - rows[0].used), startsAgainOn: rows[0].next };
+}
+// Refuses before the pages are sent, and again before they are read.
+export async function assertReadLeft(accountId) {
+  const a = await readAllowance(accountId);
+  if (a.left > 0) return a;
+  throw withStatus(409, a.limit === 0
+    ? "Reading a piece from a photo isn't included on your account."
+    : `You have used this quarter's ${a.limit} photo reads. They start again on ${sayDay(a.startsAgainOn)}.`);
 }
 
 // Only ever this app's own file store, at the pathname the upload returned, under the folder this account

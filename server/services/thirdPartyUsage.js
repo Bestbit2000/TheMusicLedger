@@ -14,6 +14,7 @@ import pool from '../config/db.js';
 import { costSummary, periodFor, meterStatus, alertsDue, parseChargeLines, billingPeriod, spendBreakdown } from '../thirdParties/costs.js';
 import { getConfigValue } from './appConfig.js';
 import { sendMail } from './mail.js';
+import { costUsd } from './pieceReads.js';
 
 const withStatus = (status, message) => Object.assign(new Error(message), { status });
 const GB = 1024 * 1024 * 1024;
@@ -141,6 +142,18 @@ export const METERS = [
     key: 'vercel-spend', party: 'vercel', name: 'Vercel usage, in dollars', unit: 'USD', limit: 20, per: 'month', cumulative: true, source: 'api', needs: 'VERCEL_API_TOKEN',
     how: 'Vercel\'s billing API: the cost of everything used since the billing day (the 7th unless VERCEL_BILLING_DAY says otherwise), against the $20 a month the Pro plan includes. Past $20 it is billed.',
     async read(cache) { const v = await vercelCharges(cache); return v ? { value: v.total, period: v.period, note: v.lines ? null : 'Vercel sent no charges for the period' } : null; }
+  },
+  {
+    // ML-246: the owner set a budget of $20 a month on AI Gateway (21 Oct 2026); Vercel emails him at 75%
+    // and 100%. This is the app's own count of the same spend, so it shows beside the other meters.
+    key: 'ai-gateway-spend', party: 'vercel-ai-gateway', name: 'Photo reads, in dollars', unit: 'USD', limit: 20, per: 'month', cumulative: true, source: 'app',
+    how: 'Added up from the log of photo reads in this environment (Admin -> Photo reads): every read and read-again since the 1st of the month, at the model\'s list price, against the $20 a month budget set on Vercel\'s AI Gateway. Vercel\'s AI Gateway page is the bill.',
+    async read() {
+      const { rows } = await pool.query(
+        `SELECT model, units_in, units_out FROM piece_reads WHERE created_at >= date_trunc('month', now())
+         UNION ALL SELECT model, units_in, units_out FROM piece_read_reruns WHERE created_at >= date_trunc('month', now())`);
+      return { value: rows.reduce((n, r) => n + (costUsd(r.model, Number(r.units_in) || 0, Number(r.units_out) || 0) || 0), 0) };
+    }
   }
 ];
 const meterByKey = (key) => METERS.find((m) => m.key === key);

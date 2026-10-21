@@ -22790,8 +22790,10 @@
     const pieceReadInput = document.getElementById('pieceReadInput');
     let pieceReadBusy = false;
     let pieceReadMore = null; // the pieces of a read not opened yet (a file can hold several): { read, pieces, target }
+    let pieceReadAllowance = null; // asked for while the file chooser is open: { limit, used, left, startsAgainOn }
     pieceReadBtn?.addEventListener('click', () => {
         if (pieceReadBusy || !isFeatureEnabled('piece_from_photo')) return;
+        pieceReadAllowance = apiCall('/api/piece-read/allowance').catch(() => null); // the server refuses anyway
         withUploadRights(() => pieceReadInput.click()); // ML-278
     });
     pieceReadInput?.addEventListener('change', () => {
@@ -22825,6 +22827,13 @@
     async function pieceReadStart(files) {
         const problem = pieceReadProblem(files);
         if (problem) { showWarningToast(problem); return; }
+        // The allowance (a number of reads a quarter, by account type): said before anything is sent
+        const allowance = await pieceReadAllowance;
+        if (allowance && allowance.left === 0) {
+            showWarningToast(allowance.limit === 0 ? "Reading a piece from a photo isn't included on your account."
+                : `You have used this quarter's ${allowance.limit} photo reads. They start again on ${new Date(`${allowance.startsAgainOn}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.`);
+            return;
+        }
         const target = addPieceTakeTarget();
         const help = pieceReadBtn.querySelector('.metro-help-text');
         const was = help.textContent;

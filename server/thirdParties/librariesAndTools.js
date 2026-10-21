@@ -155,7 +155,7 @@ export const build = [
     terms: [
       { label: 'Consumer terms', url: 'https://www.anthropic.com/legal/consumer-terms', dated: '8 Oct 2025' },
       { label: 'Commercial terms', url: 'https://www.anthropic.com/legal/commercial-terms', dated: '17 Jun 2025' },
-      { label: 'Usage policy', url: 'https://www.anthropic.com/legal/aup', dated: '15 Sep 2025' },
+      { label: 'Usage policy', url: 'https://www.anthropic.com/legal/aup', dated: '12 Nov 2026 (in force from that day)' },
       { label: 'Which terms apply to Claude Code', url: 'https://code.claude.com/docs/en/legal-and-compliance' }
     ],
     termsCheckedOn: CHECKED,
@@ -172,6 +172,8 @@ export const build = [
       { text: 'Don\'t use it to build a competing AI product or to train AI models.' }
     ],
     watch: [
+      'The owner\'s copies of the three documents (Consumer Terms 8 Oct 2025, Commercial Terms 17 Jun 2025, Usage Policy 12 Nov 2026) were read in full on 21 Oct 2026. Which terms cover a Claude login is decided by the plan and by whether you act for a business, not by the tool: Claude.ai and its individual plans are under the Consumer Terms whoever uses them; API keys and the Console are under the Commercial Terms for an organisation, but under the Consumer Terms for an individual.',
+      'The Usage Policy covers every way Claude is reached, including the end users of another company\'s product - so the photo read (Vercel AI Gateway) is under it too.',
       'Whether code written by an AI has copyright at all is unsettled law.',
       'The price is shown in US dollars only.'
     ],

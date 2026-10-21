@@ -466,17 +466,17 @@ export default [
   },
   {
     // ML-246: reads a piece's structure from a photo or PDF. In use by the owner alone (the feature is
-    // Super admin only) while he tests it, which is why it is not in the privacy policy yet.
+    // Super admin only) while he tests it; the privacy policy names it ready for it to be opened up.
     key: 'vercel-ai-gateway',
+    policyName: 'Vercel AI Gateway',
     name: 'Vercel AI Gateway (reads a piece from a photo)',
     group: 'service',
     status: 'attention',
     statusNote: 'In use by the owner only, while it is tested: the feature piece_from_photo is Super admin only.',
-    notInPolicy: 'Only the owner can use it while it is tested, so no member\'s information is sent. The policy has to name it before the feature is switched on for any member.',
     who: 'Vercel Inc. (USA), which passes each request to the model\'s maker - Anthropic PBC (USA) for the model the trial used',
     provides: 'A vision model looks at a photo or PDF of a part and answers with its structure - bars, time signatures, speeds, rehearsal marks, repeats, signs - which becomes a Quick entry outline with a high / medium / low rating.',
     usedIn: 'server/services/pieceReader.js (AI_GATEWAY_API_KEY, PIECE_READER_MODEL), server/services/pieceReads.js, public/pieceRead.js, scripts/piece-read-trial.mjs; Add a piece -> From a photo or PDF; Admin -> Photo reads; docs/piece-from-photo.md',
-    plan: 'Pay as you go, on the same Vercel account as the hosting',
+    plan: 'Pay as you go, on the same Vercel account as the hosting. A budget of $20 a month is set on AI Gateway, with emails from Vercel at 75% and 100% (the owner, 21 Oct 2026).',
     cost: 'About 14 US cents a piece with the model the trial chose (measured 10 Oct 2026 on three pieces). The model maker\'s list price, with nothing added by Vercel. Paid from AI Gateway Credits, which are bought separately - they do not come out of the hosting plan\'s $20.',
     paid: true,
     licence: 'Vercel terms of service (same as Vercel), with the AI Gateway pages below',
@@ -500,11 +500,13 @@ export default [
       { text: 'Never set PIECE_READER_MODEL to a model that is outside zero data retention (claude-fable-5 today).' }
     ],
     attention: [
-      'Before any member can use it: the privacy policy has to say that a photo of music sent to be read goes to Vercel and on to the model\'s maker, and is not kept. The wording is the owner\'s.',
-      'Set a budget in Vercel (AI Gateway, Budgets), so a mistake cannot run up a bill.',
-      'Put AI_GATEWAY_API_KEY on each environment the feature is used on (it is on Production; sandbox needs its own).',
-      'Before any member can use it: build the allowance (the owner\'s thinking: none for Standard, about 30 reads a quarter for Premium).'
+      'Before any member under 18 can use it: Anthropic\'s Usage Policy asks a product that lets minors reach its models to follow its guidelines for products serving minors (a support article) - read them and check the Children\'s Code self-assessment.',
+      'When it is switched on for members: tell them (Admin -> Notifications) - the privacy policy now names it - and do the Online Safety question for that release.'
     ],
+    // Done, kept here so they are not asked again: the policy names it (21 Oct 2026, the owner's words);
+    // a $20 a month budget is set (21 Oct 2026); AI_GATEWAY_API_KEY is on Production, Preview and Preview
+    // (sandbox) (11 Oct 2026); the allowance is built - photo_reads_per_quarter on Admin -> Feature access.
+    usageSource: 'The app adds up its own log of reads at the model\'s list price (Costs and usage: "Photo reads, in dollars", against the $20 budget). Vercel\'s AI Gateway page is the bill.',
     watch: [
       'The photo is of sheet music, not of a person - but a member could send any picture. Nothing is stored by the app, and zero data retention is asked for on every request.',
       'The model\'s answer is checked field by field before it is used (PieceRead.normalise) and anything shown from it must be escaped like any member-typed text.'
