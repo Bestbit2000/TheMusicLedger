@@ -36,7 +36,9 @@
     function inner(profile = {}) {
         const a = byId(profile.avatar);
         if (a) return `<svg viewBox="0 0 48 48" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${a.svg}</svg>`;
-        return `<span class="avatar-initials" aria-hidden="true">${initials(profile)}</span>`;
+        // the first letter of each name, so markup can't be made of them - escaped all the same (security re-check 21 Oct 2026)
+        const safe = initials(profile).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        return `<span class="avatar-initials" aria-hidden="true">${safe}</span>`;
     }
     // Words for a screen reader.
     function label(profile = {}) {

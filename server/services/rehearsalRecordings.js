@@ -17,6 +17,7 @@ import pool from '../config/db.js';
 import { withStatus, assertFlowAccess, FlowJourney, checkedMovement, extractYouTubeVideoId } from './flows.js';
 import { getLimit } from './features.js';
 import { isRehearsalFileUrl, MAX_REHEARSAL_FILE_BYTES } from './blobUrls.js';
+import { storedFileFacts } from './storedFiles.js';
 
 const ORGANISER_ROLES = ['admin', 'owner']; // as bands.js
 const DEFAULT_LIMIT = 2;
@@ -115,10 +116,13 @@ export async function addRecording(accountId, { blobUrl, blobPathname, fileName,
   const taken = await pool.query(
     'SELECT 1 FROM rehearsal_recordings WHERE blob_url = $1 UNION ALL SELECT 1 FROM score_recordings WHERE blob_url = $1 UNION ALL SELECT 1 FROM score_documents WHERE blob_url = $1 LIMIT 1', [blobUrl]);
   if (taken.rows.length) throw withStatus(409, 'That file has already been added.');
+  const real = await storedFileFacts(blobUrl); // what is really stored, not what the browser said
+  if (real.sizeBytes > MAX_REHEARSAL_FILE_BYTES) throw withStatus(413, TOO_BIG);
+  if (/^video\//i.test(String(real.contentType || ''))) throw withStatus(400, 'Only a sound recording can be added here, not a video.');
   const name = String(title || fileName || 'Rehearsal recording').trim().slice(0, 200) || 'Rehearsal recording';
   await pool.query(
     'INSERT INTO rehearsal_recordings (account_id, title, recorded_on, blob_url, blob_pathname, file_size_bytes, mime_type) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-    [accountId, name, recordedOn || null, blobUrl, blobPathname, fileSizeBytes || null, mimeType || null]
+    [accountId, name, recordedOn || null, blobUrl, blobPathname, real.sizeBytes, real.contentType || mimeType || null]
   );
   return listRecordings(accountId);
 }

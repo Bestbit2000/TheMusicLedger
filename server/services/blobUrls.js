@@ -32,12 +32,16 @@ export function storedPath(blobUrl) {
   return path;
 }
 
-export function isPieceFileUrl(blobUrl, scoreId) {
+// A MusicXML file imported as a new piece (ML-79) is uploaded before the piece exists, to the member's own import
+// folder (flows/from-file/<account id>/...) - so it is a file of that piece only for the member who uploaded it
+// (security re-check 21 Oct 2026; it was one folder every member shared).
+export function isPieceFileUrl(blobUrl, scoreId, accountId) {
   const path = storedPath(blobUrl);
   if (path === null) return false;
   const id = Number(scoreId);
   if (!Number.isInteger(id) || id <= 0) return false;
-  return path.startsWith(`flows/${id}/`) || path.startsWith('flows/from-file/');
+  const who = Number(accountId);
+  return path.startsWith(`flows/${id}/`) || (Number.isInteger(who) && who > 0 && path.startsWith(`flows/from-file/${who}/`));
 }
 
 // ML-534: a band's logo - in that band's own folder (band-logos/<band id>/...), so one band's organiser can never

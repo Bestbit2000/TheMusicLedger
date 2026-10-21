@@ -123,6 +123,33 @@ on port 3100 with the policy enforced (it needs a file `.claude/csp-enforce.tmp.
 
 ## Reviews so far
 
+### 21 October 2026 - a re-check, version 0.65.0 and ML-574 - verdict: go
+
+**Sound for members.** The owner asked for the 20 October review to be checked again. Its five conditions are all
+live (released in 0.64.0, now 0.65.0): the pages enforce the content security policy again (checked on the live site,
+a page and a data answer), a stored file must be in this app's own store, a band's name is escaped on History, a
+photo or PDF read's pages are always deleted, and every organiser action asks that the organiser is an adult.
+
+- **All of `app.js` read line by line** (25,750 lines, eight read-only readers, about 430 places that build HTML).
+  Nothing one member types reaches another member's screen unescaped. Five small places were hardened - the member's
+  own data, or values no member can type: the session category and an error message on History, the clef on My
+  instruments, the time signature on the play screen's now-playing line, and the avatar's initials. An avatar is one
+  of 12 drawings in the app's own code (the server refuses anything else) or the first letter of each name.
+- **Fixed in ML-574**, the lows still open on 20 October: the server now checks the "right to upload" confirmation
+  before any upload of music (before, only the app asked); the recording, document and MusicXML upload tokens hold the
+  upload to its own folder (MusicXML imports now go to the member's own folder, not one everyone shared); a kept file's
+  size and type are read from the file store, not taken from the browser; removing a piece's copy of a Recordings-tool
+  recording on Admin -> Recordings removes the tool's row too.
+- **`npm audit`**: one new advisory since 20 October, in `follow-redirects` (high), not reachable - it comes in only
+  through `axios`, which no code uses. Updated to the fixed version in both lockfiles anyway; `axios` could be taken out.
+
+Not re-run (the 20 October results stand): reaching another member's rows, queries, server fetches, tokens, the test
+logins, limits, the device, secrets, errors. Still open, low: the sign-in token in the upload token request's address;
+three IPv6 forms and DNS rebinding; `list_count` on a band piece; a band list showing a title a viewer can't open;
+inviting says whether an address has an account. Still not done: the bodies of the admin handlers, the inside of the
+password, two-step, email change and recording removal services, a line-by-line read of `admin.js`, Gitleaks itself,
+and whether the AI Gateway honours zero data retention on the photo reader's endpoint.
+
 ### 20 October 2026 - version 0.63.0 and the next release - verdict: conditional
 
 **Sound for members once the next release is out.** No member can reach another member's private practice, and a

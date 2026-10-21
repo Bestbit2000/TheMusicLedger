@@ -26,7 +26,7 @@ import { getBusinessCase } from '../services/businessCase.js';
 import { runRetention, clearOldRecords } from '../services/retention.js';
 import { deleteMyAccount } from '../services/accountDeletion.js';
 import { exportMyAccount } from '../services/accountExport.js';
-import { getAccountProfile, updateAccountProfile, confirmUploadRights, confirmOrganiserAdult, markSetupDone, getPracticeYearSetting, updatePracticeYearSetting, getDisplayPrefs, saveDisplayPrefs } from '../services/accounts.js';
+import { getAccountProfile, updateAccountProfile, assertUploadRightsConfirmed, confirmUploadRights, confirmOrganiserAdult, markSetupDone, getPracticeYearSetting, updatePracticeYearSetting, getDisplayPrefs, saveDisplayPrefs } from '../services/accounts.js';
 import { listTutors, getOrCreateTutor, renameTutor, isTutorUsedInHistory, archiveOrDeleteTutor, unarchiveTutor } from '../services/tutors.js';
 import { listDurationOptions, getDefaultDurationMinutes } from '../services/durationOptions.js';
 import { listTimeSignatureOptions, createCustomTimeSignature, listCustomTimeSignaturesWithUsage, setCustomTimeSignatureActive, deleteCustomTimeSignature } from '../services/timeSignatures.js';
@@ -1666,8 +1666,10 @@ router.post('/flows/:id/recordings/upload-token', requireAuthFromQueryOrHeader, 
     const result = await handleUpload({
       body: req.body,
       request: req,
-      onBeforeGenerateToken: async () => {
+      onBeforeGenerateToken: async (pathname) => {
         await assertFlowAccess(req.accountId, req.params.id);
+        assertUploadFolder(pathname, `flows/${Number(req.params.id)}/recordings/`); // security re-check 21 Oct 2026: this piece's own folder
+        await assertUploadRightsConfirmed(req.accountId); // ML-278, checked here too
         await limitCalls('upload-token', req.accountId);
         return {
           allowedContentTypes: ['audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/x-wav', 'video/mp4'],
@@ -1720,6 +1722,7 @@ router.post('/recordings/upload-token', requireAuthFromQueryOrHeader, resolveAcc
       request: req,
       onBeforeGenerateToken: async (pathname) => {
         if (!String(pathname).startsWith(`recordings/${req.accountId}/`)) throw Object.assign(new Error('That is not your recordings folder.'), { status: 400 });
+        await assertUploadRightsConfirmed(req.accountId); // ML-278, checked here too
         await assertRoomForOne(req.accountId);
         await limitCalls('upload-token', req.accountId);
         return {
@@ -1812,8 +1815,10 @@ router.post('/flows/:id/documents/upload-token', requireAuthFromQueryOrHeader, r
     const result = await handleUpload({
       body: req.body,
       request: req,
-      onBeforeGenerateToken: async () => {
+      onBeforeGenerateToken: async (pathname) => {
         await assertFlowAccess(req.accountId, req.params.id);
+        assertUploadFolder(pathname, `flows/${Number(req.params.id)}/documents/`);
+        await assertUploadRightsConfirmed(req.accountId);
         await limitCalls('upload-token', req.accountId);
         return {
           maximumSizeInBytes: MAX_PIECE_FILE_BYTES, // ML-476: 25 MB, as for a recording
@@ -1856,7 +1861,14 @@ router.delete('/flows/:id/documents/:documentId', requireAuth, resolveAccount, a
 // import at /flows/from-file below would then refuse it anyway. ML-543 removed the PDF/scan import
 // that once shared these routes (flow_import_from_file, through an outside music-scanning
 // service); a photo or PDF of a part is read by /piece-read (ML-246) instead.
-const PDF_NOT_HERE = "A PDF can't be imported here - use \"From a photo or PDF\" on Add a piece, or a MusicXML or .mxl file.";
+// Security re-check 21 Oct 2026: an upload goes only into the folder its route is for - a piece's own recordings or
+// documents, the member's own MusicXML import folder - so nothing lands where another route would look for it.
+const fromFileFolder = (accountId) => `flows/from-file/${Number(accountId)}/`;
+function assertUploadFolder(pathname, folder) {
+  const p = String(pathname || '');
+  if (!p.startsWith(folder) || /(^|\/)\.\.(\/|$)/.test(p) || p.includes('//') || p.includes('\\')) throw withStatus(400, 'That is not where this file can go.');
+}
+const PDF_NOT_HERE ="A PDF can't be imported here - use \"From a photo or PDF\" on Add a piece, or a MusicXML or .mxl file.";
 
 router.post('/flows/from-file/upload-token', requireAuthFromQueryOrHeader, resolveAccount, requireFeature('flow_import_musicxml'), async (req, res) => {
   try {
@@ -1864,6 +1876,8 @@ router.post('/flows/from-file/upload-token', requireAuthFromQueryOrHeader, resol
       body: req.body,
       request: req,
       onBeforeGenerateToken: async (pathname) => {
+        assertUploadFolder(pathname, fromFileFolder(req.accountId)); // the member's own folder, not one every piece shares
+        await assertUploadRightsConfirmed(req.accountId);
         await limitCalls('upload-token', req.accountId); // ML-476
         if (/\.pdf$/i.test(pathname)) throw withStatus(403, PDF_NOT_HERE);
         return {
@@ -1899,7 +1913,7 @@ router.post('/flows/from-file', requireAuth, resolveAccount, requireFeature('flo
     if (bandId) await assertBandMembership(req.accountId, bandId);
     // ML-192: only ever fetch from this app's own Blob store, at the pathname the upload returned -
     // never an arbitrary URL from the request body (server-side request forgery).
-    if (!isOwnBlobUrl(blobUrl, blobPathname)) throw withStatus(400, "That doesn't look like a file uploaded to this app.");
+    if (!isOwnBlobUrl(blobUrl, blobPathname) || !String(blobPathname).startsWith(fromFileFolder(req.accountId))) throw withStatus(400, "That doesn't look like a file uploaded to this app.");
 
     const fileResponse = await fetch(blobUrl, { redirect: 'error' }).catch(() => null);
     // 422, not the more "correct" 502 - sendError only passes a withStatus message through to the
@@ -1974,6 +1988,7 @@ router.post('/piece-read/upload-token', requireAuthFromQueryOrHeader, resolveAcc
         // Keeping a file is the owner's test library - never a member's (it would break "the photo is not kept").
         if (forTest && req.realAccountLevel !== 'super_admin') throw withStatus(403, "This feature isn't available right now.");
         if (!forTest && !pathname.startsWith(readUploadPrefix(req.accountId))) throw withStatus(400, "That isn't somewhere a photo can be sent.");
+        await assertUploadRightsConfirmed(req.accountId); // ML-278, checked here too
         await limitCalls('upload-token', req.accountId);
         return { allowedContentTypes: READ_CONTENT_TYPES, maximumSizeInBytes: MAX_READ_BYTES, addRandomSuffix: true };
       },

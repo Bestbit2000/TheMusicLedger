@@ -235,9 +235,15 @@ permission for... If it is a recording of people, make sure they know it is bein
 migration 119, `POST /api/account/upload-rights`); after that it is not asked again.
 
 - Every button that opens a file chooser for music goes through `withUploadRights` (app.js): a piece's
-  recording and document, Quick entry's two, Import from MusicXML, and the Recordings tool.
-- It is the app asking, not the server refusing: an upload is not blocked on the server for an account
-  that has not confirmed. The terms of use carry the same rule for everyone.
+  recording and document, Quick entry's two, Import from MusicXML, the Recordings tool and a photo or PDF read.
+- **The server asks too (ML-574, security re-check 21 Oct 2026):** each of those upload tokens is refused
+  (409, reason `needs-upload-rights`) until the account has confirmed - `assertUploadRightsConfirmed`
+  (`server/services/accounts.js`). The app waits for the day to be saved before it uploads (`uploadToStore`),
+  so a member who has just said yes is never refused. The terms of use carry the same rule for everyone.
+- Each upload token also holds the upload to its own folder: a piece's `flows/<piece>/recordings/` or
+  `/documents/`, the member's own `flows/from-file/<account>/` for Import from MusicXML, `recordings/<account>/`
+  for the Recordings tool. What is kept is the file's real size and type, read from the file store
+  (`server/services/storedFiles.js`).
 - The date is the member's own information: it is in Download my information and is cleared when the
   account is deleted. **The privacy policy has to name it** (the owner's wording) before this is released.
 

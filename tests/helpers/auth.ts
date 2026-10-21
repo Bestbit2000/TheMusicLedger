@@ -9,13 +9,20 @@ import pg from 'pg';
 // hasn't confirmed it. The three local test accounts stand for adults running a band, so they are marked
 // as having confirmed, once per test worker, the first time each signs in. (Back-test 67, which is about
 // the confirmation itself, clears it again for its own account.)
+// The server also refuses an upload of music until the account has confirmed the right to upload it (ML-278,
+// security re-check 21 Oct 2026), and specs upload by setting the file input directly, past the button that
+// asks - so local-dev and local-standard are marked as having confirmed that too. local-admin is left alone:
+// back-test 65 clears it to check the question itself.
 const adultsConfirmed = new Set<string>();
-async function confirmAdult(email: string) {
+async function confirmAdult(email: string, uploadRights = false) {
   if (adultsConfirmed.has(email) || !process.env.DATABASE_URL) return;
   adultsConfirmed.add(email);
   const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
   await client.connect();
-  try { await client.query('UPDATE accounts SET organiser_adult_confirmed_on = COALESCE(organiser_adult_confirmed_on, CURRENT_DATE) WHERE email = $1', [email]); } finally { await client.end(); }
+  try {
+    await client.query('UPDATE accounts SET organiser_adult_confirmed_on = COALESCE(organiser_adult_confirmed_on, CURRENT_DATE) WHERE email = $1', [email]);
+    if (uploadRights) await client.query('UPDATE accounts SET upload_rights_confirmed_on = COALESCE(upload_rights_confirmed_on, CURRENT_DATE) WHERE email = $1', [email]);
+  } finally { await client.end(); }
 }
 
 // Home's "Log time you've already played" link (ML-378 - it replaced the old Add-session-time button) is always there.
@@ -35,7 +42,7 @@ async function onHome(page: Page) {
 export async function loginAsLocalDev(page: Page) {
   await page.goto('/auth/login');
   await onHome(page);
-  await confirmAdult('local-dev@themusicledger.local');
+  await confirmAdult('local-dev@themusicledger.local', true);
 }
 
 // ML-345: a standard member (local-standard@themusicledger.local) - for checking what Standard members
@@ -43,7 +50,7 @@ export async function loginAsLocalDev(page: Page) {
 export async function loginAsLocalStandard(page: Page) {
   await page.goto('/auth/login?as=standard');
   await onHome(page);
-  await confirmAdult('local-standard@themusicledger.local');
+  await confirmAdult('local-standard@themusicledger.local', true);
 }
 
 // ML-310: the second dev account, local-admin@themusicledger.local - a super admin on dev (local-dev

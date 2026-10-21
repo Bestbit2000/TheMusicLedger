@@ -197,6 +197,12 @@ export async function removeRecordingOnRequest(adminAccountId, { kind, id, reaso
       blobUrl = found.rows[0].blob_url || null;
       // The same stored file may be on other pieces: it comes off all of them
       rows = blobUrl ? (await client.query('SELECT id, score_id FROM score_recordings WHERE blob_url = $1', [blobUrl])).rows : found.rows;
+      // ...and if it came from the Recordings tool, the tool's own row goes too - its file is about to be deleted,
+      // so the tool would otherwise list a recording with nothing behind it (security re-check 21 Oct 2026)
+      if (blobUrl) {
+        const tool = await client.query('DELETE FROM rehearsal_recordings WHERE blob_url = $1 RETURNING account_id', [blobUrl]);
+        tool.rows.forEach((r) => tell.add(String(r.account_id)));
+      }
     }
     const scoreIds = scoreIdsGone || [...new Set(rows.map((r) => String(r.score_id)))];
     pieceCount = scoreIds.length;

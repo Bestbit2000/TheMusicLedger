@@ -102,6 +102,14 @@ export async function confirmUploadRights(accountId) {
   await pool.query('UPDATE accounts SET upload_rights_confirmed_on = COALESCE(upload_rights_confirmed_on, CURRENT_DATE) WHERE id = $1 AND deleted_at IS NULL', [accountId]);
 }
 
+// Security re-check 21 Oct 2026: the server asks for it too, not only the app - an upload of music (a
+// recording, a document, a MusicXML file, a photo or PDF of a part) is refused until the member has confirmed.
+export const UPLOAD_RIGHTS_FIRST = 'Before you upload music, confirm that you have the right to - tap the upload button again.';
+export async function assertUploadRightsConfirmed(accountId) {
+  const { rows } = await pool.query('SELECT upload_rights_confirmed_on FROM accounts WHERE id = $1', [accountId]);
+  if (!rows.length || !rows[0].upload_rights_confirmed_on) throw Object.assign(new Error(UPLOAD_RIGHTS_FIRST), { status: 409, reason: 'needs-upload-rights' });
+}
+
 // ML-517: the member has finished or left set-up, so it doesn't come up again by itself. The first day is
 // the one kept; going through it again from Settings changes nothing here.
 export async function markSetupDone(accountId) {

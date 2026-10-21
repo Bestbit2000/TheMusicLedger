@@ -3930,10 +3930,10 @@
 
                 div.innerHTML = `
                     <div class="history-details">
-                        <strong class="category-text">${categoryLabel(item.category)} ${item.who ? `(${escapeHtml(item.who)})` : ''}</strong>
+                        <strong class="category-text">${escapeHtml(categoryLabel(item.category))} ${item.who ? `(${escapeHtml(item.who)})` : ''}</strong>
                         ${dObj.getDate() || '?'} ${mNames[dObj.getMonth()] || '?'} ${dObj.getFullYear() || '?'} | ${Math.round(item.duration)} mins
                     </div>
-                    <button type="button" class="list-item-menu-btn" data-session-history-menu-btn aria-label="Options for ${categoryLabel(item.category)} entry" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
+                    <button type="button" class="list-item-menu-btn" data-session-history-menu-btn aria-label="Options for ${escapeHtml(categoryLabel(item.category))} entry" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
                 `;
                 list.appendChild(div);
             });
@@ -3949,7 +3949,7 @@
             if(historySummary) historySummary.innerText = `${formatMins(totalMins)} (${monthData.length})`;
         } catch (err) {
             const historyList = document.getElementById('historyList');
-            if(historyList) historyList.innerHTML = `<div class="text-danger text-center p-5">Error rendering history:<br>${err.message}</div>`;
+            if(historyList) historyList.innerHTML = `<div class="text-danger text-center p-5">Error rendering history:<br>${escapeHtml(err.message)}</div>`;
             showWarningToast("History error: " + err.message);
         }
     }
@@ -4198,7 +4198,7 @@
         if (!list) return;
         list.innerHTML = myInstruments.length ? myInstruments.map(i => `
             <div class="history-item">
-                <span class="grow"><strong>${escapeHtml(i.name)}</strong><br><span class="text-sm text-muted">${i.isPrimary ? 'Main instrument' : escapeHtml(i.family)}${instrumentHasClefChoice(i) ? ` · ${i.theoryClef} clef` : ''}${isFeatureEnabled('range_trainer') && i.bottomNote && i.topNote ? ` · range ${PlayRange.label(i.bottomNote)} to ${PlayRange.label(i.topNote)}` : ''}</span>${accountInstrumentRangeBar(i)}</span>
+                <span class="grow"><strong>${escapeHtml(i.name)}</strong><br><span class="text-sm text-muted">${i.isPrimary ? 'Main instrument' : escapeHtml(i.family)}${instrumentHasClefChoice(i) ? ` · ${escapeHtml(i.theoryClef)} clef` : ''}${isFeatureEnabled('range_trainer') && i.bottomNote && i.topNote ? ` · range ${PlayRange.label(i.bottomNote)} to ${PlayRange.label(i.topNote)}` : ''}</span>${accountInstrumentRangeBar(i)}</span>
                 <button type="button" class="list-item-menu-btn" data-instrument-menu-id="${i.id}" aria-label="Options for ${escapeHtml(i.name)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
             </div>`).join('') : '<div class="text-muted">No instruments yet - choose the one you play below.</div>';
         list.querySelectorAll('[data-instrument-menu-id]').forEach(btn => btn.addEventListener('click', (e) => {
@@ -9138,6 +9138,13 @@
     // day they agreed is kept on their account (accounts.upload_rights_confirmed_on). Every button that
     // opens a file chooser for music goes through here. go() runs first, inside the tap, because a
     // browser only opens a file chooser from the member's own tap; the day is saved straight after.
+    // The server asks for it too (security re-check 21 Oct 2026), so an upload waits for the day to be saved
+    // (uploadToStore) - the file chooser is open while it is, so nobody waits in practice.
+    let uploadRightsSaving = Promise.resolve();
+    async function uploadToStore(...args) {
+        await uploadRightsSaving;
+        return window.vercelBlobUpload(...args);
+    }
     function withUploadRights(go) {
         if (accountProfile && accountProfile.uploadRightsConfirmedOn) { go(); return; }
         showConfirmModal('Before you upload',
@@ -9145,7 +9152,7 @@
             () => {
                 if (accountProfile) accountProfile.uploadRightsConfirmedOn = todayIso();
                 go();
-                apiCall('/api/account/upload-rights', 'POST').catch(() => { if (accountProfile) accountProfile.uploadRightsConfirmedOn = null; });
+                uploadRightsSaving = apiCall('/api/account/upload-rights', 'POST').catch(() => { if (accountProfile) accountProfile.uploadRightsConfirmedOn = null; });
             }, false, 'I have the right to upload it');
     }
     function pieceFileTooBig(file) {
@@ -10842,7 +10849,7 @@
         progressBox.classList.remove('hidden-group');
 
         try {
-            const blob = await window.vercelBlobUpload(`flows/from-file/${Date.now()}-${file.name}`, file, {
+            const blob = await uploadToStore(`flows/from-file/${(accountProfile || await API.account.get()).id}/${Date.now()}-${file.name}`, file, { // the member's own import folder
                 access: 'public',
                 handleUploadUrl: `${API_BASE_URL}/api/flows/from-file/upload-token?token=${encodeURIComponent(auth.token)}`,
                 onUploadProgress: (progress) => {
@@ -11517,7 +11524,7 @@
             // the module script in index.html) - never through our own server, which is why the
             // separate confirm call below exists (see the upload-token route's own comment for why
             // it can't just rely on Blob's onUploadCompleted webhook).
-            const blob = await window.vercelBlobUpload(`flows/${currentFlowId}/recordings/${file.name}`, file, {
+            const blob = await uploadToStore(`flows/${currentFlowId}/recordings/${file.name}`, file, {
                 access: 'public',
                 // Token travels as a query param, not the usual Authorization header - upload()
                 // makes its own internal fetch() with a hardcoded header set (see
@@ -11651,7 +11658,7 @@
         fillEl.style.setProperty('--progress', '0%');
         progressBox.classList.remove('hidden-group');
         try {
-            const blob = await window.vercelBlobUpload(`flows/${currentFlowId}/documents/${file.name}`, file, {
+            const blob = await uploadToStore(`flows/${currentFlowId}/documents/${file.name}`, file, {
                 access: 'public',
                 // See the recordings upload handler above for why the token is a query param here.
                 handleUploadUrl: `${API_BASE_URL}/api/flows/${currentFlowId}/documents/upload-token?token=${encodeURIComponent(auth.token)}`,
@@ -15216,7 +15223,7 @@
         const { p } = pos;
         const block = flowPassageBlock(p);
         const bpm = Math.round(flowCurrentBpm ?? block.bpm);
-        const timeSig = block.timeSignatureLabel || `${block.numerator}/${block.denominator}`;
+        const timeSig = escapeHtml(block.timeSignatureLabel || `${block.numerator}/${block.denominator}`); // HTML, so escaped like every other label
         // ML-302: "Repeat 3 · ..." while repeating; rest bars count in before the first pass.
         const loopPrefix = flowLoopPlan ? `Repeat ${p.loopPass} · ` : '';
         if (p.kind === 'rest') {
@@ -15226,7 +15233,7 @@
             return `${loopPrefix}${first ? 'Count-in' : 'Rest'} ${p.restIndex + 1} of ${restBars} · ${timeSig} · ${bpm} bpm`;
         }
         if (p.kind === 'leadIn') {
-            return `${loopPrefix}Lead-in · ${block.timeSignatureLabel} · ${bpm} bpm`;
+            return `${loopPrefix}Lead-in · ${escapeHtml(block.timeSignatureLabel)} · ${bpm} bpm`;
         }
         const parts = [];
         if (flowLoopPlan) parts.push(`Repeat ${p.loopPass}`);
@@ -15239,7 +15246,7 @@
         if (block.rehearsalMark) parts.push(`<span class="flow-bar-detail-mark">${escapeHtml(block.rehearsalMark)}</span>`);
         else if (startBar !== null && block.barCount > 1) parts.push(`bars ${startBar} to ${startBar + block.barCount - 1}`);
         if (p.kind === 'main' && flowRepeatedBlockIds.has(p.blockId)) parts.push(`${FLOW_ORDINALS[p.pass - 1] || `${p.pass}th`} time`);
-        parts.push(block.timeSignatureLabel || `${block.numerator}/${block.denominator}`, `${bpm} bpm`);
+        parts.push(timeSig, `${bpm} bpm`);
         return parts.join(' · ') + metroBlkFermataLabelSuffix(block);
     }
 
@@ -15975,7 +15982,7 @@
         try {
             // Sent in parts (multipart): a part that fails is sent again, so a dropped connection in a
             // band room doesn't mean starting a 60 MB upload from nothing.
-            const blob = await window.vercelBlobUpload(`${recordingsData.folder}/${file.name}`, file, {
+            const blob = await uploadToStore(`${recordingsData.folder}/${file.name}`, file, {
                 access: 'public',
                 multipart: true,
                 handleUploadUrl: `${API_BASE_URL}/api/recordings/upload-token?token=${encodeURIComponent(auth.token)}`,
@@ -22729,7 +22736,7 @@
             say(`Uploading ${i + 1} of ${files.length}...`);
             try {
                 // Straight from this browser to Blob storage, then attached to the piece - as the edit screen's Media tab does
-                const blob = await window.vercelBlobUpload(`flows/${created.id}/${kind}/${file.name}`, file, {
+                const blob = await uploadToStore(`flows/${created.id}/${kind}/${file.name}`, file, {
                     access: 'public',
                     handleUploadUrl: `${API_BASE_URL}/api/flows/${created.id}/${kind}/upload-token?token=${encodeURIComponent(auth.token)}`,
                     onUploadProgress: (progress) => say(`Uploading ${i + 1} of ${files.length}: ${Math.round(progress.percentage)}%`)
@@ -22805,7 +22812,7 @@
         const sent = [];
         for (let i = 0; i < files.length; i++) {
             const ext = (files[i].name.match(/\.[a-z0-9]{2,5}$/i) || [''])[0].toLowerCase();
-            const blob = await window.vercelBlobUpload(`${folder}/${accountProfile.id}/${Date.now()}-${i + 1}${ext}`, files[i], {
+            const blob = await uploadToStore(`${folder}/${accountProfile.id}/${Date.now()}-${i + 1}${ext}`, files[i], {
                 access: 'public',
                 handleUploadUrl: `${API_BASE_URL}/api/piece-read/upload-token?token=${encodeURIComponent(auth.token)}`,
                 onUploadProgress: (progress) => say(`Sending ${files.length > 1 ? `${i + 1} of ${files.length}` : 'it'}: ${Math.round(progress.percentage)}%`)

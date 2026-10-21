@@ -23,6 +23,7 @@ import pool from '../config/db.js';
 import { del } from '@vercel/blob';
 import { accountDisplayName } from './accounts.js';
 import { isBandLogoFileUrl, MAX_BAND_LOGO_BYTES, BAND_LOGO_TYPES } from './blobUrls.js';
+import { storedFileFacts } from './storedFiles.js';
 import { sendMail, emailBody, emailOutcome } from './mail.js';
 import { passwordLinkForNewcomer } from './passwordAuth.js';
 import { isFeatureEnabled } from './features.js';
@@ -546,6 +547,10 @@ export async function setBandLogo(accountId, bandId, { blobUrl, fileSizeBytes, m
   if (!isBandLogoFileUrl(blobUrl, bandId)) throw fail(400, 'That file is not one this app stored for the band.');
   if (Number(fileSizeBytes) > MAX_BAND_LOGO_BYTES) throw fail(413, 'A logo can be up to 1 MB.');
   if (mimeType && !BAND_LOGO_TYPES.includes(String(mimeType))) throw fail(400, 'A logo has to be a picture: PNG, JPEG or WebP.');
+  // and what is really stored, not only what the browser said (security re-check 21 Oct 2026)
+  const real = await storedFileFacts(blobUrl);
+  if (real.sizeBytes > MAX_BAND_LOGO_BYTES) throw fail(413, 'A logo can be up to 1 MB.');
+  if (!BAND_LOGO_TYPES.includes(String(real.contentType))) throw fail(400, 'A logo has to be a picture: PNG, JPEG or WebP.');
   const old = await bandLogoUrl(bandId);
   await pool.query(
     `UPDATE bands SET logo_url = $2, logo_pathname = $3, logo_set_by_account_id = $4, logo_set_at = now() WHERE id = $1 AND kind = 'group'`,

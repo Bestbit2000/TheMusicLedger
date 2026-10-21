@@ -28,6 +28,7 @@ import { getConfigValue } from './appConfig.js';
 import { NOTE_VALUES } from './metronomeSegments.js';
 import { canDeleteFlow, BAND_CAN_CHANGE_SQL, PLAY_ONLY_MESSAGE } from './flowPermissions.js';
 import { isPieceFileUrl, MAX_PIECE_FILE_BYTES } from './blobUrls.js';
+import { storedFileFacts } from './storedFiles.js';
 import { noticeBandNews, noticePieceDeleted } from './autoNotices.js'; // ML-497
 const TOO_BIG = `That file is bigger than ${MAX_PIECE_FILE_BYTES / (1024 * 1024)} MB, which is the most a piece can hold.`;
 
@@ -36,8 +37,8 @@ const TOO_BIG = `That file is bigger than ${MAX_PIECE_FILE_BYTES / (1024 * 1024)
 // piece already points at. Before this, any address was stored as sent - a member could plant an
 // address that ran script for whoever opened the piece, or attach another piece's file and then
 // delete it.
-async function assertOwnUnusedBlob(blobUrl, scoreId) {
-  if (!isPieceFileUrl(blobUrl, scoreId)) throw withStatus(400, 'That file is not one this app stored.');
+async function assertOwnUnusedBlob(blobUrl, scoreId, accountId) {
+  if (!isPieceFileUrl(blobUrl, scoreId, accountId)) throw withStatus(400, 'That file is not one this app stored.');
   const { rows } = await pool.query(
     `SELECT 1 FROM score_recordings WHERE blob_url = $1 UNION ALL SELECT 1 FROM score_documents WHERE blob_url = $1 LIMIT 1`, [blobUrl]);
   if (rows.length) throw withStatus(409, 'That file is already attached to a piece.');
@@ -529,11 +530,13 @@ export async function addUploadedRecording(accountId, scoreId, { blobUrl, blobPa
   if (Number(fileSizeBytes) > MAX_PIECE_FILE_BYTES) throw withStatus(413, TOO_BIG);
   const clip = cleanClip({ startMs: clipStartMs, endMs: clipEndMs });
   const movement = await checkedMovement(scoreId, movementNumber);
-  await assertOwnUnusedBlob(blobUrl, scoreId);
+  await assertOwnUnusedBlob(blobUrl, scoreId, accountId);
+  const real = await storedFileFacts(blobUrl); // what is really stored, not what the browser said
+  if (real.sizeBytes > MAX_PIECE_FILE_BYTES) throw withStatus(413, TOO_BIG);
   await pool.query(
     `INSERT INTO score_recordings (score_id, type, title, blob_url, blob_pathname, file_size_bytes, mime_type, clip_start_ms, clip_end_ms, movement_number, order_index)
      VALUES ($1, 'upload', $2, $3, $4, $5, $6, $7, $8, $9, (SELECT COALESCE(MAX(order_index), -1) + 1 FROM score_recordings WHERE score_id = $1))`,
-    [scoreId, fileName || 'Untitled recording', blobUrl, blobPathname, fileSizeBytes || null, mimeType || null, clip.startMs, clip.endMs, movement]
+    [scoreId, fileName || 'Untitled recording', blobUrl, blobPathname, real.sizeBytes, real.contentType || mimeType || null, clip.startMs, clip.endMs, movement]
   );
   return getFlowDetail(accountId, scoreId);
 }
@@ -654,11 +657,13 @@ export async function addDocument(accountId, scoreId, { blobUrl, blobPathname, f
   await assertFlowAccess(accountId, scoreId);
   if (!blobUrl || !blobPathname || !fileName) throw withStatus(400, 'Missing uploaded file details.');
   if (Number(fileSizeBytes) > MAX_PIECE_FILE_BYTES) throw withStatus(413, TOO_BIG);
-  await assertOwnUnusedBlob(blobUrl, scoreId);
+  await assertOwnUnusedBlob(blobUrl, scoreId, accountId);
+  const real = await storedFileFacts(blobUrl); // what is really stored, not what the browser said
+  if (real.sizeBytes > MAX_PIECE_FILE_BYTES) throw withStatus(413, TOO_BIG);
   await pool.query(
     `INSERT INTO score_documents (score_id, file_name, blob_url, blob_pathname, file_size_bytes, mime_type)
      VALUES ($1, $2, $3, $4, $5, $6)`,
-    [scoreId, fileName, blobUrl, blobPathname, fileSizeBytes || null, mimeType || null]
+    [scoreId, fileName, blobUrl, blobPathname, real.sizeBytes, real.contentType || mimeType || null]
   );
   return getFlowDetail(accountId, scoreId);
 }

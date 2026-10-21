@@ -12,8 +12,11 @@ test('a recording or document uploaded for the piece is accepted - with spaces, 
   assert.equal(isPieceFileUrl(`${STORE}/flows/10/documents/plain.pdf`, '10'), true);
 });
 
-test('a file from "Import from MusicXML" is accepted for the piece it made', () => {
-  assert.equal(isPieceFileUrl(`${STORE}/flows/from-file/1790525229901-Teddy%20Bears%20Picnic-AeWFxdsUno951vi759dzm7kn7IEwGg.musicxml`, 68), true);
+test('a file from "Import from MusicXML" is accepted for the piece it made - only from the importer\'s own folder', () => {
+  assert.equal(isPieceFileUrl(`${STORE}/flows/from-file/7/1790525229901-Teddy%20Bears%20Picnic-AeWFxdsUno951vi759dzm7kn7IEwGg.musicxml`, 68, 7), true);
+  assert.equal(isPieceFileUrl(`${STORE}/flows/from-file/8/1790525229901-Teddy-Ae.musicxml`, 68, 7), false); // another member's upload
+  assert.equal(isPieceFileUrl(`${STORE}/flows/from-file/1790525229901-Teddy-Ae.musicxml`, 68, 7), false); // the old shared folder
+  assert.equal(isPieceFileUrl(`${STORE}/flows/from-file/7/x.musicxml`, 68), false); // no member given
 });
 
 test('another piece\'s file is refused', () => {

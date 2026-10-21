@@ -218,6 +218,94 @@ export default {
           summary: 'Unchanged: an unexpected error is logged and the caller told only "Something went wrong"; only a message a service wrote on purpose (below 500) is passed on, with its short reason word.',
           details: ['A data address asked for without signing in answers 401 (admin) or the app\'s own front page (a page route), never data.'] }
       ]
+    },
+    {
+      // A re-check of the 20 Oct review, asked for by the owner: its five conditions, sharing, the uploads, and the
+      // line-by-line read of app.js it had not done. The checks not listed here were not re-run; their latest
+      // result is still the 20 Oct one.
+      id: '2026-10-21',
+      reviewedAt: '2026-10-21T17:45:00Z',
+      reviewer: 'Claude Code (ML-231 re-check, ML-574)',
+      upstreamCommitSha: '0.65.0',
+      tools: [
+        'Eight read-only readers (Claude sub-agents) in parallel, each reading about 3,200 lines of public/app.js line by line (all 25,750), following every helper that returns HTML and every place a value could come from; about 430 places that build HTML were checked',
+        'Each of the 20 Oct conditions checked in the code and on the live site (curl: an enforced content-security-policy on a page and on a data answer; releases.json says 0.65.0)',
+        'Every upload token route read, and asked for tokens on the dev server: a token for another folder is refused (400)',
+        'Unit tests (uploadRules, blobUrls, callLimits, bandGroups on the dev database) and back-tests 9, 62-66, 82 and 84 - every upload path - on dev'
+      ],
+      verdict: {
+        status: 'go',
+        summary: 'Sound for members. The five fixes the 20 October review was waiting on are live (0.64.0, now 0.65.0): the pages enforce the content security policy again, a stored file must be in this app\'s own store, a band\'s name is escaped on History, a photo or PDF read\'s pages are always deleted, and every organiser action asks that the organiser is an adult. All of app.js has now been read line by line and nothing one member types reaches another member\'s screen unescaped. The four upload lows re-checked here are fixed in the next release (ML-574).',
+        conditions: [
+          { done: true, text: 'The content security policy is enforced on the pages again, enforced is the sync script\'s default, and a test fails on report-only (ML-555, released in 0.64.0; checked on the live site).' },
+          { done: true, text: 'A stored file must be in this app\'s own file store, not any Vercel customer\'s (ML-551, released in 0.64.0).' },
+          { done: true, text: 'A band\'s name is escaped on the History page (ML-552, released in 0.64.0).' },
+          { done: true, text: 'The pages of a photo or PDF read are always deleted - on a refused or failed read, by a daily clear-out, and with the account (ML-553, released in 0.64.0).' },
+          { done: true, text: 'Every organiser action asks that the organiser has confirmed they are an adult, not just inviting (ML-554, released in 0.64.0).' }
+        ]
+      },
+      acceptedAdvisories: [],
+      results: [
+        { checkKey: 'shared-data', status: 'pass',
+          summary: 'Bands, teachers and labels share what they should and no more; a conductor or organiser never sees a member\'s practice or readiness. The organiser rule is live, and the right-to-upload confirmation is now checked by the server.',
+          details: [
+            'Live since 0.64.0 (ML-554) - every organiser action asks that the organiser has confirmed they are an adult: the logo and its upload, removing a member, changing a member\'s level, as well as inviting and setting up sharing. Stepping yourself down doesn\'t ask, so an organiser who isn\'t an adult can stop being one. Checked in bands.js.',
+            'The owner\'s rule stands (20 Oct 2026): a member an organiser has given "change music" may add recordings, videos and documents to a band\'s piece; only an organiser can give that level and nobody else can pass it on; the Recordings tool puts a recording on a band\'s piece for organisers only.',
+            'FIXED (ML-574, next release) - the "I have the right to upload it" confirmation (ML-278) was only asked by the app. The server now refuses an upload of music until the member has confirmed: a piece\'s recordings and documents, Import from MusicXML, the Recordings tool and a photo or PDF read. The app waits for the confirmation to be saved before it uploads.',
+            'Teachers: per member since ML-472; nothing lets a teacher see students yet, so a teacher sees nothing of anyone.'
+          ] },
+        { checkKey: 'cross-site-scripting', status: 'pass',
+          summary: 'All of app.js read line by line: nothing one member types reaches another member\'s screen unescaped, and no escaped value sits in a single-quoted attribute. The content security policy is enforced on the pages and the data answers.',
+          details: [
+            'Read: all 25,750 lines, by eight readers, about 430 places that build HTML each followed to where its text comes from. Pieces, marks, movements, recordings, documents, band and member names, invitations, practice and skills lists, notifications, Quick entry, the Recordings tool, the set-up steps and Theory all escape what they show or set it as text.',
+            'Hardened (ML-574, next release) - five places that put the member\'s own data, or a value no member can type, into HTML unescaped: the session category and an error message on History, the clef on My instruments, the time signature on the play screen\'s now-playing line, and the avatar\'s initials. All escaped now. None was something one member could show another.',
+            'Avatars: either one of 12 drawings held in the app\'s own code (the server refuses any other value) or the first letter of each name - nothing can be hidden in either, and the initials are escaped as well.',
+            'Two helpers take ready-made HTML by design (openFlowChoiceModal, renderPickList); every caller builds it with addPieceRow, which escapes, or escapes it itself - checked at each call.',
+            'Not read line by line: admin.js and the smaller scripts (the pattern scan of 20 Oct, every hit read, still stands).'
+          ] },
+        { checkKey: 'file-uploads', status: 'pass',
+          summary: 'An upload needs the right to edit, the confirmed right to upload, its own folder, and a size and type the file store holds it to; what is kept is what is really stored. The lows recorded on 20 Oct are fixed.',
+          details: [
+            'FIXED (ML-574) - folders: the recording and document upload tokens hold the upload to that piece\'s own folder (flows/<piece>/recordings/ and /documents/), and Import from MusicXML to the member\'s own import folder (flows/from-file/<account>/) - it was one folder every member shared, so a file from another member\'s import can no longer be attached. Checked on the dev server: a token asked for another folder is refused.',
+            'FIXED (ML-574) - size and type: what is kept is read from the file store, not what the browser said. A stored file over the limit, a video sent to the Recordings tool, or a logo that isn\'t PNG, JPEG or WebP is refused when it is kept.',
+            'FIXED (ML-574) - Admin -> Recordings: removing a piece\'s copy of a Recordings-tool recording now removes the tool\'s own row too, and tells its owner. (The page already listed such a recording once, under the tool, so this was only reachable by asking the server directly.)',
+            'Still sound: ML-551 (the store id from the upload key) and ML-553 (a photo or PDF read\'s pages always deleted), both live since 0.64.0.',
+            'Still open, low (sessions and tokens, 20 Oct): an upload token request carries the sign-in token in the address (?token=). A short-lived upload ticket would be better.'
+          ] },
+        { checkKey: 'dependency-audit', status: 'pass',
+          summary: 'npm audit --omit=dev, run again: one new advisory since 20 Oct, in follow-redirects 1.16.0 (high), not reachable - updated to 1.16.1 in both lockfiles; npm audit now reports nothing in the root or in server/.',
+          details: [
+            'GHSA-q3jh-wrc6-jgq8 and GHSA-8r9p-f939-6h3c (follow-redirects can pass a credential header on to another site on a redirect). It comes in only through axios, and no code in the app uses axios - so it could not be reached. Updated anyway (ML-574); axios itself is unused and could be taken out.'
+          ] },
+        // Not re-run on 21 Oct - the 20 Oct result stands, said again here so this review has a result for every check.
+        { checkKey: 'object-access', status: 'pass',
+          summary: 'Not re-run on 21 Oct - the 20 Oct result stands: every route that takes an id limits the row to the caller; no member can reach another member\'s private rows. The upload routes were read again (see Uploaded files).',
+          details: ['Still recorded, low (20 Oct): list_count on a band piece counts every member\'s practice lists; a band list can show the title of a piece the viewer can\'t open; inviting a member says whether an address already has an account.'] },
+        { checkKey: 'sql-injection', status: 'pass',
+          summary: 'Not re-run on 21 Oct - the 20 Oct result stands: no query is built from request input. The queries added since (the admin waiting count, archiving several pieces) use fixed text and numbered parameters only.',
+          details: [] },
+        { checkKey: 'server-side-fetch', status: 'pass',
+          summary: 'Not re-run on 21 Oct - the 20 Oct result stands. One new call to the file store: reading a kept file\'s size and type (head) for an address already checked to be this app\'s own.',
+          details: ['Still recorded, low (20 Oct): three IPv6 forms treated as public; DNS rebinding still open. Still to check: whether the AI Gateway honours zero data retention on the endpoint the photo reader uses.'] },
+        { checkKey: 'sessions-and-tokens', status: 'warn',
+          summary: 'Not re-run on 21 Oct - the 20 Oct result stands: tokens are signed, tied to sign-out-everywhere, refused for a closed account, never cached, and carry none of Google\'s keys. One low still open.',
+          details: ['Low, open: every upload token request carries the 30-day sign-in token in the address (?token=). A short-lived upload ticket would be better.'] },
+        { checkKey: 'test-logins', status: 'pass',
+          summary: 'Not re-run on 21 Oct - the 20 Oct result stands: neither shortcut works on the live site.',
+          details: [] },
+        { checkKey: 'rate-limits', status: 'pass',
+          summary: 'Not re-run on 21 Oct - the 20 Oct result stands: sign-in, resets and two-step codes lock after repeated tries; upload tokens, adding a band, feedback, invites and photo reads are limited per account.',
+          details: [] },
+        { checkKey: 'device-storage', status: 'pass',
+          summary: 'Not re-run on 21 Oct - the 20 Oct result stands: signing out clears the member\'s information from the device; the service worker keeps the app\'s own files only.',
+          details: [] },
+        { checkKey: 'secrets-in-repo', status: 'pass',
+          summary: 'Not re-run on 21 Oct - the 20 Oct result stands: no key, password or token in any tracked file or in the git history (a pattern search; Gitleaks itself still not run).',
+          details: [] },
+        { checkKey: 'error-messages', status: 'pass',
+          summary: 'Not re-run on 21 Oct - the 20 Oct result stands: an unexpected error is logged and the caller told only "Something went wrong". New messages added since are written on purpose and say nothing about what exists.',
+          details: [] }
+      ]
     }
   ]
 };
