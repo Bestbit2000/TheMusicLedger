@@ -39,7 +39,7 @@ list whose rows open a pop-up.
 | My music (`metroBuilderView`) | the piece, playing | Pick a piece to open it. |
 | Settings (`settingsView`) | Display, Stats, Tuner, Metronome and playback | Pick a setting. |
 | My account (`accountView`) | My details, Sign-in and security, My bands, My teachers | Pick what to look at. |
-| About (`aboutView`) | Release history, Exam grades | Pick what to read. |
+| About (`aboutView`) | Release history, Privacy policy, Terms of use, Exam grades (the two policies are a pop-up below 1000px - ML-564, see [layout](../foundations/layout.md)) | Pick what to read. |
 
 - `applyPanes(viewName)` runs at the end of every `switchView`. A screen opened from its list (the screen
   before it on the stack) gets the list beside it; anything else is a page on its own.

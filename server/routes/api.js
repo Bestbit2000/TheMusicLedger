@@ -126,7 +126,9 @@ router.get('/notifications', requireAuth, resolveAccount, async (req, res) => {
 // sign-in screen shows them too (owner, 8 Oct 2026). Only notices for everyone that a super admin made a banner.
 router.get('/notices/banner', async (req, res) => {
   try {
-    res.json(await listBannerNotices());
+    // ML-564: and the release this deployment is running, so the "A new version is ready" strip reaches every
+    // member, not only those with the notifications feature (it is public anyway - releases.json).
+    res.json({ ...(await listBannerNotices()), appVersion: currentAppVersion() });
   } catch (error) {
     sendError(res, error);
   }

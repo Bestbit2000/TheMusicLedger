@@ -1,7 +1,7 @@
 # Notice banner
 
 ## 1. Metadata
-- **Name:** Notice banner (`style.css`: `.notice-banner`, `.notice-banner-icon`, `.notice-banner-text`, `.notice-banner-close`, `.notice-banner-full`)
+- **Name:** Notice banner (`style.css`: `.notice-banner`, `.notice-banner-icon`, `.notice-banner-text`, `.notice-banner-close`, `.notice-banner-full`; the update strip `.update-banner`, `.update-banner-title`, `.update-banner-actions`, `.update-banner-reload` - ML-564)
 - **Category:** Status
 - **Status:** New (ML-495)
 
@@ -27,14 +27,27 @@ notification centre), for the connection (that is the [offline bar](offline-stat
   above the sign-in screen (`--z-over-splash`), since it opens from there too.
 - One banner at a time, the oldest first; hiding it shows the next.
 
+### A new version is ready (ML-564)
+`div.notice-banner.update-banner#updateBanner` (`role="region"`, "New version"), under the notice strip in
+`.top-bar-sticky-group`, signed in only: a `refresh` icon, the words "A new version is ready"
+(`.update-banner-title`), then `.update-banner-actions` - **Reload** (`.update-banner-reload`, an outlined button in
+the strip's own colour) and **See what's new** (`.notice-banner-text`, underlined, opens `#whatsNewModal`: the notes
+for every release newer than the one this device is running, and Reload now) - and the × (`.notice-banner-close`),
+which hides it **for this visit, for this version** (a newer version shows again). On a phone it is a grid: icon,
+words and × on the first line, the two buttons under the words. From 700px it is one line.
+It shows when the device's code is older than the deployed release - [docs/notifications.md](../../docs/notifications.md),
+"Why update available exists". It never reloads by itself.
+
 ## 4. Tokens used
 `--status-blue-bg`, `--status-blue-fg` (the "scheduled" pair - so it isn't taken for the amber offline bar or an
 error), `--app-max-width`, `--touch-target`, `--radius-circle`, `--space-1`, `--space-2`, `--space-5`, `--font-sm`,
-`--font-weight-semibold`, `--z-over-splash`.
+`--font-weight-semibold`, `--z-over-splash`. The update strip adds `--space-4` and `--radius-sm` (Reload's border is
+`--status-blue-fg`, the strip's own text colour).
 
 ## 5. Props / API
 `GET /api/notices/banner` - open, no sign-in (listed in `OPEN_ROUTES`): `{ banners: [{ id, title, body, publishAt,
-expiresAt }] }`, only live notices for everyone switched on as a banner, at most 3. Read once as the page opens, every
+expiresAt }], appVersion }`, only live notices for everyone switched on as a banner, at most 3; `appVersion` is the
+deployed release (ML-564 - so the update strip reaches every member, whatever features their account has). Read once as the page opens, every
 minute while it is on screen and when it comes back to the front. Nothing is kept on the device.
 
 ## 6. States

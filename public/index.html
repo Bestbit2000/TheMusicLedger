@@ -241,6 +241,19 @@
         <button type="button" class="notice-banner-close" data-notice-banner-close aria-label="Hide this notice until next time"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
     </div>
 
+    <!-- ML-564: a new version is ready (the code this device is running is older than the deployed release) - every
+         screen, signed in. Reload, or See what's new (#whatsNewModal); the X hides it for this visit.
+         specs/components/notice-banner.md -->
+    <div class="notice-banner update-banner hidden-group" id="updateBanner" role="region" aria-label="New version">
+        <span class="material-symbols-outlined notice-banner-icon" aria-hidden="true">refresh</span>
+        <span class="update-banner-title">A new version is ready</span>
+        <span class="update-banner-actions">
+            <button type="button" class="update-banner-reload" data-act="reload">Reload</button>
+            <button type="button" class="notice-banner-text" id="updateBannerMore" aria-haspopup="dialog">See what's new</button>
+        </span>
+        <button type="button" class="notice-banner-close" id="updateBannerClose" aria-label="Hide until next time"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
+    </div>
+
     <!-- ML-220: no connection, or things logged offline still waiting to be sent. Sits under the top bar
          on every screen; hidden when online with nothing waiting. specs/components/offline-status.md -->
     <div class="offline-bar hidden-group" id="offlineBar" role="status" aria-live="polite">
@@ -1066,19 +1079,28 @@
         <div id="invitePending"></div>
     </div>
 
-    <!-- ML-430: About is a short list - the release you're on, then the policies, the release history and
-         where the exam grades come from. The two policies are pages of their own (privacy.html, terms.html)
-         so they can be read signed out; they open in a new tab. -->
+    <!-- ML-430/564: About is a list and nothing else - the release history (the version you're on at the top),
+         the two policies and where the exam grades come from. A new version waiting is the update strip's job
+         (#updateBanner), on every screen. The two policies are pages of their own (privacy.html, terms.html) so
+         they can be read signed out; the app reads the same pages in (aboutPolicyNodes), so the wording is in one
+         place - in a pop-up below 1000px wide, beside the list from 1000px (owner, 21 Oct 2026). -->
     <div id="aboutView" class="hidden-group">
-        <div id="aboutCurrentRelease"></div>
-        <button type="button" class="history-item settings-link" data-act="open-page" data-arg="/privacy.html"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">shield_person</span><span class="settings-link-text"><span class="settings-link-title">Privacy policy</span><span class="settings-link-sub">What we hold about you, and how to delete it</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
-        <button type="button" class="history-item settings-link" data-act="open-page" data-arg="/terms.html"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">gavel</span><span class="settings-link-text"><span class="settings-link-title">Terms of use</span><span class="settings-link-sub">The terms for using the app</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
-        <button type="button" class="history-item settings-link" data-act="view" data-arg="aboutReleasesView"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">history</span><span class="settings-link-text"><span class="settings-link-title">Release history</span><span class="settings-link-sub">What changed in each version</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" data-act="view" data-arg="aboutReleasesView"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">history</span><span class="settings-link-text"><span class="settings-link-title">Release history</span><span class="settings-link-sub" id="aboutReleasesSub">What changed in each version</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" data-act="about-policy" data-arg="privacy"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">shield_person</span><span class="settings-link-text"><span class="settings-link-title">Privacy policy</span><span class="settings-link-sub">What we hold about you, and how to delete it</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <button type="button" class="history-item settings-link" data-act="about-policy" data-arg="terms"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">gavel</span><span class="settings-link-text"><span class="settings-link-title">Terms of use</span><span class="settings-link-sub">The terms for using the app</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <button type="button" class="history-item settings-link" data-act="view" data-arg="aboutGradesView"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">school</span><span class="settings-link-text"><span class="settings-link-title">Exam grades</span><span class="settings-link-sub">Where the grade lists come from</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
     </div>
 
     <div id="aboutReleasesView" class="hidden-group">
         <div id="aboutReleaseHistory"></div>
+    </div>
+
+    <!-- ML-564: the policies, read in from privacy.html / terms.html -->
+    <div id="aboutPrivacyView" class="hidden-group">
+        <div id="aboutPrivacyText"></div>
+    </div>
+    <div id="aboutTermsView" class="hidden-group">
+        <div id="aboutTermsText"></div>
     </div>
 
     <!-- ML-313: where the grade content comes from, and that we aren't connected with the exam board -->
@@ -3215,6 +3237,27 @@
     <div class="modal" id="scalesMyRangeModal" role="dialog" aria-modal="true" aria-labelledby="scalesMyRangeTitle">
         <div class="modal-content">
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+    <!-- ML-564: "See what's new" on the update strip - the notes for everything newer than this device is running -->
+    <div class="modal" id="whatsNewModal" role="dialog" aria-modal="true" aria-labelledby="whatsNewTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+            <h2 id="whatsNewTitle">What's new</h2>
+            <p class="modal-intro text-muted" id="whatsNewIntro"></p>
+            <div id="whatsNewNotes"></div>
+            <button type="button" class="btn-submit no-margin mt-4" data-act="reload">Reload now</button>
+        </div>
+    </div>
+
+    <!-- ML-564: the privacy policy or terms of use, read in from privacy.html / terms.html - the pop-up below 1000px
+         wide; from 1000px they open beside About's list (aboutPrivacyView, aboutTermsView) -->
+    <div class="modal" id="policyModal" role="dialog" aria-modal="true" aria-labelledby="policyModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+            <h2 id="policyModalTitle"></h2>
+            <div id="policyModalText"></div>
+        </div>
+    </div>
+
             <h2 id="scalesMyRangeTitle">Your range</h2>
             <p class="text-muted modal-intro hidden-group" id="scalesMyRangeInstrument"></p>
             <div class="scales-range-staff" id="scalesMyRangeStaff"></div>

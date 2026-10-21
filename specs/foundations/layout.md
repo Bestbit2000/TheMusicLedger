@@ -37,6 +37,11 @@ Don't lay a screen out one-off. Decide which kind it is:
 | Steps and forms | Session set-up, Quick entry, Add a piece, My details, the tools | Narrow card (`--page-max-narrow`), centred. A wide form is harder to use, not easier. |
 | Reading | Release history, results, the policies | Narrow card. Long lines are harder to read, more so with the dyslexia-friendly settings. |
 
+**One exception to "what a tap does never changes" (owner, 21 Oct 2026, ML-564):** About's Privacy policy and
+Terms of use open in a pop-up (`#policyModal`) below 1000px and beside About's list from 1000px. A long policy
+read over the list, without leaving About, was what the owner asked for on a phone. Don't copy this for any other
+screen without his say-so.
+
 A screen is **narrow unless it is listed as wide** in `style.css`
 (`.container:has(> :is(#mainView, #flowPlayView):not(.hidden-group))`) or is a two-pane page. A new screen
 therefore works on a tablet with no extra CSS; make it wide only when it has something to put in the room.

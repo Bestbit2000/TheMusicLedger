@@ -43,7 +43,7 @@
         'hide-modal': (el) => hideModal(actArg(el)),
         'close-toast': (el) => closeToast(actArg(el)),
         'scroll-area': (el) => scrollArea(el, Number(actArg(el))),
-        'open-page': (el) => window.open(actArg(el), '_blank', 'noopener'),          // one of the app's own pages (/privacy.html)
+        'about-policy': (el) => openAboutPolicy(actArg(el)),                      // ML-564: the privacy policy or terms of use
         'open-url': (el) => window.open(el.dataset.openUrl, '_blank', 'noopener'),   // a stored file's address
         'reload': (el, e) => { e.preventDefault(); location.reload(); },
         'feedback': () => { closeMenu(); openFeedbackModal(); },
@@ -1937,7 +1937,7 @@
     // screens, Flow's editor...), the item it belongs under.
     const NAV_PARENT_VIEW = { statsView: 'statsHomeView', streakStatsView: 'statsHomeView', historyView: 'statsHomeView', toolResultsView: 'statsHomeView', flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', flowPlayView: 'rehearseView', piecePathView: 'rehearseView', prepareRunView: 'rehearseView', levelsPaintView: 'rehearseView', levelsCutView: 'rehearseView', practiceListView: 'rehearseView',
         settingsDisplayView: 'settingsView', settingsStatsView: 'settingsView', settingsTunerView: 'settingsView', settingsPlaybackView: 'settingsView',
-        aboutReleasesView: 'aboutView', aboutGradesView: 'aboutView',
+        aboutReleasesView: 'aboutView', aboutPrivacyView: 'aboutView', aboutTermsView: 'aboutView', aboutGradesView: 'aboutView',
         accountDetailsView: 'accountView', accountSecurityView: 'accountView', accountBandsView: 'accountView', bandMembersView: 'accountView', bandWelcomeView: 'accountView', tidyBandsView: 'accountView', accountTeachersView: 'accountView',
         theoryOptionsView: 'theoryView', theoryPlayView: 'theoryView', theoryResultsView: 'theoryView',
         // ML-406: Pitch, Tempo, Pulse and Rhythm live under Skills
@@ -2071,7 +2071,7 @@
         metroBuilderView: { hint: 'Pick a piece to open it.', details: ['flowPlayView'] },
         settingsView: { hint: 'Pick a setting.', details: ['settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'settingsNoticesView'] },
         accountView: { hint: 'Pick what to look at.', details: ['accountSecurityView', 'accountDetailsView', 'accountBandsView', 'accountTeachersView'] },
-        aboutView: { hint: 'Pick what to read.', details: ['aboutReleasesView', 'aboutGradesView'] }
+        aboutView: { hint: 'Pick what to read.', details: ['aboutReleasesView', 'aboutPrivacyView', 'aboutTermsView', 'aboutGradesView'] }
     };
     // The list a screen belongs beside: itself if it is a list, or the list it was opened from.
     function paneListFor(viewName) {
@@ -2302,7 +2302,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'bandWelcomeView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'settingsNoticesView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'levelsProgressView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView', 'setupView', 'tuningForkView'];
+    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutPrivacyView', 'aboutTermsView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'bandWelcomeView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'settingsNoticesView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'levelsProgressView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView', 'setupView', 'tuningForkView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     // ML-107 (owner's list, 12 Oct 2026): anywhere you have your instrument up while looking at the screen - the
@@ -2468,6 +2468,8 @@
         if (viewName === 'aboutView') { document.getElementById('topTitle').innerText = 'About'; renderAboutView(); }
         if (viewName === 'aboutReleasesView') { document.getElementById('topTitle').innerText = 'Release history'; renderAboutView(); } // ML-430
         if (viewName === 'aboutGradesView') document.getElementById('topTitle').innerText = 'Exam grades';
+        if (viewName === 'aboutPrivacyView') { document.getElementById('topTitle').innerText = 'Privacy policy'; renderAboutPolicy('privacy'); } // ML-564
+        if (viewName === 'aboutTermsView') { document.getElementById('topTitle').innerText = 'Terms of use'; renderAboutPolicy('terms'); }
         if (viewName === 'theoryView') { document.getElementById('topTitle').innerText = 'Theory'; renderTheoryList(); }
         if (viewName === 'scalesView') { document.getElementById('topTitle').innerText = 'Scales'; scalesUseMyClef(); renderScales(); scalesRenderBpm(); scalesRenderVolume(); scalesUpdatePlayUi(); scalesPlayer.prewarm(); }
         if (viewName === 'warmupsView') { document.getElementById('topTitle').innerText = 'Warm-ups'; openWarmupsView(); }
@@ -2674,48 +2676,83 @@
     }
 
     async function renderAboutView() {
-        const currentEl = document.getElementById('aboutCurrentRelease');
+    // ML-430/564: Release history - every release, newest first, the one this device is running marked (a newer
+    // one above it is what the update strip is about). About's own row says which version you're on.
         const historyEl = document.getElementById('aboutReleaseHistory');
-        currentEl.innerHTML = 'Loading...';
-        historyEl.innerHTML = '';
-
+        historyEl.innerHTML = 'Loading...';
         try {
             const res = await fetch('/releases.json');
             const releases = await res.json();
-
             if (!releases.length) {
-                currentEl.innerHTML = '<div class="text-muted">No releases recorded yet.</div>';
+                historyEl.innerHTML = '<div class="text-muted">No releases recorded yet.</div>';
                 return;
             }
 
-            const [current, ...older] = releases;
-            // ML-201: releases.json is always fetched fresh, so it describes the DEPLOYED release - not
-            // necessarily the code this device is actually running (an installed app resumed from the
-            // background keeps its old code in memory). Said out loud when they differ.
-            const staleNote = runningAppVersion && compareVersions(current.version, runningAppVersion) > 0
-                ? `<div class="about-running-note">This device is running v${escapeHtml(runningAppVersion)}. Close and reopen the app (or <a href="#" data-act="reload">reload now</a>) to get v${escapeHtml(current.version)}.</div>`
-                : '';
-            currentEl.innerHTML = staleNote + `
-                <div class="play-card text-left">
-                    <div class="text-sm text-muted mb-1">Current version</div>
-                    <div class="play-piece">v${current.version}</div>
-                    <div class="text-muted mb-4">Released ${formatReleaseDate(current.date)}</div>
-                    ${renderChangeList(current.changes)}
-                </div>`;
-
-            historyEl.innerHTML = older.length
-                ? older.map(r => `
-                    <div class="history-item flex-col items-start">
-                        <strong>v${r.version}</strong>
-                        <div class="text-muted text-sm mb-2">${formatReleaseDate(r.date)}</div>
-                        ${renderChangeList(r.changes)}
-                    </div>`).join('')
-                : '<div class="text-muted">This is the first recorded release.</div>';
+            const yours = runningAppVersion || releases[0].version;
+            document.getElementById('aboutReleasesSub').textContent = `You're on v${yours}`;
+            historyEl.innerHTML = releases.map(r => `
+                <div class="history-item flex-col items-start">
+                    ${r.version === yours ? `<div class="text-sm text-muted">You're on this version</div>` : ''}
+                    <strong>v${escapeHtml(r.version)}</strong>
+                    <div class="text-muted text-sm mb-2">${formatReleaseDate(r.date)}</div>
+                    ${renderChangeList(r.changes)}
+                </div>`).join('');
         } catch (err) {
-            currentEl.innerHTML = `<div class="text-danger">Error loading releases: ${err.message}</div>`;
+            historyEl.innerHTML = `<div class="text-danger">Error loading releases: ${escapeHtml(err.message)}</div>`;
+        }
+    }
+    // ML-564: the privacy policy and terms of use, read inside the app - in a pop-up below 1000px wide, beside
+    // About's list from 1000px (owner, 21 Oct 2026). Each is a page of its own (privacy.html, terms.html) that
+    // has to work signed out, so the app reads the same page in rather than keeping a second copy of the wording:
+    // the page's <main>, less its "Back to" link and its heading (the title says what it is). A link from one to
+    // the other opens the other here too. Read once a visit.
+    const ABOUT_POLICIES = {
+        privacy: { page: '/privacy.html', view: 'aboutPrivacyView', el: 'aboutPrivacyText', title: 'Privacy policy' },
+        terms: { page: '/terms.html', view: 'aboutTermsView', el: 'aboutTermsText', title: 'Terms of use' }
+    };
+    const aboutPolicyMains = {};
+    async function aboutPolicyNodes(which) {
+        if (!aboutPolicyMains[which]) {
+            const res = await fetch(ABOUT_POLICIES[which].page, { cache: 'no-cache' });
+            if (!res.ok) throw new Error(String(res.status));
+            const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+            const main = doc.querySelector('main');
+            if (!main) throw new Error('no main');
+            main.querySelectorAll('script, h1, a[href="/"]').forEach((n) => n.remove());
+            main.querySelectorAll('a[href]').forEach((a) => { // anything clickable in the app is a button
+                const other = Object.keys(ABOUT_POLICIES).find((k) => ABOUT_POLICIES[k].page === a.getAttribute('href'));
+                if (!other) return;
+                const btn = doc.createElement('button');
+                btn.type = 'button';
+                btn.className = a.className;
+                btn.textContent = a.textContent;
+                btn.dataset.act = 'about-policy';
+                btn.dataset.arg = other;
+                a.replaceWith(btn);
+            });
+            aboutPolicyMains[which] = main;
+        }
+        return [...aboutPolicyMains[which].childNodes].map((n) => document.importNode(n, true));
+    }
+    async function fillAboutPolicy(which, el) {
+        el.textContent = 'Loading...';
+        try {
+            el.replaceChildren(...await aboutPolicyNodes(which));
+        } catch (err) {
+            el.innerHTML = `<p class="text-muted">The ${ABOUT_POLICIES[which].title.toLowerCase()} can't be shown just now - it needs a connection. Try again when you're back online.</p>`;
         }
     }
 
+    // From 1000px: its own screen beside the list (switchView calls renderAboutPolicy).
+    function renderAboutPolicy(which) { fillAboutPolicy(which, document.getElementById(ABOUT_POLICIES[which].el)); }
+    function openAboutPolicy(which) {
+        if (PANES_QUERY.matches) { switchView(ABOUT_POLICIES[which].view); return; }
+        document.getElementById('policyModalTitle').textContent = ABOUT_POLICIES[which].title;
+        fillAboutPolicy(which, document.getElementById('policyModalText'));
+        const modal = document.getElementById('policyModal');
+        modal.querySelector('.modal-content').scrollTop = 0; // the other policy, from a link in this one, starts at its top
+        if (!modal.classList.contains('show')) showModal('policyModal');
+    }
     // ========================================
     // NOTIFICATIONS (Jira ML-201)
     // ========================================
@@ -2767,6 +2804,7 @@
             runningAppVersion = null; // no baseline -> no update notice, rather than a wrong one
         }
         checkImportantNotices(); // ML-463: before anything else, as the app opens
+        checkNoticeBanners(); // ML-564: now there is a baseline, the update strip can be shown
         await checkNotifications(true);
         clearInterval(notificationsPollTimer);
         notificationsPollTimer = setInterval(() => checkNotifications(), NOTIFICATIONS_POLL_MS);
@@ -2829,10 +2867,13 @@
         try {
             const res = await fetch('/api/notices/banner', { cache: 'no-store' });
             if (!res.ok) return;
-            noticeBanners = (await res.json()).banners || [];
+            const body = await res.json();
+            noticeBanners = body.banners || [];
+            if (body.appVersion) latestAppVersion = body.appVersion; // ML-564: for the update strip, whatever features the account has
         } catch { return; }
         renderNoticeBanners();
     }
+        renderUpdateBanner();
     document.querySelectorAll('[data-notice-banner-open]').forEach(btn => btn.addEventListener('click', () => {
         const b = shownBanner();
         if (!b) return;
@@ -2852,6 +2893,36 @@
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkNoticeBanners(); });
 
     // ===== ML-463: an important notice - "Before you continue..." =====
+    // ===== ML-564: a new version is ready =====
+    // When the code this device is running is older than the deployed release (an installed app resumed from the
+    // background keeps its old code - docs/notifications.md), a strip across the top of every screen says so, with
+    // Reload and "See what's new" (the notes for everything newer, in a pop-up). Its X hides it for this visit - kept
+    // per version, so a newer one still shows. Nothing reloads unless Reload is tapped.
+    const UPDATE_HIDDEN_KEY = 'tml.updateHidden';
+    function renderUpdateBanner() {
+        let hidden = null;
+        try { hidden = sessionStorage.getItem(UPDATE_HIDDEN_KEY); } catch { /* shown, that's all */ }
+        setShown('updateBanner', auth.isAuthenticated && isAppUpdateAvailable() && hidden !== latestAppVersion);
+    }
+    document.getElementById('updateBannerClose')?.addEventListener('click', () => {
+        try { sessionStorage.setItem(UPDATE_HIDDEN_KEY, latestAppVersion); } catch { /* hidden until the next check */ }
+        setShown('updateBanner', false);
+    });
+    document.getElementById('updateBannerMore')?.addEventListener('click', async () => {
+        document.getElementById('whatsNewTitle').textContent = `What's new in v${latestAppVersion}`;
+        document.getElementById('whatsNewIntro').textContent = `You're on v${runningAppVersion}. Reload to get everything below.`;
+        const notesEl = document.getElementById('whatsNewNotes');
+        notesEl.textContent = 'Loading...';
+        showModal('whatsNewModal');
+        try {
+            const releases = await (await fetch('/releases.json', { cache: 'no-store' })).json();
+            const newer = releases.filter(r => compareVersions(r.version, runningAppVersion) > 0);
+            notesEl.innerHTML = newer.map(r => `<div class="notification-release"><div class="text-muted">v${escapeHtml(r.version)}</div>${renderChangeList(r.changes)}</div>`).join('');
+        } catch {
+            notesEl.textContent = "The notes can't be shown just now - Reload still gets the new version.";
+        }
+    });
+
     // Something a member should not find out by accident (a change to how their information is used).
     // It is shown when they next open the app or come back to it - never in the middle of something,
     // so not on the minute-by-minute poll - and stays until "Got it", which is remembered on the
@@ -2922,6 +2993,7 @@
         if (res.appVersion) latestAppVersion = res.appVersion;
         renderNotificationIndicators();
         if (isShown('notificationsView')) renderNotificationsView();
+        renderUpdateBanner(); // ML-564
         showNextUrgentNotification();
     }
 

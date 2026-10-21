@@ -1,7 +1,7 @@
 # Card
 
 ## 1. Metadata
-- **Name:** Card (`.flow-card`, `.flow-blocks-card`, `.play-card`, `.tuner-card`, `.about-running-note`, `.play-piece`, `.release-change-list`)
+- **Name:** Card (`.flow-card`, `.flow-blocks-card`, `.tuner-card`, `.release-change-list`)
 - **Category:** Layout / surfaces
 - **Status:** Stable
 
@@ -18,9 +18,7 @@ A bordered surface that groups related content inside the app column. Cards are 
 | Variant | Surface | Radius | Use |
 |---|---|---|---|
 | `.flow-card` | `--container-bg`, 1px `--input-border` | `--radius-xl` | Sections of the Flow editor/detail |
-| `.play-card` | `--container-bg`, 2px `--primary-action-strong` | `--radius-lg` | The version you are running, on About (`.play-piece` is its big line) |
 | `.tuner-card` | `--container-bg`, 2px state border | `--radius-lg` | Live tuner readout (see [tuner](tuner.md)) |
-| `.about-running-note` | `--input-bg`, 1px `--primary-action` | `--radius-md` | Highlighted informational note |
 
 ## 3. Anatomy
 Container › optional header row (title + `.flow-pill` / actions) › content.

@@ -83,7 +83,11 @@ same source as the About page and feedback's version stamp). When the server's i
 - the red dot shows (it counts as one unread item),
 - Notifications shows **Update available: vX** at the top, with the release notes for everything
   newer than the running version and a **Reload now** button (reloading = closing and reopening),
-- About says "This device is running vY" above the current release.
+- **a strip across the top of every screen** says "A new version is ready", with **Reload** and **See what's new**
+  (the same notes in a pop-up) - ML-564. Its × hides it for this visit, for that version. It reaches **every member**,
+  not only those with the notifications feature: the banner check (`GET /api/notices/banner`, open, every minute)
+  also returns `appVersion`. Spec: `specs/components/notice-banner.md`.
+- About's Release history marks "You're on this version" against the release this device is running.
 
 Nothing to do at release time - it follows from `npm run sync-releases` updating `releases.json`.
 
@@ -165,7 +169,7 @@ visit** (the browser tab's `sessionStorage`), and it is back next time until it 
 - **It reaches everyone**, whatever features their account type has: `GET /api/notices/banner` needs no sign-in and
   is not behind the `notifications` feature (it is in `OPEN_ROUTES`, `server/services/siteSecurityReview.js`).
   So only a notice **for everyone** can be a banner - never one for named members - and the answer carries only
-  each banner's words and times.
+  each banner's words and times, and the deployed release's version number (ML-564; public in `releases.json`).
 - The page reads it as it opens, every minute while it is on screen, and when it comes back to the front. It is never
   kept on the device; offline, what was showing stays.
 - It is still a notification like any other: in the list, read, cleared, withdrawn the same way.
@@ -258,7 +262,7 @@ Roughly in the order they'd matter:
 | `db/migrations/048_notifications.sql` | Tables + the `notifications` feature row |
 | `server/services/notifications.js` | Live query, read/read-all, admin CRUD |
 | `server/routes/api.js` (`/api/notifications*`), `server/routes/admin.js` (`/api/admin/notifications*`) | Routes |
-| `public/app.js` (NOTIFICATIONS section) | Polling, dot/badge, screen, update card, About note, urgent pop-up, clearing |
+| `public/app.js` (NOTIFICATIONS section) | Polling, dot/badge, screen, update card, update strip (ML-564), urgent pop-up, clearing |
 | `db/migrations/138_clear_notifications.sql` | `notification_reads.cleared_at` (ML-556) |
 | `db/migrations/139_notice_banner.sql` | `notifications.banner` (ML-495) |
 | `db/migrations/140_notice_audiences.sql` | `audience` 'account_level' and 'band' (ML-496) |
