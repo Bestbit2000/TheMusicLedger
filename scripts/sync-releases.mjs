@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import axios from 'axios';
 import { loadReleaseNotes, needsNotes, noteProblem, printProblems } from './releaseNotes.mjs';
+const RELEASE_NOTES = loadReleaseNotes();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
@@ -48,7 +49,9 @@ async function fetchChangesForVersion(versionName) {
   });
 
   return data.issues
-    .filter(issue => !issue.fields.issuetype.subtask)
+    // A sub-task shows only when it has its own line in release-notes.json (owner, 21 Oct 2026: 0.65.0 was
+    // mostly the notification sub-tasks of ML-381). Older releases' sub-tasks have no line, so they stay out.
+    .filter(issue => !issue.fields.issuetype.subtask || RELEASE_NOTES[issue.key] !== undefined)
     .map(issue => ({
       key: issue.key,
       type: FIX_TYPES.has(issue.fields.issuetype.name) ? 'Fixes' : 'New',
