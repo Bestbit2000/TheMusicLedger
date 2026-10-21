@@ -12,7 +12,7 @@
     "cut-release": "node scripts/cut-release.mjs",
     "migrate": "node db/migrate.js",
     "backtest": "node scripts/run-backtest.mjs",
-    "prepare": "husky",
+    "prepare": "node .husky/install.mjs",
     "token-audit": "node scripts/token-audit.mjs",
     "token-reference": "node scripts/build-token-reference.mjs",
     "design-gate": "node scripts/design-gate.mjs",
