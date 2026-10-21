@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.66.1",
+    "date": "2026-10-21",
+    "changes": [
+      {
+        "key": "ML-576",
+        "type": "Fixes",
+        "summary": "We made sure the live app runs with its live settings, as part of a security check of the app."
+      }
+    ]
+  },
+  {
     "version": "0.66.0",
     "date": "2026-10-21",
     "changes": [
