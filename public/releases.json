@@ -1,5 +1,36 @@
 [
   {
+    "version": "0.66.0",
+    "date": "2026-10-21",
+    "changes": [
+      {
+        "key": "ML-574",
+        "type": "Fixes",
+        "summary": "We tightened how uploaded files are checked and stored, as part of a security check of the app."
+      },
+      {
+        "key": "ML-573",
+        "type": "Fixes",
+        "summary": "We count failing release tests on the admin menu, and let the person who runs the app show just the failing ones."
+      },
+      {
+        "key": "ML-572",
+        "type": "New",
+        "summary": "We show the person who runs the app how many things are waiting for them in the admin panel, on the menu."
+      },
+      {
+        "key": "ML-570",
+        "type": "New",
+        "summary": "We let you tick several pieces in My music and archive them in one go - or bring several back - with Undo straight after."
+      },
+      {
+        "key": "ML-564",
+        "type": "Fixes",
+        "summary": "We show a strip across the top of the app when a new version is ready, with Reload and what's new, and About's privacy policy and terms of use now open inside the app."
+      }
+    ]
+  },
+  {
     "version": "0.65.0",
     "date": "2026-10-21",
     "changes": [
