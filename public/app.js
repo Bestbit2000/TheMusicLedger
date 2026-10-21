@@ -9110,6 +9110,9 @@
         }
     }
     async function openPracticeList(id) {
+        // Forget the list shown before, so nothing tapped while this one loads acts on that one (Archive, the date...)
+        plState.list = null;
+        document.getElementById('plPieces').innerHTML = ''; // and its piece rows, so none can be tapped
         switchView('practiceListView');
         try {
             plState.list = await API.practiceLists.get(id);
@@ -9310,6 +9313,7 @@
     // ML-349: a piece row's ⋮ menu - Prepare levels / Edit levels, then Delete (asks first, then Undo).
     let plPieceMenuTargetId = null;
     function openPlPieceMenu(btnEl, id) {
+        if (!plState.list) return; // still loading
         const menu = document.getElementById('plPieceMenu');
         const i = plState.list.pieces.findIndex(p => p.scoreId === id);
         if (!menu || i < 0) return;
@@ -9375,6 +9379,7 @@
     // Mine / each band / Public, plus a title/composer search; flowLibraryFilterKey), both per visit.
     const plPick = { filter: 'all', query: '' };
     function openPlPiecesModal() {
+        if (!plState.list) return; // still loading
         plState.picked = new Set();
         plPick.filter = 'all';
         plPick.query = '';
