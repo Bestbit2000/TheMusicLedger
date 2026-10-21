@@ -2681,7 +2681,7 @@
     .level-bar { display: flex; gap: var(--space-0-5); height: var(--level-bar-height); }
     .level-bar-part { flex: var(--bars, 1) 1 0; min-width: var(--space-1); border-radius: var(--radius-2xs); display: grid; place-items: center; font-size: var(--font-xs); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); box-sizing: border-box; overflow: hidden; container-type: inline-size; }
     @container (max-width: 14px) { .level-bar-num { display: none; } }
-    .level-legend:last-child { margin-bottom: 0; }
+    .flow-card .level-legend:last-child { margin-bottom: 0; } /* ending a card: the card's own padding is the space. Ending a list (a practice list's pieces) it keeps its margin, so the next button isn't on top of it */
     .lv-0 { background: transparent; border: 1px dashed var(--level-unset-border); color: var(--label-color); }
     .lv-1 { background: var(--level-1); color: var(--level-1-text); }
     .lv-2 { background: var(--level-2); color: var(--level-2-text); }

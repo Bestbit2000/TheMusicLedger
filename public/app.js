@@ -6993,7 +6993,7 @@
     // 1 Oct 2026); "Not set" on the path and in Prepare, where you set them (ML-536). ML-548: the empty box is only in
     // the key when a bar above it has bars with no level - a prepared piece has none, and one not prepared shows no bar.
     // maps: the Level maps the key is under.
-    const levelLegendHtml = (maps, unset = 'Not known') => `<div class="level-legend mt-2" aria-hidden="true">
+    const levelLegendHtml = (maps, unset = 'Not known') => `<div class="level-legend mt-3" aria-hidden="true">
         ${maps.some(m => m.some(v => !v)) ? `<span><span class="level-cell lv-0"></span>${unset}</span>` : ''}
         <span><span class="level-cell lv-1">1</span><span class="level-cell lv-2">2</span>Silver</span>
         <span><span class="level-cell lv-3">3</span><span class="level-cell lv-4">4</span>Gold</span>
