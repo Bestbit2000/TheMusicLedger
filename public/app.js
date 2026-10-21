@@ -645,6 +645,8 @@
             // ML-556: out of my list for good
             clear: (id) => apiCall(`/api/notifications/${id}/clear`, 'POST'),
             clearAll: () => apiCall('/api/notifications/clear-all', 'POST'),
+            cleared: () => apiCall('/api/notifications/cleared'), // ML-556: shown when asked for
+            restore: (ids) => apiCall('/api/notifications/restore', 'POST', { ids }),
             // ML-463: important notices - not behind the notifications feature
             important: () => apiCall('/api/notices/important'),
             acknowledge: (id) => apiCall(`/api/notices/important/${id}/ack`, 'POST')
@@ -2725,6 +2727,8 @@
     let latestAppVersion = null;
     let notificationsCache = [];
     let notificationsUnreadCount = 0;
+    let notificationsClearedCount = 0; // ML-556: cleared but still live - "Show cleared (3)"
+    let notificationsShowCleared = false;
     let notificationsLastCheckAt = 0;
     let notificationsPollTimer = null;
     const expandedNotificationIds = new Set();
@@ -2878,6 +2882,7 @@
     function applyNotificationsResponse(res) {
         notificationsCache = res.notifications || [];
         notificationsUnreadCount = res.unreadCount || 0;
+        notificationsClearedCount = res.clearedCount || 0;
         if (res.appVersion) latestAppVersion = res.appVersion;
         renderNotificationIndicators();
         if (isShown('notificationsView')) renderNotificationsView();
@@ -2997,6 +3002,7 @@
         renderNotificationsUpdateCard();
         const list = document.getElementById('notificationsList');
         if (!list) return;
+        renderClearedButton();
         const anyClearable = notificationsCache.some(notificationClearable);
         document.getElementById('notificationsToolbar')?.classList.toggle('hidden-group', !notificationsUnreadCount && !anyClearable);
         setShown('notificationsMarkAllBtn', !!notificationsUnreadCount);
@@ -3044,6 +3050,8 @@
         (items[Math.min(at, items.length - 1)] || document.querySelector('#notificationsList [data-notifications-home]'))?.focus();
         try {
             applyNotificationsResponse(await API.notifications.clear(id));
+            showUndoToast('Notification cleared', () => restoreNotifications([id])); // ML-556
+            if (notificationsShowCleared) renderClearedList();
         } catch (error) {
             showWarningToast(error.offline ? error.message : 'Notification not cleared: ' + error.message);
             // Not cleared (offline, say): put it back where it was
@@ -3079,12 +3087,59 @@
             showWarningToast('Error marking notifications as read: ' + error.message);
         }
     });
+    // ML-556 (owner, 21 Oct 2026): a cleared notification can come back - Undo straight after, or later from
+    // "Show cleared" under the list (only the ones still live; nothing is kept once a notice has ended). Restoring
+    // puts it back in the list, still read.
+    function renderClearedButton() {
+        const btn = document.getElementById('notificationsClearedBtn');
+        if (!btn) return;
+        if (!notificationsClearedCount) notificationsShowCleared = false;
+        setShown(btn, notificationsClearedCount > 0);
+        btn.textContent = notificationsShowCleared ? 'Hide cleared' : `Show cleared (${notificationsClearedCount})`;
+        btn.setAttribute('aria-expanded', String(notificationsShowCleared));
+        setShown('notificationsClearedList', notificationsShowCleared);
+        if (!notificationsShowCleared) document.getElementById('notificationsClearedList').innerHTML = '';
+    }
+    async function renderClearedList() {
+        const box = document.getElementById('notificationsClearedList');
+        try {
+            const { cleared } = await API.notifications.cleared();
+            if (!notificationsShowCleared) return;
+            box.innerHTML = cleared.map(n => `
+                <div class="notification-item is-cleared">
+                    <div class="notification-head"><strong>${escapeHtml(n.title)}</strong></div>
+                    <div class="notification-date">${escapeHtml(formatNotificationDate(n.publishAt))}</div>
+                    <p class="notification-body">${escapeHtml(n.body)}</p>
+                    <button type="button" class="notification-restore" data-notification-restore="${n.id}" aria-label="Restore ${escapeHtml(n.title)}">Restore</button>
+                </div>`).join('');
+            box.querySelectorAll('[data-notification-restore]').forEach(b => b.addEventListener('click', () => restoreNotifications([Number(b.dataset.notificationRestore)])));
+        } catch (error) {
+            box.textContent = error.offline ? error.message : 'Not loaded: ' + error.message;
+        }
+    }
+    async function restoreNotifications(ids) {
+        try {
+            applyNotificationsResponse(await API.notifications.restore(ids));
+            if (notificationsShowCleared) renderClearedList();
+        } catch (error) {
+            showWarningToast(error.offline ? error.message : 'Not restored: ' + error.message);
+        }
+    }
+    document.getElementById('notificationsClearedBtn')?.addEventListener('click', () => {
+        notificationsShowCleared = !notificationsShowCleared;
+        renderClearedButton();
+        if (notificationsShowCleared) renderClearedList();
+    });
     // ML-556: Clear all asks first - they're gone for good
     document.getElementById('notificationsClearAllBtn')?.addEventListener('click', () => {
-        showConfirmModal('Clear all notifications?', "They'll be gone from your list for good, on every device.", async () => {
+        showConfirmModal('Clear all notifications?', "They'll be gone from your list on every device. You can bring one back from Show cleared.", async () => {
             try {
-                applyNotificationsResponse(await API.notifications.clearAll());
+                const res = await API.notifications.clearAll();
+                applyNotificationsResponse(res);
                 document.querySelector('#notificationsList .notification-item, #notificationsList [data-notifications-home]')?.focus();
+                const ids = res.clearedIds || [];
+                if (ids.length) showUndoToast(`${ids.length} notification${ids.length === 1 ? '' : 's'} cleared`, () => restoreNotifications(ids)); // ML-556
+                if (notificationsShowCleared) renderClearedList();
             } catch (error) {
                 showWarningToast(error.offline ? error.message : 'Notifications not cleared: ' + error.message);
             }

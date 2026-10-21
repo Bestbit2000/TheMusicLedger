@@ -153,9 +153,19 @@ as HTML.
 ## Clearing (ML-556)
 
 Every member can clear notifications out of their list - the **×** on a notification clears that one at once, and
-**Clear all** (it asks first) clears the lot. Members don't need a history of every notice (owner, 20 October 2026),
-so **cleared is for good**: there is no archive and no "show cleared", and because it is kept on the account
-(`notification_reads.cleared_at`, `138_clear_notifications.sql`) it is gone on every device.
+**Clear all** (it asks first) clears the lot. It is kept on the account (`notification_reads.cleared_at`,
+`138_clear_notifications.sql`), so it is gone on every device.
+
+**A cleared one can come back** (owner, 21 October 2026 - "ooh, what was that again?"):
+
+- **Undo** straight after: clearing one, or Clear all, shows the usual Undo toast; Undo puts back exactly what was
+  cleared (`clear-all` answers with `clearedIds`).
+- **Show cleared (N)** under the list - only there while something is cleared - lists the cleared ones (newest cleared
+  first, `GET /api/notifications/cleared`) with a dashed edge, each with **Restore** (`POST /api/notifications/restore`
+  with `ids`). Restored, it is back in the list, still read.
+- **It is not a history of every notice** (the owner's first ask, 20 Oct): a cleared notice is only there while the
+  notice is live - once it expires or is withdrawn it has gone for everyone, and the 12-month clear-up (ML-494)
+  removes its rows.
 
 - **Clearing reads it too**, so the red dot and the count drop, and Admin's "Read by N of M" still counts it.
 - **An urgent or important notification has to be answered with Got it first** - its pop-up is how it's read -

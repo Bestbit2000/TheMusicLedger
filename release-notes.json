@@ -4,7 +4,7 @@
   "ML-494": "We now delete old notices 12 months after they stopped being shown, with the record of who read them.",
   "ML-493": "We can now see who has seen an urgent or important notice, so we know it has reached everyone it was for.",
   "ML-492": "We now show who each notice is for on our notices page, and count its readers out of those people.",
-  "ML-556": "We let you clear notifications out of your list, one at a time or all at once - once cleared, they are gone for good.",
+  "ML-556": "We let you clear notifications out of your list, one at a time or all at once - with Undo, and Show cleared to bring one back.",
   "ML-555": "We switched the app's protection against harmful script back on for every page - an earlier update had turned it to warnings only.",
   "ML-554": "We now ask a band's organiser to confirm they are an adult before any organiser change, such as the band's logo or what a member can do.",
   "ML-553": "We made sure the pages of a photo or PDF read are always deleted, even when a read doesn't go through.",

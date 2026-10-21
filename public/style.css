@@ -150,6 +150,9 @@
        touch target; the notification leaves room for it so the title never runs underneath */
     .notification-row { position: relative; }
     .notification-row.has-clear .notification-item { padding-right: calc(var(--touch-target) + var(--space-1)); }
+    /* ML-556: a cleared notification under "Show cleared" - a dashed edge says it's out of the list; Restore puts it back */
+    .notification-item.is-cleared { border-style: dashed; cursor: default; }
+    .notification-restore { display: inline-flex; align-items: center; min-height: var(--touch-target); margin-top: var(--space-1); padding: 0; border: none; background: none; color: var(--primary-action-strong); font: inherit; font-weight: var(--font-weight-bold); text-decoration: underline; cursor: pointer; }
     .notification-clear-btn { position: absolute; top: var(--space-1); right: var(--space-1); width: var(--touch-target); height: var(--touch-target); padding: 0; border: none; border-radius: var(--radius-circle); background: transparent; color: var(--label-color); display: flex; align-items: center; justify-content: center; cursor: pointer; }
     .notifications-toolbar .btn-nav { width: auto; }
     .notification-item { display: block; width: 100%; box-sizing: border-box; text-align: left; font: inherit; color: var(--text-color); background: var(--input-bg); border: 1px solid var(--control-border); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-3); cursor: pointer; }

@@ -48,7 +48,7 @@ import { startAuthoringSession, updateAuthoringSession, currentAppVersion } from
 import { exportFlowForUser } from '../services/flowTransfer.js';
 import { submitFeedback } from '../services/feedback.js';
 import { requestUpgrade } from '../services/upgradeRequest.js';
-import { listBannerNotices, listNotificationsForAccount, markNotificationRead, markAllNotificationsRead, clearNotification, clearAllNotifications, listImportantNotices, acknowledgeImportantNotice } from '../services/notifications.js';
+import { listBannerNotices, listNotificationsForAccount, markNotificationRead, markAllNotificationsRead, clearNotification, clearAllNotifications, listClearedNotifications, restoreNotifications, listImportantNotices, acknowledgeImportantNotice } from '../services/notifications.js';
 import { saveTheoryAttempt, getTheoryHistory, getTheorySummary, getTheoryLevels, getTheoryWeights, getTheoryPlayed } from '../services/theoryPractice.js';
 import { assertDrillEnabled, saveDrillAttempt, getDrillHistory, getDrillSummary, getDrillWeights, getRhythmLevels, setRhythmWord } from '../services/drills.js';
 import { securityStatus, requirePasswordAccount, changeOwnPassword, passwordLoginEnabled, appUrl, createInvite, listMyInvites, invitesSentToday, cancelMyInvite, resendMyInvite, limitCalls, INVITE_LEVELS } from '../services/passwordAuth.js';
@@ -175,6 +175,25 @@ router.post('/notifications/clear-all', requireAuth, resolveAccount, async (req,
     await assertNotificationsEnabled();
     await limitCalls('notifications', req.accountId);
     res.json({ ...(await clearAllNotifications(req.accountId)), appVersion: currentAppVersion() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-556 (owner, 21 Oct 2026): the cleared ones, shown when asked for, and Restore / Undo
+router.get('/notifications/cleared', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertNotificationsEnabled();
+    res.json(await listClearedNotifications(req.accountId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/notifications/restore', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    await assertNotificationsEnabled();
+    await limitCalls('notifications', req.accountId);
+    res.json({ ...(await restoreNotifications(req.accountId, req.body?.ids)), appVersion: currentAppVersion() });
   } catch (error) {
     sendError(res, error);
   }

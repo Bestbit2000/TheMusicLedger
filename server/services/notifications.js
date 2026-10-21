@@ -54,7 +54,42 @@ export async function listNotificationsForAccount(accountId) {
     [accountId]
   );
   const notifications = rows.map(toUserDto);
-  return { notifications, unreadCount: notifications.filter(n => !n.read).length };
+  // ML-556 (owner, 21 Oct 2026): how many are cleared but still live - "Show cleared (3)" under the list
+  const { rows: cleared } = await pool.query(
+    `SELECT COUNT(*)::int AS n FROM notifications n
+       JOIN notification_reads r ON r.notification_id = n.id AND r.account_id = $1 AND r.cleared_at IS NOT NULL
+      WHERE ${LIVE_CONDITION} AND ${FOR_ACCOUNT('$1')}`,
+    [accountId]
+  );
+  return { notifications, unreadCount: notifications.filter(n => !n.read).length, clearedCount: cleared[0].n };
+}
+
+// ML-556: the cleared ones, newest cleared first - shown only when asked for ("Show cleared"), each with Restore.
+// Only while the notice is live: one that has expired or been withdrawn has gone for everyone, and the 12-month
+// clear-up (ML-494) takes it in the end. Not a history of every notice.
+export async function listClearedNotifications(accountId) {
+  const { rows } = await pool.query(
+    `SELECT n.id, n.title, n.body, n.publish_at, n.urgent, n.important, n.policy_link, r.read_at, r.cleared_at
+       FROM notifications n
+       JOIN notification_reads r ON r.notification_id = n.id AND r.account_id = $1 AND r.cleared_at IS NOT NULL
+      WHERE ${LIVE_CONDITION} AND ${FOR_ACCOUNT('$1')}
+      ORDER BY r.cleared_at DESC, n.id DESC
+      LIMIT 100`,
+    [accountId]
+  );
+  return { cleared: rows.map(r => ({ ...toUserDto(r), clearedAt: r.cleared_at })) };
+}
+
+// ML-556: Restore (and Undo straight after clearing) - back in the list, still read. Only this member's own
+// cleared notices; anything else is ignored. At most 100 at once (Clear all's Undo sends what it cleared).
+export async function restoreNotifications(accountId, ids) {
+  const list = [...new Set((Array.isArray(ids) ? ids : [ids]).map(String))].filter(id => /^\d+$/.test(id)).slice(0, 100);
+  if (!list.length) throw withStatus(400, 'Nothing to restore.');
+  await pool.query(
+    'UPDATE notification_reads SET cleared_at = NULL WHERE account_id = $1 AND notification_id = ANY($2::bigint[]) AND cleared_at IS NOT NULL',
+    [accountId, list]
+  );
+  return listNotificationsForAccount(accountId);
 }
 
 // Only a live notification can be marked read - a withdrawn/expired/not-yet-published id is a 404,
@@ -145,14 +180,24 @@ export async function clearNotification(accountId, notificationId) {
 }
 
 // Clear all: every live notification in the list, apart from an urgent or important one still waiting for Got it.
+// Returns the list, and which it cleared (clearedIds) - what Undo puts back.
 export async function clearAllNotifications(accountId) {
-  await pool.query(
-    `INSERT INTO notification_reads (notification_id, account_id, cleared_at)
-     SELECT n.id, $1, now() FROM notifications n WHERE ${LIVE_CONDITION} AND ${FOR_ACCOUNT('$1')} AND ${CLEARABLE}
-     ${CLEAR_UPSERT}`,
+  const { rows } = await pool.query(
+    `SELECT n.id FROM notifications n
+       LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.account_id = $1
+      WHERE ${LIVE_CONDITION} AND ${FOR_ACCOUNT('$1')} AND ${CLEARABLE} AND r.cleared_at IS NULL`,
     [accountId]
   );
-  return listNotificationsForAccount(accountId);
+  const clearedIds = rows.map(r => Number(r.id));
+  if (clearedIds.length) {
+    await pool.query(
+      `INSERT INTO notification_reads (notification_id, account_id, cleared_at)
+       SELECT unnest($2::bigint[]), $1, now()
+       ${CLEAR_UPSERT}`,
+      [accountId, clearedIds]
+    );
+  }
+  return { ...(await listNotificationsForAccount(accountId)), clearedIds };
 }
 
 // ---------- admin ----------

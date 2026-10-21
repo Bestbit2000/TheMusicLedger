@@ -42,6 +42,7 @@ describe('what happens to a write with no connection', () => {
     test('clearing a notification needs a connection (ML-556)', () => {
         assert.equal(O.classify('POST', '/api/notifications/3/clear').kind, 'online');
         assert.equal(O.classify('POST', '/api/notifications/clear-all').kind, 'online');
+        assert.equal(O.classify('POST', '/api/notifications/restore', { ids: [3] }).kind, 'online');
     });
 
     test('the address is matched without its query, and the method must match', () => {

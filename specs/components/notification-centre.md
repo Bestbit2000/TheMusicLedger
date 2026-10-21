@@ -1,7 +1,7 @@
 # Notification centre
 
 ## 1. Metadata
-- **Name:** Notification centre (`.notif-dot`, `.notif-count`, `.notifications-toolbar`, `.notification-row`, `.has-clear` (a row whose notification can be cleared), `.notification-clear-btn` (ML-556), `.notification-item`, `.notification-head`, `.notification-unread-dot`, `.notification-date`, `.notification-body`, `.notification-update`, `.notification-release`, `.notifications-empty`, `.notifications-empty-art`, `.notifications-empty-title`, `.notification-important` (the "Before you continue..." pop-up's content, ML-463), `.notification-urgent` (the urgent pop-up's content), `.notification-urgent-tag`, `.admin-who-list` (Admin → Notifications' "Who has seen it", ML-492/493))
+- **Name:** Notification centre (`.notif-dot`, `.notif-count`, `.notifications-toolbar`, `.notification-row`, `.has-clear` (a row whose notification can be cleared), `.notification-clear-btn`, `.is-cleared`, `.notification-restore` (ML-556), `.notification-item`, `.notification-head`, `.notification-unread-dot`, `.notification-date`, `.notification-body`, `.notification-update`, `.notification-release`, `.notifications-empty`, `.notifications-empty-art`, `.notifications-empty-title`, `.notification-important` (the "Before you continue..." pop-up's content, ML-463), `.notification-urgent` (the urgent pop-up's content), `.notification-urgent-tag`, `.admin-who-list` (Admin → Notifications' "Who has seen it", ML-492/493))
 - **Category:** Feedback
 - **Status:** Stable (ML-201). Behaviour documented in [docs/notifications.md](../../docs/notifications.md)
 
@@ -14,6 +14,12 @@ confirmations. Those are [toasts](toast.md).
 List: `.notifications-toolbar` (**Mark all as read** while anything is unread, **Clear all** while anything can be cleared - each
 shown only when it has something to do) › `.notification-row[.has-clear]` › `.notification-item[.unread][.expanded]` › `.notification-head` (`.notification-unread-dot` + title) › `.notification-date` › `.notification-body` (2-line clamp until expanded), and beside it
 the row's `.notification-clear-btn` (ML-556).
+Cleared ones (ML-556, owner 21 Oct 2026): clearing shows the Undo [toast](toast.md); under the list a `.btn-text`
+**Show cleared (N)** (`aria-expanded`; "Hide cleared" when open; only there while something is cleared) opens
+`#notificationsClearedList`: each a `.notification-item.is-cleared` (a dashed edge - out of the list; not a button) with
+the title, date and message and a `.notification-restore` text button (**Restore**, gold `--primary-action-strong`,
+underlined, a full touch target) that puts it back, still read. Clear all's question says it can be brought back from
+there.
 Clearing (ML-556): the × top right of a notification - a bare icon button (no fill, `--label-color`, a full
 `--touch-target`), the notification padded on the right so its title never runs under it - clears it out of the
 list for good, at once, with no question (it reads it too). **Clear all** asks first, in the confirm pop-up

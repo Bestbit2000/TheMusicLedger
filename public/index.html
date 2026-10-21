@@ -1034,6 +1034,9 @@
             <button type="button" class="btn-cancel btn-nav no-margin" id="notificationsClearAllBtn">Clear all</button>
         </div>
         <div id="notificationsList"></div>
+        <!-- ML-556 (owner, 21 Oct 2026): the cleared ones, only when asked for - each can be put back with Restore -->
+        <button type="button" class="btn-text hidden-group" id="notificationsClearedBtn" aria-expanded="false" aria-controls="notificationsClearedList">Show cleared</button>
+        <div class="hidden-group" id="notificationsClearedList"></div>
     </div>
 
     <!-- ML-402: Invite someone - a page off the main menu (not a pop-up: a super admin's account type is
