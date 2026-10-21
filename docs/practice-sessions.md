@@ -55,7 +55,7 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
    at each Level, the key under the list - the empty "Not known" box only when a bar has bars with no level, ML-548; a
    piece not prepared has no bar, just its line) and where it is on its path. No "Next goal: every 1 up to 2" line any more
    (ML-547) - only "First: prepare the new pieces" or "Next: play them through" when that is what comes next.
-4. **Ready** (`#sessionPlanView`) - the strip and the timeline; tap a block to swap it; **Start**. A Pieces block
+4. **Ready** (`#sessionPlanView`) - the blocks as a list (ML-561: no strip of icons above it); "Select a block to change what you play" (owner's words, 21 Oct 2026); **Start**. A Pieces block
    offers what Auto would pick from the pieces chosen at step 3, and **"A different piece..."** (owner, 4 Oct 2026):
    any piece of yours, then which part of it (its Prepare, a focus section, a play-through part) - so one block can
    be given to a piece you have just prepared, whatever step 3 says.

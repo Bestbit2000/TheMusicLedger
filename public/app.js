@@ -8318,8 +8318,8 @@
         document.getElementById('sessAutoToggle').checked = sessPlan.auto;
         // ML-562: what happens either way, whichever it is
         document.getElementById('sessAutoNote').textContent = sessPlan.auto
-            ? 'On: the app picks the bars that need you most, and gets every piece up a Level together. Off: you choose each Pieces block on the next screen.'
-            : 'Off: you choose the piece and bars for each Pieces block on the next screen. On: the app picks the bars that need you most.';
+            ? "On: the app picks the bars that need you most, and gets every piece up a Level together. Off: on the next step you'll choose what you want to play."
+            : "Off: on the next step you'll choose what you want to play. On: the app picks the bars that need you most.";
         const pool = PracticePlan.piecePool(sessPlan.pieces);
         const practise = pool.filter(x => x.stage === 'practise');
         // ML-547: no "Next goal: every 1 up to 2" line - it wasn't always right with one left behind. A new piece still
@@ -8450,7 +8450,7 @@
             </div>`;
         }).join('');
         document.getElementById('sessBlockList').querySelectorAll('[data-block]').forEach(b => b.addEventListener('click', () => openSessionBlockModal(Number(b.dataset.block))));
-        document.getElementById('sessReadyNote').textContent = sessPlan.open ? 'Tap any block to swap it. More blocks follow the same pattern as you play.' : 'Tap any block to swap it.';
+        document.getElementById('sessReadyNote').textContent = sessPlan.open ? 'Select a block to change what you play. More blocks follow the same pattern as you play.' : 'Select a block to change what you play.';
         document.getElementById('sessStartBtn').textContent = sessPlan.open ? 'Start - open ended' : `Start - ${sessPlan.minutes} minutes`;
     }
     // Change one block: its kind, then for Skills the skill and for Pieces the bars.
