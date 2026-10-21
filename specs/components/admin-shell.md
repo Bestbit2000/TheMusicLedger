@@ -117,7 +117,10 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
   Going to a page opens its group.
 - **A shut group still says something is waiting.** Feedback (not looked at), Costs and usage (a limit getting
   near or nearly full) and Third parties (needs attention) carry a `.admin-nav-count`; a shut group's heading
-  shows the total of the counts inside it. Open, the heading shows none - the items do.
+  shows the total of the counts inside it. Open, the heading shows none - the items do. (Shared music - open
+  reports - and Security - reviews due - count too.) **The same five, added up, show on the Administration item in
+  the app's own ☰ menu** (a `.notif-count`, and the ☰ dot), so a super admin knows to sign in (ML-572,
+  `adminWaitingCounts` in `server/services/adminDashboard.js`).
 - **The whole menu folds away on a wide screen** - `.admin-nav-fold` (the double arrow beside "Admin") puts
   `.is-nav-folded` on `.admin-shell`: the sidebar becomes a strip holding only that button, and a wide table
   gets the window. Remembered on the device. On a phone the button is hidden - the ☰ toggle does that job.

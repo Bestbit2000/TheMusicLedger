@@ -13,7 +13,8 @@ import { assertScaleLevelsEnabled, getScaleLevels, answerScale, setScaleLevel } 
 import { listPracticeChunks, savePracticeSession, listTemplates, saveTemplate, deleteTemplate, getActivePractice, putActivePractice, clearActivePractice } from '../services/practiceSessions.js';
 import { recordSkillResult, getSkillsAndLists, createSkillList, updateSkillList, deleteSkillList, listWarmupLists, saveWarmupList, deleteWarmupList } from '../services/skills.js';
 import { setPracticeListPlan, listPracticeLists, createPracticeList, updatePracticeList, deletePracticeList, setPracticeListPieces, getPracticeList, setPracticeListArchived } from '../services/practiceLists.js';
-import { requireAuth, resolveAccount, requireAuthFromQueryOrHeader } from '../middleware/auth.js';
+import { requireAuth, resolveAccount, requireAuthFromQueryOrHeader, requireSuperAdmin } from '../middleware/auth.js';
+import { adminWaitingCounts } from '../services/adminDashboard.js'; // ML-572
 import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
 import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrDeleteBand, unarchiveBand, listAllBands, getAccountBands, leaveBand, deleteBandIfSoleMember, listWhoOptions,
@@ -881,6 +882,18 @@ router.post('/settings/teachers/:name/unarchive', requireAuth, resolveAccount, a
 router.get('/account', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await getAccountProfile(req.accountId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-572: how many things are waiting in the admin panel (the numbers on its menu, added up), for the
+// Administration item in the app's ☰ menu. Super admins only. Deliberately not under /api/admin and without the
+// "prove it's you" check (ML-518): it is read from the ordinary app, and it answers with counts only - nothing
+// about what is waiting, and nothing can be changed. docs/admin-passkey.md.
+router.get('/account/admin-waiting', requireAuth, resolveAccount, requireSuperAdmin, async (req, res) => {
+  try {
+    res.json(await adminWaitingCounts());
   } catch (error) {
     sendError(res, error);
   }

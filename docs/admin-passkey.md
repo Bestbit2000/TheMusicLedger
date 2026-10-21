@@ -82,6 +82,12 @@ reach the admin panel. Anything running on Vercel always asks, whatever else is 
 Vercel's own). **No setting switches it off anywhere else.** `ADMIN_CHECK=on` asks for it on a developer's
 machine too, to try it out.
 
+**One read from the ordinary app, on purpose (ML-572):** `GET /api/account/admin-waiting` - how many things are
+waiting in the panel (the numbers on its menu, added up), for the count on the Administration item in the app's ☰
+menu. It is super admins only (`requireSuperAdmin`) but doesn't ask for the check, because it is read while using
+the app, not the panel. It answers with counts only - nothing about what is waiting - and changes nothing. Anything
+that shows or changes what is in the panel stays under `/api/admin`, behind the check.
+
 ## Limits and wrong tries
 
 - Wrong authenticator codes lock as they do at sign-in: 5 in a row pause app codes for 15 minutes; recovery

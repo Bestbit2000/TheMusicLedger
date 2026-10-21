@@ -668,6 +668,7 @@
         },
         account: {
             get: () => apiCall('/api/account'),
+            adminWaiting: () => apiCall('/api/account/admin-waiting'), // ML-572: super admins only - counts
             update: (data) => apiCall('/api/account', 'PUT', data),
             deleteMine: () => apiCall('/api/account', 'DELETE', { confirm: 'DELETE' }), // ML-430
             exportMine: () => apiCall('/api/account/export'), // ML-430
@@ -1978,6 +1979,7 @@
         document.getElementById('navAccountEmail').textContent = profile.email || '';
     }
     async function renderNavMenu() {
+        checkAdminWaiting(); // ML-572
         renderNavToolsRow();
         markNavCurrent();
         const version = runningAppVersion || latestAppVersion;
@@ -3053,13 +3055,20 @@
     function renderNotificationIndicators() {
         const enabled = isFeatureEnabled('notifications');
         const count = enabled ? notificationsUnreadCount + (isAppUpdateAvailable() ? 1 : 0) : 0;
-        document.getElementById('navNotifDot')?.classList.toggle('hidden-group', !count);
+        // ML-572: a super admin's ☰ dot also shows when something is waiting in the admin panel
+        document.getElementById('navNotifDot')?.classList.toggle('hidden-group', !count && !adminWaitingCount);
         const badge = document.getElementById('notificationsNavCount');
         if (badge) {
             badge.innerText = String(count);
             badge.classList.toggle('hidden-group', !count);
         }
-        document.getElementById('navBurgerMenuBtn')?.setAttribute('aria-label', count ? `Menu - ${count} new notification${count === 1 ? '' : 's'}` : 'Menu');
+        const adminBadge = document.getElementById('adminNavCount');
+        if (adminBadge) {
+            adminBadge.innerText = String(adminWaitingCount);
+            adminBadge.classList.toggle('hidden-group', !adminWaitingCount);
+        }
+        const said = [count ? `${count} new notification${count === 1 ? '' : 's'}` : '', adminWaitingCount ? `${adminWaitingCount} waiting in Administration` : ''].filter(Boolean).join(', ');
+        document.getElementById('navBurgerMenuBtn')?.setAttribute('aria-label', said ? `Menu - ${said}` : 'Menu');
     }
 
     function formatNotificationDate(iso) {
@@ -4116,12 +4125,26 @@
     // rather than a second fetch just for the Flow Hub's own super-admin-only
     // menu items (renderFlowHubMenu) to check against.
     let currentAccountIsSuperAdmin = false;
+    // ML-572: how many things are waiting in the admin panel - the numbers on its menu (Feedback, Shared music,
+    // Costs and usage, Security, Third parties) added up - shown on the Administration item and the ☰ dot, so a
+    // super admin knows to sign in. Read at start, when the menu opens (at most once a minute), and every 5 minutes.
+    var adminWaitingCount = 0; // var: renderNotificationIndicators (above) may run before this line has run
+    let adminWaitingCheckedAt = 0;
+    async function checkAdminWaiting(force = false) {
+        if (!currentAccountIsSuperAdmin || !auth.isAuthenticated) return;
+        if (!force && Date.now() - adminWaitingCheckedAt < 60 * 1000) return;
+        adminWaitingCheckedAt = Date.now();
+        try { adminWaitingCount = (await API.account.adminWaiting()).total || 0; } catch { return; } // offline: what was showing stays
+        renderNotificationIndicators();
+    }
+    setInterval(() => { if (document.visibilityState !== 'hidden') checkAdminWaiting(true); }, 5 * 60 * 1000);
     async function syncAdminLinkVisibility() {
         try {
             const profile = await API.account.get();
             currentAccountIsSuperAdmin = profile.accountLevel === 'super_admin';
             setNavAccount(profile); // ML-330: also gives the home screen its greeting
             document.getElementById('adminNavLink')?.classList.toggle('hidden-group', !currentAccountIsSuperAdmin);
+            checkAdminWaiting(true); // ML-572
         } catch { /* not fatal - link just stays hidden */ }
     }
 

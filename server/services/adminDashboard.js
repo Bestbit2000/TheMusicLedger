@@ -9,7 +9,7 @@ import pool from '../config/db.js';
 import { ACCOUNT_TYPES, getFeatureAccess } from './features.js';
 import { listPendingInvites } from './passwordAuth.js';
 import { getBusinessCase, BusinessCase } from './businessCase.js';
-import { costsAndUsage } from './thirdPartyUsage.js';
+import { costsAndUsage, usageSummary } from './thirdPartyUsage.js';
 import { getSiteSecurityReview } from './siteSecurityReview.js';
 import thirdPartyRegister from '../thirdParties/register.js';
 import { listRecords } from './thirdPartyRecords.js';
@@ -75,6 +75,29 @@ async function money() {
     years: result.years,
     scenario: { id: result.scenario.id, name: result.scenario.name, endPosition: result.endPosition, payback: result.payback ? result.payback.label : null, hasIncome: result.total.in > 0 }
   };
+}
+
+// ML-572: the numbers on the admin menu, added up, for the Administration item in the app's own ☰ menu - so a
+// super admin can see something is waiting without signing in to the panel. The same five counts the menu shows:
+// Feedback not looked at, open reports (Shared music), limits getting near (Costs and usage), reviews due
+// (Security) and third-party items needing attention. Numbers only - nothing about what they are. The stored
+// usage readings are read, not the providers' APIs, so it stays cheap.
+export async function adminWaitingCounts() {
+  const [feedback, reports, records, usage, reviews] = await Promise.all([
+    part('feedback', async () => (await pool.query('SELECT count(*) FILTER (WHERE category IS NULL)::int AS n FROM feedback')).rows[0].n),
+    part('reports', async () => (await pool.query('SELECT count(*)::int AS n FROM content_reports WHERE closed_at IS NULL')).rows[0].n),
+    part('third-party records', listRecords),
+    part('usage', usageSummary),
+    part('reviews', reviewsDue)
+  ]);
+  const counts = {
+    feedback: feedback || 0,
+    reports: reports || 0,
+    costs: (usage || []).filter((m) => m.status && (m.status.level === 'warn' || m.status.level === 'fail')).length,
+    security: reviews || 0,
+    thirdParties: records ? openAttentionCount(thirdPartyRegister.entries, records) : 0
+  };
+  return { ...counts, total: Object.values(counts).reduce((sum, n) => sum + n, 0) };
 }
 
 export async function getAdminDashboard() {
