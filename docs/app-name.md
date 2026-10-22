@@ -12,8 +12,8 @@ taken out when the app was renamed.
 
 | Place | What |
 |---|---|
-| On screen | `Brand.name()` in `public/brand.js` - the Home title and the browser tab. **Write the name with `Brand.name()`, never as a new literal in `app.js`.** The pages themselves (`index.html`: the tab title, the sign-in picture's alt text, the top bar, the menu rail's head) say it in their markup, so it is there before any script runs |
-| The installed app | `public/manifest.json` (`name`, `short_name`) and `apple-mobile-web-app-title` in `index.html` |
+| On screen | `Brand.name()` in `public/brand.js` - the Home title and the browser tab. **Write the name with `Brand.name()`, never as a new literal in `app.js`.** The pages themselves (`app.html`: the tab title, the sign-in picture's alt text, the top bar, the menu rail's head) say it in their markup, so it is there before any script runs |
+| The installed app | `public/manifest.json` (`name`, `short_name`) and `apple-mobile-web-app-title` in `app.html` |
 | Emails | The subject and wording of each email, in the service that sends it (`passwordAuth.js`, `bands.js`, `emailChange.js`, `retentionRules.js` and others); the sender is `MAIL_FROM` |
 | Two-step sign-in | `ISSUER` in `server/services/twoStep.js` - the name an authenticator app shows beside the code |
 | The legal pages | `public/privacy.html`, `public/terms.html` - both say the app was called The Music Ledger until October 2026 |
@@ -51,16 +51,18 @@ A sign-in belongs to the address it was made on, so everyone signed in once more
 
 ### The front door and /app (ML-242)
 
-`notablybetter.com/` is the **public page** (`public/welcome.html`, with `public/pricing.html`); the **app** is at
-`notablybetter.com/app`. Only the path moved, not the address, so nobody was signed out and nothing kept on a
+`notablybetter.com/` is the **public page** (`public/index.html`, with `public/pricing.html`); the **app** is at
+`notablybetter.com/app` (`public/app.html`). The public page is the file called `index.html` because Vercel
+answers `/` itself with `public/index.html`, before the server is asked - the first sandbox push, with the app
+still in `index.html`, showed the sign-in screen at the front door. Only the path moved, not the address, so nobody was signed out and nothing kept on a
 device was lost. Every link the server makes into the app goes through `appLink()` in
 `server/utils/appPath.js` - email links (`APP_URL` + `/app?invite=...`), and the sign-in hand-back
 (`/app#authToken=...`). `APP_URL` and `GOOGLE_REDIRECT_URI` did not change.
 
 - **Old links still work.** A request for the front door carrying something the app reads (`?invite=`,
-  `?reset=`, `?band-invite=`, `?change-email=`, `?flow=`, `?preview=`) is forwarded to `/app` with it
-  (`server/app.js`). A sign-in hand-back after the `#` never reaches the server, so the public page's
-  `public/public-hop.js` forwards it.
+  `?reset=`, `?band-invite=`, `?change-email=`, `?flow=`, `?preview=`) is forwarded to `/app` with it - by
+  the public page's `public/public-hop.js` (on Vercel the server never sees the front door), and by
+  `server/app.js` on a local server. A sign-in hand-back after the `#` is forwarded by `public-hop.js` too.
 - **A member is never shown the public page by accident.** `public-hop.js`, first in the page's head, sends a
   device that holds a sign-in straight to `/app` - unless they followed a link from our own pages to read it. That
   covers an app installed before the move: Android picks up the new start address (`manifest.json`

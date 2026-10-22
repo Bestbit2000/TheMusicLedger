@@ -12,7 +12,7 @@ const exists = (file) => fs.existsSync(url(file));
 
 test('the pages, the installed app and Brand.name() all say the same name', () => {
   assert.match(read('public/brand.js'), /const NAME = 'Notably Better';/);
-  const index = read('public/index.html');
+  const index = read('public/app.html');
   assert.ok(index.includes(`<title>${NAME}</title>`), 'the tab title');
   assert.ok(index.includes(`<meta name="apple-mobile-web-app-title" content="${NAME}">`), 'the name on an iPhone home screen');
   assert.ok(index.includes(`alt="${NAME}" class="splash-image"`), "the sign-in picture's alt text");
@@ -24,15 +24,15 @@ test('the pages, the installed app and Brand.name() all say the same name', () =
 });
 
 test('every picture the pages and the manifest point at is there', () => {
-  const index = read('public/index.html');
+  const index = read('public/app.html');
   for (const file of ['images/brands/notably-better-mark.svg', 'images/brands/notably-better-tab.svg', 'images/brands/notably-better-tab.png', 'images/brands/notably-better-splash.jpg', 'icons/apple-touch-icon.png']) {
-    assert.ok(index.includes(file), `index.html does not use ${file}`);
+    assert.ok(index.includes(file), `app.html does not use ${file}`);
     assert.ok(exists(`public/${file}`), `${file} is missing`);
   }
   for (const icon of JSON.parse(read('public/manifest.json')).icons) assert.ok(exists(`public/${icon.src}`), `${icon.src} is missing`);
   // the mark is in the service worker's list, so it is right with no connection (ML-220)
   assert.ok(read('public/sw.js').includes("'/images/brands/notably-better-mark.svg'"));
-  for (const page of ['admin.html', 'privacy.html', 'terms.html', 'welcome.html', 'pricing.html']) assert.ok(read(`public/${page}`).includes('images/brands/notably-better-tab.svg'), `${page}: the tab icon`);
+  for (const page of ['admin.html', 'privacy.html', 'terms.html', 'index.html', 'pricing.html']) assert.ok(read(`public/${page}`).includes('images/brands/notably-better-tab.svg'), `${page}: the tab icon`);
 });
 
 // Names inside the machinery that keep the old name on purpose (docs/app-name.md) - and the two legal
@@ -50,7 +50,7 @@ const stripped = (text) => ALLOWED.reduce((s, re) => s.replace(re, ''), text);
 const OLD = /music\s*ledger/i;
 
 test('nothing a member reads still says the old name', () => {
-  const files = ['public/index.html', 'public/app.js', 'public/admin.html', 'public/admin.js', 'public/privacy.html', 'public/terms.html', 'public/welcome.html', 'public/pricing.html', 'public/pricing.js', 'public/manifest.json', 'public/brand.js', 'public/sw.js', 'public/offline.js'];
+  const files = ['public/app.html', 'public/index.html', 'public/app.js', 'public/admin.html', 'public/admin.js', 'public/privacy.html', 'public/terms.html', 'public/pricing.html', 'public/pricing.js', 'public/manifest.json', 'public/brand.js', 'public/sw.js', 'public/offline.js'];
   for (const dir of ['server/services', 'server/routes']) for (const f of fs.readdirSync(url(dir))) if (f.endsWith('.js')) files.push(`${dir}/${f}`);
   for (const file of files) {
     const line = stripped(read(file)).split(/\r?\n/).find((l) => OLD.test(l));
@@ -60,14 +60,14 @@ test('nothing a member reads still says the old name', () => {
 
 // ML-242: the public pages say the name in their markup (title, top bar), like the legal pages
 test('the public pages carry the name and the contact address', () => {
-  for (const page of ['welcome.html', 'pricing.html']) {
+  for (const page of ['index.html', 'pricing.html']) {
     assert.ok(read(`public/${page}`).includes(`<span>${NAME}</span>`), `${page}: the name beside the mark`);
     assert.ok(read(`public/${page}`).includes('hello@notablybetter.com'), `${page}: the contact address`);
   }
 });
 
 test('the old contact address is gone, and the legal pages give the new one', () => {
-  for (const file of ['public/index.html', 'public/app.js', 'public/admin.js', 'public/privacy.html', 'public/terms.html']) assert.ok(!read(file).includes('themusicledgerapp@gmail.com'), `${file} still gives the Gmail address`);
+  for (const file of ['public/app.html', 'public/app.js', 'public/admin.js', 'public/privacy.html', 'public/terms.html']) assert.ok(!read(file).includes('themusicledgerapp@gmail.com'), `${file} still gives the Gmail address`);
   for (const file of ['public/privacy.html', 'public/terms.html']) {
     assert.ok(read(file).includes('hello@notablybetter.com'), `${file}: the contact address`);
     assert.ok(read(file).includes('Until October 2026 the app was called The Music Ledger.'), `${file}: what the app used to be called`);

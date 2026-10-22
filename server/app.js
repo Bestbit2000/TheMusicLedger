@@ -68,26 +68,27 @@ app.get('/health', (req, res) => {
 // Serve static frontend files
 const publicPath = path.resolve(__dirname, '../public');
 
-// ML-242: the front door is the public page and the app lives at /app (server/utils/appPath.js). A link to
-// the front door made for the app before the move (an invitation or reset email, ?flow=, a preview) is
-// forwarded to /app with its address intact; a sign-in hand-back after the "#" never reaches the server, so
-// the public page's own public-hop.js forwards that, and a member already signed in on the device.
-// /app is served without a trailing slash so the page's relative links (tokens.css, app.js) still resolve
-// from the root; /app/ is sent there.
+// ML-242: the front door is the public page (public/index.html) and the app lives at /app (public/app.html,
+// server/utils/appPath.js). On Vercel the front door never reaches this server: Vercel answers / itself
+// with public/index.html, which is why the public page is the one called index.html. So the public page's
+// own public-hop.js does the forwarding there - a link made for the app before the move (?invite=, ?flow=...),
+// a sign-in hand-back after the "#", and a member already signed in on the device - and this route does
+// the same for a local server. /app is served without a trailing slash so the page's relative links
+// (tokens.css, app.js) still resolve from the root; /app/ is sent there.
 app.get('/', (req, res) => {
   if (forwardToApp(req.query)) return res.redirect(302, `${APP_PATH}${req.originalUrl.slice(1)}`);
-  res.sendFile(path.join(publicPath, 'welcome.html'));
+  res.sendFile(path.join(publicPath, 'index.html'));
 });
 app.get(APP_PATH, (req, res) => {
   if (req.path.endsWith('/')) return res.redirect(301, `${APP_PATH}${req.originalUrl.slice(APP_PATH.length + 1)}`);
-  res.sendFile(path.join(publicPath, 'index.html'));
+  res.sendFile(path.join(publicPath, 'app.html'));
 });
 
 app.use(express.static(publicPath, { index: false }));
 
-// SPA fallback - must be last
+// SPA fallback - must be last: any other page address gets the app, as it always did
 app.get('*', (req, res) => {
-  res.sendFile(path.join(publicPath, 'index.html'));
+  res.sendFile(path.join(publicPath, 'app.html'));
 });
 
 // Error handling - same sendError helper every route's own try/catch uses (server/utils/

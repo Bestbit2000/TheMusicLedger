@@ -169,8 +169,8 @@ export const content = [
       'No fee or email address is published; the route is the request form.'
     ],
     asks: [
-      { text: 'Show the disclaimer on About: not affiliated with, endorsed by or approved by ABRSM.', check: { path: 'public/index.html', includes: 'affiliated with, endorsed by or approved by ABRSM' } },
-      { text: 'Show the disclaimer with the grade lists in the Scales pop-up.', check: { path: 'public/index.html', includes: 'id="scalesGradeDisclaimer"' } },
+      { text: 'Show the disclaimer on About: not affiliated with, endorsed by or approved by ABRSM.', check: { path: 'public/app.html', includes: 'affiliated with, endorsed by or approved by ABRSM' } },
+      { text: 'Show the disclaimer with the grade lists in the Scales pop-up.', check: { path: 'public/app.html', includes: 'id="scalesGradeDisclaimer"' } },
       { text: 'Never use ABRSM\'s logo, or wording that suggests they approve of the app.' },
       { text: 'Record ABRSM\'s reply here when it comes. Before adding another exam board, check its terms first.' }
     ],

@@ -10,7 +10,7 @@
 - **Status:** New (ML-242, 22 Oct 2026). Designed with the owner on a Claude Design canvas.
 
 ## 2. Overview
-The two pages a visitor reads before signing in: `welcome.html` (what Notably Better is, who it's for, how to join)
+The two pages a visitor reads before signing in: `index.html`, the front door `/` (what Notably Better is, who it's for, how to join)
 and `pricing.html` (Standard and Premium). The owner's rule for them: **a summary first, the detail when you ask for
 it** - every section is a line or two, and the longer text opens from "Read more" (`<details>`, so there is no
 script in the page). The picture is the app's own idea - a piece's bars coloured by Level - drawn in markup, so no

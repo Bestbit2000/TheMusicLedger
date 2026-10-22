@@ -33,7 +33,7 @@ the menu), `--touch-target`, `--radius-md`, `--space-1`, `--space-2`, `--space-3
 `--font-weight-bold`.
 
 ## 5. Props / API
-- `.app-shell` on `<body>` in `index.html` marks the app page. Every wide-layout rule hangs off it, because
+- `.app-shell` on `<body>` in `app.html` marks the app page. Every wide-layout rule hangs off it, because
   `style.css` is also loaded by the admin panel and the styleguide, where a fixed rail would be wrong.
 - `.rail-demo` (with `.is-folded`) gives a box the rail's look without fixing it to the screen - only for the
   examples on Admin → Design.

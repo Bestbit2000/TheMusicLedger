@@ -131,7 +131,7 @@ export const DISPLAY_NAME_MAX = 40;
 export const AVATAR_IDS = ['cornet', 'euphonium', 'trombone', 'french-horn', 'saxophone', 'clarinet', 'flute',
   'snare-drum', 'metronome', 'music-stand', 'tuning-fork', 'headphones'];
 // ML-378: the tools that can be on the home screen (the All tools page's data-tool ids - keep in step with
-// public/index.html). The app shows up to four of the ones switched on; a tool that's off for a while stays
+// public/app.html). The app shows up to four of the ones switched on; a tool that's off for a while stays
 // chosen, so the list can hold more than four, but never more than there are tools.
 export const HOME_TOOL_IDS = ['metronome', 'tuner', 'timer', 'warmups', 'scales', 'add-piece', 'prepare', 'rehearse', 'theory', 'skills', 'range', 'recordings', 'tuning-fork'];
 export function normaliseHomeTools(list) {
@@ -142,7 +142,7 @@ export function normaliseHomeTools(list) {
   return [...new Set(list)];
 }
 // ML-387: the stats that can be on the home screen (the Stats page's data-stat ids - keep in step with
-// public/index.html). As with the tools, the list can hold more than the account type's limit shows.
+// public/app.html). As with the tools, the list can hold more than the account type's limit shows.
 export const HOME_STAT_IDS = ['time_week', 'time_month', 'time_year', 'streak_current', 'streak_longest', 'sessions_week', 'sessions_month', 'concert', 'theory_last', 'tools_last'];
 export function normaliseHomeStats(list) {
   if (list === null) return null;

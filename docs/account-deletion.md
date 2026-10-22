@@ -5,7 +5,7 @@ and can't be undone. Decided with the owner on 4 Oct 2026: the member is in char
 history is kept as statistics with nobody attached.
 
 - Code: [`server/services/accountDeletion.js`](../server/services/accountDeletion.js), `DELETE /api/account`
-  (the body must be `{ "confirm": "DELETE" }`), the pop-up `#accountDeleteModal` in `index.html`.
+  (the body must be `{ "confirm": "DELETE" }`), the pop-up `#accountDeleteModal` in `app.html`.
 - Database: [`db/migrations/099_account_deletion.sql`](../db/migrations/099_account_deletion.sql) -
   `accounts.deleted_at` and `deleted_account_markers`.
 - Test: `server/test/accountDeletion.test.js` - needs the dev database, so it is skipped by `npm test`. Run it

@@ -9,7 +9,7 @@ afterwards in the bar-by-bar editor, which is the precision tool.
 - Rules (no screen, no server): [`public/pieceOutline.js`](../public/pieceOutline.js), tests
   `server/test/pieceOutline.test.js`.
 - Screens: the QUICK PIECE ENTRY section of `public/app.js`; `#pieceOutlineView` and `#outlineExtraModal` in
-  `index.html`; spec [`specs/components/piece-outline.md`](../specs/components/piece-outline.md).
+  `app.html`; spec [`specs/components/piece-outline.md`](../specs/components/piece-outline.md).
 - Feature: `piece_quick_entry` (Super admin only until switched on - Admin → Feature access). The way in is the
   **Quick entry** tile on Add a piece.
 

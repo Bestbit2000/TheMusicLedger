@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const html = fs.readFileSync(new URL('../../public/index.html', import.meta.url), 'utf8');
+const html = fs.readFileSync(new URL('../../public/app.html', import.meta.url), 'utf8');
 const accounts = fs.readFileSync(new URL('../services/accounts.js', import.meta.url), 'utf8');
 const app = fs.readFileSync(new URL('../../public/app.js', import.meta.url), 'utf8');
 const serverIds = JSON.parse(/HOME_TOOL_IDS = (\[[^\]]*\])/.exec(accounts)[1].replace(/'/g, '"'));

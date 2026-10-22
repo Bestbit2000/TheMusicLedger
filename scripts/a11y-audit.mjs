@@ -33,7 +33,7 @@ const A11Y_DIR = path.join(ROOT, 'specs/accessibility');
 const BASELINE = path.join(A11Y_DIR, 'baseline.json');
 const args = new Set(process.argv.slice(2));
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
-const MARKUP_FILES = ['public/index.html', 'public/admin.html', 'public/styleguide.html', 'public/app.js', 'public/admin.js', 'public/admin-design.js', 'public/admin-business.js', 'public/admin-dashboard.js', 'public/admin-retention.js', 'public/admin-passkeys.js'];
+const MARKUP_FILES = ['public/app.html', 'public/index.html', 'public/pricing.html', 'public/admin.html', 'public/styleguide.html', 'public/app.js', 'public/admin.js', 'public/admin-design.js', 'public/admin-business.js', 'public/admin-dashboard.js', 'public/admin-retention.js', 'public/admin-passkeys.js'];
 const CSS_FILES = ['public/style.css', 'public/admin.css'];
 
 const violations = [];
@@ -244,7 +244,7 @@ function checkGestures() {
     const js = read('public/app.js');
     const found = new Set([
         ...[...js.matchAll(/function\s+(wire\w*(Swipe|GrabHandle|DragHandle|DragScroll|Drag)\w*)\s*\(/g)].map(m => m[1]),
-        ...(/draggable="true"/.test(js + read('public/index.html')) ? ['draggable-list'] : []),
+        ...(/draggable="true"/.test(js + read('public/app.html')) ? ['draggable-list'] : []),
     ]);
     for (const g of found) {
         const entry = registered.find(r => r.id === g);

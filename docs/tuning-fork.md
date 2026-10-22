@@ -2,7 +2,7 @@
 
 A note to tune to: pick it on a stave, press play, and it sounds until you stop it. Feature
 **`tuning_fork`** (migration `130`, off until switched on in Admin → Feature access). Code: the TUNING FORK
-section of `public/app.js`; `#tuningForkView` in `index.html`; spec
+section of `public/app.js`; `#tuningForkView` in `app.html`; spec
 `specs/components/tuning-fork.md`. Decided with the owner on 12 Oct 2026.
 
 ## Where it is

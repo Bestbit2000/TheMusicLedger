@@ -23,7 +23,7 @@
     function hideModal(el) { byIdOrEl(el)?.classList.remove('show'); }
 
     // ===== ML-474: what a click does, with no script written in the page =====
-    // The content security policy allows no inline script, so nothing in index.html or in markup this file
+    // The content security policy allows no inline script, so nothing in app.html or in markup this file
     // builds says onclick="...". An element says WHAT it does - data-act="view" data-arg="statsView" - and
     // this table is the only place that says HOW. An action is one of these or nothing: an attribute can
     // never name a function to run, so text that reaches the page (a band's name, a piece's title) can't
@@ -507,7 +507,7 @@
         // ML-179: score-backed "Flows" - see docs/database-schema.md's "Flow" vs "Score" naming
         // note. Recordings/documents live in Vercel Blob, not Postgres - the upload-token/*
         // endpoints authorize a direct browser-to-Blob upload (window.vercelBlobUpload, loaded via
-        // the module script in index.html), and the plain recordings/documents endpoints just
+        // the module script in app.html), and the plain recordings/documents endpoints just
         // record the resulting URL once that upload has actually finished.
         flows: {
             list: () => apiCall('/api/flows').then(flowsStillThere).then(flowsSplitArchived), // ML-404: minus a new piece just taken away again; minus what is archived
@@ -10969,7 +10969,7 @@
         nameEl?.focus();
         return false;
     }
-    // One pinned sticky bottom bar shared across all 3 tabs (index.html) instead of a separate
+    // One pinned sticky bottom bar shared across all 3 tabs (app.html) instead of a separate
     // in-flow button at the end of each tab's own content. Its contents swap by *mode*, not just by
     // tab: Create mode is the guided Details->Bars->Media chain - one primary button shared across
     // all 3 tabs (label/action swaps with the active tab), plus a secondary "Add media" button that
@@ -11212,7 +11212,7 @@
     // --- Delete flow - a plain text link (Details tab, below Next), not the old 3-dot dropdown item.
     // Move to a band/Remove from band/Publish/Unpublish used to live in that same dropdown - they're
     // dropped for now, pending a follow-up that wires them to the Visibility card instead (see its
-    // own comment in index.html); the API methods themselves (API.flows.moveToBand etc.) are
+    // own comment in app.html); the API methods themselves (API.flows.moveToBand etc.) are
     // untouched, just nothing in this view calls them at the moment. ---
     // ML-302 follow-up: no Delete on the edit screen - a piece is deleted from My music's list (its ⋮ menu),
     // which is where pieces are managed; this screen is for editing one.
@@ -11230,7 +11230,7 @@
     }
 
     // --- Audio tracks / Video links cards (one "recordings" list from the API, split into two
-    // cards by type - see the Media tab's own layout note in index.html) ---
+    // cards by type - see the Media tab's own layout note in app.html) ---
     function flowMediaItemHtml(r, isYoutube) {
         const isVideo = !isYoutube && (r.mimeType || '').startsWith('video/');
         const icon = isYoutube ? 'smart_display' : (isVideo ? 'movie' : 'music_note');
@@ -11525,7 +11525,7 @@
         progressBox.classList.remove('hidden-group');
         try {
             // Goes straight from this browser to Blob storage (window.vercelBlobUpload, loaded via
-            // the module script in index.html) - never through our own server, which is why the
+            // the module script in app.html) - never through our own server, which is why the
             // separate confirm call below exists (see the upload-token route's own comment for why
             // it can't just rely on Blob's onUploadCompleted webhook).
             const blob = await uploadToStore(`flows/${currentFlowId}/recordings/${file.name}`, file, {
@@ -11935,7 +11935,7 @@
     });
 
     // --- Musical symbol glyphs (segno/coda) - the real Unicode Musical Symbols characters (U+1D10B
-    // Segno, U+1D10C Coda), rendered in Noto Music (loaded in index.html) rather than hand-drawn SVG -
+    // Segno, U+1D10C Coda), rendered in Noto Music (loaded in app.html) rather than hand-drawn SVG -
     // a properly designed notation glyph beats an approximation, and Noto Music actually covers these
     // two codepoints (most fonts don't, which is why a webfont is loaded for them specifically instead
     // of trusting whatever's on the system). Plain currentColor-inheriting text, so it themes/sizes
@@ -15312,7 +15312,7 @@
 
     // ========================================
     // ML-166: swipeable media carousel (Metronome + one slide per attached audio track/video
-    // link). Slide 0 is always the metronome (the view's own always-present markup, index.html) -
+    // link). Slide 0 is always the metronome (the view's own always-present markup, app.html) -
     // audio/video slides are built fresh from currentFlowDetail.recordings every time Play Flow
     // loads (buildFlowMediaSlides, called from switchView's flowPlayView case, same "don't trust
     // it's stale" reasoning as buildFlowPlayQueue). Dots + swipe chrome only ever render when
@@ -17468,7 +17468,7 @@
 
     // --- Per-block inline editor (time signature / note+BPM stepper+slider / bar-count stepper+slider) ---
     // Originally reused the Blocks segment-edit modal's own field markup; ML-103 later went the other
-    // way and restyled that modal's own Standard fields (public/index.html's #metroSegStandardBox) to
+    // way and restyled that modal's own Standard fields (public/app.html's #metroSegStandardBox) to
     // match THIS card's qp-bar-fields-grid/qp-timesig-cell/qp-notelen-cell/qp-bpm-cell layout instead,
     // since it reads more cleanly - the two still don't share DOM/state (see below), just the same
     // classes now. Built fresh per block instance rather than a singleton modal's own DOM/state

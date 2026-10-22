@@ -98,7 +98,7 @@ passes the step. At the instrument's limit it's "All done".
 | What | Where |
 |---|---|
 | Rules (pure, shared with the server) | `public/range.js` (`window.PlayRange` - not `Range`, that's the browser's DOM Range) |
-| Screens | RANGE section of `public/app.js`; `#rangeView`, `#rangePickerModal` in `index.html` |
+| Screens | RANGE section of `public/app.js`; `#rangeView`, `#rangePickerModal` in `app.html` |
 | Server | `server/services/range.js`, `/api/range*` in `server/routes/api.js` (re-scores each go with the same engine) |
 | Tables | `db/migrations/065_range.sql` |
 | Design | `specs/components/range.md`, Admin → Design → Range |

@@ -6,7 +6,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { APP_PATH, appLink, forwardToApp } from '../utils/appPath.js';
+import { APP_PATH, APP_LINK_KEYS, appLink, forwardToApp } from '../utils/appPath.js';
 
 const read = (path) => fs.readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -34,7 +34,8 @@ describe('the move, from the source', () => {
   test('the server sends the front door to the public page and /app to the app, before the files', () => {
     const src = read('server/app.js');
     assert.match(src, /app\.get\('\/', \(req, res\) => \{\s+if \(forwardToApp\(req\.query\)\)/);
-    assert.match(src, /res\.sendFile\(path\.join\(publicPath, 'welcome\.html'\)\)/);
+    assert.match(src, /res\.sendFile\(path\.join\(publicPath, 'index\.html'\)\)/);
+    assert.match(src, /res\.sendFile\(path\.join\(publicPath, 'app\.html'\)\)/);
     assert.match(src, /app\.get\(APP_PATH,/);
     assert.match(src, /express\.static\(publicPath, \{ index: false \}\)/, 'index.html must not answer for the front door');
     assert.ok(src.indexOf("app.get('/',") < src.indexOf('express.static(publicPath'));
@@ -50,12 +51,19 @@ describe('the move, from the source', () => {
     }
   });
   test('the public page moves on a signed-in device first, and a sign-in hand-back', () => {
-    const page = read('public/welcome.html');
+    const page = read('public/index.html');
     assert.ok(page.indexOf('<script src="public-hop.js"></script>') < page.indexOf('<body'), 'in the head, before anything draws');
     const hop = read('public/public-hop.js');
     assert.match(hop, /#\(authToken=\|closed\)/);
     assert.match(hop, /localStorage\.getItem\('authToken'\)/);
     assert.match(read('public/app.js'), /localStorage\.setItem\('authToken', token\)/, 'the key the hop reads is the one the app writes');
+  });
+  test('on Vercel the front door is public/index.html, so it must be the public page and the hop must forward old links', () => {
+    assert.match(read('public/index.html'), /class="public-body"/, 'index.html is the public page');
+    assert.match(read('public/app.html'), /class="app-shell"/, 'app.html is the app');
+    const keys = read('public/public-hop.js').match(/var APP_LINK_KEYS = (\[[^\]]*\])/);
+    assert.ok(keys, 'the hop lists the links it forwards');
+    assert.deepEqual(JSON.parse(keys[1].replace(/'/g, '"')), APP_LINK_KEYS, 'the hop and appPath.js forward the same links');
   });
   test('the installed app and the offline copy open /app', () => {
     assert.equal(JSON.parse(read('public/manifest.json')).start_url, '/app');

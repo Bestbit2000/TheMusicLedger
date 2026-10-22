@@ -52,7 +52,7 @@ describe('no script is written in a page', () => {
     const known = new Set([...table.matchAll(/^\s*'([a-z-]+)':/gm)].map((m) => m[1]));
     assert.ok(known.size >= 25, `only ${known.size} actions were found - the reader has stopped understanding the table`);
     const used = new Set();
-    for (const name of ['index.html', 'app.js']) for (const m of read(name).matchAll(/data-act="([a-z-]+)"/g)) used.add(m[1]);
+    for (const name of ['app.html', 'app.js']) for (const m of read(name).matchAll(/data-act="([a-z-]+)"/g)) used.add(m[1]);
     assert.deepEqual([...used].filter((a) => !known.has(a)).sort(), [], 'a data-act names an action that is not in CLICK_ACTIONS');
     assert.deepEqual([...known].filter((a) => !used.has(a)).sort(), [], 'an action in CLICK_ACTIONS is not used any more');
   });

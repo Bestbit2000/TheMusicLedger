@@ -126,7 +126,7 @@ on (`loadHomeExtras`). A failed request just leaves that line out.
 
 Three short steps the first time a new member signs in, so the app suits them from the start. Feature
 **`member_setup`** (off until switched on: Admin → Feature access). Screens: the SET-UP section of
-`public/app.js`, `#setupView` in `index.html`, spec `specs/components/setup.md`. Decided with the owner on
+`public/app.js`, `#setupView` in `app.html`, spec `specs/components/setup.md`. Decided with the owner on
 12 Oct 2026.
 
 | Step | Asks | Saved by |
