@@ -13,6 +13,7 @@ import { ensureLevelStarts, recordLevelStarts, getLevelsProgress } from './level
 const sandbox = { self: {} };
 vm.runInNewContext(fs.readFileSync(new URL('../../public/flowJourney.js', import.meta.url), 'utf8'), sandbox);
 const FlowJourney = sandbox.self.FlowJourney;
+export { FlowJourney }; // ML-581: the band leader's summary reads the same heat map
 
 const KINDS = ['whole', 'hard', 'chunk', 'group'];
 const TARGET = FlowJourney.LEVELS.TARGET; // ML-390: focus bits go up to Level 4, then the play-through

@@ -984,6 +984,15 @@
         <p class="metro-help-text" id="bandMembersIntro"></p>
         <div id="bandMembersList"></div>
         <p class="metro-help-text hidden-group" id="bandMembersWaiting"></p>
+        <!-- ML-581: the player's own say-so for this band, in the owner's words - off until they switch it on, and
+             never asked anywhere else. Its line says who the band leader is and what they would see. -->
+        <div class="hidden-group" id="bandShareLevelsSection">
+            <div class="section-title mt-4">My Levels</div>
+            <div class="flex-row gap-sm items-center">
+                <span class="grow"><strong id="bandShareLevelsLbl">I'm happy to share my piece levels anonymously at a summary level only to the band leader</strong><br><span class="text-sm text-muted" id="bandShareLevelsNote"></span></span>
+                <label class="toggle-switch"><input type="checkbox" id="bandShareLevelsToggle" aria-labelledby="bandShareLevelsLbl" aria-describedby="bandShareLevelsNote"><span class="toggle-slider"></span></label>
+            </div>
+        </div>
         <div class="hidden-group" id="bandMembersOrganiser">
             <!-- ML-534: the band's logo - an organiser adds, changes or takes it off (renderBandLogo) -->
             <div class="hidden-group" id="bandLogoSection">
@@ -1560,6 +1569,24 @@
         <div id="lpRuns"></div>
     </div>
 
+    <!-- ML-581: the band leader's summary of one of the band's pieces (renderBandSummary) - made from the Levels players
+         chose to share, never anyone by name. A column per bar, in the Level map's rows of 10: shaded from the lowest
+         Level to the highest, a line at the average. Below 3 players nothing is shown. -->
+    <div id="bandSummaryView" class="hidden-group">
+        <p class="metro-help-text" id="bandSummarySub"></p>
+        <p class="metro-help-text hidden-group" id="bandSummaryNotYet">Not enough players have shared their Levels on this piece yet. It shows once 3 have.</p>
+        <div class="hidden-group" id="bandSummaryBody">
+            <h2 class="section-title">The piece</h2>
+            <p id="bandSummaryPiece"></p>
+            <h2 class="section-title">Needs the most work</h2>
+            <div id="bandSummaryMostWork"></div>
+            <h2 class="section-title">Bar by bar</h2>
+            <p class="metro-help-text">Each column is a bar: shaded from the lowest Level to the highest, with a line at the average. A blank bar doesn't have 3 players' Levels yet.</p>
+            <div class="level-map" id="bandSummaryMap" role="img"></div>
+            <div id="bandSummaryLegend"></div>
+        </div>
+    </div>
+
     <!-- ML-390 Prepare 2 of 4: a run-through - the whole piece once. ML-537: it starts at full speed (no speed to
          pick first); too fast, and the Level button on the play screen picks a slower one while it plays. -->
     <div id="prepareRunView" class="hidden-group">
@@ -1682,6 +1709,8 @@
             <button type="button" class="dropdown-item" id="flowLibraryItemMenuCopy"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">library_add</span><span class="dropdown-item-text">Copy to my library</span></button>
             <!-- ML-204: personal + band flows, gated by flow_export_musicxml (openFlowLibraryItemMenu) -->
             <button type="button" class="dropdown-item" id="flowLibraryItemMenuExport"><svg class="dropdown-item-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-7"/><path d="M9 13.5l3-3 3 3"/></svg><span class="dropdown-item-text">Export to MusicXML</span></button>
+            <!-- ML-581: the band leader's summary - on a band piece, for the band's band leader only -->
+            <button type="button" class="dropdown-item" id="flowLibraryItemMenuBandSummary"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">insights</span><span class="dropdown-item-text">Band summary</span></button>
             <!-- Archive a piece that is done with / bring an archived one back (flowLibraryMenuItemsFor) -->
             <button type="button" class="dropdown-item" id="flowLibraryItemMenuArchive"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">archive</span><span class="dropdown-item-text">Archive</span></button>
             <button type="button" class="dropdown-item" id="flowLibraryItemMenuRestore"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">unarchive</span><span class="dropdown-item-text">Restore</span></button>

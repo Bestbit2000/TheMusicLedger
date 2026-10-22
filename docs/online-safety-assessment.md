@@ -219,6 +219,35 @@ band the person asked to join.
 **The Children's Code** (`docs/childrens-code-assessment.md`) was checked the same day: no standard's answer
 changes (its version 3).
 
+## Version 4: the band leader's summary (ML-581, 22 October 2026)
+
+**Why again:** it changes what one member can be shown about others - a band's band leader sees a summary of the
+Levels other players chose to share. Done before release, as "What would change the answer" asks.
+
+**What it is** (docs/practice-sessions.md, "The band leader's summary"): an organiser may make a member the band
+leader. A player may switch on, for one band, "I'm happy to share my piece levels anonymously at a summary level only
+to the band leader" - off until they do, never prompted. The band leader then sees, for the band's own pieces, the
+average Level and the lowest to highest - for the piece and each bar - made from the players who switched it on.
+
+**Against the questions above:**
+- **Is it user-to-user content?** No new content. Nothing a member writes, uploads or says reaches anyone; the summary
+  is numbers the app works out. No messages, comments, profiles or search are added.
+- **Can it point at a person?** It is built not to: nothing is shown for a piece, or a bar, until 3 players have
+  shared; the answer from the server holds no account, name, count of players or "last practised" (a unit test
+  checks); no splitting by section or instrument; the words are about the music, not the players. In a band of 3
+  sharers a band leader who already knows exactly who switched it on could narrow a range down - the owner accepted
+  3 knowing this ("they won't know who unless they all pipe up and say who's using it").
+- **Children:** a young player in a band can switch it on. The default is off, nothing nudges them to, the line says
+  in plain words what is seen, and they can switch it off at any time. It is not a ranking and nobody is marked
+  (product values 2 and 3). The Children's Code self-assessment's profiling and nudge standards are to be checked
+  against this by the owner before release (his document 4 - a new dated redraft if an answer changes).
+- **Illegal content / grooming risk:** unchanged - no new way to contact anyone or to see anyone's details. The band
+  leader already sees members' names; they learn nothing new about any one of them.
+
+**Result:** the service's risk levels are unchanged (low). Before release: the owner checks the Children's Code
+self-assessment, approves the privacy policy line, and a notice tells members (it changes what is held about them
+and who may see a summary of it).
+
 ## What would change the answer
 
 Run this again **before** building any of these: messages or comments between members; a member profile

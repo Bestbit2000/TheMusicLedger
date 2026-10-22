@@ -30,6 +30,15 @@ A band shares its pieces and its practice lists. It does **not** share how any m
 - Why: a player who knows nobody is watching marks the bars they can't play. One who thinks the
   conductor can see will not. The owner's own test: he would not want his conductor to know he is
   behind on Saturday's pieces.
+- **A summary a player chooses to give** (the owner, 22 Oct 2026, ML-581). A player may switch on, for one
+  band, *"I'm happy to share my piece levels anonymously at a summary level only to the band leader."* It is
+  off until they switch it on, and nothing asks them to. The band's **band leader** - a permission an organiser
+  gives, not every organiser - then sees, on that band's own pieces, the average Level and the lowest to
+  highest, for the piece and for each bar, made from the players who switched it on: never a name, never one
+  person, no sections, no count of who hasn't. Nothing shows until **3 players** have shared on a piece (or a
+  bar). The words are about the music ("bars 32-40 need the most work"), never about players. Only Levels on
+  the band's own piece count, not a player's own copy. See `docs/practice-sessions.md`, "The band leader's
+  summary".
 
 ### 3. Nobody marks anybody
 
