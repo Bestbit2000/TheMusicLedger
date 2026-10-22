@@ -58,6 +58,7 @@ import { securityStatus, requirePasswordAccount, changeOwnPassword, passwordLogi
 import { mailIsReal } from '../services/mail.js';
 import { requestEmailChange } from '../services/emailChange.js';
 import { beginSetup, confirmSetup, newRecoveryCodes, turnOff } from '../services/twoStep.js';
+import { pricingColumns } from '../services/pricing.js';
 
 const router = express.Router();
 
@@ -125,6 +126,16 @@ router.get('/notifications', requireAuth, resolveAccount, async (req, res) => {
 
 // ML-495: the banners showing now (a planned outage). Deliberately open - no sign-in, no feature: the
 // sign-in screen shows them too (owner, 8 Oct 2026). Only notices for everyone that a super admin made a banner.
+// ML-242: the public pricing page's columns - how Standard and Premium are set on Admin -> Feature access,
+// for a fixed list of features and limits (server/services/pricing.js). Open: nothing about any member.
+router.get('/pricing', async (req, res) => {
+  try {
+    res.json(await pricingColumns());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 router.get('/notices/banner', async (req, res) => {
   try {
     // ML-564: and the release this deployment is running, so the "A new version is ready" strip reaches every

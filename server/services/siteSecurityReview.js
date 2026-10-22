@@ -79,6 +79,7 @@ const TIMEOUT_MS = 10000;
 export const OPEN_ROUTES = {
   'GET /cron/usage-readings': 'the daily job - checks CRON_SECRET itself',
   'GET /instruments': 'the shared list of instruments - needs a sign-in, not an account',
+  'GET /pricing': 'ML-242: the public pricing page - how Standard and Premium are set, for a fixed list of features; nothing about any member',
   'GET /notices/banner': 'ML-495: the planned-outage banner - shown on the sign-in screen too; only notices for everyone that a super admin made a banner'
 };
 

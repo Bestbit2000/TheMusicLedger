@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pricing - Notably Better</title>
+<meta name="description" content="What Notably Better's free Standard membership includes, and what Premium will add.">
+<link rel="canonical" href="https://notablybetter.com/pricing.html">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" type="image/png" sizes="64x64" href="images/brands/notably-better-tab.png">
+<link rel="icon" type="image/svg+xml" href="images/brands/notably-better-tab.svg">
+</head>
+<body>
+<!-- ML-242: the pricing page - Standard (free) and Premium (coming) side by side, by the owner's rule "free to
+     use, pay to ease". A cell with data-feature / data-limit is filled from Admin -> Feature access by
+     pricing.js (GET /api/pricing), so the page can't drift from the app; what is typed here is what shows if
+     that can't be read. Rows without them (band files, the tools being tested) are typed - check them when
+     a gate changes. No price, no "most popular", no crossed-out prices (No pressure rule).
+     specs/components/public-page.md -->
+<script src="display-prefs.js"></script>
+<main class="container public-page">
+    <header class="public-top">
+        <a class="public-top-brand" href="/welcome.html"><img class="brand-mark" src="images/brands/notably-better-mark.svg" alt="" aria-hidden="true"><span>Notably Better</span></a>
+        <nav class="public-top-links" aria-label="Notably Better">
+            <a href="/pricing.html" aria-current="page">Pricing</a>
+            <a href="/">Log in</a>
+        </nav>
+    </header>
+
+    <h1>Pricing</h1>
+    <p>Notably Better is invite only for now. <strong>Standard is free.</strong> Premium is coming - its price will be announced.</p>
+    <p>The things you need to practise are free. Premium is for making it easier.</p>
+
+    <table class="pricing-table">
+        <caption class="visually-hidden">What Standard and Premium include</caption>
+        <thead>
+            <tr>
+                <th scope="col"><span class="visually-hidden">What you get</span></th>
+                <th scope="col">Standard<span class="pricing-plan-note">Free</span></th>
+                <th scope="col">Premium<span class="pricing-plan-note">Coming</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="pricing-group"><th scope="colgroup" colspan="3">Your band and your pieces</th></tr>
+            <tr><th scope="row">Join your bands, with their pieces and practice lists</th><td class="is-yes"><span class="visually-hidden">Included</span></td><td class="is-yes"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">Add pieces - Quick entry or the full editor</th><td class="is-yes" data-plan="standard_member" data-feature="flow_create flow_manage"><span class="visually-hidden">Included</span></td><td class="is-yes" data-plan="premium_member" data-feature="flow_create flow_manage"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">Play a piece with a metronome that follows its bars</th><td class="is-yes" data-plan="standard_member" data-feature="rehearse"><span class="visually-hidden">Included</span></td><td class="is-yes" data-plan="premium_member" data-feature="rehearse"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">Files on your band&rsquo;s pieces, for its organisers and anyone they let change its music</th><td class="is-yes"><span class="visually-hidden">Included</span></td><td class="is-yes"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">A YouTube link on any piece</th><td class="is-yes"><span class="visually-hidden">Included</span></td><td class="is-yes"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">Files on your own pieces - PDF, MuseScore, recordings and more</th><td class="is-no" data-plan="standard_member" data-feature="piece_files"><span class="visually-hidden">Not included</span></td><td class="is-yes" data-plan="premium_member" data-feature="piece_files"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">Make a piece from a MusicXML file</th><td class="is-no" data-plan="standard_member" data-feature="flow_import_musicxml"><span class="visually-hidden">Not included</span></td><td class="is-yes" data-plan="premium_member" data-feature="flow_import_musicxml"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">Make a piece from a MuseScore file</th><td class="is-no"><span class="visually-hidden">Not included</span></td><td class="is-coming">Coming</td></tr>
+            <tr><th scope="row">Make a piece from a photo or PDF of your part</th><td class="is-no" data-plan="standard_member" data-feature="piece_from_photo"><span class="visually-hidden">Not included</span></td><td class="is-yes" data-plan="premium_member" data-feature="piece_from_photo"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">Export a piece to MusicXML</th><td class="is-no" data-plan="standard_member" data-feature="flow_export_musicxml"><span class="visually-hidden">Not included</span></td><td class="is-yes" data-plan="premium_member" data-feature="flow_export_musicxml"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">Save a piece from the metronome</th><td class="is-no" data-plan="standard_member" data-feature="metronome_save_to_flow"><span class="visually-hidden">Not included</span></td><td class="is-yes" data-plan="premium_member" data-feature="metronome_save_to_flow"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">The Recordings tool - one rehearsal recording given to several pieces</th><td class="is-no" data-plan="standard_member" data-feature="rehearsal_recordings"><span class="visually-hidden">Not included</span></td><td class="is-yes" data-plan="premium_member" data-feature="rehearsal_recordings"><span class="visually-hidden">Included</span></td></tr>
+
+            <tr class="pricing-group"><th scope="colgroup" colspan="3">Practice</th></tr>
+            <tr><th scope="row">Practice sessions in five-minute blocks, with Levels (Focus for Five)</th><td class="is-yes" data-plan="standard_member" data-feature="practice_levels"><span class="visually-hidden">Included</span></td><td class="is-yes" data-plan="premium_member" data-feature="practice_levels"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">Warm-ups</th><td class="is-yes" data-plan="standard_member" data-feature="warmups"><span class="visually-hidden">Included</span></td><td class="is-yes" data-plan="premium_member" data-feature="warmups"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">Scales, by grade</th><td class="is-yes" data-plan="standard_member" data-feature="scales_practice"><span class="visually-hidden">Included</span></td><td class="is-yes" data-plan="premium_member" data-feature="scales_practice"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">Scales in Levels, in your practice sessions</th><td class="is-no" data-plan="standard_member" data-feature="scales_levels"><span class="visually-hidden">Not included</span></td><td class="is-yes" data-plan="premium_member" data-feature="scales_levels"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">Theory quizzes and grades</th><td class="is-no" data-plan="standard_member" data-feature="theory_practice"><span class="visually-hidden">Not included</span></td><td class="is-yes" data-plan="premium_member" data-feature="theory_practice"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">Pulse, Tempo, Pitch and Rhythm</th><td class="is-no"><span class="visually-hidden">Not included</span></td><td class="is-coming">Coming</td></tr>
+            <tr><th scope="row">Range - stretch your range a note at a time</th><td class="is-no"><span class="visually-hidden">Not included</span></td><td class="is-coming">Coming</td></tr>
+
+            <tr class="pricing-group"><th scope="colgroup" colspan="3">Everyday tools</th></tr>
+            <tr><th scope="row">Metronome</th><td class="is-yes" data-plan="standard_member" data-feature="metronome"><span class="visually-hidden">Included</span></td><td class="is-yes" data-plan="premium_member" data-feature="metronome"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">Metronome history</th><td data-plan="standard_member" data-feature="metronome_history" data-limit="metronome_history_shown" data-format="Last {n}">Last 10</td><td data-plan="premium_member" data-feature="metronome_history" data-limit="metronome_history_shown" data-format="Last {n}">Last 100</td></tr>
+            <tr><th scope="row">Tuner</th><td class="is-yes" data-plan="standard_member" data-feature="tuner"><span class="visually-hidden">Included</span></td><td class="is-yes" data-plan="premium_member" data-feature="tuner"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">Rewind the tuner</th><td class="is-no" data-plan="standard_member" data-feature="tuner_rewind"><span class="visually-hidden">Not included</span></td><td class="is-yes" data-plan="premium_member" data-feature="tuner_rewind"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">Tuning fork - a note to tune to</th><td class="is-coming">Coming</td><td class="is-coming">Coming</td></tr>
+            <tr><th scope="row">Practice timer, and logging your practice time</th><td class="is-yes" data-plan="standard_member" data-feature="timer session_logging"><span class="visually-hidden">Included</span></td><td class="is-yes" data-plan="premium_member" data-feature="timer session_logging"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">Favourite tools on Home</th><td data-plan="standard_member" data-limit="home_tools" data-format="{n}">4</td><td data-plan="premium_member" data-limit="home_tools" data-format="{n}">12</td></tr>
+            <tr><th scope="row">Your numbers on Home</th><td data-plan="standard_member" data-limit="home_stats" data-format="{n}">2</td><td data-plan="premium_member" data-limit="home_stats" data-format="{n}">4</td></tr>
+
+            <tr class="pricing-group"><th scope="colgroup" colspan="3">For everyone</th></tr>
+            <tr><th scope="row">No adverts and no tracking cookies</th><td class="is-yes"><span class="visually-hidden">Included</span></td><td class="is-yes"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">Works offline</th><td class="is-yes"><span class="visually-hidden">Included</span></td><td class="is-yes"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">Dark mode, dyslexia-friendly reading and text size</th><td class="is-yes"><span class="visually-hidden">Included</span></td><td class="is-yes"><span class="visually-hidden">Included</span></td></tr>
+            <tr><th scope="row">Download your information, or delete your account, any time</th><td class="is-yes"><span class="visually-hidden">Included</span></td><td class="is-yes"><span class="visually-hidden">Included</span></td></tr>
+        </tbody>
+    </table>
+
+    <div class="public-actions">
+        <a class="btn-submit" href="/welcome.html#join">How to join</a>
+        <a class="btn-nav btn-cancel" href="/">Log in</a>
+    </div>
+
+    <footer class="public-foot">
+        <a href="/welcome.html">About Notably Better</a>
+        <a href="/privacy.html">Privacy policy</a>
+        <a href="/terms.html">Terms of use</a>
+        <a href="mailto:hello@notablybetter.com">hello@notablybetter.com</a>
+        <span>Made in the UK</span>
+    </footer>
+</main>
+<script src="pricing.js"></script>
+<script src="analytics.js"></script>
+</body>
+</html>

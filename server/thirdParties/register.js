@@ -54,6 +54,7 @@ export default {
     { host: 'w3.org', why: 'XML and SVG namespace names - nothing is fetched' },
     { host: 'bournebrass.org.uk', why: 'An example band link on the Design page' },
     { host: 'evil.example', why: 'A made-up address in the security tests' },
+    { host: 'notablybetter.com', why: 'Our own address - the public pages name it for search engines and for a link shared elsewhere (ML-242)' },
     // ML-443: where a price in the business case's starting figures was read
     // (server/services/businessCaseDefaults.js). Links on Admin -> Business case only - nothing is fetched.
     { host: 'gov.uk', why: 'Business case: where a government fee was read (Companies House, solicitors\' rates, trade marks)' },

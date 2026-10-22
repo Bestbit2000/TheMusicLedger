@@ -103,6 +103,11 @@ async function loadMatrix() {
 
 const contextLevel = () => featureContext.getStore()?.accountLevel || null;
 
+// ML-242: the whole matrix and every limit, for the public pricing page (server/services/pricing.js), which
+// reads them for named account types rather than the caller's.
+export const featureMatrix = () => loadMatrix();
+export const featureLimits = () => loadLimits();
+
 export async function isFeatureEnabled(featureKey, level = contextLevel()) {
   return featureOn((await loadMatrix()).get(featureKey), level);
 }

@@ -3083,3 +3083,40 @@
         :is(.container.two-pane, .two-pane-demo).has-detail::after { content: none; }
         .pane-list .section-title:first-child { margin-top: 0; }
     }
+    /* ML-242: the public page (welcome.html) and the pricing page (pricing.html) - plain pages read signed out,
+       like the policies, with a little more shape: a top line with the name and Log in, a headline, tiles for
+       the tools, the owner's story, and the pricing table. A "reading" page (specs/foundations/layout.md):
+       the phone column on a phone, a narrow card from 700px. specs/components/public-page.md */
+    .public-page { max-width: var(--page-max-narrow); line-height: var(--line-height-relaxed); }
+    .public-page a:not([class]) { color: var(--link-color); }
+    .public-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-5); }
+    .public-top-brand { display: inline-flex; align-items: center; min-height: var(--touch-target); color: var(--text-color); font-size: var(--font-md); font-weight: var(--font-weight-bold); text-decoration: none; }
+    .public-top-links { display: flex; gap: var(--space-2); }
+    .public-top-links a { display: inline-flex; align-items: center; min-height: var(--touch-target); padding: 0 var(--space-3); color: var(--link-color); font-weight: var(--font-weight-bold); text-decoration: none; border-radius: var(--radius-md); }
+    .public-top-links a[aria-current="page"] { text-decoration: underline; }
+    .public-top-links a:last-child { border: 2px solid var(--primary-action-strong); color: var(--primary-action-strong); }
+    .public-hero { text-align: center; margin-bottom: var(--space-7); }
+    .public-hero-title { font-size: var(--font-3xl); line-height: var(--line-height-tight); margin: var(--space-4) 0 var(--space-2); }
+    .public-hero-sub { font-size: var(--font-lg); font-weight: var(--font-weight-semibold); margin: 0 0 var(--space-4); }
+    .public-hero-image { display: block; width: 100%; height: auto; border-radius: var(--radius-md); box-shadow: var(--shadow-lg); margin-top: var(--space-5); }
+    .public-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: var(--space-3); margin: var(--space-4) 0; } /* token-audit-ignore: the narrowest a button gets before the two stack */
+    .public-actions a { display: flex; align-items: center; justify-content: center; margin-bottom: 0; text-decoration: none; }
+    .public-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--stat-col-min)), 1fr)); gap: var(--space-3); list-style: none; margin: var(--space-3) 0; padding: 0; }
+    .public-tile { display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-4); background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-md); }
+    .public-tile span { font-size: var(--font-sm); color: var(--label-color); line-height: var(--line-height-snug); }
+    .public-story { padding-left: var(--space-4); border-left: 4px solid var(--primary-action); }
+    .public-foot { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); margin-top: var(--space-8); padding-top: var(--space-4); border-top: 1px solid var(--input-border); font-size: var(--font-sm); color: var(--label-color); }
+    .public-foot a, .public-foot span { display: inline-flex; align-items: center; min-height: var(--touch-target); }
+    .public-foot a { color: var(--link-color); }
+    .pricing-table { width: 100%; border-collapse: collapse; margin: var(--space-5) 0; font-size: var(--font-sm); }
+    .pricing-table th, .pricing-table td { padding: var(--space-2); border-bottom: 1px solid var(--input-border); vertical-align: middle; }
+    .pricing-table thead th { font-size: var(--font-base); text-align: center; }
+    .pricing-table tbody th { text-align: left; font-weight: var(--font-weight-normal); }
+    .pricing-table td { width: 22%; text-align: center; }
+    .pricing-plan-note { display: block; font-size: var(--font-xs); font-weight: var(--font-weight-normal); color: var(--label-color); }
+    .pricing-group th { padding-top: var(--space-5); font-weight: var(--font-weight-bold); text-align: left; border-bottom: 2px solid var(--input-border); }
+    /* A tick for "included", a dash for "not included" - drawn, so no icon font is loaded on a public page;
+       the words are there for a screen reader (.visually-hidden inside the cell). */
+    .pricing-table td.is-yes::before { content: ""; display: inline-block; width: var(--space-2); height: var(--space-4); border: solid var(--primary-action-strong); border-width: 0 var(--space-1) var(--space-1) 0; transform: rotate(45deg); }
+    .pricing-table td.is-no::before { content: "\2013"; color: var(--label-color); }
+    .pricing-table td.is-coming { font-size: var(--font-xs); font-weight: var(--font-weight-bold); color: var(--label-color); }
