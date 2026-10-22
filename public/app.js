@@ -22804,8 +22804,7 @@
         if (pieceReadBusy) return;
         if (a && a.limit === 0) { setShown(pieceReadBtn, false); return; }
         const left = !a || a.limit >= 100000 ? ''
-            : a.left === 0 ? ` No reads left this quarter - resets on ${pieceReadDay(a.startsAgainOn)}.`
-            : ` ${a.left} of ${a.limit} reads left this quarter - resets on ${pieceReadDay(a.startsAgainOn)}.`;
+            : ` ${a.left} of ${a.limit} reads remaining which reset on ${pieceReadDay(a.startsAgainOn)}`; // the owner's words, 22 Oct 2026
         help.textContent = left ? `${help.dataset.base}.${left}` : help.dataset.base;
     }
     pieceReadBtn?.addEventListener('click', () => {
