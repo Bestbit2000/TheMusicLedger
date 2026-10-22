@@ -22794,8 +22794,8 @@
     let pieceReadAllowance = null; // asked for while the file chooser is open: { limit, used, left, startsAgainOn }
     const pieceReadDay = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
     // The tile's help line ends with the reads left this quarter, asked for each time Add a piece opens and
-    // after each read. None at all for the account type: the tile isn't shown. No line for the owner's own
-    // allowance (the most a limit can be), or when the server can't be asked.
+    // after each read - for everyone, the owner included (22 Oct 2026). None left: the tile is disabled until
+    // they reset. None at all for the account type: the tile isn't shown. No count when the server can't be asked.
     async function pieceReadShowAllowance() {
         if (!pieceReadBtn || pieceReadBusy || !isFeatureEnabled('piece_from_photo') || !isFeatureEnabled('piece_quick_entry')) return;
         const help = pieceReadBtn.querySelector('.metro-help-text');
@@ -22803,9 +22803,10 @@
         const a = await apiCall('/api/piece-read/allowance').catch(() => null);
         if (pieceReadBusy) return;
         if (a && a.limit === 0) { setShown(pieceReadBtn, false); return; }
-        const left = !a || a.limit >= 100000 ? ''
-            : ` ${a.left} of ${a.limit} reads remaining which reset on ${pieceReadDay(a.startsAgainOn)}`; // the owner's words, 22 Oct 2026
-        help.textContent = left ? `${help.dataset.base}.${left}` : help.dataset.base;
+        pieceReadBtn.disabled = !!a && a.left === 0;
+        help.textContent = a
+            ? `${help.dataset.base}. ${a.left} of ${a.limit} ${a.limit === 1 ? 'read' : 'reads'} remaining which reset on ${pieceReadDay(a.startsAgainOn)}` // the owner's words
+            : help.dataset.base;
     }
     pieceReadBtn?.addEventListener('click', () => {
         if (pieceReadBusy || !isFeatureEnabled('piece_from_photo')) return;

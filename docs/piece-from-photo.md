@@ -307,8 +307,9 @@ one-time "I have the right to upload it" (ML-278) comes first, as for any music.
 
 Limits: 20 reads an hour per account (`CALL_LIMITS['piece-read']`), on top of the feature's gate, and **the
 allowance** (built 21 Oct 2026, ready for the feature to be opened up): `photo_reads_per_quarter` on Admin →
-Feature access, Limits - 0 for Standard, 30 for Premium, Beta tester, Teacher and Band admin, the most a limit
-can be (100000) for Super admin. A quarter is a calendar quarter in UK time (from 1 January, 1 April, 1 July,
+Feature access, Limits - 0 for Standard, 30 for everyone else, Super admin included (the owner, 22 Oct 2026:
+raise it there if testing needs more). The Add a piece tile shows the count for everyone - "Uses AI to import
+the piece. 12 of 30 reads remaining which reset on 1 July" - and is disabled when none are left. A quarter is a calendar quarter in UK time (from 1 January, 1 April, 1 July,
 1 October). Only a read that gave an answer counts (`piece_reads.status = 'read'`) - not a failed one, and not
 a "Read again" of a kept test. `readAllowance` / `assertReadLeft` in `pieceReads.js`: the upload token refuses
 when none are left (before the pages go up), `POST /api/piece-read` refuses again, and

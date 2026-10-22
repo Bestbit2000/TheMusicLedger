@@ -1289,6 +1289,7 @@
     .metroBlk-entry-choice { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); min-height: 140px; padding: var(--space-4); border: 2px solid var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); font: inherit; cursor: pointer; text-align: center; box-sizing: border-box; }
     .metroBlk-entry-choice .material-symbols-outlined { font-size: var(--icon-xl); color: var(--primary-action-strong); }
     .metroBlk-entry-choice strong { font-size: var(--font-md); }
+    .metroBlk-entry-choice:disabled:not([aria-busy="true"]) { opacity: var(--opacity-disabled); cursor: not-allowed; } /* add-piece spec: none left to use (not while busy reading) */
     .metroBlk-ctrl-value-btn { position: relative; height: 60px; min-width: 74px; padding: 0 var(--space-3); border: 1px solid var(--control-border); border-radius: var(--radius-lg); background: var(--input-bg); color: var(--text-color); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: var(--line-height-snug); box-sizing: border-box; }
     .metroBlk-ctrl-value-btn strong { font-size: var(--font-md); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; }
     /* ML-550: a value too long for the box (the repeat's 101–124) - smaller, on two lines */

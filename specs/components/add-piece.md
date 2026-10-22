@@ -56,9 +56,11 @@ part takes a few minutes; the line is `aria-live="polite"`), with one info toast
 screen. The help line is "Uses AI to import the piece", and **it ends with the reads left** (the allowance,
 `photo_reads_per_quarter`), in the owner's words: "Uses AI to import the piece. 12 of 30 reads remaining which
 reset on 1 January" (the first day of the next quarter) - asked each time Add a piece opens and after each read.
-With none left it reads "0 of 30 ...", and choosing files then says so in a
-warning toast instead of sending them. No count when the allowance is the most a limit can be (the owner's), and
-the tile isn't shown at all for an account type whose allowance is 0. No new classes. When the read
+Everyone sees the count, a super admin included. **Disabled** with none left: it reads "0 of 30 ..." and the tile
+is `disabled` - `.metroBlk-entry-choice:disabled` at `--opacity-disabled` with a not-allowed cursor (not while
+`aria-busy`, when the tile is disabled for a read in progress and keeps its full colour). The server refuses too,
+and a warning toast says so if files were somehow chosen. The tile isn't shown at all for an account type whose
+allowance is 0. When the read
 comes back Quick entry opens filled in ([piece-outline](piece-outline.md)); a file with several pieces asks which
 first in `#flowChoiceModal`. A choice that can't be sent (not a photo or PDF, too many, too big) is a warning toast. **A read that fails
 is said in the confirm pop-up (`#confirmModal`), which stays until it is closed** - "The music couldn't be read",
