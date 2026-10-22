@@ -24,6 +24,7 @@ const journeySandbox = { self: {} };
 vm.runInNewContext(fs.readFileSync(new URL('../../public/flowJourney.js', import.meta.url), 'utf8'), journeySandbox);
 export const FlowJourney = journeySandbox.self.FlowJourney;
 import { isSuperAdmin } from './accounts.js';
+import { isFeatureEnabled } from './features.js';
 import { getConfigValue } from './appConfig.js';
 import { NOTE_VALUES } from './metronomeSegments.js';
 import { canDeleteFlow, BAND_CAN_CHANGE_SQL, PLAY_ONLY_MESSAGE } from './flowPermissions.js';
@@ -175,6 +176,18 @@ export async function assertFlowAccess(accountId, scoreId) {
     if (publicRows.length) return publicRows[0];
   }
   throw withStatus(404, 'Flow not found');
+}
+
+// ML-579: putting a stored file on a piece (a document, or a recording file - not a YouTube link). Adding pieces
+// is free; files are free on a band's piece for whoever may change its music (an organiser, "change music"), and
+// on your own pieces they need "Files on a piece" (piece_files, Premium). The owner's rule, 22 Oct 2026: "free to
+// practise, more with Premium". Every file upload route asks this, on the server.
+export const PIECE_FILES_MESSAGE = 'Putting files on your own pieces is part of Premium. A YouTube link is free, and so are files on your band\'s pieces.';
+export async function assertCanAddFiles(accountId, scoreId) {
+  const score = await assertFlowAccess(accountId, scoreId);
+  if (score.owner_band_id) return score;
+  if (await isFeatureEnabled('piece_files')) return score;
+  throw withStatus(403, PIECE_FILES_MESSAGE);
 }
 
 // ML-310: read access - everything assertFlowAccess allows (the owner, its band, a super admin for a

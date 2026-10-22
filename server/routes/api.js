@@ -35,7 +35,7 @@ import { listActivePlaybackSpeeds } from '../services/playbackSpeeds.js';
 import { handleUpload } from '@vercel/blob/client';
 import { listInstruments, listAccountInstruments, setAccountInstruments, setAccountInstrumentClef, resolveSessionInstrument } from '../services/instruments.js';
 import { assertRangeEnabled, getRange, setRange, recordGo, moveRange } from '../services/range.js';
-import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, setFlowArchived, setFlowsArchived, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, setRecordingClip, setRecordingMarks, setRecordingMovement, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus } from '../services/flows.js';
+import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, setFlowArchived, setFlowsArchived, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, setRecordingClip, setRecordingMarks, setRecordingMovement, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus, assertCanAddFiles } from '../services/flows.js';
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks, replaceAllFlowBlocks } from '../services/flowBlocks.js';
 import { importMusicXmlFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/musicXmlImport.js';
 import { readForAccount, discardReadFiles, sweepReadUploads, markSaved as markPieceReadSaved, readUploadPrefix, testUploadPrefix, READ_CONTENT_TYPES, readAllowance, assertReadLeft } from '../services/pieceReads.js';
@@ -1701,7 +1701,7 @@ router.post('/flows/:id/recordings/upload-token', requireAuth, resolveAccount, a
       body: req.body,
       request: req,
       onBeforeGenerateToken: async (pathname) => {
-        await assertFlowAccess(req.accountId, req.params.id);
+        await assertCanAddFiles(req.accountId, req.params.id); // ML-579: band pieces, or Premium for your own
         assertUploadFolder(pathname, `flows/${Number(req.params.id)}/recordings/`); // security re-check 21 Oct 2026: this piece's own folder
         await assertUploadRightsConfirmed(req.accountId); // ML-278, checked here too
         await limitCalls('upload-token', req.accountId);
@@ -1721,6 +1721,7 @@ router.post('/flows/:id/recordings/upload-token', requireAuth, resolveAccount, a
 
 router.post('/flows/:id/recordings', requireAuth, resolveAccount, async (req, res) => {
   try {
+    await assertCanAddFiles(req.accountId, req.params.id); // ML-579
     res.json(await addUploadedRecording(req.accountId, req.params.id, req.body || {}));
   } catch (error) {
     sendError(res, error);
@@ -1850,7 +1851,7 @@ router.post('/flows/:id/documents/upload-token', requireAuth, resolveAccount, as
       body: req.body,
       request: req,
       onBeforeGenerateToken: async (pathname) => {
-        await assertFlowAccess(req.accountId, req.params.id);
+        await assertCanAddFiles(req.accountId, req.params.id); // ML-579
         assertUploadFolder(pathname, `flows/${Number(req.params.id)}/documents/`);
         await assertUploadRightsConfirmed(req.accountId);
         await limitCalls('upload-token', req.accountId);
@@ -1870,6 +1871,7 @@ router.post('/flows/:id/documents/upload-token', requireAuth, resolveAccount, as
 
 router.post('/flows/:id/documents', requireAuth, resolveAccount, async (req, res) => {
   try {
+    await assertCanAddFiles(req.accountId, req.params.id); // ML-579
     res.json(await addDocument(req.accountId, req.params.id, req.body || {}));
   } catch (error) {
     sendError(res, error);

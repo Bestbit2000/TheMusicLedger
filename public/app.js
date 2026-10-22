@@ -11469,7 +11469,18 @@
             frame.setAttribute('src', frame.getAttribute('src'));
         });
     }
+    // ML-579: putting a stored file on a piece - free on a band's piece (the server checks who may change it),
+    // on your own pieces with "Files on a piece" (Premium). The server refuses it too (assertCanAddFiles).
+    function pieceFilesAllowed() { return !!(currentFlowDetail && currentFlowDetail.ownerBandId) || isFeatureEnabled('piece_files'); }
+    function showPieceFileButtons() {
+        const allowed = pieceFilesAllowed();
+        setShown('flowUploadRecordingBtn', allowed);
+        setShown('flowRecordingFilesNote', !allowed);
+        setShown('flowUploadDocumentBtn', allowed);
+        setShown('flowDocumentFilesNote', !allowed);
+    }
     function renderFlowRecordingsList() {
+        showPieceFileButtons();
         // A player taken off the page while playing carries on with nothing to stop it (ML-487)
         pauseFlowEditorUploads();
         const recordings = currentFlowDetail?.recordings || [];
@@ -11602,6 +11613,7 @@
 
     // --- Documents & scores card ---
     function renderFlowDocumentsList() {
+        showPieceFileButtons();
         const list = document.getElementById('flowDocumentsList');
         const countPill = document.getElementById('flowDocumentsCountPill');
         const documents = currentFlowDetail?.documents || [];

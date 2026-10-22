@@ -58,6 +58,15 @@ Standard member starts with all of these **off**. Everything else (Metronome, Tu
 Stats, Notifications, Send feedback...) stays on. Save to flow and Import from MusicXML go off too,
 since they need My music.
 
+**ML-579 (the owner, 22 Oct 2026): adding pieces is free.** Add a piece (`flow_create`) and My music
+(`flow_manage`) are switched **on** for Standard on Admin → Feature access once the release that brings
+**Files on a piece** (`piece_files`, migration 145) is live - never before, or Standard could upload files to
+their own pieces in between. `piece_files` is on for Premium, Beta tester, Teacher and Band admin, off for
+Standard; the server asks it on every file upload to a piece (`assertCanAddFiles` in `server/services/flows.js`),
+and the edit screen hides the upload buttons with a one-line note. Files on a **band's** piece are free for whoever
+may change its music, and a YouTube link is free for everyone. Save to flow, Export/Import MusicXML, a piece from a
+photo and the Recordings tool stay Premium. The rule behind it is in `docs/product-values.md` (value 4).
+
 ## Server
 
 1. **One lookup** loads the whole access table (a few hundred rows) into memory for 30 seconds, so a

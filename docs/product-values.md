@@ -49,6 +49,12 @@ The app is **free for a band**. Members who want more pay for it themselves (Pre
 - The practice tools are where the money can come from, and that money is what lets the band side
   stay free. A band that struggles to pay its fees should find the app takes a cost away, not adds one.
 - Do not propose charging a band unless the owner raises it.
+- **Free to practise, more with Premium** (the owner, 22 Oct 2026). What you need to practise is free; Premium is
+  for players who want the advanced features - never "to make it easier" (it is easy anyway). So adding pieces is
+  free for everyone, files on a band's pieces are free for whoever may change its music, and a YouTube link is free;
+  files on your own pieces, making a piece from a file or a photo, export, Save to flow, the Recordings tool,
+  Theory and Scales Levels are Premium (ML-579, `docs/feature-access-plan.md`). Ask "is it needed to practise?"
+  before proposing a gate.
 
 ### 5. Easy enough that nobody has to be chased or taught
 

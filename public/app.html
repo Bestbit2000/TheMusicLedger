@@ -1957,6 +1957,8 @@
                 </div>
                 <div id="flowAudioTracksList"></div>
                 <button type="button" class="flow-action-btn flow-action-btn-wide" id="flowUploadRecordingBtn"><span class="material-symbols-outlined">upload</span> Upload mp3 / mp4 audio (up to 25 MB)</button>
+                <!-- ML-579: a file on your own piece is Premium; a band's piece, and a YouTube link, are free -->
+                <p class="flow-card-sublabel hidden-group" id="flowRecordingFilesNote">Uploading audio to your own pieces is part of Premium. A YouTube link below is free, and so are files on your band&rsquo;s pieces.</p>
                 <input type="file" id="flowRecordingFileInput" class="hidden-group" accept="audio/*,video/mp4">
                 <div class="flow-upload-progress hidden-group" id="flowRecordingUploadProgress">
                     <div class="flow-upload-progress-text"><span id="flowRecordingUploadName">Uploading&hellip;</span><span id="flowRecordingUploadPercent">0%</span></div>
@@ -1986,6 +1988,7 @@
                 </div>
                 <div id="flowDocumentsList"></div>
                 <button type="button" class="flow-action-btn flow-action-btn-wide" id="flowUploadDocumentBtn"><span class="material-symbols-outlined">upload_file</span> Upload PDF or MusicXML score (up to 25 MB)</button>
+                <p class="flow-card-sublabel hidden-group" id="flowDocumentFilesNote">Uploading documents to your own pieces is part of Premium. Files on your band&rsquo;s pieces are free.</p>
                 <input type="file" id="flowDocumentFileInput" class="hidden-group" accept=".pdf,.musicxml,.mxl,.mscz,.mscx,.sib,.musx,application/pdf">
                 <div class="flow-upload-progress hidden-group" id="flowDocumentUploadProgress">
                     <div class="flow-upload-progress-text"><span id="flowDocumentUploadName">Uploading&hellip;</span><span id="flowDocumentUploadPercent">0%</span></div>

@@ -63,3 +63,4 @@ describe('the waiting list, from the source', () => {
     assert.match(read('server/services/retention.js'), /DELETE FROM join_requests WHERE updated_at < now\(\) - make_interval\(days => 90\)/);
   });
 });
+
