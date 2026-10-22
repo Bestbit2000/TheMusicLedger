@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Notably Better - practise your own way</title>
-<meta name="description" content="A practice app for players learning an instrument and for wind, brass and concert band players. Your band's own music, scales, theory and everyday tools - improve your playing, note by note.">
+<meta name="description" content="A practice app for brass, wind and concert band players, and anyone learning to play. Your band's own music, scales, theory and everyday tools - improve your playing, note by note.">
 <link rel="canonical" href="https://notablybetter.com/welcome.html">
 <meta property="og:title" content="Notably Better - practise your own way">
 <meta property="og:description" content="Improve your playing, note by note. Your band's own music, scales, theory and everyday tools.">
@@ -16,103 +16,189 @@
 <link rel="icon" type="image/png" sizes="64x64" href="images/brands/notably-better-tab.png">
 <link rel="icon" type="image/svg+xml" href="images/brands/notably-better-tab.svg">
 </head>
-<body>
-<!-- ML-242: the public page - what Notably Better is, who it's for and how to join, readable signed out.
-     The three texts marked "the owner's words" are his (22 Oct 2026) - change them only on his say-so.
-     Everything else says only what the app does today; when a feature changes, check this page.
+<body class="public-body">
+<!-- ML-242: the public page - a summary a visitor can take in at a glance, with the detail behind "Read more"
+     (<details>, so no script). The owner's words, marked below, are his (22 Oct 2026) - change them only on his
+     say-so. Everything else says only what the app does today; when a feature changes, check this page.
      No pressure rule (specs/README.md): no urgency, no member numbers, no comparison between players.
-     specs/components/public-page.md -->
+     Design: the owner's Claude Design canvas, 22 Oct 2026. specs/components/public-page.md -->
 <script src="display-prefs.js"></script>
-<main class="container public-page">
-    <header class="public-top">
+
+<header class="public-band">
+    <div class="public-wrap public-top">
         <a class="public-top-brand" href="/welcome.html"><img class="brand-mark" src="images/brands/notably-better-mark.svg" alt="" aria-hidden="true"><span>Notably Better</span></a>
         <nav class="public-top-links" aria-label="Notably Better">
+            <a href="#how">How it works</a>
             <a href="/pricing.html">Pricing</a>
-            <a href="/">Log in</a>
+            <a class="public-top-login" href="/">Log in</a>
         </nav>
-    </header>
+    </div>
+</header>
 
-    <section class="public-hero" aria-labelledby="publicHeroTitle">
-        <h1 class="public-hero-title" id="publicHeroTitle">Practise your own way</h1>
-        <p class="public-hero-sub">Improve your playing, note by note.</p>
-        <p>A practice app for players learning an instrument, and for players in wind, brass and concert bands.</p>
-        <div class="public-actions">
-            <a class="btn-submit" href="#join">How to join</a>
-            <a class="btn-nav btn-cancel" href="/">Log in</a>
+<main>
+    <section class="public-band" aria-labelledby="publicHeroTitle">
+        <div class="public-wrap public-hero">
+            <div class="public-hero-text">
+                <p class="public-kicker">For brass, wind and concert band players, and anyone learning to play</p>
+                <h1 class="public-hero-title" id="publicHeroTitle">Practise your own way.</h1>
+                <p class="public-hero-sub">Improve your playing, note by note.</p>
+                <div class="public-hero-actions">
+                    <a class="btn-submit public-cta" href="#join">Ask to join</a>
+                    <span class="public-hero-note">Invite only for now. Free for bands.</span>
+                </div>
+            </div>
+            <div class="public-phone" role="img" aria-label="The app showing a march of 24 bars coloured by Level, mostly gold, with bars 9 to 12 at Level 1 and 2, and a five-minute go on bars 9 to 12 three goes in">
+                <div class="public-phone-head"><strong>Spring concert march</strong><span>24 bars</span></div>
+                <p class="public-phone-caption">My bars, by Level</p>
+                <div class="public-bars" aria-hidden="true">
+                    <span class="is-l5"></span><span class="is-l5"></span><span class="is-l5"></span><span class="is-l4"></span><span class="is-l4"></span><span class="is-l5"></span>
+                    <span class="is-l4"></span><span class="is-l3"></span><span class="is-l1 is-now"></span><span class="is-l2 is-now"></span><span class="is-l1 is-now"></span><span class="is-l2 is-now"></span>
+                    <span class="is-l3"></span><span class="is-l4"></span><span class="is-l4"></span><span class="is-l5"></span><span class="is-l5"></span><span class="is-l4"></span>
+                    <span class="is-l3"></span><span class="is-l3"></span><span class="is-l4"></span><span class="is-l5"></span><span class="is-l5"></span><span class="is-l5"></span>
+                </div>
+                <div class="public-phone-now" aria-hidden="true">
+                    <span>Focus for Five, now</span>
+                    <strong>Bars 9 to 12, Level 2</strong>
+                    <span class="public-goes"><span class="is-done"></span><span class="is-done"></span><span class="is-done"></span><span></span><span></span></span>
+                </div>
+            </div>
         </div>
-        <img class="public-hero-image" src="images/brands/notably-better-splash.jpg" alt="" width="1376" height="768">
     </section>
 
-    <h2 class="section-title">Learning to play</h2>
-    <!-- the owner's words -->
-    <p>Notably Better helps with the basics that underpin everything: scales, note names, key signatures and rhythm, from your first notes through to the higher grades. Short, focused practice means you work on the right things rather than simply doing more, and you can watch your playing improve.</p>
+    <section class="public-wrap public-section" id="how" aria-labelledby="howTitle">
+        <h2 class="public-h2" id="howTitle">Where it helps</h2>
+        <p class="public-lede">Pick what you need. Tap any of them for the detail.</p>
+        <div class="public-cards">
+            <details class="public-card">
+                <summary>
+                    <span class="public-card-kicker">Learning to play</span>
+                    <span class="public-card-title">The basics, from your first notes to the higher grades</span>
+                    <span class="public-card-sum">Scales, note names, keys and rhythm, in short focused goes.</span>
+                    <span class="public-more"><span class="public-more-open">Read more</span><span class="public-more-close">Show less</span></span>
+                </summary>
+                <!-- the owner's words -->
+                <p>Notably Better helps with the basics that underpin everything: scales, note names, key signatures and rhythm, from your first notes through to the higher grades. Short, focused practice means you work on the right things rather than simply doing more, and you can watch your playing improve.</p>
+            </details>
+            <details class="public-card">
+                <summary>
+                    <span class="public-card-kicker">Playing in a band</span>
+                    <span class="public-card-title">Your band&rsquo;s own pieces, set up once, used by everyone</span>
+                    <span class="public-card-sum">Any piece, even a hand-written part. No library needed.</span>
+                    <span class="public-more"><span class="public-more-open">Read more</span><span class="public-more-close">Show less</span></span>
+                </summary>
+                <!-- the owner's words -->
+                <p>Notably Better takes the pieces you&rsquo;re learning for your next concert and helps with the usual stumbling blocks: changes of time signature, awkward runs of notes and getting the rhythm right. It breaks the hard bits into five-minute steps, and since the whole band plays at the same tempo (hopefully!), one person can set a piece up and everyone can use it to get up to speed.</p>
+                <p>Type a piece in by the bar numbers on your part. The metronome then follows its real bars: changes of time and speed, repeats, D.S. and Coda.</p>
+            </details>
+            <details class="public-card">
+                <summary>
+                    <span class="public-card-kicker">Focus for Five</span>
+                    <span class="public-card-title">Five minutes at a time, on the bars that need it</span>
+                    <span class="public-card-sum">Or skip the plan and just play. It&rsquo;s your practice.</span>
+                    <span class="public-more"><span class="public-more-open">Read more</span><span class="public-more-close">Show less</span></span>
+                </summary>
+                <p>A session is made of five-minute blocks with a short rest between. Run through a piece, mark the bars you can&rsquo;t play yet, then work on short bits of it. Each one moves up a Level as you go. A practice list for a concert shows how many blocks are left before the date.</p>
+                <p>Prefer your own way? Play a piece with the metronome following its bars, slow down the hard ones, and log your time.</p>
+            </details>
+        </div>
+    </section>
 
-    <h2 class="section-title">Playing in a band</h2>
-    <!-- the owner's words -->
-    <p>Notably Better takes the pieces you&rsquo;re learning for your next concert and helps with the usual stumbling blocks: changes of time signature, awkward runs of notes and getting the rhythm right. It breaks the hard bits into five-minute steps, and since the whole band plays at the same tempo (hopefully!), one person can set a piece up and everyone can use it to get up to speed.</p>
-    <ul>
-        <li>Any piece your band plays - a new arrangement, a hand-written part, something that is in no library. Type it in by the bar numbers on your part.</li>
-        <li>The metronome follows the piece&rsquo;s real bars: its changes of time and speed, its repeats, D.S. and Coda.</li>
-        <li>A band shares its pieces and practice lists with its members.</li>
-    </ul>
+    <section class="public-wrap public-section" aria-labelledby="glanceTitle">
+        <div class="public-strip-head">
+            <h2 class="public-h3" id="glanceTitle">See the hard bits at a glance</h2>
+            <ul class="public-key" aria-label="Key">
+                <li><span class="is-l1"></span>Level 1</li><li><span class="is-l2"></span>Level 2</li><li><span class="is-l3"></span>Level 3</li><li><span class="is-l4"></span>Level 4</li><li><span class="is-l5"></span>Level 5</li>
+            </ul>
+        </div>
+        <div class="public-strip" role="img" aria-label="A piece of 32 bars coloured by Level: most at Level 4 and 5, with two hard passages at Level 1 and 2, around bars 9 to 11 and bars 19 to 22">
+            <span class="is-l5"></span><span class="is-l5"></span><span class="is-l5"></span><span class="is-l4"></span><span class="is-l4"></span><span class="is-l5"></span><span class="is-l4"></span><span class="is-l3"></span>
+            <span class="is-l1"></span><span class="is-l1"></span><span class="is-l2"></span><span class="is-l3"></span><span class="is-l4"></span><span class="is-l5"></span><span class="is-l5"></span><span class="is-l4"></span>
+            <span class="is-l4"></span><span class="is-l3"></span><span class="is-l2"></span><span class="is-l1"></span><span class="is-l1"></span><span class="is-l2"></span><span class="is-l3"></span><span class="is-l4"></span>
+            <span class="is-l4"></span><span class="is-l5"></span><span class="is-l5"></span><span class="is-l5"></span><span class="is-l4"></span><span class="is-l4"></span><span class="is-l5"></span><span class="is-l5"></span>
+        </div>
+        <p class="public-lede">Mark the bars you can&rsquo;t play yet. Every five-minute go moves them a step closer to gold.</p>
+    </section>
 
-    <h2 class="section-title">Focus for Five - or your own way</h2>
-    <p><strong>Focus for Five</strong> is a practice session in five-minute blocks, with a short rest between them. Run through a piece, mark the bars you can&rsquo;t play yet, then work on short bits of it, each one moving up a Level. A practice list for a concert shows how many blocks are left before the date.</p>
-    <p>Or practise your own way: play a piece with the metronome following its bars, go over the hard bars more slowly, and log your practice time.</p>
+    <section class="public-tint" aria-labelledby="toolsTitle">
+        <div class="public-wrap public-tools">
+            <h2 class="public-h3" id="toolsTitle">Everyday tools</h2>
+            <ul class="public-chips">
+                <li>Metronome</li><li>Tuner</li><li>Warm-ups</li><li>Scales by grade</li><li>Theory</li><li>Recordings</li>
+                <li class="public-chips-more">and more on the way</li>
+            </ul>
+        </div>
+    </section>
 
-    <h2 class="section-title">The everyday tools</h2>
-    <ul class="public-tiles">
-        <li class="public-tile"><strong>Metronome</strong><span>A steady beat, or one that follows a piece.</span></li>
-        <li class="public-tile"><strong>Tuner</strong><span>Listens through your microphone - the sound never leaves your device.</span></li>
-        <li class="public-tile"><strong>Warm-ups</strong><span>A few minutes to get going before you play.</span></li>
-        <li class="public-tile"><strong>Scales</strong><span>By grade, Grade 1 to 8, for brass and woodwind.</span></li>
-        <li class="public-tile"><strong>Theory</strong><span>Short quizzes on note names, keys and more.</span></li>
-        <li class="public-tile"><strong>Recordings</strong><span>A recording of a piece, matched to its bars, so you can go over any of them.</span></li>
-    </ul>
-    <p class="text-sm text-muted">More practice tools are being tested. Some tools are part of Premium - see <a href="/pricing.html">Pricing</a>.</p>
+    <section class="public-wrap public-section" aria-label="What you can count on">
+        <div class="public-promises">
+            <div>
+                <svg class="public-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+                <h3>Your progress is yours</h3>
+                <p>Shared only with your say-so. Nobody marks anybody.</p>
+            </div>
+            <div>
+                <svg class="public-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3"></circle><circle cx="16" cy="8" r="3"></circle><path d="M3 20c0-3 2.5-5 5-5s5 2 5 5"></path><path d="M13 16.5c.8-1 1.9-1.5 3-1.5 2.5 0 5 2 5 5"></path></svg>
+                <h3>Free for bands</h3>
+                <p>Bands share their music for nothing. <a href="/pricing.html">Premium</a> is for players who want it easier.</p>
+            </div>
+            <div>
+                <svg class="public-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8.5a15 15 0 0 1 20 0"></path><path d="M5.5 12a10 10 0 0 1 13 0"></path><path d="M9 15.5a5 5 0 0 1 6 0"></path><path d="M3 3l18 18"></path></svg>
+                <h3>No signal? No problem</h3>
+                <p>The practice tools work offline in the band room.</p>
+            </div>
+        </div>
+        <details class="public-detail">
+            <summary><span class="public-more"><span class="public-more-open">Privacy, reading settings and the rest</span><span class="public-more-close">Show less</span></span></summary>
+            <ul>
+                <li>No adverts and no tracking cookies. Download your information, or delete your account, whenever you like.</li>
+                <li>Dark mode, dyslexia-friendly reading, a choice of background colour and text size.</li>
+                <li>Put it on your phone&rsquo;s home screen and it opens like an app.</li>
+            </ul>
+        </details>
+    </section>
 
-    <h2 class="section-title">Your progress is yours</h2>
-    <p>Your practice, your Levels and your times are yours. They are only ever shared with your say-so, and nobody marks anybody. Results are positive only: what went well, and what comes next.</p>
+    <section class="public-warm" aria-labelledby="storyTitle">
+        <div class="public-story">
+            <h2 class="visually-hidden" id="storyTitle">Why I made it</h2>
+            <!-- the owner's own line, from his story below -->
+            <blockquote class="public-quote">&ldquo;Lots of small steps add up to a big difference, as long as you stick at it.&rdquo;</blockquote>
+            <div class="public-person">
+                <span class="public-person-initials" aria-hidden="true">AS</span>
+                <span><strong>Andrew Storey</strong><span>Budding euphonium player, and founder of Notably Better</span></span>
+            </div>
+            <details class="public-detail">
+                <summary><span class="public-more"><span class="public-more-open">Why I made it</span><span class="public-more-close">Show less</span></span></summary>
+                <!-- the owner's words -->
+                <p>After years in the audience at wind band concerts, I finally decided to learn to play myself. I chose the euphonium: my training brass band was short of puff on the bigger instruments, and it sits happily in both brass and wind bands.</p>
+                <p>However, I&rsquo;m not a natural musician, and I was practising a lot but not getting very far, very fast. I&rsquo;d look at a new piece and think: I can play that bit, but I can&rsquo;t play that bit, or that one, or that one... or that one! Then I realised that how I practised mattered as much as how much I practised.</p>
+                <p>What I am good at is solving problems and finding ways to improve things, and I&rsquo;m a firm believer that lots of small steps add up to a big difference, as long as you stick at it. Notably Better began simply as a way to record the time I spent practising, and has grown into the tool I wish I&rsquo;d had from the start.</p>
+            </details>
+        </div>
+    </section>
 
-    <h2 class="section-title">Made for everyone</h2>
-    <ul>
-        <li>Dark mode, dyslexia-friendly reading, a choice of background colour and text size.</li>
-        <li>Works offline: the practice tools run with no signal, and what you log is sent when you are back online.</li>
-        <li>Put it on your phone&rsquo;s home screen and it opens like an app.</li>
-        <li>No adverts and no tracking cookies. Download your information, or delete your account, whenever you like.</li>
-    </ul>
+    <section class="public-band" id="join" aria-labelledby="joinTitle">
+        <div class="public-wrap public-join">
+            <div>
+                <h2 class="public-h2" id="joinTitle">Invite only, for now</h2>
+                <p>Ask your band&rsquo;s organiser to invite you, or ask us. Under 13? Ask a parent or carer to do it for you.</p>
+            </div>
+            <div class="public-join-actions">
+                <a class="btn-submit public-cta" href="mailto:hello@notablybetter.com?subject=Joining%20Notably%20Better">Ask to join</a>
+                <a class="public-cta-outline" href="/">Log in</a>
+            </div>
+        </div>
+    </section>
+</main>
 
-    <h2 class="section-title">Free for bands</h2>
-    <p>A band shares its pieces and practice lists with its members for free, and you can use Notably Better without paying anything. Premium is coming, for players who want it to be easier still. <a href="/pricing.html">See what&rsquo;s in each</a>.</p>
-
-    <h2 class="section-title">Why I made it</h2>
-    <!-- the owner's words -->
-    <div class="public-story">
-        <p>After years in the audience at wind band concerts, I finally decided to learn to play myself. I chose the euphonium: my training brass band was short of puff on the bigger instruments, and it sits happily in both brass and wind bands.</p>
-        <p>However, I&rsquo;m not a natural musician, and I was practising a lot but not getting very far, very fast. I&rsquo;d look at a new piece and think: I can play that bit, but I can&rsquo;t play that bit, or that one, or that one... or that one! Then I realised that how I practised mattered as much as how much I practised.</p>
-        <p>What I am good at is solving problems and finding ways to improve things, and I&rsquo;m a firm believer that lots of small steps add up to a big difference, as long as you stick at it. Notably Better began simply as a way to record the time I spent practising, and has grown into the tool I wish I&rsquo;d had from the start.</p>
-    </div>
-
-    <h2 class="section-title" id="join">How to join</h2>
-    <p>Notably Better is invite only for now.</p>
-    <ul>
-        <li>If your band already uses it, ask your band&rsquo;s organiser to invite you.</li>
-        <li>Otherwise, write to us at hello@notablybetter.com with your name, your instrument and the band you play with, if you play in one.</li>
-        <li>If you are under 13, ask a parent or carer to write for you.</li>
-    </ul>
-    <div class="public-actions">
-        <a class="btn-submit" href="mailto:hello@notablybetter.com?subject=Joining%20Notably%20Better">Write to us</a>
-        <a class="btn-nav btn-cancel" href="/">Already a member? Log in</a>
-    </div>
-
-    <footer class="public-foot">
+<footer class="public-band public-foot-band">
+    <div class="public-wrap public-foot">
         <a href="/pricing.html">Pricing</a>
         <a href="/privacy.html">Privacy policy</a>
         <a href="/terms.html">Terms of use</a>
         <a href="mailto:hello@notablybetter.com">hello@notablybetter.com</a>
         <span>Made in the UK</span>
-    </footer>
-</main>
+    </div>
+</footer>
 <script src="analytics.js"></script>
 </body>
 </html>

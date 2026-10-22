@@ -725,6 +725,42 @@
       "fg": "--control-border",
       "bg": "--input-bg",
       "use": "Usage bar (ML-515): the track's edge inside a stat tile"
+    },
+    {
+      "kind": "text",
+      "fg": "--public-band-text",
+      "bg": "--public-band-bg",
+      "use": "Public pages (ML-242): text on a dark band"
+    },
+    {
+      "kind": "text",
+      "fg": "--public-band-muted",
+      "bg": "--public-band-bg",
+      "use": "Public pages: quieter text on a dark band, the footer links"
+    },
+    {
+      "kind": "text",
+      "fg": "--public-band-accent",
+      "bg": "--public-band-bg",
+      "use": "Public pages: gold text, Log in and the outlined buttons on a dark band"
+    },
+    {
+      "kind": "text",
+      "fg": "--public-band-text",
+      "bg": "--public-band-raised",
+      "use": "Public pages: the phone picture - its title"
+    },
+    {
+      "kind": "text",
+      "fg": "--public-band-muted",
+      "bg": "--public-band-raised",
+      "use": "Public pages: the phone picture - its small print"
+    },
+    {
+      "kind": "text",
+      "fg": "--link-color",
+      "bg": "--bg-color",
+      "use": "Public pages: a card heading and Read more on a tinted card"
     }
   ]
 }

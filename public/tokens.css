@@ -242,6 +242,14 @@
     --menu-backdrop-bg: var(--ds-black-a30, rgba(0, 0, 0, 0.3)); /* dims the page behind the open ☰ menu on a phone (ML-291) - lighter than a modal scrim */
     --media-bg: var(--ds-neutral-1000, #000000);              /* letterbox behind embedded video */
     --splash-bg: var(--ds-neutral-950, #0a0a0a);                 /* login splash backdrop only */
+    /* ML-242: the public pages (welcome.html, pricing.html) - their dark bands (top, headline, join, footer) and the
+       Premium card stay dark in both themes, like the sign-in splash, so these are not remapped in dark mode. */
+    --public-band-bg: var(--ds-neutral-950, #0a0a0a);            /* public pages: a dark band */
+    --public-band-raised: var(--ds-neutral-850, #1e1e1e);        /* public pages: a panel on a dark band (the phone picture) */
+    --public-band-edge: var(--ds-neutral-750, #333333);          /* public pages: an edge, or a step not done yet, on a dark band */
+    --public-band-text: var(--ds-neutral-0, #ffffff);            /* public pages: text on a dark band */
+    --public-band-muted: var(--ds-neutral-150, #cfcfcf);         /* public pages: quieter text on a dark band */
+    --public-band-accent: var(--ds-gold-500, #d4af37);           /* public pages: gold text, outlines and marks on a dark band */
 
     /* Text */
     --text-color: var(--ds-neutral-750, #333333);         /* body text */
@@ -492,6 +500,7 @@
     /* ML-239: tablet and desktop (specs/foundations/layout.md) */
     --rail-width: 256px;          /* the menu rail, open: icons and names */
     --rail-width-folded: 64px;    /* the menu rail, folded to icons */
+    --page-max-public: 1120px;    /* the public pages' content width (ML-242) - their bands run edge to edge */
     --page-max-narrow: 640px;     /* a form, a set of steps or a page of reading on a wide screen */
     --page-max-wide: none;        /* Home and playing fill the room beside the menu on a wide screen */
     --pane-list-width: clamp(320px, 24vw, 420px);     /* the list side of a two-pane page: a little wider as the screen gets wider */

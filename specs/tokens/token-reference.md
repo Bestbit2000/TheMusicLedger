@@ -25,6 +25,12 @@ Related: [color](../foundations/color.md) - [spacing](../foundations/spacing.md)
 | `--menu-backdrop-bg` | `rgba(0, 0, 0, 0.3)` | `rgba(0, 0, 0, 0.6)` | dims the page behind the open ☰ menu on a phone (ML-291) - lighter than a modal scrim |
 | `--media-bg` | `#000000` | (same) | letterbox behind embedded video |
 | `--splash-bg` | `#0a0a0a` | (same) | login splash backdrop only |
+| `--public-band-bg` | `#0a0a0a` | (same) | public pages: a dark band |
+| `--public-band-raised` | `#1e1e1e` | (same) | public pages: a panel on a dark band (the phone picture) |
+| `--public-band-edge` | `#333333` | (same) | public pages: an edge, or a step not done yet, on a dark band |
+| `--public-band-text` | `#ffffff` | (same) | public pages: text on a dark band |
+| `--public-band-muted` | `#cfcfcf` | (same) | public pages: quieter text on a dark band |
+| `--public-band-accent` | `#d4af37` | (same) | public pages: gold text, outlines and marks on a dark band |
 
 ## Text
 
@@ -337,6 +343,7 @@ one ladder, low to high. Never invent a number in a component.
 |---|---|---|
 | `--rail-width` | `256px` | the menu rail, open: icons and names |
 | `--rail-width-folded` | `64px` | the menu rail, folded to icons |
+| `--page-max-public` | `1120px` | the public pages' content width (ML-242) - their bands run edge to edge |
 | `--page-max-narrow` | `640px` | a form, a set of steps or a page of reading on a wide screen |
 | `--page-max-wide` | `none` | Home and playing fill the room beside the menu on a wide screen |
 | `--pane-list-width` | `clamp(320px, 24vw, 420px)` | the list side of a two-pane page: a little wider as the screen gets wider |
