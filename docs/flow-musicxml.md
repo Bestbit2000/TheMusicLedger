@@ -6,6 +6,7 @@ One file format, one parser, for every way a Flow leaves or enters the app as no
 |---|---|---|
 | Copy flows between environments (e.g. production → dev/sandbox for testing) | Admin panel → **Flows** (export / import, bulk, any owner) | super admin only |
 | Create a flow from a `.musicxml`/`.mxl` file | Flow start screen → **Import from MusicXML** (`/api/flows/from-file`) | `flow_import_musicxml` |
+| Create a piece from a MuseScore 4 file (`.mscz`) - ML-578 | Add a piece → the same tile and screen, then called **Import from a file** (`/api/flows/from-file`) | `flow_import_musescore` |
 | Download one of your flows | Flow library ⋮ → **Export to MusicXML** (`GET /api/flows/:id/musicxml`) | `flow_export_musicxml` |
 | Local dev | `scripts/seed-flow-fixtures.mjs`, `scripts/export-flow-musicxml.mjs` |
 
@@ -16,7 +17,8 @@ Code:
 | `server/services/flowMusicXml.js` | `flowToMusicXml` - the writer. Pure, no DB. |
 | `server/services/flowMusicXmlReader.js` | `musicXmlToFlow` - the reader. Pure, no DB. |
 | `server/services/flowTransfer.js` | DB side: admin list, export (single file / `.zip`), import preview + commit |
-| `server/services/musicXmlImport.js` | Import-from-MusicXML front end: `.mxl` unzipping (with the zip-bomb cap), the own-store and capped-read guards, time-signature id resolution |
+| `server/services/musicXmlImport.js` | Import-from-MusicXML front end: `.mxl` and `.mscz` unzipping (with the zip-bomb cap), the own-store and capped-read guards, time-signature id resolution |
+| `server/services/museScoreReader.js` | `museScoreToFlow` - the MuseScore reader (ML-578). Pure, no DB. Ends in the MusicXML reader's own `measuresToBlocks` |
 | `server/test/` | `npm test` in `server/` - see "Tests" below |
 
 ## Why MusicXML (not a private JSON format)
@@ -110,6 +112,48 @@ a tempo change partway through a bar (applied from the next block), a repeat cou
 a coda sign on a barline with no jump information, a speed change with nowhere to go, no tempo
 marking at all (100 bpm).
 
+## MuseScore files (ML-578)
+
+A `.mscz` is a zip holding MuseScore's own XML (`.mscx`), as an `.mxl` holds MusicXML.
+`extractScoreText` (musicXmlImport.js) tells them apart by what is inside - a `.mscx` at the top of the
+zip is MuseScore - unzips it under the same zip-bomb cap, and leaves the parts (`Excerpts/`) and the style
+file alone. `museScoreToFlow` (museScoreReader.js) then builds, for every staff, the same per-bar lists
+`scanPart` builds from a MusicXML part, and hands them to `measuresToBlocks` - **the same function the
+MusicXML reader ends in** - so a MuseScore file becomes blocks exactly as a MusicXML file does: the same
+block boundaries, speeds, ramps, jumps, pauses and warnings.
+
+- **Which part:** all of them, as MusicXML reads every part. The bars and the system marks (speeds,
+  letters, repeats, signs) are the same on every staff of a MuseScore score; a fermata or a "rit." on one
+  staff still counts. There is nothing to pick.
+- **What it reads:** bar lengths (`len` - a pickup), time signatures, `<Tempo>` (beats a second, so 1.15
+  is 69 a minute; the note from the marking's symbol), rehearsal letters, staff and system text (a
+  "rit." or "D.S." written as text), `<GradualTempoChange>` spans (rit./accel., ending where the span ends),
+  first/second-time bars (`Volta` spans), start/end repeats and their count, double and final barlines,
+  `<Marker>` (sign, Coda, To Coda, Fine - MuseScore labels the Coda `codab` and To Coda `coda`), `<Jump>`
+  (D.C./D.S., al Coda when it continues at a Coda, al Fine when it plays to the Fine), fermatas, and a
+  caesura `<Breath>` (a breath comma is ignored, as in MusicXML). Notes only count for their length
+  (dots, tuplets and grace notes included). The title is the title box's (its lines joined with " - "), else
+  the score's properties; MuseScore's own placeholders ("Untitled score", "Composer / arranger") are ignored.
+- **Versions:** MuseScore 4 only (`<museScore version="4.xx">`). Its format isn't published and changes
+  between versions, so a file from MuseScore 3 or older, or 5 and newer, is refused in plain words: save it
+  again in MuseScore 4, or export MusicXML from MuseScore and import that.
+- **Refused, with nothing kept:** a damaged or password-protected file, one too big or that unpacks too big,
+  and - by the server, not just the screen - a MuseScore file for someone without `flow_import_musescore`
+  (a MusicXML file likewise needs `flow_import_musicxml`). The upload is let through for either switch;
+  `/flows/from-file` checks the switch for the kind of file it finds.
+- **The file isn't kept.** It is deleted from the file store once read - the member attaches it to the
+  piece's Media themselves if they want it there. (A MusicXML file is still attached, as before.) Any
+  file whose import fails is deleted too.
+- **Movements (ML-529)** aren't read from a MuseScore file yet: a suite in one file comes in as one
+  movement. The owner's test files are one movement each.
+
+**Testing:** `server/test/museScoreReader.test.js` uses a small home-made score written the way MuseScore 4
+writes one. The owner's own MuseScore files (two movements of a brass band suite, from his Downloads folder)
+are someone else's music and stay out of the repository: run them by hand. On 22 Oct 2026 they read as
+37 bars - 4/4, 3/4, 4/4, 3/2, 4/4, crotchet = 69, 84, 114, letters A-B - and 107 bars - 3/4, 2/4, 3/4,
+132, 120, 132 with an accel., letters A-G - each with one true warning (a speed change partway through a
+bar; an accel. that ends a bar before the next marked speed).
+
 ## For every user
 
 "For every action there should be a re-action": if you can import MusicXML, you can export it.
@@ -169,6 +213,7 @@ preview says so.
 | `flowMusicXmlRoundTrip.test.js` | Lossless write → read for every fixture, compared after `validateSegmentPayload` |
 | `flowMusicXmlForeign.test.js` | Hand-written notation-app-style and scanning-app-style (OMR) files, the demo score, and our own exports with the extension stripped |
 | `musicXmlImportGuards.test.js` | The import's guards: only this app's own file store, capped reads, an `.mxl` zip bomb refused (honest and forged size headers) |
+| `museScoreReader.test.js` | ML-578: a home-made MuseScore 4 score read into blocks (pickup, repeats and endings, sign, To Coda, D.S. al Coda, a rit., fermatas on two staves, a caesura, a tuplet), old and new versions refused, a `.mscz` unzipped to its score and not its parts, a damaged or password-protected file refused, each kind of file only with its switch |
 
 Fixture flows (`server/test/fixtures/flowFixtures.js`) cover every block-editor option across
 five flows (jumps are one-per-piece, so D.S. al Coda / D.S. al Fine / D.C. al Coda / D.C. al Fine

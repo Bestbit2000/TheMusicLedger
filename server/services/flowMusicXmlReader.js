@@ -47,12 +47,13 @@ const FRACTION_TO_NOTE_VALUE = {
 // puts a fermata or a ramp on the right beat), so the tree is parsed with preserveOrder: every
 // node is { tagName: [children], ':@': { '@_attr': value } }, text is { '#text': value }.
 
-function tagOf(node) { return Object.keys(node).find(k => k !== ':@'); }
-function kids(node) { const v = node[tagOf(node)]; return Array.isArray(v) ? v : []; }
-function attr(node, name) { return node[':@']?.[`@_${name}`]; }
-function child(node, tag) { return kids(node).find(k => tagOf(k) === tag); }
-function childrenOf(node, tag) { return kids(node).filter(k => tagOf(k) === tag); }
-function textOf(node) {
+// Exported for the MuseScore reader (museScoreReader.js, ML-578), which walks its own XML the same way.
+export function tagOf(node) { return Object.keys(node).find(k => k !== ':@'); }
+export function kids(node) { const v = node[tagOf(node)]; return Array.isArray(v) ? v : []; }
+export function attr(node, name) { return node[':@']?.[`@_${name}`]; }
+export function child(node, tag) { return kids(node).find(k => tagOf(k) === tag); }
+export function childrenOf(node, tag) { return kids(node).filter(k => tagOf(k) === tag); }
+export function textOf(node) {
   if (!node) return null;
   return kids(node).map(k => (k['#text'] !== undefined ? String(k['#text']) : textOf(k) || '')).join('').trim();
 }
@@ -475,6 +476,25 @@ function buildBlocks(bars, ownFormat, warnings, flowHasToCoda) {
   return blocks;
 }
 
+// ---------- measures -> blocks ----------
+
+// Everything after the parts are scanned: the bars of the first part give the structure, markings come from every
+// part. Exported for the MuseScore reader (ML-578), which builds the same per-part measure lists (scanPart's shape)
+// from a MuseScore file, so both kinds of file become blocks in exactly one way.
+export function measuresToBlocks(scanned, warnings) {
+  const structure = scanned[0] || [];
+  if (!structure.length) throw withStatus(422, 'This score has no measures to import.');
+  const bars = analyseBars(structure, scanned.slice(1));
+  bars.forEach((bar, i) => {
+    if (bar.nextSegno && bars[i + 1]) bars[i + 1].segno = true;
+    if (bar.nextCoda && bars[i + 1]) bars[i + 1].codaLanding = true;
+    if (bar.unplacedCoda) warnings.push(`A coda sign on the barline after bar ${i + 1} has no jump information - ignored.`);
+  });
+  const ownFormat = bars.some(b => b.ext);
+  const flowHasToCoda = bars.some(b => b.toCoda);
+  return { blocks: buildBlocks(bars, ownFormat, warnings, flowHasToCoda), ownFormat };
+}
+
 // ---------- main entry point ----------
 
 /**
@@ -517,19 +537,7 @@ export function musicXmlToFlow(xmlString) {
 
   const parts = childrenOf(root, 'part');
   if (!parts.length) throw withStatus(422, 'No parts found in this score.');
-  const scanned = parts.map(p => scanPart(p, warnings));
-  const structure = scanned[0];
-  if (!structure.length) throw withStatus(422, 'This score has no measures to import.');
-
-  const bars = analyseBars(structure, scanned.slice(1));
-  bars.forEach((bar, i) => {
-    if (bar.nextSegno && bars[i + 1]) bars[i + 1].segno = true;
-    if (bar.nextCoda && bars[i + 1]) bars[i + 1].codaLanding = true;
-    if (bar.unplacedCoda) warnings.push(`A coda sign on the barline after bar ${i + 1} has no jump information - ignored.`);
-  });
-  const ownFormat = bars.some(b => b.ext);
-  const flowHasToCoda = bars.some(b => b.toCoda);
-  const blocks = buildBlocks(bars, ownFormat, warnings, flowHasToCoda);
+  const { blocks, ownFormat } = measuresToBlocks(parts.map(p => scanPart(p, warnings)), warnings);
 
   return {
     title: (work && textOf(child(work, 'work-title'))) || textOf(child(root, 'movement-title')) || null,

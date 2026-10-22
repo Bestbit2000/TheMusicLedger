@@ -2,7 +2,8 @@
 // can't drift from the app. A cell names its account type (data-plan), the features that must all be on
 // for it (data-feature) and, for a number, the limit (data-limit) and how to write it (data-format).
 // A feature or limit the answer doesn't have is left as typed in pricing.html - so is every cell if the
-// answer can't be read. Nothing here is about a member: the answer is the same for everyone.
+// answer can't be read. A cell typed "Coming" stays so until its feature is on for that plan (ML-578). Nothing
+// here is about a member: the answer is the same for everyone.
 (function () {
     function setCell(td, state, text) {
         td.classList.remove('is-yes', 'is-no', 'is-coming');
@@ -22,6 +23,7 @@
             const keys = (td.dataset.feature || '').split(' ').filter(Boolean);
             if (keys.some(function (k) { return !(k in plan.features); })) return; // not in the catalog yet: keep what's typed
             const on = keys.every(function (k) { return plan.features[k]; });
+            if (!on && td.classList.contains('is-coming')) return; // ML-578: "Coming" until it is switched on for that plan
             const limitKey = td.dataset.limit;
             if (!limitKey) { setCell(td, on ? 'yes' : 'no'); return; }
             if (!(limitKey in plan.limits)) return;

@@ -3719,7 +3719,7 @@
         ['Tools - Learn', ['theory_practice', 'theory_grades', 'theory_smart_learn', 'ear_training', 'tap_tempo', 'gap_trainer', 'range_trainer', 'rhythm_trainer']],
         ['Practice sessions', ['practice_levels', 'scales_levels']],
         ['Menu', ['flow_manage', 'manage_tutor', 'notifications', 'feedback', 'invite_members', 'member_setup']],
-        ['My music', ['flow_create', 'flow_import_musicxml', 'flow_export_musicxml', 'flow_playback', 'flow_editor', 'flow_consistency_check']],
+        ['My music', ['flow_create', 'flow_import_musicxml', 'flow_import_musescore', 'flow_export_musicxml', 'flow_playback', 'flow_editor', 'flow_consistency_check']],
         ['Metronome and tuner', ['metronome_history', 'metronome_save_to_flow', 'tuner_rewind']]
     ];
     // ML-383: limits (a number per account type, e.g. how many Metronome plays history lists) wait in

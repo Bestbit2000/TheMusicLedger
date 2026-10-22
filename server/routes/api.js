@@ -33,6 +33,7 @@ import { listTimeSignatureOptions, createCustomTimeSignature, listCustomTimeSign
 import { renameAdhocSetup, deleteAdhocSetup, getAdhocSetupWithSegments, createQuickPlaySetup, listQuickPlayHistory, HISTORY_SHOWN_DEFAULT, setAdhocSetupFavorite, overwriteQuickPlayHistorySegments, duplicateQuickPlayHistory } from '../services/metronomeSetups.js';
 import { listActivePlaybackSpeeds } from '../services/playbackSpeeds.js';
 import { handleUpload } from '@vercel/blob/client';
+import { del } from '@vercel/blob';
 import { listInstruments, listAccountInstruments, setAccountInstruments, setAccountInstrumentClef, resolveSessionInstrument } from '../services/instruments.js';
 import { assertRangeEnabled, getRange, setRange, recordGo, moveRange } from '../services/range.js';
 import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, setFlowArchived, setFlowsArchived, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, setRecordingClip, setRecordingMarks, setRecordingMovement, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus, assertCanAddFiles } from '../services/flows.js';
@@ -1906,7 +1907,9 @@ function assertUploadFolder(pathname, folder) {
 }
 const PDF_NOT_HERE ="A PDF can't be imported here - use \"From a photo or PDF\" on Add a piece, or a MusicXML or .mxl file.";
 
-router.post('/flows/from-file/upload-token', requireAuth, resolveAccount, requireFeature('flow_import_musicxml'), async (req, res) => {
+// ML-578: a MuseScore file (.mscz) comes the same way, under its own switch (flow_import_musescore) - the upload is
+// let through for either switch, and /flows/from-file checks the one for the kind of file it finds inside.
+router.post('/flows/from-file/upload-token', requireAuth, resolveAccount, requireFeature('flow_import_musicxml', 'flow_import_musescore'), async (req, res) => {
   try {
     const result = await handleUpload({
       body: req.body,
@@ -1918,7 +1921,8 @@ router.post('/flows/from-file/upload-token', requireAuth, resolveAccount, requir
         if (/\.pdf$/i.test(pathname)) throw withStatus(403, PDF_NOT_HERE);
         return {
           allowedContentTypes: [
-            'application/vnd.recordare.musicxml+xml', 'application/vnd.recordare.musicxml', 'application/xml', 'text/xml', 'application/octet-stream'
+            'application/vnd.recordare.musicxml+xml', 'application/vnd.recordare.musicxml', 'application/xml', 'text/xml', 'application/octet-stream',
+            'application/x-musescore', 'application/zip', 'application/x-zip-compressed' // ML-578: .mscz
           ],
           // ML-192: Blob enforces this at upload time, so nothing bigger ever reaches /flows/from-file.
           maximumSizeInBytes: MAX_SCORE_FILE_BYTES,
@@ -1941,7 +1945,11 @@ router.post('/flows/from-file/upload-token', requireAuth, resolveAccount, requir
 // writing the real ones - same fix ML-163's "Save metronome to Flows" needed, and for the same
 // reason (a metronome/file import's own blocks ARE the content, not a placeholder to build on top
 // of).
-router.post('/flows/from-file', requireAuth, resolveAccount, requireFeature('flow_import_musicxml'), async (req, res) => {
+// ML-578: a MuseScore file is read the same way (museScoreReader.js) but never kept - it is deleted from the file
+// store once read, and the member attaches it to the piece themselves if they want it there. A file that can't be
+// imported (either kind) is deleted too, so nothing is left behind for a piece that was never made.
+router.post('/flows/from-file', requireAuth, resolveAccount, requireFeature('flow_import_musicxml', 'flow_import_musescore'), async (req, res) => {
+  let uploaded = null; // this member's own uploaded file, once checked - deleted unless it is kept on the piece
   try {
     const { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType, bandId } = req.body || {};
     if (!blobUrl || !blobPathname || !fileName) throw withStatus(400, 'Missing uploaded file details.');
@@ -1950,6 +1958,7 @@ router.post('/flows/from-file', requireAuth, resolveAccount, requireFeature('flo
     // ML-192: only ever fetch from this app's own Blob store, at the pathname the upload returned -
     // never an arbitrary URL from the request body (server-side request forgery).
     if (!isOwnBlobUrl(blobUrl, blobPathname) || !String(blobPathname).startsWith(fromFileFolder(req.accountId))) throw withStatus(400, "That doesn't look like a file uploaded to this app.");
+    uploaded = blobUrl;
 
     const fileResponse = await fetch(blobUrl, { redirect: 'error' }).catch(() => null);
     // 422, not the more "correct" 502 - sendError only passes a withStatus message through to the
@@ -1959,7 +1968,9 @@ router.post('/flows/from-file', requireAuth, resolveAccount, requireFeature('flo
     // By content, not the file name - the name is the client's to choose.
     if (buffer.length >= 4 && buffer.toString('ascii', 0, 4) === '%PDF') throw withStatus(422, PDF_NOT_HERE);
 
-    const { flow: parsed, blocks } = await importMusicXmlFile(req.accountId, buffer);
+    const { kind, flow: parsed, blocks } = await importMusicXmlFile(req.accountId, buffer, {
+      musicxml: await isFeatureEnabled('flow_import_musicxml'), musescore: await isFeatureEnabled('flow_import_musescore')
+    });
 
     const flow = await createFlow(req.accountId, { name: parsed.title || undefined, bandId: bandId || undefined });
     const { composer, arranger, publisher, description } = parsed;
@@ -1977,12 +1988,20 @@ router.post('/flows/from-file', requireAuth, resolveAccount, requireFeature('flo
     for (const seeded of seededBlocks) await deleteFlowBlock(req.accountId, seeded.id);
     for (const block of blocks) await createFlowBlock(req.accountId, flow.id, block);
 
-    await addDocument(req.accountId, flow.id, { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType });
+    if (kind === 'musicxml') {
+      await addDocument(req.accountId, flow.id, { blobUrl, blobPathname, fileName, fileSizeBytes, mimeType });
+      uploaded = null;
+    } else {
+      await del([blobUrl]).catch(() => {});
+      uploaded = null;
+    }
 
     // importWarnings: anything in the file the reader couldn't represent exactly (see
-    // flowMusicXmlReader.js) - additive to the usual flow detail shape.
-    res.json({ ...(await getFlowDetail(req.accountId, flow.id)), importWarnings: parsed.warnings });
+    // flowMusicXmlReader.js) - additive to the usual flow detail shape. fileKept: whether the file went on the
+    // piece's Media (a MusicXML file does, a MuseScore file doesn't - ML-578).
+    res.json({ ...(await getFlowDetail(req.accountId, flow.id)), importWarnings: parsed.warnings, fileKept: kind === 'musicxml' });
   } catch (error) {
+    if (uploaded) await del([uploaded]).catch(() => {});
     sendError(res, error);
   }
 });

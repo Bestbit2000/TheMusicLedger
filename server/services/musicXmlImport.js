@@ -18,6 +18,7 @@ import pool from '../config/db.js';
 import { withStatus } from './metronomeSetups.js';
 import { createCustomTimeSignature } from './timeSignatures.js';
 import { musicXmlToFlow } from './flowMusicXmlReader.js';
+import { museScoreToFlow } from './museScoreReader.js';
 import { ownStoreHost } from './blobUrls.js';
 
 // ML-192: every byte this front end reads comes from somewhere a user controls, so each read is
@@ -70,30 +71,40 @@ export async function readCappedBody(response, maxBytes, tooLargeMessage) {
 // real root entry, same idea as a .docx/.xlsx being a zip of XML parts). "PK" magic bytes are
 // enough to tell the two apart without trusting the browser-reported mimeType, which is
 // unreliable for both (see the upload-token route's own comment on this).
-export async function extractMusicXmlText(buffer) {
+// ML-578: a MuseScore .mscz is a zip too, holding the score as a .mscx at its top level (its parts
+// are more .mscx files under Excerpts/, not read). kind says which it was: 'musicxml' or 'musescore'.
+export async function extractScoreText(buffer) {
   const isZip = buffer.length >= 2 && buffer[0] === 0x50 && buffer[1] === 0x4b;
   if (!isZip) {
-    if (buffer.length > MAX_MUSICXML_BYTES) throw withStatus(413, 'That MusicXML file is larger than this app accepts.');
-    return buffer.toString('utf8');
+    if (buffer.length > MAX_MUSICXML_BYTES) throw withStatus(413, 'That file is larger than this app accepts.');
+    const text = buffer.toString('utf8');
+    return { kind: /^\s*(<\?xml[^>]*>\s*)?<museScore[\s>]/.test(text) ? 'musescore' : 'musicxml', text };
   }
 
-  const zip = await JSZip.loadAsync(buffer).catch(() => { throw withStatus(422, "That .mxl file doesn't look like a valid compressed score."); });
-  const container = await zip.file('META-INF/container.xml')?.async('string');
-  let rootPath = null;
-  if (container) {
-    const match = container.match(/<rootfile[^>]*full-path="([^"]+)"/);
-    rootPath = match?.[1] || null;
+  const notAScore = () => withStatus(422, "That file couldn't be opened - it may be damaged or password-protected.");
+  const zip = await JSZip.loadAsync(buffer).catch(() => { throw notAScore(); });
+  const files = Object.values(zip.files).filter(f => !f.dir);
+  const mscx = files.find(f => /^[^/]+\.mscx$/i.test(f.name));
+  let entry;
+  if (mscx) entry = mscx;
+  else {
+    const container = await zip.file('META-INF/container.xml')?.async('string');
+    let rootPath = null;
+    if (container) {
+      const match = container.match(/<rootfile[^>]*full-path="([^"]+)"/);
+      rootPath = match?.[1] || null;
+    }
+    // Falls back to "the first .xml/.musicxml entry that isn't the container manifest itself" -
+    // some exporters omit META-INF/container.xml even though the format calls for it.
+    entry = (rootPath && zip.file(rootPath))
+      || files.find(f => /\.(musicxml|xml)$/i.test(f.name) && !f.name.includes('META-INF'));
   }
-  // Falls back to "the first .xml/.musicxml entry that isn't the container manifest itself" -
-  // some exporters omit META-INF/container.xml even though the format calls for it.
-  const entry = (rootPath && zip.file(rootPath))
-    || Object.values(zip.files).find(f => !f.dir && /\.(musicxml|xml)$/i.test(f.name) && !f.name.includes('META-INF'));
-  if (!entry) throw withStatus(422, "Couldn't find a MusicXML file inside this .mxl archive.");
+  if (!entry) throw withStatus(422, "Couldn't find a score inside this file - choose a MusicXML, .mxl or MuseScore (.mscz) file.");
   // Zip-bomb guard (ML-192). First the size the archive declares for this entry (JSZip keeps it on
   // the internal _data - no public accessor), which refuses an honest oversized file without
   // inflating anything. But that header is the sender's to write, so the entry is then inflated as
   // a stream and abandoned the moment it passes the cap - a forged small size can't get past that.
-  const tooBig = () => withStatus(413, 'That .mxl file unpacks to more than this app accepts.');
+  const tooBig = () => withStatus(413, 'That file unpacks to more than this app accepts.');
   const declaredSize = entry._data?.uncompressedSize;
   if (typeof declaredSize === 'number' && declaredSize > MAX_MUSICXML_BYTES) throw tooBig();
   const bytes = await new Promise((resolve, reject) => {
@@ -110,11 +121,14 @@ export async function extractMusicXmlText(buffer) {
         }
         chunks.push(chunk);
       })
-      .on('error', () => reject(withStatus(422, "That .mxl file doesn't look like a valid compressed score.")))
+      .on('error', () => reject(notAScore()))
       .on('end', () => resolve(Buffer.concat(chunks)))
       .resume();
   });
-  return bytes.toString('utf8');
+  return { kind: mscx ? 'musescore' : 'musicxml', text: bytes.toString('utf8') };
+}
+export async function extractMusicXmlText(buffer) {
+  return (await extractScoreText(buffer)).text;
 }
 
 // Resolves each block's {numerator, denominator} into the timeSignatureId/accountTimeSignatureId
@@ -151,9 +165,15 @@ export async function resolveBlocksForAccount(accountId, blocks) {
 // shape, minus blocks) and a resolved, ready-for-createFlowBlock block list. Throws (withStatus
 // 413/422) on anything that isn't parseable - the route never creates a flow/attaches a document
 // for a file this couldn't make sense of.
-export async function importMusicXmlFile(accountId, buffer) {
-  const xmlText = await extractMusicXmlText(buffer);
-  const { blocks: rawBlocks, ...flow } = musicXmlToFlow(xmlText);
+// ML-578: a MuseScore file goes through its own reader (museScoreReader.js) to the same shape. kind is
+// 'musicxml' or 'musescore', so the route can check the right switch - `allow` says which kinds it may read, and
+// a file of another kind is refused before it is parsed.
+export async function importMusicXmlFile(accountId, buffer, allow = { musicxml: true }) {
+  const { kind, text } = await extractScoreText(buffer);
+  if (!allow[kind]) {
+    throw withStatus(403, kind === 'musescore' ? "Making a piece from a MuseScore file isn't available to you - export it from MuseScore as MusicXML instead." : "Making a piece from a MusicXML file isn't available to you.");
+  }
+  const { blocks: rawBlocks, ...flow } = kind === 'musescore' ? museScoreToFlow(text) : musicXmlToFlow(text);
   const blocks = await resolveBlocksForAccount(accountId, rawBlocks);
-  return { flow, blocks };
+  return { kind, flow, blocks };
 }

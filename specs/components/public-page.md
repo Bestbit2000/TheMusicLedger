@@ -52,7 +52,8 @@ changed only on his say-so.
   `.pricing-badge` "Coming"): a name, `.pricing-plan-price`, `.pricing-plan-list` with drawn ticks. Under them,
   "Compare everything" (`.public-detail.pricing-compare`) opens `.pricing-table` in a sideways-scrolling box
   (`.pricing-scroll`): groups (`.pricing-group`), and cells `td.is-yes` (a drawn tick, "Included" for a screen
-  reader), `td.is-no` (a dash, "Not included"), `td.is-coming`, or a number.
+  reader), `td.is-no` (a dash, "Not included"), `td.is-coming`, or a number. A `td.is-coming` with a
+  `data-feature` stays "Coming" until that feature is on for its plan, then shows the tick (ML-578: MuseScore).
 
 ## 4. Tokens used
 `--public-band-bg`, `--public-band-raised`, `--public-band-edge`, `--public-band-text`, `--public-band-muted`,
