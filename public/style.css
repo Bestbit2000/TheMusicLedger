@@ -3175,7 +3175,7 @@
     .public-join { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-6); padding-top: var(--space-9); padding-bottom: var(--space-9); }
     .public-join > div:first-child { flex: 1 1 var(--pane-col-min); min-width: 0; }
     .public-join p { margin: 0; color: var(--public-band-muted); }
-    .public-join-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+    .public-join-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5); }
     .public-foot-band { border-top: 1px solid var(--public-band-edge); }
     .public-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-5); padding-top: var(--space-3); padding-bottom: var(--space-3); color: var(--public-band-muted); font-size: var(--font-sm); }
     .public-foot a, .public-foot span { display: inline-flex; align-items: center; min-height: var(--touch-target); }
