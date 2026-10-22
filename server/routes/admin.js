@@ -44,6 +44,7 @@ import { getBusinessCase, saveBusinessCase, resetBusinessCase } from '../service
 import { getAdminDashboard } from '../services/adminDashboard.js';
 import { listRecords, saveRecord, setAttentionDone, saveAgreement } from '../services/thirdPartyRecords.js';
 import { retentionStatus, saveRule, runRetention, clearOldRecords } from '../services/retention.js';
+import { listJoinRequests, letInJoinRequest, passJoinRequest, dismissJoinRequest } from '../services/joinRequests.js';
 import { listReads as listPieceReads, setChecked as setPieceReadChecked, rerunRead as rerunPieceRead, dropTestFiles as dropPieceReadTestFiles } from '../services/pieceReads.js';
 import { applyRecords } from '../thirdParties/records.js';
 import { getInstrumentUsageStats } from '../services/instruments.js';
@@ -1134,6 +1135,36 @@ router.delete('/piece-reads/:id/test-files', requireAuth, resolveAccount, requir
 
 // ML-464: retention - the rule (a switch, a unit, three lengths of time), who is next, and "Run now".
 // The same job runs once a day from the scheduler (routes/api.js). docs/retention.md.
+// ML-580: Admin -> Waiting list - the requests from the public page, and Let in / Pass to the organiser / Not now
+router.get('/join-requests', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    res.json(await listJoinRequests());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/join-requests/:id/let-in', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    res.json(await letInJoinRequest(req.params.id, req.accountId, appUrl(req)));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/join-requests/:id/pass', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    res.json(await passJoinRequest(req.params.id, (req.body || {}).groupId, req.accountId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.delete('/join-requests/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    res.json(await dismissJoinRequest(req.params.id));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 router.get('/retention', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await retentionStatus());

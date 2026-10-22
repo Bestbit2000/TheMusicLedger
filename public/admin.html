@@ -51,6 +51,8 @@
                 <button type="button" class="admin-nav-group-head" aria-expanded="true" aria-controls="adminNavGroup-members"><span class="admin-nav-group-name">Members</span><span class="admin-nav-count hidden-group" data-group-count></span><span class="material-symbols-outlined" aria-hidden="true" data-group-arrow>expand_more</span></button>
                 <div class="admin-nav-group-items" id="adminNavGroup-members">
                 <button class="admin-nav-item" data-section="accounts" type="button">Accounts</button>
+                <!-- ML-580: requests to join from the public page -->
+                <button class="admin-nav-item" data-section="waiting-list" type="button">Waiting list <span id="waitingListNavCount" class="admin-nav-count hidden-group"></span></button>
                 <button class="admin-nav-item" data-section="bands" type="button">Bands</button>
                 <button class="admin-nav-item" data-section="feature-access" type="button">Feature access</button>
                 <button class="admin-nav-item" data-section="notifications" type="button">Notifications</button>
@@ -395,6 +397,12 @@
             <h1>Photo reads</h1>
             <p class="admin-intro">Add a piece → From a photo or PDF has the part read by a model and opens Quick entry already filled in. This page is how well that is working, what it costs, and the test pieces kept for trying a new prompt or model.</p>
             <div id="adminPieceReads"><p class="admin-intro">Loading&hellip;</p></div>
+        </section>
+        <!-- ML-580: the waiting list - requests to join from the public page (public/admin-join-requests.js, docs/waiting-list.md) -->
+        <section id="waiting-list-section" class="admin-section hidden-group">
+            <h1>Waiting list</h1>
+            <p class="admin-intro">People who asked to join on the public page. <strong>Let in</strong> sends them the ordinary invitation email as a Standard member. <strong>Pass to the organiser</strong>, when the band they named shares its music here, sends that band's organisers a notice with who asked - they decide whether to invite them. <strong>Not now</strong> removes the request; nobody is told. A request goes once it is dealt with, and otherwise after 90 days.</p>
+            <div id="adminJoinRequests"><p class="admin-intro">Loading&hellip;</p></div>
         </section>
         <!-- ML-464: the retention rule, who is next, and Run now (public/admin-retention.js, docs/retention.md) -->
         <section id="retention-section" class="admin-section hidden-group">
@@ -1118,6 +1126,7 @@
 <script src="admin-dashboard.js"></script>
 <!-- ML-464: Admin -> Retention -->
 <script src="admin-retention.js"></script>
+<script src="admin-join-requests.js"></script>
 <script src="admin-piece-reads.js"></script>
 <!-- ML-443: the business case sums, then the page that runs them (both after admin.js) -->
 <script src="businessCase.js"></script>

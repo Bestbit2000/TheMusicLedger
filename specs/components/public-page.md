@@ -41,7 +41,12 @@ changed only on his say-so.
   pricing table).
 - `.public-story` - `.public-quote` (the owner's own line), `.public-person` (`.public-person-initials` until there is
   a photo, his name and what he is) and his full story in a `.public-detail`.
-- `.public-join` - "Invite only, for now", with `.public-cta` and `.public-cta-outline`.
+- `.public-join` - "Invite only, for now", Log in (`.public-cta-outline`), and the **Ask to join form** (ML-580,
+  `docs/waiting-list.md`): `.public-join-form`, a light card holding the app's own fields (`.form-group`, `label`,
+  `input`, `select`, `.toggle-switch`); `.public-form-row` puts first and last name side by side when there is room;
+  `.public-form-optional` and `.public-form-hint` for the quieter words; `.public-check` is the age tick as a toggle
+  switch with its words; `.public-trap` the field only robots fill in (off the page, never focused, hidden from a
+  screen reader); `.public-join-status` says what happened (`.is-done`: the thanks, in place of the fields).
 - `.public-foot` - small links and "Made in the UK".
 - Pricing: `.pricing-plans` holds two `.pricing-plan` cards - Standard, and Premium (`.is-premium`, dark, with a
   `.pricing-badge` "Coming"): a name, `.pricing-plan-price`, `.pricing-plan-list` with drawn ticks. Under them,

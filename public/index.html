@@ -141,7 +141,7 @@
             <div>
                 <svg class="public-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3"></circle><circle cx="16" cy="8" r="3"></circle><path d="M3 20c0-3 2.5-5 5-5s5 2 5 5"></path><path d="M13 16.5c.8-1 1.9-1.5 3-1.5 2.5 0 5 2 5 5"></path></svg>
                 <h3>Free for bands</h3>
-                <p>Bands share their music for nothing. <a href="/pricing.html">Premium</a> is for players who want it easier.</p>
+                <p>Bands share their music for nothing. <a href="/pricing.html">Premium</a> is for players who want to benefit from the advanced features.</p>
             </div>
             <div>
                 <svg class="public-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8.5a15 15 0 0 1 20 0"></path><path d="M5.5 12a10 10 0 0 1 13 0"></path><path d="M9 15.5a5 5 0 0 1 6 0"></path><path d="M3 3l18 18"></path></svg>
@@ -178,16 +178,46 @@
         </div>
     </section>
 
+    <!-- ML-580: the waiting list. The form works without its script too (it posts and comes back here); join.js
+         fills the band and instrument lists, sends it, and says thanks in place. No CAPTCHA: a field only robots
+         fill in (.public-trap), a time check and a limit per sender (server/services/joinRequests.js). -->
     <section class="public-band" id="join" aria-labelledby="joinTitle">
         <div class="public-wrap public-join">
             <div>
                 <h2 class="public-h2" id="joinTitle">Invite only, for now</h2>
-                <p>Ask your band&rsquo;s organiser to invite you, or ask us. Under 13? Ask a parent or carer to do it for you.</p>
+                <p>Ask to join here, or ask your band&rsquo;s organiser to invite you. Under 13? Ask a parent or carer to fill this in for you.</p>
+                <div class="public-join-actions">
+                    <a class="public-cta-outline" href="/app">Already a member? Log in</a>
+                </div>
             </div>
-            <div class="public-join-actions">
-                <a class="btn-submit public-cta" href="mailto:hello@notablybetter.com?subject=Joining%20Notably%20Better">Ask to join</a>
-                <a class="public-cta-outline" href="/app">Log in</a>
-            </div>
+            <form class="public-join-form" id="joinForm" action="/api/join" method="post">
+                <div class="public-join-fields" id="joinFields">
+                    <div class="public-form-row">
+                        <div class="form-group"><label for="joinFirstName">First name</label><input id="joinFirstName" name="firstName" autocomplete="given-name" maxlength="80" required></div>
+                        <div class="form-group"><label for="joinLastName">Last name</label><input id="joinLastName" name="lastName" autocomplete="family-name" maxlength="80" required></div>
+                    </div>
+                    <div class="form-group"><label for="joinEmail">Email address</label><input id="joinEmail" name="email" type="email" autocomplete="email" maxlength="254" required></div>
+                    <div class="form-group">
+                        <label for="joinBand">The band you play with <span class="public-form-optional">(optional)</span></label>
+                        <input id="joinBand" name="band" list="joinBandList" autocomplete="off" maxlength="120" aria-describedby="joinBandHint">
+                        <datalist id="joinBandList"></datalist>
+                        <p class="public-form-hint" id="joinBandHint">Start typing to pick it from our list. Not there? Just type its name.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="joinInstrument">What you play <span class="public-form-optional">(optional)</span></label>
+                        <select id="joinInstrument" name="instrumentId"><option value="">Choose an instrument</option></select>
+                    </div>
+                    <label class="public-check">
+                        <span class="toggle-switch"><input type="checkbox" id="joinAge" name="ageConfirmed" value="true" required><span class="toggle-slider"></span></span>
+                        <span>I&rsquo;m 13 or over, or I&rsquo;m a parent or carer filling this in</span>
+                    </label>
+                    <div class="public-trap" aria-hidden="true"><label for="joinWebsite">Leave this empty</label><input id="joinWebsite" name="website" tabindex="-1" autocomplete="off"></div>
+                    <input type="hidden" name="started" id="joinStarted" value="">
+                    <p class="public-form-hint">We only use these details to let you in. If you name a band that uses Notably Better, we may pass your name, email and instrument to its organiser. Nothing else, and no emails until we invite you. <a href="/privacy.html">Privacy policy</a></p>
+                    <button type="submit" class="btn-submit" id="joinSend">Ask to join</button>
+                </div>
+                <p class="public-join-status" id="joinStatus" role="status" aria-live="polite"></p>
+            </form>
         </div>
     </section>
 </main>
@@ -201,6 +231,7 @@
         <span>Made in the UK</span>
     </div>
 </footer>
+<script src="join.js"></script>
 <script src="analytics.js"></script>
 </body>
 </html>

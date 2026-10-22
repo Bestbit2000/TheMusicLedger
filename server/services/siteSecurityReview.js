@@ -79,6 +79,8 @@ const TIMEOUT_MS = 10000;
 export const OPEN_ROUTES = {
   'GET /cron/usage-readings': 'the daily job - checks CRON_SECRET itself',
   'GET /instruments': 'the shared list of instruments - needs a sign-in, not an account',
+  'GET /join/options': 'ML-580: what the waiting list form offers - the names in the band directory (public anyway) and the instruments; nothing about any member',
+  'POST /join': 'ML-580: the waiting list form, sent signed out - robots held back by a hidden field, a time check and a limit per sender; the same answer whatever happened, and no email sent',
   'GET /pricing': 'ML-242: the public pricing page - how Standard and Premium are set, for a fixed list of features; nothing about any member',
   'GET /notices/banner': 'ML-495: the planned-outage banner - shown on the sign-in screen too; only notices for everyone that a super admin made a banner'
 };

@@ -59,6 +59,7 @@ import { mailIsReal } from '../services/mail.js';
 import { requestEmailChange } from '../services/emailChange.js';
 import { beginSetup, confirmSetup, newRecoveryCodes, turnOff } from '../services/twoStep.js';
 import { pricingColumns } from '../services/pricing.js';
+import { joinOptions, submitJoinRequest } from '../services/joinRequests.js';
 
 const router = express.Router();
 
@@ -132,6 +133,28 @@ router.get('/pricing', async (req, res) => {
   try {
     res.json(await pricingColumns());
   } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-580: the waiting list on the public page (server/services/joinRequests.js) - open, used signed out.
+// The choices it offers (the band directory's names, the instruments), and the request itself. The answer to a
+// request is the same whatever happened; a form sent without its script (no JavaScript) comes back to the page.
+router.get('/join/options', async (req, res) => {
+  try {
+    res.json(await joinOptions());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/join', async (req, res) => {
+  const plain = !req.is('application/json');
+  try {
+    const out = await submitJoinRequest(req.body || {}, req.ip);
+    if (plain) return res.redirect(303, '/?joined=1#join');
+    res.json(out);
+  } catch (error) {
+    if (plain) return res.redirect(303, `/?join-problem=${encodeURIComponent(error.message).slice(0, 300)}#join`);
     sendError(res, error);
   }
 });

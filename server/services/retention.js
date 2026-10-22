@@ -112,7 +112,10 @@ export async function runRetention({ now = new Date(), appUrl = process.env.APP_
 // (the daily job calls it by itself). Until 6 Oct 2026 it sat inside runRetention, so with the rule
 // switched off - as it is everywhere - nothing was ever cleared.
 export async function clearOldRecords() {
-  const out = { invitesCleared: 0, bandInvitesCleared: 0, feedbackCleared: 0, noticesCleared: 0 };
+  const out = { invitesCleared: 0, bandInvitesCleared: 0, feedbackCleared: 0, noticesCleared: 0, joinRequestsCleared: 0 };
+  // ML-580: a waiting-list request nobody dealt with goes after 90 days (JOIN_KEPT_DAYS in joinRequests.js)
+  out.joinRequestsCleared = (await pool.query(
+    `DELETE FROM join_requests WHERE updated_at < now() - make_interval(days => 90)`)).rowCount;
   out.invitesCleared = (await pool.query(
     `DELETE FROM auth_email_links WHERE purpose = 'invite'
         AND COALESCE(used_at, expires_at) < now() - make_interval(days => $1)`, [INVITES_KEPT_DAYS])).rowCount;

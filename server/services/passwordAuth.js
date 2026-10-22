@@ -77,6 +77,12 @@ export async function limitCalls(kind, accountId) {
   }
 }
 
+// ML-580: the waiting list on the public page - 5 requests an hour from one sender. The key is a hash of the
+// sender's address (joinRequests.js), never the address itself, and the count goes within a day.
+export async function limitJoinRequests(senderHash) {
+  if (await overLimit('join', senderHash, 5, 60)) throw fail(429, TOO_MANY);
+}
+
 // ML-465: the same limit the invite and reset link screens have, for another link screen (by IP)
 export async function limitLinkTries(ip) {
   if (await overLimit('link', ip, 60, 15)) throw fail(429, TOO_MANY);

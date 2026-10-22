@@ -3207,6 +3207,21 @@
     .pricing-table td.is-yes::before { content: ""; display: inline-block; width: var(--space-2); height: var(--space-4); border: solid var(--link-color); border-width: 0 var(--space-1) var(--space-1) 0; transform: rotate(45deg); }
     .pricing-table td.is-no::before { content: "\2013"; color: var(--label-color); }
     .pricing-table td.is-coming { font-size: var(--font-sm); font-weight: var(--font-weight-bold); color: var(--label-color); }
+    /* ML-580: the "Ask to join" form on the public page - a light card on the dark join band, the app's own fields
+       (.form-group, label, input, select, .toggle-switch) inside it. specs/components/public-page.md */
+    .public-join-form { flex: 1 1 var(--pane-col-min); min-width: 0; padding: var(--space-6); background: var(--container-bg); color: var(--text-color); border-radius: var(--radius-xl); box-sizing: border-box; }
+    .public-join-fields[hidden] { display: none; }
+    .public-form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--stat-col-min)), 1fr)); gap: 0 var(--space-4); }
+    .public-form-optional { color: var(--label-color); font-weight: var(--font-weight-normal); }
+    .public-join-form p.public-form-hint { margin: var(--space-2) 0 0; color: var(--label-color); font-size: var(--font-sm); line-height: var(--line-height-snug); }
+    .public-check { display: flex; align-items: center; gap: var(--space-3); min-height: var(--touch-target); margin: 0 0 var(--space-4); font-weight: var(--font-weight-normal); cursor: pointer; }
+    .public-join-form .btn-submit { margin: var(--space-5) 0 0; }
+    .public-join-form p.public-join-status { margin: var(--space-3) 0 0; color: var(--text-color); font-weight: var(--font-weight-semibold); }
+    .public-join-form a:not([class]) { color: var(--link-color); } /* the card is light: not the dark band's gold */
+    .public-join-form p.public-join-status:empty { display: none; }
+    .public-join-form p.public-join-status.is-done { margin: 0; font-size: var(--font-lg); }
+    /* The field only robots fill in: off the page, never focused, hidden from a screen reader */
+    .public-trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; } /* token-audit-ignore: the standard off-screen pattern */
     @media (min-width: 700px) {
         .public-h2 { font-size: var(--font-3xl); }
     }

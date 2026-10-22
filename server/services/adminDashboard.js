@@ -17,6 +17,7 @@ import { openAttentionCount } from '../thirdParties/records.js';
 import fs from 'node:fs';
 import { daysToLaunch, needsYou } from './adminDashboardRules.js';
 import { reviewsDue } from './reviews.js';
+import { joinRequestCount } from './joinRequests.js';
 
 const part = async (name, read) => {
   try { return await read(); } catch (error) { console.error(`Admin dashboard: ${name} not read:`, error.message); return null; }
@@ -84,7 +85,7 @@ async function money() {
 // case whose latest result is FAIL). Numbers only - nothing about what they are. The stored
 // usage readings are read, not the providers' APIs, so it stays cheap.
 export async function adminWaitingCounts() {
-  const [feedback, reports, records, usage, reviews, tests] = await Promise.all([
+  const [feedback, reports, records, usage, reviews, tests, waiting] = await Promise.all([
     part('feedback', async () => (await pool.query('SELECT count(*) FILTER (WHERE category IS NULL)::int AS n FROM feedback')).rows[0].n),
     part('reports', async () => (await pool.query('SELECT count(*)::int AS n FROM content_reports WHERE closed_at IS NULL')).rows[0].n),
     part('third-party records', listRecords),
@@ -95,7 +96,8 @@ export async function adminWaitingCounts() {
          SELECT DISTINCT ON (r.test_case_id) r.verdict
            FROM test_run_results r JOIN test_runs tr ON tr.id = r.test_run_id JOIN test_cases t ON t.id = r.test_case_id
           WHERE t.is_active ORDER BY r.test_case_id, tr.started_at DESC, r.id DESC) latest
-        WHERE verdict = 'FAIL'`)).rows[0].n)
+        WHERE verdict = 'FAIL'`)).rows[0].n),
+    part('waiting list', joinRequestCount) // ML-580
   ]);
   const counts = {
     tests: tests || 0,
@@ -103,7 +105,8 @@ export async function adminWaitingCounts() {
     reports: reports || 0,
     costs: (usage || []).filter((m) => m.status && (m.status.level === 'warn' || m.status.level === 'fail')).length,
     security: reviews || 0,
-    thirdParties: records ? openAttentionCount(thirdPartyRegister.entries, records) : 0
+    thirdParties: records ? openAttentionCount(thirdPartyRegister.entries, records) : 0,
+    waitingList: waiting || 0 // ML-580
   };
   return { ...counts, total: Object.values(counts).reduce((sum, n) => sum + n, 0) };
 }
@@ -128,10 +131,11 @@ export async function getAdminDashboard() {
   // ML-462: items the owner has marked as dealt with on Third parties no longer count
   const attention = openAttentionCount(thirdPartyRegister.entries, await part('third-party records', listRecords));
   const reviews = await part('reviews', reviewsDue); // ML-470: a review that is due, or has never been done
+  const joinRequests = await part('waiting list', joinRequestCount); // ML-580
   return {
     people: who,
     build: made,
     money: cash,
-    needs: needsYou({ feedback, attention, limits, tests: made && made.tests, security, reviews })
+    needs: needsYou({ feedback, attention, limits, tests: made && made.tests, security, reviews, joinRequests })
   };
 }

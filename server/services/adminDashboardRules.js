@@ -12,7 +12,7 @@ export function daysToLaunch(launch, today = new Date()) {
 }
 
 // Pure: the list of what needs the owner, from the parts that could be read. Each says which page deals with it.
-export function needsYou({ feedback, attention, limits, tests, security, reviews }) {
+export function needsYou({ feedback, attention, limits, tests, security, reviews, joinRequests }) {
   const list = [];
   if (tests && tests.failed) list.push({ level: 'fail', page: 'release-tests', text: `${plural(tests.failed, 'back-test is', 'back-tests are')} failing` });
   (limits || []).forEach((m) => list.push({ level: m.level, page: 'costs-usage', text: `${m.name} is at ${m.percent}% of the plan's limit` }));
@@ -20,6 +20,7 @@ export function needsYou({ feedback, attention, limits, tests, security, reviews
   if (security && security.siteRunDue) list.push({ level: 'warn', page: 'security', text: 'The monthly security checks on this site are due' });
   if (security && security.siteChanged) list.push({ level: 'info', page: 'security', text: 'A release has gone out since this site\'s last full security review' });
   if (reviews) list.push({ level: 'warn', page: 'security', text: `${plural(reviews, 'review is', 'reviews are')} due - data protection, the Children's Code or the breach plan` }); // ML-470
+  if (joinRequests) list.push({ level: 'info', page: 'waiting-list', text: `${plural(joinRequests, 'person is', 'people are')} waiting to join` }); // ML-580
   if (feedback) list.push({ level: 'info', page: 'feedback', text: `${plural(feedback, 'piece', 'pieces')} of feedback not looked at yet` });
   if (attention) list.push({ level: 'info', page: 'third-parties', text: `${plural(attention, 'third-party item needs', 'third-party items need')} attention` });
   return list;
