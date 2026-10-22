@@ -1,4 +1,6 @@
 {
+  "ML-577": "We got adding a piece from a photo ready for members, and said in our privacy policy where a photo of music goes. It is not switched on for members yet.",
+  "ML-575": "We tightened how the app proves it is you when you upload a file, as part of a security check of the app.",
   "ML-576": "We made sure the live app runs with its live settings, as part of a security check of the app.",
   "ML-574": "We tightened how uploaded files are checked and stored, as part of a security check of the app.",
   "ML-573": "We count failing release tests on the admin menu, and let the person who runs the app show just the failing ones.",
