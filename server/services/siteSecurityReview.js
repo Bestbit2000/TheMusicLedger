@@ -81,8 +81,6 @@ export const OPEN_ROUTES = {
   'GET /instruments': 'the shared list of instruments - needs a sign-in, not an account',
   'GET /notices/banner': 'ML-495: the planned-outage banner - shown on the sign-in screen too; only notices for everyone that a super admin made a banner'
 };
-// Routes that take their sign-in from the address as well as the header (the upload client can't set a header).
-const QUERY_AUTH = 'requireAuthFromQueryOrHeader';
 
 // Every route in a routes file: { method, path, guards } - the names in its middleware chain.
 // The call's arguments are read properly (brackets and strings followed to the call's own closing
@@ -122,9 +120,8 @@ export function routeGuardFindings(source, kind) {
       // ML-518: and the "prove it's you" check, on all but the routes that make it
       else if (!has('requireAdminCheck') && !/^\/gate(\/|$)/.test(r.path)) problems.push(`${name} does not ask for the admin check`);
     } else if (!OPEN_ROUTES[name]) {
-      const signedIn = has('requireAuth') || has(QUERY_AUTH);
-      if (!signedIn) problems.push(`${name} does not need a sign-in`);
-      else if (!has('resolveAccount') && !has(QUERY_AUTH)) problems.push(`${name} does not work out whose account it is`);
+      if (!has('requireAuth')) problems.push(`${name} does not need a sign-in`);
+      else if (!has('resolveAccount')) problems.push(`${name} does not work out whose account it is`);
     }
   }
   return { count: routes.length, problems };

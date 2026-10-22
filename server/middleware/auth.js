@@ -59,36 +59,10 @@ export async function requireAuth(req, res, next) {
   }
 }
 
-// ML-179: same check as requireAuth, but also accepts ?token=... as a fallback when the
-// Authorization header is missing. Only the Blob upload-token routes (and the Recordings tool) use it.
-// It was needed because upload() once could not send our own header; @vercel/blob 2.x can (its
-// `headers` option, sent to our upload-token route only), and since ML-574 the app sends the token
-// as a header (uploadToStore in app.js), so it no longer reaches request logs or the browser history.
-// The address is still accepted for ONE release, so a device still running the older app can upload
-// until it reloads (the "keep the previous release working" rule, ML-565). Then these routes go back
-// to requireAuth and this function is removed - ML-575. Deliberately a separate function, not a
-// change to requireAuth itself, so no other route gains a query-string auth path.
-export async function requireAuthFromQueryOrHeader(req, res, next) {
-  try {
-    const authHeader = req.headers.authorization;
-    const headerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
-    const token = headerToken || req.query.token;
-    if (!token) {
-      return res.status(401).json({ error: 'Missing authorization token' });
-    }
-
-    const tokenData = verifyToken(token);
-    if (await rejectOldToken(tokenData, res)) return;
-
-    req.tokenVersion = Number(tokenData.tv || 0);
-    req.userId = tokenData.userId;
-    req.firstName = tokenData.firstName || '';
-    req.surname = tokenData.surname || '';
-    next();
-  } catch (error) {
-    res.status(401).json({ error: 'Invalid or expired token' });
-  }
-}
+// ML-575: the sign-in token is only ever read from the Authorization header - never from the address
+// (?token=), where it would reach request logs and the browser history. The file-store upload routes
+// took it from the address until ML-574 sent it as a header (uploadToStore in app.js); the address was
+// accepted for one more release, for devices still running the older app (ML-565), and no longer is.
 
 // Resolves the logged-in Google email to a real accounts.id, creating the
 // row on first sight. Separate from requireAuth (token validity) so the two

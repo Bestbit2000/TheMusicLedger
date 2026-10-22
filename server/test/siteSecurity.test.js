@@ -44,9 +44,10 @@ describe('reading a routes file', () => {
       router.get('/open', async (req, res) => {});
       router.get('/half', requireAuth, async (req, res) => {});
       router.get('/fine', requireAuth, resolveAccount, async (req, res) => {});
-      router.post('/upload', requireAuthFromQueryOrHeader, async (req, res) => {});
+      router.post('/upload', requireAuthFromQueryOrHeader, resolveAccount, async (req, res) => {});
       router.get('/cron/usage-readings', async (req, res) => {});`, 'app');
-    assert.deepEqual(out.problems, ['GET /open does not need a sign-in', 'GET /half does not work out whose account it is']);
+    // ML-575: a sign-in taken from the address is no sign-in at all
+    assert.deepEqual(out.problems, ['GET /open does not need a sign-in', 'GET /half does not work out whose account it is', 'POST /upload does not need a sign-in']);
   });
 });
 
@@ -67,6 +68,29 @@ describe('the real route files (checked on every release)', () => {
   test('each exception is still a real route', () => {
     const real = new Set(routesIn(source('api.js')).map((r) => `${r.method} ${r.path}`));
     for (const name of Object.keys(OPEN_ROUTES)) assert.ok(real.has(name), `${name} is listed as deliberately open but is not a route any more`);
+  });
+});
+
+// ML-575: the sign-in token goes in the Authorization header and nowhere else - an address with ?token= in it
+// reaches request logs and the browser history.
+// (The security reviews are skipped: they are history, and name the old way.)
+describe('no route takes the sign-in token from the address', () => {
+  const serverFiles = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    ['node_modules', 'test', 'securityReviews'].includes(e.name) ? [] : e.isDirectory() ? serverFiles(new URL(`${e.name}/`, dir)) : e.name.endsWith('.js') ? [new URL(e.name, dir)] : []);
+  test('nothing on the server reads a token from the query string', () => {
+    const found = serverFiles(new URL('../', import.meta.url))
+      .filter((f) => /req\.query\.token|requireAuthFromQueryOrHeader/.test(fs.readFileSync(f, 'utf8')))
+      .map((f) => f.pathname.split('/server/')[1]);
+    assert.deepEqual(found, []);
+  });
+  test('requireAuth refuses a token sent in the address', async () => {
+    const { requireAuth } = await import('../middleware/auth.js');
+    let status = null;
+    let passed = false;
+    const res = { status(code) { status = code; return this; }, json() { return this; } };
+    await requireAuth({ headers: {}, query: { token: 'any.token.here' } }, res, () => { passed = true; });
+    assert.equal(passed, false);
+    assert.equal(status, 401);
   });
 });
 

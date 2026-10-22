@@ -144,8 +144,10 @@ photo or PDF read's pages are always deleted, and every organiser action asks th
   through `axios`, which no code uses. Updated to the fixed version in both lockfiles anyway; `axios` could be taken out.
 - **The sign-in token is out of the upload address** (also ML-574). Every upload sent it to its upload-token route as
   `?token=`, where it reached request logs and the browser's history. The upload library can send a header to that
-  route (and only that route), so the app now sends it as an `Authorization` header (`uploadToStore`). The server still
-  accepts the address for one release, for a device running the older app; ML-575 drops it in the release after.
+  route (and only that route), so the app now sends it as an `Authorization` header (`uploadToStore`). The server
+  accepted the address for one more release, for a device running the older app; ML-575 (22 Oct 2026) dropped it -
+  the upload routes are back on `requireAuth`, and `server/test/siteSecurity.test.js` fails if anything on the server
+  reads a token from the query string again.
 - **The content security policy** is enforced on the live site (pages and data answers, checked) and now on the
   owner's own machine too (`CSP_ENFORCE=true` in `server/.env`); the upload and other back-tests pass with it enforced.
   The two "report-only" lines on Security -> This site come from the last automated run, 6 October on a local machine -

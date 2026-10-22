@@ -13,7 +13,7 @@ import { assertScaleLevelsEnabled, getScaleLevels, answerScale, setScaleLevel } 
 import { listPracticeChunks, savePracticeSession, listTemplates, saveTemplate, deleteTemplate, getActivePractice, putActivePractice, clearActivePractice } from '../services/practiceSessions.js';
 import { recordSkillResult, getSkillsAndLists, createSkillList, updateSkillList, deleteSkillList, listWarmupLists, saveWarmupList, deleteWarmupList } from '../services/skills.js';
 import { setPracticeListPlan, listPracticeLists, createPracticeList, updatePracticeList, deletePracticeList, setPracticeListPieces, getPracticeList, setPracticeListArchived } from '../services/practiceLists.js';
-import { requireAuth, resolveAccount, requireAuthFromQueryOrHeader, requireSuperAdmin } from '../middleware/auth.js';
+import { requireAuth, resolveAccount, requireSuperAdmin } from '../middleware/auth.js';
 import { adminWaitingCounts } from '../services/adminDashboard.js'; // ML-572
 import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
@@ -1255,7 +1255,7 @@ router.get('/account/band-invites/:inviteId/welcome', requireAuth, resolveAccoun
 
 // ML-534: a band's logo. The browser uploads straight to the file store, into the band's own folder; only an
 // organiser gets a token. Then the address is kept (checked again), or the logo taken off.
-router.post('/account/bands/:id/logo/upload-token', requireAuthFromQueryOrHeader, resolveAccount, requireFeature('band_welcome'), async (req, res) => {
+router.post('/account/bands/:id/logo/upload-token', requireAuth, resolveAccount, requireFeature('band_welcome'), async (req, res) => {
   try {
     const bandId = Number(req.params.id);
     const result = await handleUpload({
@@ -1661,7 +1661,7 @@ router.get('/flows/:id/musicxml', requireAuth, resolveAccount, async (req, res) 
 // never in local dev, so the actual DB row is written by POST
 // /flows/:id/recordings below instead, called by the client right after its
 // own upload() resolves.
-router.post('/flows/:id/recordings/upload-token', requireAuthFromQueryOrHeader, resolveAccount, async (req, res) => {
+router.post('/flows/:id/recordings/upload-token', requireAuth, resolveAccount, async (req, res) => {
   try {
     const result = await handleUpload({
       body: req.body,
@@ -1705,7 +1705,7 @@ router.post('/flows/:id/recordings/youtube', requireAuth, resolveAccount, async 
 // THE RECORDINGS TOOL (ML-489) - whole rehearsal recordings, uploaded once and given to pieces.
 // server/services/rehearsalRecordings.js; docs/rehearsal-score.md.
 // ========================================
-router.use('/recordings', requireAuthFromQueryOrHeader, resolveAccount, requireFeature('rehearsal_recordings'));
+router.use('/recordings', requireAuth, resolveAccount, requireFeature('rehearsal_recordings'));
 router.get('/recordings', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await listRehearsalRecordings(req.accountId));
@@ -1715,7 +1715,7 @@ router.get('/recordings', requireAuth, resolveAccount, async (req, res) => {
 });
 // The browser uploads straight to the file store (as a piece's recording does), into the member's own
 // folder. Refused before anything is sent if they have no room for another.
-router.post('/recordings/upload-token', requireAuthFromQueryOrHeader, resolveAccount, async (req, res) => {
+router.post('/recordings/upload-token', requireAuth, resolveAccount, async (req, res) => {
   try {
     const result = await handleUpload({
       body: req.body,
@@ -1810,7 +1810,7 @@ router.delete('/flows/:id/recordings/:recordingId', requireAuth, resolveAccount,
 // since browsers rarely report a specific MIME type for the proprietary
 // .mscz/.sib/.musx formats (the file picker's own accept=".pdf,.musicxml,.mxl,.mscz,.mscx,.sib,.musx"
 // already narrows what's offered before this even runs).
-router.post('/flows/:id/documents/upload-token', requireAuthFromQueryOrHeader, resolveAccount, async (req, res) => {
+router.post('/flows/:id/documents/upload-token', requireAuth, resolveAccount, async (req, res) => {
   try {
     const result = await handleUpload({
       body: req.body,
@@ -1870,7 +1870,7 @@ function assertUploadFolder(pathname, folder) {
 }
 const PDF_NOT_HERE ="A PDF can't be imported here - use \"From a photo or PDF\" on Add a piece, or a MusicXML or .mxl file.";
 
-router.post('/flows/from-file/upload-token', requireAuthFromQueryOrHeader, resolveAccount, requireFeature('flow_import_musicxml'), async (req, res) => {
+router.post('/flows/from-file/upload-token', requireAuth, resolveAccount, requireFeature('flow_import_musicxml'), async (req, res) => {
   try {
     const result = await handleUpload({
       body: req.body,
@@ -1978,7 +1978,7 @@ router.post('/flows/:id/blocks', requireAuth, resolveAccount, async (req, res) =
 // /piece-read fetches them, has them read, and deletes them. Nothing of the picture is kept, unless the
 // owner keeps the read as a test: those pages are uploaded again, to the tests folder, when the piece is
 // saved. Each read costs money, so it has its own hourly limit as well as the feature's gate.
-router.post('/piece-read/upload-token', requireAuthFromQueryOrHeader, resolveAccount, requireFeature('piece_from_photo'), async (req, res) => {
+router.post('/piece-read/upload-token', requireAuth, resolveAccount, requireFeature('piece_from_photo'), async (req, res) => {
   try {
     const result = await handleUpload({
       body: req.body,
