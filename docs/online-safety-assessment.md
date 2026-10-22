@@ -1,6 +1,6 @@
 # Online Safety Act run-through (ML-507)
 
-**Version 2, 19 October 2026**, against release 0.63.0 (version 1: 8 October 2026, release 0.52.0). A first pass at what the Online Safety Act 2023
+**Version 3, 22 October 2026**, against release 0.67.0 (version 2: 19 October 2026, release 0.63.0; version 1: 8 October 2026, release 0.52.0). A first pass at what the Online Safety Act 2023
 asks of this app, done from Ofcom's published guidance. It is a careful reading by Claude, **not legal
 advice**, and **the owner should confirm it with Ofcom's own tools** (below) - they are the official
 route and they produce the records Ofcom expects.
@@ -9,6 +9,7 @@ route and they produce the records Ofcom expects.
 |---|---|---|---|
 | 1 | 8 October 2026 | Claude, for Andrew Storey | The first run-through: scope, an illegal content risk assessment, a children's access assessment, a children's risk assessment, and the measures expected of a small low-risk service. |
 | 2 | 19 October 2026 | Claude, for Andrew Storey | Done again before ML-534: **a band's logo** - the first picture one member uploads for others to see, shown to the band, to people it invites and in the invitation email. Sections 2, 3, 5 and 6, actions 9 and 10 and "What would change the answer" are updated; the rest still holds. See "Version 2" below. |
+| 3 | 22 October 2026 | Claude, for Andrew Storey | Done again before 0.67.0: **the public page's waiting list** (ML-580) - a non-member's name, email, band and instrument go to the owner and, on his decision, to the organisers of the band they named; adding pieces free for Standard (ML-579) and the public page itself (ML-242) change nothing a member can show another. See "Version 3" below. |
 
 **Next review:** 19 October 2027 at the latest. Ofcom asks for a review at least once a year, **and before
 any significant change** to how the service works. It is on Admin → Security → Reviews.
@@ -175,6 +176,48 @@ Members page now asks for the band's logo, not a photo of people (action 10).
 
 **The Children's Code** (`docs/childrens-code-assessment.md`) was checked the same day: no standard's
 answer changes (its version 2).
+
+## Version 3: the public page and the waiting list (ML-242, ML-579, ML-580, 22 October 2026)
+
+**What changed.** Three things go out together in 0.67.0:
+
+- **A public page and a pricing page** (ML-242) at notablybetter.com. Everything on them is written by the owner;
+  nothing a member makes appears there. The app moves to notablybetter.com/app.
+- **Adding pieces is free for Standard members** (ML-579). A piece a member makes is private to them, as before;
+  what reaches a band is still decided by the band's own "change music" level. Putting a file on your own piece
+  becomes Premium. **Nothing new can be shown to anyone else**: who can add what to a band (section 2) is unchanged.
+- **A waiting list** (ML-580). Someone who is not yet a member asks to join on the public page: first and last
+  name, email, optionally the band they play with and their instrument, and a tick that they are 13 or over or a
+  parent or carer is filling it in. Only the owner sees the request (Admin → Waiting list). He can **Let in**
+  (the ordinary invitation email), **Not now**, or **Pass to the organiser**: the organisers of the band they
+  named get a notice in the app with their name, instrument and email, so they can invite them if they want to.
+
+**Does this let members contact each other, or show one member something about another?** Not between members.
+The new flow is **from a non-member to the owner**, and on the owner's decision **to a band's organisers**. It
+carries no free text - only a name, an email address, a band and an instrument - so it cannot carry anything
+harmful. It does not create an account: sign-up is still only by invitation, from the owner or a band's
+organiser ("What would change the answer" - "sign-up without an invitation" - is not triggered).
+
+**Who could misuse it, and how far it reaches.**
+- *A stranger filling in the form*: they reach only the owner, who decides. They cannot reach a band or a member,
+  and they are sent nothing until invited. The form sends no email, so it cannot be used to send emails to
+  someone else's address; robots are held back by a hidden field, a time check and a per-sender limit.
+- *An organiser given a non-member's details*: the organiser is an adult who has confirmed it (action 2), of the
+  band the person named themselves, and only when the owner passes it on. They could contact the person by email
+  outside the app, as anyone who knows a band's members could; inside the app the only thing they can do is send
+  the band's ordinary invitation, which the person can ignore.
+
+**Children.** A 13- to 17-year-old can ask to join and name their band; under 13s are asked to have a parent or
+carer fill it in. Their name, email and instrument may be passed to the adult organisers of the band they named -
+which is who would invite them anyway. The form says so before it is sent, and so does the privacy policy. The
+owner looks at each request before anything is passed on.
+
+**Answer: still low risk, for adults and for children.** No content is added that one member can show another,
+and the one new flow of personal details goes to the owner and, on his decision, to the adult organisers of the
+band the person asked to join.
+
+**The Children's Code** (`docs/childrens-code-assessment.md`) was checked the same day: no standard's answer
+changes (its version 3).
 
 ## What would change the answer
 
