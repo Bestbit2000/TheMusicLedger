@@ -1317,9 +1317,9 @@
             </button>
             <p class="session-goal hidden-group" id="sessGoal"></p>
             <div class="mt-3" id="sessPiecesList"></div>
-            <!-- ML-546: Auto, its line and its switch on one row -->
+            <!-- ML-546: Auto, its line and its switch on one row. ML-584 (owner, 22 Oct 2026): on screen it is "Smart choose bars?" -->
             <div class="flex-row gap-sm items-center mt-3">
-                <span class="grow"><strong id="sessAutoLbl">Auto</strong><br><span class="text-sm text-muted" id="sessAutoNote"></span></span>
+                <span class="grow"><strong id="sessAutoLbl">Smart choose bars?</strong><br><span class="text-sm text-muted" id="sessAutoNote"></span></span>
                 <label class="toggle-switch"><input type="checkbox" id="sessAutoToggle" checked aria-labelledby="sessAutoLbl" aria-describedby="sessAutoNote"><span class="toggle-slider"></span></label>
             </div>
         </section>
@@ -3275,14 +3275,14 @@
     </div>
 
     <!-- ML-422: a practice session has run past its time (its timer hit zero with blocks still to go). Everything
-         is paused while this is up; like the Timer's own "Session finished!" it must be answered. -->
+         is paused while this is up; like the Timer's own "Session finished!" it must be answered. ML-582 (owner, 22 Oct
+         2026): no "Carry on without the timer", and not on the last block - that ends as usual, then Time's up. -->
     <div class="modal" data-no-dismiss id="sessTimeUpModal" role="dialog" aria-modal="true" aria-labelledby="sessTimeUpTitle">
         <div class="modal-content">
             <h2 id="sessTimeUpTitle">Time's up!</h2>
             <p id="sessTimeUpMessage" class="mb-6 leading-base"></p>
             <button type="button" class="btn-submit" id="sessTimeUpFinishBtn">Finish the session</button>
             <button type="button" class="btn-cancel btn-nav" id="sessTimeUpExtendBtn">Just another 5 minutes</button>
-            <button type="button" class="btn-text" id="sessTimeUpCarryOnBtn">Carry on without the timer</button>
         </div>
     </div>
 

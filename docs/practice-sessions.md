@@ -50,7 +50,7 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
 3. **What goes in?** (`#sessionContentView`) One row per kind of block in the plan: **Warm-up** (which warm-up
    list - it plays on a loop), **Scales** (your grade's scales in the Scales tool - or, with Scales Levels on, a card: see "Scales Levels"), **Skills** (which skills
    list). **Pieces** come from a **practice list**, **pieces you choose** (one or several, the Add pieces pick
-   list) or **all your pieces** with Levels. **Auto** (on by default; its switch on its own row with its line, ML-546) picks
+   list) or **all your pieces** with Levels. A piece picked last time that has since been archived, deleted or emptied is dropped from "pieces you choose" (ML-583); if none are left it goes back to all your pieces. **Auto** - on screen **"Smart choose bars?"** (ML-584) - (on by default; its switch on its own row with its line, ML-546) picks
    the bars; off, you pick each Pieces block's bars on Ready. The card shows each prepared piece's Level bar (how many bars
    at each Level, the key under the list - the empty "Not known" box only when a bar has bars with no level, ML-548; a
    piece not prepared has no bar, just its line) and where it is on its path. No "Next goal: every 1 up to 2" line any more
@@ -108,8 +108,10 @@ every screen, with its usual pause and stop. That timer is marked `timerState.fo
   or Next block un-pauses it. The drills are rounds of their own and aren't paused;
 - **Time's up (ML-422):** when the countdown reaches zero with the session still going (you took longer than the
   time you set), everything pauses and `#sessTimeUpModal` asks: **Finish the session**, **Just another 5 minutes**
-  (the timer starts again with 5 minutes) or **Carry on without the timer**. It must be answered, like the
-  Timer's own "Session finished!". An open-ended session has no time up;
+  (the timer starts again with 5 minutes) - no "Carry on without the timer" (ML-582). It must be answered, like the
+  Timer's own "Session finished!". **On the last block** (not a Prepare, which takes as long as it needs) there is
+  nothing still to come, so no pop-up: the block ends as usual - its go finished, then "How did you get on?" and the
+  Level - and the session finishes as "Time's up - well played!" (ML-582). An open-ended session has no time up;
 - ending the session (finished, or ended early) stops the timer;
 - a timer already running when the session starts is replaced;
 - after a reload both come back (the timer by ML-197, the session by its own resume) and the timer is marked

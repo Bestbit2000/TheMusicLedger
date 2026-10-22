@@ -52,7 +52,7 @@ the Pick a plan pop-up; the plan's blocks in colour underneath), **What's in it*
 - Step 3: `.history-item.settings-link` rows with a `.kind-block` in the icon slot; the Pieces `.flow-card` › its heading ›
   where the pieces come from as a value box (`.metroBlk-ctrl-value-btn.w-full`: "Cobham concert" over "where the pieces come
   from", ML-562) › `.session-goal` (only "First: prepare the new pieces" / "Next: play them through" - ML-547) ›
-  `.session-piece` rows with a `.level-bar` › the Auto row at the bottom (label and line, then the `.toggle-switch`,
+  `.session-piece` rows with a `.level-bar` › the Auto row at the bottom ("Smart choose bars?" on screen, ML-584; label and line, then the `.toggle-switch`,
   ML-546) - its line says what happens either way: on, the app picks the bars; off, "on the next step you'll choose what you want to
   play" (ML-562; owner's words).
 - Ready: block rows (`.history-item` › `.level-row-body` › `.session-block-time` + `.kind-block`). No `.kind-strip` above

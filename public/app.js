@@ -8321,7 +8321,15 @@
                 src.listName = l.name;
                 ids = l.pieces.filter(p => !p.archived).map(p => p.scoreId);
                 src.movements = Object.fromEntries(l.pieces.filter(p => p.movement).map(p => [p.scoreId, p.movement]));
-            } else if (src.type === 'pieces') ids = src.scoreIds || [];
+            } else if (src.type === 'pieces') {
+                // ML-583: a piece picked last time that has since been archived, deleted or emptied is not in the pick list
+                // any more - drop it, or the count says more pieces than the pop-up shows (and Unselect all can't clear it)
+                await rehearseRefresh(); // fresh - a piece added since the list last loaded is not gone
+                const can = new Set(rehearsePlayable().map(f => f.id));
+                ids = (src.scoreIds || []).map(Number).filter(id => !rehearseLoaded || can.has(id));
+                if (ids.length) src.scoreIds = ids;
+                else { sessPlan.source = { type: 'all' }; ids = null; }
+            }
             sessPlan.pieces = ids && !ids.length ? [] : (await API.practice.pieces(ids)).pieces || [];
             // ML-530: a piece the list holds as one movement counts only that movement's bits
             const only = (src.type === 'list' && src.movements) || {};
@@ -8479,7 +8487,8 @@
     async function openSessPiecesModal() {
         if (!flowsListCache.length) await rehearseRefresh();
         const src = sessPlan.source || {};
-        sessPick.picked = new Set(src.type === 'pieces' ? src.scoreIds || [] : []);
+        const can = new Set(rehearsePlayable().map(f => f.id)); // ML-583: only pieces the list shows
+        sessPick.picked = new Set((src.type === 'pieces' ? src.scoreIds || [] : []).map(Number).filter(id => can.has(id)));
         sessPick.query = '';
         document.getElementById('sessPiecesSearch').value = '';
         renderSessPiecesModal();
@@ -8666,11 +8675,20 @@
         else sessionSetPaused(false);
     }
     // ML-422: the session's timer has reached zero and there are blocks still going - you've taken longer than
-    // the time you set. Everything pauses and you're asked: finish, another 5 minutes, or carry on untimed.
+    // the time you set. Everything pauses and you're asked: finish, or another 5 minutes.
+    // ML-582: on the last block (a timed one - a Prepare takes as long as it needs) there is nothing still to come,
+    // so the block ends the way it always does - the go finished, then "How did you get on?" - and the session
+    // finishes as Time's up after it.
     let sessOverTime = null;
     function sessionOverTime(elapsedSeconds, targetSeconds) {
         const r = practiceRun;
         if (!r || r.done) return;
+        const b = r.blocks[r.index];
+        if (r.index >= r.blocks.length - 1 && r.phase !== 'rest' && !(b && b.kind === 'rehearsal' && b.stage === 'prepare')) {
+            r.timeUp = true;
+            if (!r.nudged) sessionTimeUp({ ranOut: true }); // (already ending - finishing its go or asking - it finishes as Time's up)
+            return;
+        }
         sessionSetPaused(true);
         sessOverTime = { elapsedSeconds, targetSeconds };
         const mins = Math.round((targetSeconds || 0) / 60);
@@ -8679,7 +8697,6 @@
         showModal('sessTimeUpModal');
     }
     document.getElementById('sessTimeUpFinishBtn')?.addEventListener('click', () => { sessOverTime = null; hideModal('sessTimeUpModal'); finishPracticeRun(true, true); });
-    document.getElementById('sessTimeUpCarryOnBtn')?.addEventListener('click', () => { sessOverTime = null; hideModal('sessTimeUpModal'); sessionSetPaused(false); });
     document.getElementById('sessTimeUpExtendBtn')?.addEventListener('click', () => {
         const o = sessOverTime;
         sessOverTime = null;
@@ -8837,7 +8854,7 @@
         b.seconds += runElapsed();
         b.started = true;
         sessExtendOpen(r);
-        if (r.index >= r.blocks.length - 1) { finishPracticeRun(); return; }
+        if (r.index >= r.blocks.length - 1) { finishPracticeRun(false, !!r.timeUp); return; }
         if (PracticePlan.restBefore(r.blocks, r.index + 1)) startRest();
         else sessionAdvance();
     }
