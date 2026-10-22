@@ -512,6 +512,7 @@
         flows: {
             list: () => apiCall('/api/flows').then(flowsStillThere).then(flowsSplitArchived), // ML-404: minus a new piece just taken away again; minus what is archived
             setArchived: (id, archived, forAll) => apiCall(`/api/flows/${id}/archive`, 'PUT', { archived, forAll: !!forAll }),
+            bandSummary: (id) => apiCall(`/api/flows/${id}/band-summary`), // ML-581
             setArchivedMany: (items, archived) => apiCall('/api/flows/archive', 'PUT', { items, archived }), // ML-570: [{ id, forAll }]
             create: (data) => apiCall('/api/flows', 'POST', data),
             get: (id) => apiCall(`/api/flows/${id}`),
@@ -687,6 +688,8 @@
             inviteToBand: (id, email, level, resend) => apiCall(`/api/account/bands/${id}/invites`, 'POST', { email, level, resend: !!resend }),
             cancelBandInvite: (id, inviteId) => apiCall(`/api/account/bands/${id}/invites/${inviteId}`, 'DELETE'),
             setBandMemberLevel: (id, memberId, level) => apiCall(`/api/account/bands/${id}/members/${memberId}`, 'PUT', { level }),
+            setBandLeader: (id, memberId, on) => apiCall(`/api/account/bands/${id}/members/${memberId}/band-leader`, 'PUT', { on }), // ML-581
+            setShareLevels: (id, on) => apiCall(`/api/account/bands/${id}/share-levels`, 'PUT', { on }),
             removeBandMember: (id, memberId) => apiCall(`/api/account/bands/${id}/members/${memberId}`, 'DELETE'),
             acceptBandInvite: (inviteId, labelId) => apiCall(`/api/account/band-invites/${inviteId}/accept`, 'POST', { labelId: labelId ?? null }),
             bandInviteWelcome: (inviteId) => apiCall(`/api/account/band-invites/${inviteId}/welcome`), // ML-534
@@ -1937,7 +1940,7 @@
     }
     // The current screen: its own item, or for a screen the menu doesn't list directly (a tool's inner
     // screens, Flow's editor...), the item it belongs under.
-    const NAV_PARENT_VIEW = { statsView: 'statsHomeView', streakStatsView: 'statsHomeView', historyView: 'statsHomeView', toolResultsView: 'statsHomeView', flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', flowPlayView: 'rehearseView', piecePathView: 'rehearseView', prepareRunView: 'rehearseView', levelsPaintView: 'rehearseView', levelsCutView: 'rehearseView', practiceListView: 'rehearseView',
+    const NAV_PARENT_VIEW = { statsView: 'statsHomeView', streakStatsView: 'statsHomeView', historyView: 'statsHomeView', toolResultsView: 'statsHomeView', flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', bandSummaryView: 'metroBuilderView', flowPlayView: 'rehearseView', piecePathView: 'rehearseView', prepareRunView: 'rehearseView', levelsPaintView: 'rehearseView', levelsCutView: 'rehearseView', practiceListView: 'rehearseView',
         settingsDisplayView: 'settingsView', settingsStatsView: 'settingsView', settingsTunerView: 'settingsView', settingsPlaybackView: 'settingsView',
         aboutReleasesView: 'aboutView', aboutPrivacyView: 'aboutView', aboutTermsView: 'aboutView', aboutGradesView: 'aboutView',
         accountDetailsView: 'accountView', accountSecurityView: 'accountView', accountBandsView: 'accountView', bandMembersView: 'accountView', bandWelcomeView: 'accountView', tidyBandsView: 'accountView', accountTeachersView: 'accountView',
@@ -2305,7 +2308,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutPrivacyView', 'aboutTermsView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'bandWelcomeView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'settingsNoticesView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'levelsProgressView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView', 'setupView', 'tuningForkView'];
+    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutPrivacyView', 'aboutTermsView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'bandWelcomeView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'settingsNoticesView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'levelsProgressView', 'bandSummaryView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView', 'setupView', 'tuningForkView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     // ML-107 (owner's list, 12 Oct 2026): anywhere you have your instrument up while looking at the screen - the
@@ -2523,6 +2526,7 @@
         if (viewName === 'rehearseView') { document.getElementById('topTitle').innerText = 'Rehearse'; renderRehearseList(); rehearseRefresh(); openMusicTabs('rehearse', isBack); }
         // ML-390: a piece's path and its Prepare steps (the path's own title is the piece's, set as it renders).
         if (viewName === 'levelsProgressView') document.getElementById('topTitle').innerText = levels.title || 'Bar by bar'; // ML-557
+        if (viewName === 'bandSummaryView') document.getElementById('topTitle').innerText = bandSummary.title; // ML-581
         if (viewName === 'piecePathView') { document.getElementById('topTitle').innerText = levels.title || 'My Levels'; if (isBack) renderPiecePath(); }
         if (viewName === 'prepareRunView') document.getElementById('topTitle').innerText = 'Prepare · 2 of 4';
         if (viewName === 'levelsPaintView') document.getElementById('topTitle').innerText = pieceStage() === 'prepare' ? 'Prepare · 3 of 4' : 'Set the levels';
@@ -4399,7 +4403,7 @@
         } else {
             container.innerHTML = shown.map(b => `
                 <div class="history-item">
-                    <span class="band-row-main">${b.shared && b.shared.logoUrl ? `<img class="band-logo band-logo-sm" src="${escapeHtml(b.shared.logoUrl)}" alt="">` : ''}<span class="band-row-text"><span>${escapeHtml(b.displayName)}</span><span class="text-sm text-muted">${escapeHtml(b.shared ? `Shared - ${bandLevel(b.shared.level).label}` : 'Not shared')}</span>${bandWebsiteLinkHtml(b.website)}</span></span>
+                    <span class="band-row-main">${b.shared && b.shared.logoUrl ? `<img class="band-logo band-logo-sm" src="${escapeHtml(b.shared.logoUrl)}" alt="">` : ''}<span class="band-row-text"><span>${escapeHtml(b.displayName)}</span><span class="text-sm text-muted">${escapeHtml(b.shared ? `Shared - ${bandLevel(b.shared.level).label}${bandSummaryOn() && b.shared.isBandLeader ? ' · Band leader' : ''}${bandSummaryOn() && b.shared.sharesLevels ? ' · Sharing my Levels summary' : ''}` : 'Not shared')}</span>${bandWebsiteLinkHtml(b.website)}</span></span>
                     <button type="button" class="list-item-menu-btn" data-band-menu-id="${b.id}" aria-label="Options for ${escapeHtml(b.displayName)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
                 </div>
             `).join('');
@@ -4678,11 +4682,12 @@
             : `${n} ${n === 1 ? 'person' : 'people'} in this band. You ${bandLevel(d.yourLevel).key === 'play' ? "can see and play the band's music" : "can add to and change the band's music"}. An organiser can change that.`;
         document.getElementById('bandMembersList').innerHTML = d.members.map(m => {
             const name = m.name + (m.isYou ? ' (you)' : '');
-            const level = bandLevel(m.level).label;
+            const level = bandLevel(m.level).label + (bandSummaryOn() && m.isBandLeader ? ' · Band leader' : ''); // ML-581: everyone sees who it is
             return d.isOrganiser
                 ? `<button type="button" class="metroBlk-ctrl-value-btn w-full mb-2" data-member="${m.accountId}" aria-haspopup="dialog" aria-label="${escapeHtml(name)}: ${escapeHtml(level)} - tap to change"><strong>${escapeHtml(level)}</strong><span class="metroBlk-ctrl-value-label">${escapeHtml(name)}</span></button>`
                 : `<div class="history-item"><span class="band-row-text"><span>${escapeHtml(name)}</span><span class="text-sm text-muted">${escapeHtml(level)}</span></span></div>`;
         }).join('');
+        renderBandShareLevels();
         const waiting = document.getElementById('bandMembersWaiting');
         setShown(waiting, !d.isOrganiser && d.openInvites > 0);
         waiting.textContent = d.openInvites === 1 ? 'One more person has been invited.' : `${d.openInvites} more people have been invited.`;
@@ -4700,6 +4705,30 @@
         document.getElementById('bandInvitesList').innerHTML = d.invites.map(i =>
             `<button type="button" class="metroBlk-ctrl-value-btn w-full mb-2" data-invite="${i.id}" aria-haspopup="dialog" aria-label="Invitation to ${escapeHtml(i.email)}: ${escapeHtml(bandLevel(i.level).label)} - tap to change or cancel"><strong>${escapeHtml(i.email)}</strong><span class="metroBlk-ctrl-value-label">${escapeHtml(bandLevel(i.level).label)} &middot; invited ${escapeHtml(new Date(i.sentAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))}</span></button>`).join('');
     }
+    // ML-581: the band leader's summary - a player's own say-so for this band, and who would see it.
+    function bandSummaryOn() { return isFeatureEnabled('band_levels_summary'); }
+    function renderBandShareLevels() {
+        const d = bandMembers.data;
+        setShown('bandShareLevelsSection', bandSummaryOn());
+        if (!bandSummaryOn()) return;
+        document.getElementById('bandShareLevelsToggle').checked = !!d.yourSharesLevels;
+        const leaders = d.members.filter(m => m.isBandLeader).map(m => (m.isYou ? 'you' : m.name));
+        const names = leaders.length === 1 ? leaders[0] : leaders.slice(0, -1).join(', ') + ' and ' + leaders[leaders.length - 1];
+        const who = !leaders.length ? 'This band has no band leader yet, so nobody would see anything.'
+            : `The band leader${leaders.length === 1 ? '' : 's'}: ${names}.`;
+        document.getElementById('bandShareLevelsNote').textContent = `${who} They would see the average Level, and the lowest to highest, for each bar of the band's pieces - made from at least 3 players, and never with your name. You can switch it off at any time.`;
+    }
+    document.getElementById('bandShareLevelsToggle')?.addEventListener('change', async (e) => {
+        const on = e.target.checked;
+        try {
+            await API.account.setShareLevels(bandMembers.bandId, on);
+            bandMembers.data.yourSharesLevels = on;
+            showSuccessToast(on ? "Your Levels on this band's pieces now count in the band leader's summary." : "Your Levels no longer count in the band leader's summary.");
+        } catch (error) {
+            e.target.checked = !on;
+            showWarningToast(error.message);
+        }
+    });
     // ML-479: a band shows its members by name and an invitation says who it is from, so the server
     // refuses to invite or join for an account with no name ('needs-name'). Offer the way to add one.
     function bandNameNeeded(error) {
@@ -4740,9 +4769,12 @@
         if (!m) return;
         const options = bandLevelChoices(m.level);
         // (to go yourself, Leave is on the band's own menu)
+        // ML-581: the band leader - who sees the summary of the Levels players choose to share
+        if (bandSummaryOn()) options.push({ key: 'leader', html: m.isBandLeader ? addPieceRow('Not the band leader any more', 'They stop seeing the band summary') : addPieceRow('Make them the band leader', 'They see a summary of the Levels players choose to share - never anyone by name') });
         if (!m.isYou) options.push({ key: 'remove', html: addPieceRow('Remove from the band', 'What they added stays with the band') });
         openFlowChoiceModal(m.name, options, (opt) => {
             if (opt.key === m.level) return;
+            if (opt.key === 'leader') { bandMembersDo(() => API.account.setBandLeader(bandMembers.bandId, m.accountId, !m.isBandLeader), m.isBandLeader ? 'No longer the band leader' : 'Now the band leader'); return; }
             if (opt.key !== 'remove') { bandMembersDo(() => API.account.setBandMemberLevel(bandMembers.bandId, m.accountId, opt.key)); return; }
             showConfirmModal('Remove from the band', `Remove ${m.name} from ${bandMembers.bandName}? They will no longer see the band's music. What they added stays with the band.`,
                 () => bandMembersDo(() => API.account.removeBandMember(bandMembers.bandId, m.accountId), 'Removed'), true, 'Remove');
@@ -10149,6 +10181,7 @@
         if (flowCanDelete(flow)) items.push('Delete');
         if (ownership === 'Public' || ownership === 'Band') items.push('Copy'); // a band piece too (ML-441): your own copy to adjust
         if (ownership !== 'Public' && isFeatureEnabled('flow_export_musicxml')) items.push('Export');
+        if (flow.ownerBandId && flow.isBandLeader && bandSummaryOn()) items.push('BandSummary'); // ML-581
         items.push('Archive');
         if (ownership === 'Public' || ownership === 'Band') items.push('Report'); // ML-507: anything other people can see
         return items;
@@ -10303,7 +10336,7 @@
         if (!menu) return;
         const flow = flowById(id);
         const items = flow ? flowLibraryMenuItemsFor(flow) : [];
-        ['Play', 'Edit', 'Duplicate', 'Copy', 'Delete', 'Export', 'Archive', 'Restore', 'Report'].forEach(item => {
+        ['Play', 'Edit', 'Duplicate', 'Copy', 'Delete', 'Export', 'BandSummary', 'Archive', 'Restore', 'Report'].forEach(item => {
             document.getElementById('flowLibraryItemMenu' + item)?.classList.toggle('hidden-group', !items.includes(item));
         });
         menu.classList.add('show');
@@ -10376,6 +10409,58 @@
     });
     // ML-204: downloads the flow as .musicxml - fetched with the auth header (a plain link can't carry
     // one), then saved under the name the server chose (Content-Disposition's UTF-8 filename*).
+    // ML-581: the band leader's summary of a band piece - numbers per bar and for the piece, never a person
+    // (GET /api/flows/:id/band-summary, server/services/bandLevelsSummary.js).
+    const bandSummary = { flowId: null, title: 'Band summary', bandName: 'the band', data: null };
+    const levelText = (n) => String(Math.round(n * 10) / 10);
+    async function openBandSummary(id) {
+        const f = flowById(id);
+        Object.assign(bandSummary, { flowId: id, title: f ? f.title : 'Band summary', bandName: f ? flowBandName(f) : 'the band', data: null });
+        setShown('bandSummaryBody', false);
+        setShown('bandSummaryNotYet', false);
+        document.getElementById('bandSummarySub').textContent = 'Loading...';
+        switchView('bandSummaryView');
+        try {
+            bandSummary.data = await API.flows.bandSummary(id);
+            renderBandSummary();
+        } catch (error) {
+            document.getElementById('bandSummarySub').textContent = '';
+            showWarningToast(error.message);
+        }
+    }
+    function renderBandSummary() {
+        const d = bandSummary.data;
+        if (!d) return;
+        document.getElementById('bandSummarySub').textContent = `Made from the Levels players in ${bandSummary.bandName} chose to share with the band leader - never anyone by name.`;
+        setShown('bandSummaryNotYet', !d.enough);
+        setShown('bandSummaryBody', d.enough);
+        if (!d.enough) return;
+        document.getElementById('bandSummaryPiece').textContent = `Average Level ${levelText(d.piece.avg)}, from Level ${levelText(d.piece.lo)} to Level ${levelText(d.piece.hi)}.`;
+        const bars = (r) => (r.from === r.to ? `Bar ${r.from}` : `Bars ${r.from}-${r.to}`);
+        document.getElementById('bandSummaryMostWork').innerHTML = d.mostWork.length
+            ? d.mostWork.map(r => `<p class="mb-2"><strong>${bars(r)}</strong> - average Level ${levelText(r.avg)}</p>`).join('')
+            : '<p class="metro-help-text">Every bar is at full speed.</p>';
+        const map = document.getElementById('bandSummaryMap');
+        map.innerHTML = d.bars.map((b, i) => {
+            const label = i % 10 === 0 ? `<span class="level-map-bars" aria-hidden="true">${i + 1}<span class="level-map-bars-to"> - ${Math.min(i + 10, d.bars.length)}</span></span>` : '';
+            return label + (b
+                ? `<span class="band-summary-cell"><span class="band-summary-range lv-${Math.round(b.avg)}" data-lo="${b.lo}" data-hi="${b.hi}"></span><span class="band-summary-avg" data-avg="${b.avg}"></span></span>`
+                : '<span class="band-summary-cell is-empty"></span>');
+        }).join('');
+        // (where each column's shading and line sit is only known now - custom properties the classes read)
+        map.querySelectorAll('[data-lo]').forEach(el => { el.style.setProperty('--lo', el.dataset.lo); el.style.setProperty('--hi', el.dataset.hi); });
+        map.querySelectorAll('[data-avg]').forEach(el => el.style.setProperty('--avg', el.dataset.avg));
+        const shown = d.bars.filter(Boolean).length;
+        map.setAttribute('aria-label', `Bar by bar: ${shown} of ${d.bars.length} bars have a summary${d.mostWork.length ? `; the most work is in ${d.mostWork.map(r => `${bars(r).toLowerCase()} (average Level ${levelText(r.avg)})`).join(', ')}` : ''}.`);
+        document.getElementById('bandSummaryLegend').innerHTML = levelLegendHtml([[1]]);
+    }
+    document.getElementById('flowLibraryItemMenuBandSummary')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = flowLibraryMenuTargetId;
+        closeFlowLibraryItemMenu();
+        if (id !== null) openBandSummary(id);
+    });
+
     document.getElementById('flowLibraryItemMenuExport')?.addEventListener('click', async (e) => {
         e.stopPropagation();
         const id = flowLibraryMenuTargetId;

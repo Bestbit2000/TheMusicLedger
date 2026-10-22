@@ -96,7 +96,8 @@ function toFlowSummaryDto(row, canEdit, canDelete) {
     // Archived: hidden from this member's lists until they ask to see what is archived. archivedForAll:
     // archived on the piece itself (for everyone who can see it) rather than just for this member.
     archived: !!(row.archived_for_all || row.archived_mine),
-    archivedForAll: !!row.archived_for_all
+    archivedForAll: !!row.archived_for_all,
+    isBandLeader: !!row.is_band_leader // ML-581: you are the band leader of its band - Band summary is on its menu
   };
 }
 
@@ -291,6 +292,7 @@ export async function listFlows(accountId) {
   const { rows } = await pool.query(
     `SELECT s.id, s.title, s.composer, s.owner_band_id, s.owner_account_id, s.is_public, s.created_at, s.added_by_account_id,
             BOOL_OR(bm.account_id IS NOT NULL) AS is_band_member,
+            COALESCE(BOOL_OR(bm.is_band_leader), false) AS is_band_leader,
             COALESCE(BOOL_OR(${BAND_CAN_CHANGE_SQL}), false) AS band_can_change,
             COUNT(ms.id) AS block_count,
             -- Bar counts exclude the lead-in: it's a count-in, not part of the piece.

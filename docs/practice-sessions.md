@@ -284,6 +284,32 @@ stops being "open the Scales tool". It gives **three scales, each at its own Lev
 See "Practice Levels" in [flow-journey.md](flow-journey.md): speeds as a % of the piece's tempo, session
 sub-beats, the 4:30 chunk length rule, the heat map, and the practice mode.
 
+## The band leader's summary (ML-581)
+
+The owner's decisions, 22 Oct 2026 (product value 2, `docs/product-values.md`). Feature `band_levels_summary`,
+Super admin only until switched on.
+
+- **A player's say-so, per band.** On a shared band's **Members** page (My bands → the band's ⋮ → Members) a
+  switch, off until they turn it on: *"I'm happy to share my piece levels anonymously at a summary level only to
+  the band leader."* Its line says who the band leader is (or that there isn't one yet) and what they will see.
+  Never asked in set-up, by a prompt or a notice - nothing nudges a player to switch it on (the No pressure rule).
+  `band_members.shares_levels` (with the day it was switched on), so it goes when they leave the band and with
+  their account.
+- **The band leader** is a permission an organiser gives one or more members (`band_members.is_band_leader`) -
+  not every organiser. On the Members page it shows as "· Band leader" beside what they can do, for everyone in
+  the band to see, so a player knows who would see their summary.
+- **What the band leader sees** - on a band piece's ⋮ menu, **Band summary**: for the piece, the average Level
+  and the lowest to highest; for each bar, the same, as a picture (a column per bar: the range in the Level
+  colours, a line at the average) with the bars that need the most work written out under it. Made only from
+  the players in the band now who switched it on, and only from their Levels on **the band's own piece** (not a
+  copy). A player's Level for a bar is what their heat map shows (`FlowJourney.barLevels`); their Level for the
+  piece is the average over the bars they have Levels on.
+- **Never one person.** Nothing is shown for the piece until **3 players** have shared Levels on it, and a bar
+  is left blank until 3 of them have a Level on it. The answer from the server holds only numbers per bar and
+  for the piece - no account, name, count of who hasn't, or "last practised" (a unit test checks).
+  `bandLevelsSummary` in `server/services/bandLevelsSummary.js`, `GET /api/flows/:id/band-summary`.
+- **Words about the music**, never about players: "Bars 32-40 need the most work", not "3 players are behind".
+
 ## Practice lists and the forecast (ML-319, reworked by ML-332/333/334)
 
 - **A list** is the pieces you're working towards, with an optional **target date** (a concert, an

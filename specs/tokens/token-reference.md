@@ -258,6 +258,8 @@ edge, icon/text and fill
 | `--band-logo-sm` | `32px` | ML-534 a band's logo on its My bands row |
 | `--band-logo-lg` | `96px` | ML-534 a band's logo on the welcome and its Members page |
 | `--level-cell-size` | `24px` | one bar's square in a piece's Level map (display only, not a tap target) |
+| `--band-summary-cell-height` | `40px` | ML-581 one bar's column in the band leader's summary: Levels 1-5 bottom to top (display only) |
+| `--band-summary-line` | `2px` | ML-581 the average's line across a bar's column |
 | `--level-strip-height` | `12px` | the thin one-row strip (Range's notes past your range) |
 | `--level-bar-height` | `20px` | ML-390 a piece's Levels bar chart on a list row - holds the Level number |
 | `--time-strip-height` | `12px` | ML-390 step 1: the strip of 5-minute blocks - thin (ML-419), so it can't pass for a row of buttons |

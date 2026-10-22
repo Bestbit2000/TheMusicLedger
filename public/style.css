@@ -2673,6 +2673,13 @@
     .level-map-bars { grid-column: 1; align-self: center; padding-right: var(--space-1); font-size: var(--font-xs); color: var(--label-color); font-variant-numeric: tabular-nums; white-space: nowrap; }
     @container (max-width: 300px) { .level-map-bars-to { display: none; } }
     .level-cell { min-height: var(--level-cell-size); aspect-ratio: 1; border-radius: var(--radius-2xs); display: grid; place-items: center; font-size: var(--font-xs); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); box-sizing: border-box; }
+    /* ML-581: the band leader's summary - a column per bar in .level-map's rows of 10 (specs/components/band-summary.md).
+       Levels 1-5 run bottom to top, a fifth each: the shading from the lowest Level to the highest (--lo, --hi), a
+       line at the average (--avg) - set at run time. A bar without 3 players' Levels is a dashed, empty column. */
+    .band-summary-cell { position: relative; height: var(--band-summary-cell-height); border-radius: var(--radius-2xs); background: var(--input-bg); border: 1px solid var(--level-unset-border); box-sizing: border-box; overflow: hidden; }
+    .band-summary-cell.is-empty { background: transparent; border-style: dashed; }
+    .band-summary-range { position: absolute; inset-inline: 0; bottom: calc((var(--lo, 1) - 1) * 20%); top: calc((5 - var(--hi, 1)) * 20%); border-block: 1px solid var(--level-unset-border); }
+    .band-summary-avg { position: absolute; inset-inline: 0; bottom: calc((var(--avg, 1) - 0.5) * 20%); height: var(--band-summary-line); background: var(--text-color); }
     .level-strip { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--space-0-5); height: var(--level-strip-height); }
     .level-strip .level-cell { min-height: 0; min-width: 0; aspect-ratio: auto; font-size: 0; }
     /* ML-334: a long piece's strip has a cell per bar - an unset bar's dashed border (2px a cell) pushed

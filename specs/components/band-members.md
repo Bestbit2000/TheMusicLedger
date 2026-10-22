@@ -54,6 +54,14 @@ who runs a band). Two places:
 - **One button, one pop-up:** a member, an invitation waiting and the level of a new invitation are each a
   value box (the answer over what it is) that opens `#flowChoiceModal`. Remove and Cancel are options in that
   pop-up, not buttons on the row.
+- **The band leader's summary** (ML-581, feature `band_levels_summary`; the owner's decisions, 22 Oct 2026): on the
+  Members page every member has a **My Levels** switch (`#bandShareLevelsSection`, the toggle row used elsewhere -
+  no new styles), in the owner's words: "I'm happy to share my piece levels anonymously at a summary level only to the
+  band leader". Off until they switch it on; never asked anywhere else. Its line names the band leader (or says there
+  isn't one) and what they would see. A **band leader** shows as "· Band leader" beside what they can do, for everyone
+  in the band; an organiser makes someone one, or not, from that member's pop-up ("Make them the band leader" / "Not
+  the band leader any more"). Nobody else's switch is ever shown - not even to an organiser. What the band leader sees
+  is [band-summary](band-summary.md).
 - **Don't use** it for the directory (Admin → Bands).
 
 **A band's logo and its welcome** (ML-534, feature `band_welcome`; the owner's decisions, 19 Oct 2026):

@@ -6,6 +6,7 @@
 
 import express from 'express';
 import { assertWarmupsEnabled, listActiveWarmups } from '../services/warmups.js';
+import { bandLevelsSummary } from '../services/bandLevelsSummary.js';
 import { assertPracticeLevelsEnabled, getPieceLevels, getPieceLevelsProgress, replacePieceChunks, setChunkLevel, setSubBeatsBelow, listPracticePieces } from '../services/practiceLevels.js';
 import { getPracticePace } from '../services/levelsProgress.js';
 import { nextRestMessage } from '../services/restMessages.js';
@@ -19,7 +20,7 @@ import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
 import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrDeleteBand, unarchiveBand, listAllBands, getAccountBands, leaveBand, deleteBandIfSoleMember, listWhoOptions,
   listMyBands, addBandFromDirectory, addOwnBand, setUpSharing, hideMyBand, showMyBand, keepMyBand, mergeMyBands, linkMyBandToDirectory,
-  listBandMembers, inviteToBand, cancelBandInvite, listMyBandInvites, acceptBandInvite, declineBandInvite, removeBandMember, setBandMemberLevel,
+  listBandMembers, inviteToBand, cancelBandInvite, listMyBandInvites, acceptBandInvite, declineBandInvite, removeBandMember, setBandMemberLevel, setBandLeader, setSharesLevels,
   assertBandOrganiser, setBandLogo, removeBandLogo, bandInviteWelcome } from '../services/bands.js';
 import { readMeters, sendUsageWarnings } from '../services/thirdPartyUsage.js';
 import { getBusinessCase } from '../services/businessCase.js';
@@ -1277,6 +1278,32 @@ const requireFeature = (...keys) => async (req, res, next) => {
     sendError(res, error);
   }
 };
+
+// ML-581: the band leader's summary (docs/practice-sessions.md). An organiser makes a member the band leader, or not;
+// a player switches their own "share my piece levels anonymously ... only to the band leader" on or off, for one band.
+router.put('/account/bands/:id/members/:memberId/band-leader', requireAuth, resolveAccount, requireFeature('band_levels_summary'), async (req, res) => {
+  try {
+    await setBandLeader(req.accountId, req.params.id, req.params.memberId, (req.body || {}).on === true);
+    res.json(await listBandMembers(req.accountId, req.params.id));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.put('/account/bands/:id/share-levels', requireAuth, resolveAccount, requireFeature('band_levels_summary'), async (req, res) => {
+  try {
+    res.json(await setSharesLevels(req.accountId, req.params.id, (req.body || {}).on === true));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+// The summary itself, for the band leader of the piece's band only - numbers per bar and for the piece, never a person.
+router.get('/flows/:id/band-summary', requireAuth, resolveAccount, requireFeature('band_levels_summary'), async (req, res) => {
+  try {
+    res.json(await bandLevelsSummary(req.accountId, req.params.id));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
 
 // ML-534: the welcome to someone invited - who invited them and what the band shares (theirs only)
 router.get('/account/band-invites/:inviteId/welcome', requireAuth, resolveAccount, requireFeature('band_welcome'), async (req, res) => {

@@ -303,7 +303,7 @@ export async function listMyBands(accountId) {
     `SELECT l.id, l.name, l.active, l.needs_tidy, l.directory_band_id,
             d.website, d.ensemble_type, d.town, d.county, d.rehearsal_postcode, d.section_level, d.parent_band_id, d.notes,
             (SELECT pb.name FROM bands pb WHERE pb.id = d.parent_band_id) AS parent_name,
-            g.id AS group_id, g.name AS group_name, g.logo_url AS group_logo_url, bm.role,
+            g.id AS group_id, g.name AS group_name, g.logo_url AS group_logo_url, bm.role, bm.shares_levels, bm.is_band_leader,
             (SELECT COUNT(*) FROM band_members m WHERE m.band_id = g.id) AS group_members,
             (SELECT COUNT(*) FROM sessions s WHERE s.band_id = l.id) AS session_count
        FROM bands l
@@ -326,7 +326,9 @@ export async function listMyBands(accountId) {
       level: levelOf(r.role),
       isOrganiser: ORGANISER_ROLES.includes(r.role),
       members: Number(r.group_members),
-      onlyYou: Number(r.group_members) === 1
+      onlyYou: Number(r.group_members) === 1,
+      sharesLevels: !!r.shares_levels, // ML-581: your own say-so - never anyone else's
+      isBandLeader: !!r.is_band_leader
     } : null
   })));
 }
@@ -608,7 +610,7 @@ export async function listBandMembers(accountId, bandId) {
   const isOrganiser = ORGANISER_ROLES.includes(role);
   const [{ rows: members }, { rows: invites }] = await Promise.all([
     pool.query(
-      `SELECT a.id, a.display_name, a.first_name, a.surname, bm.role, bm.joined_at
+      `SELECT a.id, a.display_name, a.first_name, a.surname, bm.role, bm.joined_at, bm.is_band_leader, bm.shares_levels
          FROM band_members bm JOIN accounts a ON a.id = bm.account_id
         WHERE bm.band_id = $1 ORDER BY bm.joined_at, a.id`,
       [bandId]
@@ -624,9 +626,13 @@ export async function listBandMembers(accountId, bandId) {
       // a name, never the email address (accountDisplayName falls back to it; other members don't get it)
       name: accountDisplayName({ ...m, email: null }) || 'A member',
       level: levelOf(m.role),
+      isBandLeader: !!m.is_band_leader, // ML-581: everyone sees who the band leader is - so a player knows who would see a summary
       isYou: Number(m.id) === Number(accountId),
       joinedAt: m.joined_at
     })),
+    // ML-581: whether YOU share your Levels with the band leader. Nobody else's is ever in this answer - not even an
+    // organiser's or the band leader's to see.
+    yourSharesLevels: !!(members.find((m) => Number(m.id) === Number(accountId)) || {}).shares_levels,
     invites: isOrganiser ? invites.map((i) => ({ id: Number(i.id), email: i.email, level: levelOf(i.role), sentAt: i.created_at })) : [],
     openInvites: invites.length,
     // ML-479: whether an invitation's email really goes from this site (not on dev or sandbox)
@@ -876,6 +882,36 @@ export async function setBandMemberLevel(accountId, bandId, memberAccountId, lev
   const { rowCount } = await pool.query('UPDATE band_members SET role = $1 WHERE band_id = $2 AND account_id = $3', [role, bandId, memberAccountId]);
   if (!rowCount) throw fail(404, 'They are not in this band.');
   if (before && levelOf(before.role) !== level) await noticeBandLevel(bandId, memberAccountId, level, accountId); // ML-497 (not when stepping down yourself)
+}
+
+// ML-581: an organiser makes a member the band leader, or not - the one who sees the summary of the Levels players
+// chose to share on the band's pieces (bandLevelsSummary.js). There may be more than one; an organiser may make
+// themselves one.
+export async function setBandLeader(accountId, bandId, memberAccountId, on) {
+  await assertAdultOrganiser(pool, accountId, bandId);
+  const { rowCount } = await pool.query('UPDATE band_members SET is_band_leader = $1 WHERE band_id = $2 AND account_id = $3', [!!on, bandId, memberAccountId]);
+  if (!rowCount) throw fail(404, 'They are not in this band.');
+}
+
+// ML-581: a player's own say-so, per band - "I'm happy to share my piece levels anonymously at a summary level only
+// to the band leader". Off until they switch it on; only they can change it.
+export async function setSharesLevels(accountId, bandId, on) {
+  await assertMember(pool, accountId, bandId);
+  await pool.query(
+    'UPDATE band_members SET shares_levels = $1, shares_levels_on = CASE WHEN $1 THEN CURRENT_DATE ELSE NULL END WHERE band_id = $2 AND account_id = $3',
+    [!!on, bandId, accountId]
+  );
+  return { sharesLevels: !!on };
+}
+
+// ML-581: is this member a band leader of this band? (bandLevelsSummary.js asks.)
+export async function isBandLeaderOf(accountId, bandId, db = pool) {
+  const { rows } = await db.query(
+    `SELECT 1 FROM band_members bm JOIN bands b ON b.id = bm.band_id
+      WHERE bm.band_id = $1 AND bm.account_id = $2 AND bm.is_band_leader AND b.kind = 'group'`,
+    [bandId, accountId]
+  );
+  return rows.length > 0;
 }
 
 function normalizeWebsiteUrl(input) {
