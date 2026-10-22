@@ -1,5 +1,21 @@
 [
   {
+    "version": "0.66.2",
+    "date": "2026-10-22",
+    "changes": [
+      {
+        "key": "ML-577",
+        "type": "New",
+        "summary": "We got adding a piece from a photo ready for members, and said in our privacy policy where a photo of music goes. It is not switched on for members yet."
+      },
+      {
+        "key": "ML-575",
+        "type": "New",
+        "summary": "We tightened how the app proves it is you when you upload a file, as part of a security check of the app."
+      }
+    ]
+  },
+  {
     "version": "0.66.1",
     "date": "2026-10-21",
     "changes": [
