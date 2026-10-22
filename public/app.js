@@ -11929,11 +11929,29 @@
         return currentFlowBlocks.find(b => b.id === id);
     }
 
-    // Approximate - a real value would need to account for tempo ramps mid-block; fine for a
-    // rough "~Xm Ys total" estimate, same spirit as the ad-hoc side's own formatMetroBlkDuration.
+    // A rough one-pass figure: bars x the time signature's top number x beat length. It counts every
+    // written beat, so compound time (6/8, 9/8, 12/8 - played in dotted beats) came out up to 3 times too
+    // long: The Snowman read 30m 10s for 24m 41s of music. Now only the fallback for flowPlaySeconds.
     function flowTotalRuntimeSeconds(blocks) {
         return blocks.reduce((total, b) => total + (b.bpm && b.numerator ? (b.barCount * b.numerator * 60) / b.bpm : 0), 0);
     }
+    // How long the piece - or one movement (its number) - takes as played: the journey engine's own sum
+    // (FlowJourney.pieceRunSeconds - repeats, jumps, holds, rit./accel., compound time in its dotted beats),
+    // the same one Prepare's run-through uses. Not the lead-in. Kept until the bars change, as the bar list
+    // redraws often and asks once per movement heading.
+    let flowPlaySecondsMemo = { key: '', times: new Map() };
+    function flowPlaySeconds(movement) {
+        const key = JSON.stringify(currentFlowBlocks);
+        if (flowPlaySecondsMemo.key !== key) flowPlaySecondsMemo = { key, times: new Map() };
+        const k = movement || 0;
+        if (!flowPlaySecondsMemo.times.has(k)) {
+            let secs;
+            try { secs = FlowJourney.pieceRunSeconds(currentFlowBlocks, 100, movement || null); } catch (e) { secs = flowTotalRuntimeSeconds(currentFlowBlocks); }
+            flowPlaySecondsMemo.times.set(k, secs);
+        }
+        return flowPlaySecondsMemo.times.get(k);
+    }
+    const flowTimeText = (seconds) => { const t = Math.round(seconds); return `~${Math.floor(t / 60)}m ${t % 60}s`; };
 
     // "Block 1"/"Block 2" never actually identified anything - the written bar range does. Lead-in
     // is excluded from the count (it isn't numbered), same convention as Play Flow's own tile
@@ -11952,12 +11970,10 @@
 
     // Shared by the Blocks studio summary and the Play screen's subtitle (ML-237), so the two always
     // agree. Bar count excludes the lead-in (a count-in, not part of the piece); the runtime estimate
-    // still includes it, since it does play. Like the studio's figure it's one pass through - repeats
-    // and jumps aren't counted.
+    // still includes it, since it does play. The piece as played (flowPlaySeconds) - repeats and jumps counted.
     function flowSummaryFigures() {
-        const all = flowLeadInBlock ? [flowLeadInBlock, ...currentFlowBlocks] : currentFlowBlocks;
         const totalBars = currentFlowBlocks.reduce((sum, b) => sum + (b.barCount || 0), 0);
-        const totalSeconds = Math.round(flowTotalRuntimeSeconds(all));
+        const totalSeconds = Math.round((totalBars ? flowPlaySeconds() : 0) + (flowLeadInBlock ? flowTotalRuntimeSeconds([flowLeadInBlock]) : 0));
         return { totalBars, mins: Math.floor(totalSeconds / 60), secs: totalSeconds % 60, barsLabel: `${totalBars} bar${totalBars === 1 ? '' : 's'}` };
     }
     function renderFlowPlaySummary() {
@@ -16410,7 +16426,8 @@
         if (moves.length < 2) return '';
         const m = moves.find(x => x.startBlock === idx);
         if (!m) return '';
-        return `<h3 class="section-title flow-movement-head">${escapeHtml(FlowJourney.movementLabel(m, false))}${m.title ? ` · ${escapeHtml(m.title)}` : ''}</h3>`;
+        // how long this movement takes as played, as the piece's own time does (flowPlaySeconds)
+        return `<h3 class="section-title flow-movement-head">${escapeHtml(FlowJourney.movementLabel(m, false))}${m.title ? ` · ${escapeHtml(m.title)}` : ''} <span class="text-sm text-muted">${flowTimeText(flowPlaySeconds(m.number))}</span></h3>`;
     }
     function renderFlowPlaybackTileList() {
         const leadInSlot = document.getElementById('flowPlayLeadInSlot');
