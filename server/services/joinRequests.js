@@ -10,7 +10,7 @@
 import crypto from 'node:crypto';
 import pool from '../config/db.js';
 import { isFeatureLive } from './features.js';
-import { createInvite, normaliseEmail, limitJoinRequests } from './passwordAuth.js';
+import { createInvite, normaliseEmail, limitJoinRequests, passwordLoginEnabled } from './passwordAuth.js';
 import { emailIsShutOut } from './tokenVersions.js';
 import { createTargetedNotification } from './notifications.js';
 
@@ -102,8 +102,10 @@ export async function listJoinRequests() {
       spaces: spaces.filter((s) => s.organisers > 0).map((s) => ({ id: Number(s.id), name: s.name, organisers: s.organisers }))
     });
   }
-  return { requests: out, keptDays: JOIN_KEPT_DAYS };
+  // Let in is the email-and-password invitation, so it needs that sign-in switched on (password_login Live)
+  return { requests: out, keptDays: JOIN_KEPT_DAYS, canLetIn: await passwordLoginEnabled() };
 }
+export const LET_IN_NEEDS = 'Let in sends the email-and-password invitation, and email and password sign-in is switched off on this site. Switch on "Email and password login" (Live) on Admin -> Feature access first.';
 
 export async function joinRequestCount() {
   return (await pool.query('SELECT count(*)::int AS n FROM join_requests')).rows[0].n;
@@ -118,6 +120,7 @@ async function oneRequest(id) {
 
 // Let in: the ordinary invitation email (a Standard member), then the request goes.
 export async function letInJoinRequest(id, adminAccountId, origin) {
+  if (!(await passwordLoginEnabled())) throw fail(409, LET_IN_NEEDS); // createInvite's own answer would be "Not found"
   const r = await oneRequest(id);
   const invite = await createInvite({ email: r.email, firstName: r.first_name, surname: r.last_name, accountLevel: 'standard_member', createdBy: adminAccountId, origin });
   await pool.query('DELETE FROM join_requests WHERE id = $1', [id]);

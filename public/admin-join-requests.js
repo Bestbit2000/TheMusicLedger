@@ -28,13 +28,14 @@
                 <td>${esc(day(r.askedOn))}</td>
                 <td>
                     <div class="admin-security-toolbar">
-                        <button type="button" class="btn-submit no-margin" data-let-in="${r.id}"${r.isMember || r.closed ? ' disabled' : ''}>Let in</button>
+                        <button type="button" class="btn-submit no-margin" data-let-in="${r.id}"${r.isMember || r.closed || !data.canLetIn ? ' disabled' : ''}>Let in</button>
                         ${r.spaces.length ? `<button type="button" class="admin-stat-exclude-btn" data-pass="${r.id}">Pass to the organiser</button>` : ''}
                         <button type="button" class="admin-stat-exclude-btn" data-dismiss="${r.id}">Not now</button>
                     </div>
                 </td>
             </tr>`).join('');
         $('adminJoinRequests').innerHTML = `
+            ${data.canLetIn ? '' : '<p class="admin-intro"><span class="admin-badge warn">Let in is off</span> It sends the email-and-password invitation, and email and password sign-in is switched off on this site. Switch on "Email and password login" (Live) on Feature access to use it.</p>'}
             <div class="admin-stat-table-wrap"><table class="admin-stat-table admin-bc-table">
                 <thead><tr><th class="admin-bc-text">Who</th><th class="admin-bc-text">Band</th><th class="admin-bc-text">Plays</th><th>Asked</th><th><span class="visually-hidden">What to do</span></th></tr></thead>
                 <tbody>${rows}</tbody>

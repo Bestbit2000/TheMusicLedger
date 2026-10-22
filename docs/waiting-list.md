@@ -37,7 +37,9 @@ who, their email, the band and instrument, when they asked; a badge if the addre
 account. The menu counts what is waiting, and so does the Dashboard ("people are waiting to join").
 
 - **Let in** - the ordinary invitation email (`createInvite`, a Standard member). They add their band on My bands, or
-  in the set-up steps, once they are in.
+  in the set-up steps, once they are in. It is the email-and-password invitation, so it needs **Email and password
+  login** Live on Admin → Feature access; where that is off (sandbox, 22 Oct 2026) the page says so and the button is
+  greyed out, instead of the invitation code's bare "Not found".
 - **Pass to the organiser** - only for a band that shares its music here (a `group` for that directory entry) with an
   organiser. Its organisers get a notice (`createTargetedNotification`) saying who asked, their instrument and email,
   and how to invite them from the band's Members page; nothing is sent to the person unless an organiser invites them.
