@@ -1952,8 +1952,8 @@
             const flow = allFlows.find(f => f.id === Number(btn.dataset.flowMenu));
             if (!flow) return;
             openRowMenu(btn, [
-                { label: 'View', icon: 'play_arrow', href: `/?flow=${flow.id}&flowMode=play` },
-                { label: 'Edit', icon: 'edit', href: `/?flow=${flow.id}&flowMode=edit` },
+                { label: 'View', icon: 'play_arrow', href: `/app?flow=${flow.id}&flowMode=play` },
+                { label: 'Edit', icon: 'edit', href: `/app?flow=${flow.id}&flowMode=edit` },
                 ...(flow.ownership === 'band' ? [] : [{ label: flow.ownership === 'public' ? 'Unpublish' : 'Publish', icon: flow.ownership === 'public' ? 'public_off' : 'public', run: () => flowPublishToggle(flow) }]),
                 { label: 'Export', icon: 'download', run: (b) => exportFlowFiles([flow.id], b) }
             ]);
@@ -3880,7 +3880,7 @@
         document.getElementById('accessPreviewBtn')?.addEventListener('click', () => {
             const level = document.getElementById('accessPreviewSelect').value;
             if (!level) { showToast('Choose an account type to preview.'); return; }
-            window.open(`/?preview=${encodeURIComponent(level)}`, '_blank', 'noopener');
+            window.open(`/app?preview=${encodeURIComponent(level)}`, '_blank', 'noopener');
         });
         document.getElementById('accessDiscardBtn')?.addEventListener('click', () => { access.live.clear(); access.cells.clear(); access.limits.clear(); renderFeatureAccess(); });
         document.getElementById('accessSaveBtn')?.addEventListener('click', async () => {

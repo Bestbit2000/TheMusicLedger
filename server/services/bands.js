@@ -27,6 +27,7 @@ import { storedFileFacts } from './storedFiles.js';
 import { sendMail, emailBody, emailOutcome } from './mail.js';
 import { passwordLinkForNewcomer } from './passwordAuth.js';
 import { isFeatureEnabled } from './features.js';
+import { appLink } from '../utils/appPath.js';
 import { noticeBandInvite, withdrawBandInviteNotice, noticeBandLevel, noticeBandRemoved } from './autoNotices.js'; // ML-497
 
 const fail = (status, message) => Object.assign(new Error(message), { status });
@@ -691,7 +692,7 @@ export async function inviteToBand(accountId, bandId, email, level = 'play', ori
         `The link works once, for ${newcomer.days} days; ask ${from} to send it again if it has run out. If you weren't expecting this, you can ignore it and nothing will happen.`, logo)
       : emailBody(['Hi,', intro,
           `To see the invitation, open the app and sign in with this email address (${to}). It will be waiting on My account, under My bands.`],
-        'Open Notably Better', `${home}/?band-invite=1`,
+        'Open Notably Better', appLink(home, '?band-invite=1'),
         `The invitation waits for ${INVITE_DAYS} days. If you weren't expecting it, you can ignore this email and nothing will happen.`, logo);
     await sendMail({ to, subject: `${from} has invited you to join ${band}`, text, html });
     return emailOutcome();

@@ -26,6 +26,7 @@ import { verifyPassword } from './passwords.js';
 import { deletedEmailHash, forgetTokenVersion } from './tokenVersions.js';
 import { limitCalls } from './passwordAuth.js';
 import { verifyToken } from '../utils/authToken.js';
+import { appLink } from '../utils/appPath.js';
 
 export const CHANGE_MINUTES = 60;
 const PURPOSE = 'change-email';
@@ -82,7 +83,7 @@ async function start(account, newEmail, origin, { startedBy, byAdmin = false }) 
           ? `The Notably Better team has been asked to change the email address on your account (${maskEmail(account.email)}) to this one.`
           : `You asked to use this address to sign in to Notably Better, in place of ${maskEmail(account.email)}.`,
         'Nothing changes until you confirm it. When you do, you are signed out everywhere and sign in again with this address.'],
-      'Confirm my new email address', `${String(origin).replace(/\/+$/, '')}/?change-email=${secret}`,
+      'Confirm my new email address', appLink(origin, `?change-email=${secret}`),
       `The link works once, for ${CHANGE_MINUTES} minutes. If you didn't ask for this, ignore this email and nothing will change.`);
     await sendMail({ to, subject: 'Confirm your new email address for Notably Better', text, html });
     await client.query('COMMIT');
@@ -187,7 +188,7 @@ export async function confirmEmailChange(secret, origin, signedInToken = null) {
       [`Hi${firstName ? ` ${firstName}` : ''},`,
         `The email address for your Notably Better account has been changed to ${maskEmail(newEmail)}.`,
         'You have been signed out everywhere. From now on, sign in with the new address.'],
-      'Open Notably Better', String(origin).replace(/\/+$/, ''),
+      'Open Notably Better', appLink(origin),
       'If this wasn\'t you, reply to this email straight away so we can put it right.');
     await sendMail({ to: oldEmail, subject: 'Your Notably Better email address has changed', text, html });
   } catch (error) {

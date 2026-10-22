@@ -5,8 +5,11 @@
 // member's data on the device after sign-out, where the next person to sign in could be shown it. The
 // copy of a member's data for offline use is kept by public/offline.js instead - it belongs to one
 // member and is wiped at sign-out. Bumping CACHE_NAME drops the old cache, answers and all.
-const CACHE_NAME = 'music-ledger-v3';
-const APP_SHELL = ['/', '/index.html', '/tokens.css', '/style.css', '/display-prefs.js', '/brand.js', '/images/brands/notably-better-mark.svg', '/flowJourney.js', '/practicePlan.js', '/pieceOutline.js', '/notation.js', '/range.js', '/rangeBar.js', '/avatars.js', '/homeGreeting.js', '/theoryEngine.js', '/scaleGrades.js', '/warmups.js', '/drills.js', '/rhythm.js', '/fonts/bravura.woff2', '/fonts/inter-latin.woff2', '/fonts/material-symbols-outlined.woff2', '/offline.js', '/app.js', '/a11y.js'];
+//
+// ML-242: the app moved to /app (the front door is the public page), so the cache name went up and /app is
+// kept; a page address never kept falls back to the app, not to the public page.
+const CACHE_NAME = 'music-ledger-v4';
+const APP_SHELL = ['/app', '/', '/index.html', '/public-hop.js', '/tokens.css', '/style.css', '/display-prefs.js', '/brand.js', '/images/brands/notably-better-mark.svg', '/flowJourney.js', '/practicePlan.js', '/pieceOutline.js', '/notation.js', '/range.js', '/rangeBar.js', '/avatars.js', '/homeGreeting.js', '/theoryEngine.js', '/scaleGrades.js', '/warmups.js', '/drills.js', '/rhythm.js', '/fonts/bravura.woff2', '/fonts/inter-latin.woff2', '/fonts/material-symbols-outlined.woff2', '/offline.js', '/app.js', '/a11y.js'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -39,7 +42,7 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       })
-      // No connection: the kept copy. A page address that was never kept (a link with ?flow=...) gets the app itself.
-      .catch(() => caches.match(event.request, { ignoreSearch: event.request.mode === 'navigate' }).then((kept) => kept || (event.request.mode === 'navigate' ? caches.match('/index.html') : Response.error())))
+      // No connection: the kept copy. A page address that was never kept (a link with ?flow=...) gets the app itself (/app).
+      .catch(() => caches.match(event.request, { ignoreSearch: event.request.mode === 'navigate' }).then((kept) => kept || (event.request.mode === 'navigate' ? caches.match('/app') : Response.error())))
   );
 });

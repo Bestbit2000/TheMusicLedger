@@ -49,6 +49,26 @@ offline there and not yet sent, belongs to that address.
 
 A sign-in belongs to the address it was made on, so everyone signed in once more after the move.
 
+### The front door and /app (ML-242)
+
+`notablybetter.com/` is the **public page** (`public/welcome.html`, with `public/pricing.html`); the **app** is at
+`notablybetter.com/app`. Only the path moved, not the address, so nobody was signed out and nothing kept on a
+device was lost. Every link the server makes into the app goes through `appLink()` in
+`server/utils/appPath.js` - email links (`APP_URL` + `/app?invite=...`), and the sign-in hand-back
+(`/app#authToken=...`). `APP_URL` and `GOOGLE_REDIRECT_URI` did not change.
+
+- **Old links still work.** A request for the front door carrying something the app reads (`?invite=`,
+  `?reset=`, `?band-invite=`, `?change-email=`, `?flow=`, `?preview=`) is forwarded to `/app` with it
+  (`server/app.js`). A sign-in hand-back after the `#` never reaches the server, so the public page's
+  `public/public-hop.js` forwards it.
+- **A member is never shown the public page by accident.** `public-hop.js`, first in the page's head, sends a
+  device that holds a sign-in straight to `/app` - unless they followed a link from our own pages to read it. That
+  covers an app installed before the move: Android picks up the new start address (`manifest.json`
+  `start_url: /app`), an iPhone keeps opening `/` for ever and is hopped on.
+- **Offline:** the service worker keeps `/app` (and `/`), and a page never kept falls back to `/app`.
+- `/app` is served without a trailing slash, so the page's relative links (`tokens.css`, `app.js`) still resolve
+  from the root; `/app/` is sent to `/app`. Back-tests sign in through `/auth/login`, which hands back to `/app`.
+
 ## Email
 
 Emails are sent by **Brevo** (France) over SMTP, and the mailbox is at **Fasthosts** (UK). Both are in the

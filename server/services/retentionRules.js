@@ -6,6 +6,8 @@
 // (6 Oct 2026) is 22, 23 and 24 months. The unit and the numbers can be changed on Admin -> Retention
 // so the whole thing can be watched working on sandbox in hours instead of years.
 
+import { appLink } from '../utils/appPath.js';
+
 export const UNITS = ['hours', 'days', 'months', 'years'];
 
 // ML-494: a notification is kept for 12 months after it stopped being shown - it expired, or it was withdrawn
@@ -102,7 +104,7 @@ export function retentionEmail(step, { firstName, rule, removeOn, appUrl }) {
   return {
     subject: step === 1 ? 'Your Notably Better account has not been used for a while' : 'Last reminder: your Notably Better account will be deleted soon',
     text: [hello, '', `You have not used Notably Better for ${span(step === 1 ? rule.first : rule.second, rule.unit)}. We don't keep information about people who have stopped using the app, so your account will be deleted on ${day}.`,
-      '', `To keep it, just sign in before then${appUrl ? `: ${appUrl}` : ''}. That is all you need to do.`,
+      '', `To keep it, just sign in before then${appUrl ? `: ${appLink(appUrl)}` : ''}. That is all you need to do.`,
       '', 'If you no longer want it, you need do nothing.' + (step === 1 ? ' We will remind you once more before it goes.' : ' This is the last reminder.'), '', sign].join('\n')
   };
 }

@@ -15,6 +15,7 @@ import { isFeatureLive } from './features.js';
 import { deletedEmailHash, forgetTokenVersion, currentTokenVersion, emailIsShutOut, SHUT_OUT_MESSAGE } from './tokenVersions.js';
 import { twoStepStatus, beginSetup, confirmSetup, verifyLoginCode } from './twoStep.js';
 import { sendSignupAlert } from './signupAlert.js';
+import { appLink } from '../utils/appPath.js';
 
 const INVITE_DAYS = 7;
 const RESET_MINUTES = 60;
@@ -178,7 +179,7 @@ export async function createInvite({ email, firstName, surname, accountLevel, cr
       purpose: 'invite', email: to, firstName: String(firstName || '').trim().slice(0, 80) || null,
       surname: String(surname || '').trim().slice(0, 80) || null, accountLevel: level, createdBy, minutes: INVITE_DAYS * 24 * 60
     });
-    const url = `${origin}/?invite=${secret}`;
+    const url = appLink(origin, `?invite=${secret}`);
     const hello = firstName ? `Hi ${String(firstName).trim()},` : 'Hi,';
     const { text, html } = emailBody(
       [hello, `You've been invited to Notably Better${existing ? ' - this lets you log in with your email and a password as well as Google' : ''}. Choose a password to get started.`],
@@ -208,7 +209,7 @@ export async function passwordLinkForNewcomer(email, origin) {
   try {
     if (await accountByEmail(client, to)) return null;
     const secret = await newLink(client, { purpose: 'invite', email: to, accountLevel: 'standard_member', createdBy: null, minutes: INVITE_DAYS * 24 * 60 });
-    return { url: `${String(origin).replace(/\/+$/, '')}/?invite=${secret}&band-invite=1`, days: INVITE_DAYS };
+    return { url: appLink(origin, `?invite=${secret}&band-invite=1`), days: INVITE_DAYS };
   } finally {
     client.release();
   }
@@ -356,7 +357,7 @@ export async function forgotPassword(email, ip, origin) {
     const account = await accountByEmail(client, to);
     if (account) {
       const secret = await newLink(client, { purpose: 'reset', email: account.email, minutes: RESET_MINUTES });
-      const url = `${origin}/?reset=${secret}`;
+      const url = appLink(origin, `?reset=${secret}`);
       const { text, html } = emailBody(
         [`Hi${account.first_name ? ` ${account.first_name}` : ''},`, `Someone (hopefully you) asked to ${account.password_hash ? 'reset the password' : 'set a password'} for your Notably Better account.`],
         'Choose a new password', url, `This link works once, for ${RESET_MINUTES} minutes. If it wasn't you, ignore this email - your password hasn't changed.`);
@@ -437,7 +438,7 @@ export async function adminSendReset(accountId, origin) {
   try {
     await client.query('BEGIN');
     const secret = await newLink(client, { purpose: 'reset', email: account.email, minutes: RESET_MINUTES });
-    const url = `${origin}/?reset=${secret}`;
+    const url = appLink(origin, `?reset=${secret}`);
     const { text, html } = emailBody(
       [`Hi${account.first_name ? ` ${account.first_name}` : ''},`, 'The Notably Better team has sent you a link to choose a new password for your account.'],
       'Choose a new password', url, `This link works once, for ${RESET_MINUTES} minutes. If you weren't expecting it, you can ignore this email - your password hasn't changed.`);

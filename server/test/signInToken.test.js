@@ -62,10 +62,11 @@ describe('the code that makes and hands over the token', () => {
   test('the token goes back to the page after the "#", never in the part of the address a server sees', () => {
     const routes = code('../routes/auth.js');
     assert.ok(!/\?authToken=/.test(routes), 'auth.js puts the token in the query string again');
-    assert.ok(/\/#authToken=\$\{encodeURIComponent\(authToken\)\}/.test(routes));
+    // ML-242: to the app at /app (appLink), the token after the "#"
+    assert.ok(/\)\}#authToken=\$\{encodeURIComponent\(authToken\)\}/.test(routes));
     assert.equal((routes.match(/res\.redirect\(/g) || []).length, (routes.match(/res\.redirect\((handBack|closedPage)\(/g) || []).length, 'a redirect in auth.js does not go through handBack');
     // ML-502: the one other redirect - a closed account goes back to the sign-in screen with no token at all
-    assert.ok(routes.includes("const closedPage = (req) => `${req.protocol}://${req.get('host')}/#closed`;"), 'closedPage carries something other than #closed');
+    assert.ok(routes.includes("const closedPage = (req) => `${appLink(`${req.protocol}://${req.get('host')}`)}#closed`;"), 'closedPage carries something other than #closed');
   });
 
   test('the page reads it from there and takes it out of the address', () => {

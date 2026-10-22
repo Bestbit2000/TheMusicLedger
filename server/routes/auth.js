@@ -8,6 +8,7 @@ import { limitLinkTries } from '../services/passwordAuth.js';
 import { describeEmailChange, confirmEmailChange } from '../services/emailChange.js';
 import { sendError } from '../utils/httpErrors.js';
 import { clientDevice } from '../middleware/auth.js';
+import { appLink } from '../utils/appPath.js';
 
 // ML-355: every login token carries the account's token version (tv) - read fresh, not from the cache,
 // so a login straight after a password reset isn't signed with the old number.
@@ -21,9 +22,10 @@ const router = express.Router();
 // ML-475: the sign-in token goes back to the page after the "#". That part of an address is never sent
 // to a server, so the token is in no request log and no Referer; the page reads it and takes it out of
 // the address at once (AuthManager.handleCallback). It used to be "?authToken=...", which is sent.
-const closedPage = (req) => `${req.protocol}://${req.get('host')}/#closed`; // ML-502 (AuthManager.handleCallback)
+// ML-242: both go to the app at /app - the front door is the public page now.
+const closedPage = (req) => `${appLink(`${req.protocol}://${req.get('host')}`)}#closed`; // ML-502 (AuthManager.handleCallback)
 const handBack = (req, authToken, userId) =>
-  `${req.protocol}://${req.get('host')}/#authToken=${encodeURIComponent(authToken)}&userId=${encodeURIComponent(userId)}`;
+  `${appLink(`${req.protocol}://${req.get('host')}`)}#authToken=${encodeURIComponent(authToken)}&userId=${encodeURIComponent(userId)}`;
 
 // Route paths deliberately unchanged (/login, /callback, not the more
 // conventional /google, /google/callback) - these are already registered as

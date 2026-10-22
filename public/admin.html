@@ -20,12 +20,12 @@
      showing anything below - see admin.js's checkAccessAndLoad. -->
 <div id="loggedOutNotice" class="admin-logged-out hidden-group">
     <p>You need to be logged in to the main app first.</p>
-    <a class="btn-submit" href="/">Go to Notably Better</a>
+    <a class="btn-submit" href="/app">Go to Notably Better</a>
 </div>
 
 <div id="notAuthorizedNotice" class="admin-logged-out hidden-group">
     <p>This admin panel is only available to Super admins.</p>
-    <a class="btn-submit" href="/">Go to Notably Better</a>
+    <a class="btn-submit" href="/app">Go to Notably Better</a>
 </div>
 
 <!-- ML-518: "prove it's you" - a passkey or a code - before the panel opens, and again after 15 minutes
@@ -45,7 +45,7 @@
              (remembered on this device); a closed group's heading carries the count of what is waiting
              inside. Every page has its own address (admin.html#accounts). See specs/components/admin-shell.md. -->
         <div class="admin-nav-items" id="adminNavItems">
-            <a class="admin-nav-item admin-back-link" href="/">&larr; Back to app</a>
+            <a class="admin-nav-item admin-back-link" href="/app">&larr; Back to app</a>
             <button class="admin-nav-item active" data-section="dashboard" type="button">Dashboard</button>
             <div class="admin-nav-group" data-nav-group="members">
                 <button type="button" class="admin-nav-group-head" aria-expanded="true" aria-controls="adminNavGroup-members"><span class="admin-nav-group-name">Members</span><span class="admin-nav-count hidden-group" data-group-count></span><span class="material-symbols-outlined" aria-hidden="true" data-group-arrow>expand_more</span></button>

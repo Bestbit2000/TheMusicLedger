@@ -9,6 +9,7 @@ import authRoutes from './routes/auth.js';
 import apiRoutes from './routes/api.js';
 import adminRoutes from './routes/admin.js';
 import { sendError } from './utils/httpErrors.js';
+import { APP_PATH, forwardToApp } from './utils/appPath.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -66,7 +67,23 @@ app.get('/health', (req, res) => {
 
 // Serve static frontend files
 const publicPath = path.resolve(__dirname, '../public');
-app.use(express.static(publicPath));
+
+// ML-242: the front door is the public page and the app lives at /app (server/utils/appPath.js). A link to
+// the front door made for the app before the move (an invitation or reset email, ?flow=, a preview) is
+// forwarded to /app with its address intact; a sign-in hand-back after the "#" never reaches the server, so
+// the public page's own public-hop.js forwards that, and a member already signed in on the device.
+// /app is served without a trailing slash so the page's relative links (tokens.css, app.js) still resolve
+// from the root; /app/ is sent there.
+app.get('/', (req, res) => {
+  if (forwardToApp(req.query)) return res.redirect(302, `${APP_PATH}${req.originalUrl.slice(1)}`);
+  res.sendFile(path.join(publicPath, 'welcome.html'));
+});
+app.get(APP_PATH, (req, res) => {
+  if (req.path.endsWith('/')) return res.redirect(301, `${APP_PATH}${req.originalUrl.slice(APP_PATH.length + 1)}`);
+  res.sendFile(path.join(publicPath, 'index.html'));
+});
+
+app.use(express.static(publicPath, { index: false }));
 
 // SPA fallback - must be last
 app.get('*', (req, res) => {
