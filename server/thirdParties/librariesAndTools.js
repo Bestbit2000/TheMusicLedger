@@ -160,7 +160,8 @@ export const build = [
     ],
     termsCheckedOn: CHECKED,
     attention: [
-      'Max is covered by the Consumer Terms. Their UK liability section includes an agreement not to use the service for commercial or business purposes. Nothing was found that stops Claude-written code going into a commercial product, but before Premium is sold it is worth asking Anthropic in writing, or moving to a plan under the Commercial Terms.'
+      'Max is covered by the Consumer Terms. Their UK liability section includes an agreement not to use the service for commercial or business purposes. Nothing was found that stops Claude-written code going into a commercial product, but before Premium is sold it is worth asking Anthropic in writing, or moving to a plan under the Commercial Terms.',
+      'Anthropic support answered on 21 Oct 2026 (an AI-written email): it would not say whether building a paid app on Max is within the Consumer Terms, and sent the question to Anthropic\'s legal or business team. It did confirm that the Consumer Terms cover Free, Pro and Max, Claude Code included; that business use is "typically" under the Commercial Terms; and that Team and Enterprise, which are under the Commercial Terms, include Claude Code. So: move to Team, Enterprise or an API key in a Console organisation before Premium is sold - and ask the legal or business team about the code already written.'
     ],
     says: [
       'Anthropic passes to us whatever rights it has in what Claude writes.',
