@@ -69,3 +69,23 @@ for (const dark of [false, true]) {
         }
     });
 }
+
+// ML-242: the public pages, read signed out - the front door (/) and Pricing, in both themes, with every
+// "Read more" open so the hidden detail is checked too.
+for (const dark of [false, true]) {
+    for (const [path, name] of [['/', 'Public page'], ['/pricing.html', 'Pricing']]) {
+        test(`${name} (${dark ? 'dark' : 'light'}) has no WCAG 2.2 AA violations`, async ({ page }) => {
+            await page.goto(path);
+            await page.evaluate((dark) => {
+                document.body.classList.toggle('dark-mode', dark);
+                document.querySelectorAll('details').forEach((d) => { d.open = true; });
+            }, dark);
+            await page.waitForTimeout(400);
+            const results = await new AxeBuilder({ page })
+                .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+                .analyze();
+            const summary = results.violations.map(v => `${v.id} (${v.impact}): ${v.help} - ${v.nodes.length} node(s): ${v.nodes.slice(0, 3).map(n => n.target.join(' ')).join(' | ')}`);
+            expect(summary, summary.join('\n')).toEqual([]);
+        });
+    }
+}
