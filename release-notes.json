@@ -2,6 +2,7 @@
   "ML-584": "We renamed the Auto switch on a practice session's Pieces to \"Smart choose bars?\", so it says what it does.",
   "ML-583": "We fixed the count of pieces you picked for a practice session, which could include a piece you had since archived or deleted.",
   "ML-582": "We ask how you got on with the last block of a practice session before saying time's up, and took out \"Carry on without the timer\".",
+  "ML-578": "We let you make a piece straight from a MuseScore 4 file: its bars, time signatures, speeds, letters, repeats and signs come in, and the file isn't kept.",
   "ML-579": "We made adding your own pieces free. Files on your own pieces are part of Premium; YouTube links, and files on your band's pieces, stay free.",
   "ML-580": "We added a form on our front page for asking to join while Notably Better is invite only, and said in our privacy policy what happens to what you tell us.",
   "ML-242": "We added a front page that says what Notably Better is and what Standard and Premium include. The app itself now opens at notablybetter.com/app.",

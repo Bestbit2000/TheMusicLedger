@@ -1761,8 +1761,18 @@
     // flow_import_musicxml (no third-party dependency). The PDF/scan import that once shared them
     // (flow_import_from_file, through an outside music-scanning service) was removed by ML-543 -
     // a photo or PDF is read by "From a photo or PDF" (ML-246).
+    // ML-578: with flow_import_musescore the same tile and screen take a MuseScore file (.mscz) too - or only that.
     function applyFlowImportFormats() {
-        setShown('metroBlkEntryFromFileBtn', isFeatureEnabled('flow_import_musicxml'));
+        const xml = isFeatureEnabled('flow_import_musicxml'), mscz = isFeatureEnabled('flow_import_musescore');
+        setShown('metroBlkEntryFromFileBtn', xml || mscz);
+        document.getElementById('metroBlkEntryFromFileLabel').textContent = xml && mscz ? 'Import from a file' : mscz ? 'Import from MuseScore' : 'Import from MusicXML';
+        document.getElementById('metroBlkEntryFromFileHelp').textContent = xml && mscz ? 'Open a MusicXML, .mxl or MuseScore file' : mscz ? 'Open a MuseScore (.mscz) file' : 'Open a MusicXML or .mxl file from notation software';
+        document.getElementById('flowFromFileDropHelp').textContent = xml && mscz ? 'Select a MusicXML, .mxl or MuseScore file' : mscz ? 'Select a MuseScore (.mscz) file' : 'Select a MusicXML or .mxl file';
+        document.getElementById('flowFromFileInput').setAttribute('accept', [xml && '.musicxml,.mxl,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml', mscz && '.mscz'].filter(Boolean).join(','));
+        setShown('flowFromFileChipXml', xml);
+        setShown('flowFromFileChipMxl', xml);
+        setShown('flowFromFileChipMscz', mscz);
+        setShown('flowFromFileMsczNote', mscz);
         setShown('metroBlkEntryQuickBtn', isFeatureEnabled('piece_quick_entry')); // ML-424
         setShown('metroBlkEntryPhotoBtn', isFeatureEnabled('piece_from_photo') && isFeatureEnabled('piece_quick_entry')); // ML-246: it ends in Quick entry
     }
@@ -2496,7 +2506,7 @@
         if (viewName !== 'toolsView' && toolsEditing) { toolsEditing = false; renderToolStars(); } // ML-378: leaving ends choosing
         if (viewName !== 'statsHomeView' && statsEditing) { statsEditing = false; renderStatStars(); } // ML-387: the same for Home stats
         if (viewName === 'notificationsView') { document.getElementById('topTitle').innerText = 'Notifications'; renderNotificationsView(); checkNotifications(true); }
-        if (viewName === 'flowFromFileView') { document.getElementById('topTitle').innerText = 'Import from MusicXML'; resetFlowFromFileScreen(); }
+        if (viewName === 'flowFromFileView') { document.getElementById('topTitle').innerText = document.getElementById('metroBlkEntryFromFileLabel').textContent; resetFlowFromFileScreen(); } // ML-578: as the tile says
         if (viewName === 'addPieceView') { document.getElementById('topTitle').innerText = 'Add a piece'; openAddPiece(isBack); }
         if (viewName === 'pieceOutlineView') { document.getElementById('topTitle').innerText = 'Add a piece'; renderOutline(); } // ML-424
         if (viewName === 'quickPlayView') {
@@ -7064,7 +7074,7 @@
     // Behind flow_import_musicxml (applyFlowImportFormats shows/hides it once appData has loaded - this
     // listener just needs to agree, in case it's clicked before that's resolved).
     document.getElementById('metroBlkEntryFromFileBtn')?.addEventListener('click', () => {
-        if (!isFeatureEnabled('flow_import_musicxml')) return;
+        if (!isFeatureEnabled('flow_import_musicxml') && !isFeatureEnabled('flow_import_musescore')) return;
         addPieceTarget = addPieceTakeTarget();
         switchView('flowFromFileView');
     });
@@ -10895,6 +10905,7 @@
 
             flowFromFilePendingId = flow.id;
             document.getElementById('flowFromFileResultTitle').innerText = flow.title ? 'Extracted' : 'Not found';
+            setShown('flowFromFileResultMedia', flow.fileKept !== false); // ML-578: a MuseScore file isn't kept
             document.getElementById('flowFromFileResultBlocks').innerText =
                 `${flow.blocksSummary.count} block${flow.blocksSummary.count === 1 ? '' : 's'} detected`;
             // ML-204: whatever the reader couldn't represent exactly - listed so it can be checked on

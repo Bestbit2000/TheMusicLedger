@@ -9,7 +9,7 @@ export const PRICING_PLANS = ['standard_member', 'premium_member'];
 // Every key public/pricing.html asks about. A key not in the catalog is left out of the answer, so the page
 // keeps what it has typed (piece_files until ML-579 adds it).
 export const PRICING_FEATURES = [
-  'flow_create', 'flow_manage', 'rehearse', 'piece_files', 'flow_import_musicxml', 'piece_from_photo',
+  'flow_create', 'flow_manage', 'rehearse', 'piece_files', 'flow_import_musicxml', 'flow_import_musescore', 'piece_from_photo',
   'flow_export_musicxml', 'metronome_save_to_flow', 'rehearsal_recordings', 'practice_levels', 'warmups',
   'scales_practice', 'scales_levels', 'theory_practice', 'metronome', 'metronome_history', 'tuner',
   'tuner_rewind', 'timer', 'session_logging'

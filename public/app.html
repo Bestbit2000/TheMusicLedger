@@ -1822,7 +1822,8 @@
                  for you (applyFlowImportFormats). While it reads, its help line says what is happening. -->
             <button type="button" class="metroBlk-entry-choice hidden-group" id="metroBlkEntryPhotoBtn"><span class="material-symbols-outlined" aria-hidden="true">photo_camera</span><strong>From a photo or PDF</strong><span class="metro-help-text" aria-live="polite">Uses AI to import the piece</span></button>
             <!-- ML-204: "Import from MusicXML", behind flow_import_musicxml. Starts hidden
-                 (applyFlowImportFormats). The PDF/scan import that once shared this tile was removed by
+                 (applyFlowImportFormats). ML-578: with flow_import_musescore it takes a MuseScore file too, and
+                 its words say so ("Import from a file"). The PDF/scan import that once shared this tile was removed by
                  ML-543 - a photo or PDF is read by the tile above (ML-246). -->
             <button type="button" class="metroBlk-entry-choice hidden-group" id="metroBlkEntryFromFileBtn"><span class="material-symbols-outlined" aria-hidden="true">upload_file</span><strong id="metroBlkEntryFromFileLabel">Import from MusicXML</strong><span class="metro-help-text" id="metroBlkEntryFromFileHelp">Open a MusicXML or .mxl file from notation software</span></button>
         </div>
@@ -1838,7 +1839,7 @@
     <div id="flowFromFileView" class="hidden-group">
         <div class="flow-from-file-banner">
             <span class="material-symbols-outlined" aria-hidden="true">lightbulb</span>
-            <p><strong>How file import works:</strong> your score is saved as a document into the <strong>Media</strong> section, while title, composer, tempo, and measure blocks are read into the flow. You can review and amend everything on the next screen.</p>
+            <p><strong>How file import works:</strong> your score is saved as a document into the <strong>Media</strong> section, while title, composer, tempo, and measure blocks are read into the flow. You can review and amend everything on the next screen.<span class="hidden-group" id="flowFromFileMsczNote"> A MuseScore file is read and not kept - add it to the piece's Media yourself if you want it there.</span></p>
         </div>
 
         <button type="button" class="flow-from-file-dropzone" id="flowFromFileDropBtn">
@@ -1846,8 +1847,9 @@
             <strong>Tap to browse score file</strong>
             <span class="metro-help-text" id="flowFromFileDropHelp">Select a MusicXML or .mxl file</span>
             <div class="flow-from-file-chip-row">
-                <span class="flow-pill">MUSICXML</span>
-                <span class="flow-pill">MXL</span>
+                <span class="flow-pill" id="flowFromFileChipXml">MUSICXML</span>
+                <span class="flow-pill" id="flowFromFileChipMxl">MXL</span>
+                <span class="flow-pill hidden-group" id="flowFromFileChipMscz">MSCZ</span>
             </div>
         </button>
         <input type="file" id="flowFromFileInput" class="hidden-group" accept=".musicxml,.mxl,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml">
@@ -1860,7 +1862,7 @@
         <div class="flow-from-file-result hidden-group" id="flowFromFileResult">
             <div class="flow-from-file-result-head"><span class="material-symbols-outlined" aria-hidden="true">check_circle</span> Score parsed successfully</div>
             <div class="flow-from-file-result-row"><span>Title &amp; credits</span><span class="flow-from-file-result-ok" id="flowFromFileResultTitle">Extracted</span></div>
-            <div class="flow-from-file-result-row"><span>Document saved to Media</span><span class="flow-from-file-result-ok">Attached</span></div>
+            <div class="flow-from-file-result-row" id="flowFromFileResultMedia"><span>Document saved to Media</span><span class="flow-from-file-result-ok">Attached</span></div>
             <div class="flow-from-file-result-row"><span>Measure blocks detected</span><span class="flow-pill flow-pill-accent" id="flowFromFileResultBlocks">0 blocks</span></div>
             <!-- ML-204: anything in the file that couldn't be represented exactly (importWarnings from
                  /flows/from-file) - worth checking on the next screen, so it's listed, not hidden. -->

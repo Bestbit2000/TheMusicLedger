@@ -20,7 +20,8 @@ each** (the same box as Theory's options - the answer over what it is, no arrows
   band couldn't open a piece that's just yours - so the lists follow the first answer; a new list belongs to
   whoever the piece is for.
 - **How do you want to make it?** Create your own, or Import (its name and help line follow the import gates;
-  hidden with none on). These two carry on - there's no separate Continue button.
+  hidden with none on: "Import from MusicXML", "Import from MuseScore", or with both "Import from a file" -
+  ML-578). These two carry on - there's no separate Continue button.
 
 The same screen opens from **+ Add a piece** in My music and Rehearse, and **Create new** in the player's ⋮ menu.
 The journey that follows (Details › Bars › Media) ends with **Done**, which lands on **My music** with the new
