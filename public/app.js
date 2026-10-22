@@ -4770,11 +4770,16 @@
         const options = bandLevelChoices(m.level);
         // (to go yourself, Leave is on the band's own menu)
         // ML-581: the band leader - who sees the summary of the Levels players choose to share
-        if (bandSummaryOn()) options.push({ key: 'leader', html: m.isBandLeader ? addPieceRow('Not the band leader any more', 'They stop seeing the band summary') : addPieceRow('Make them the band leader', 'They see a summary of the Levels players choose to share - never anyone by name') });
+        // (an organiser may make themselves the band leader - their own row says "me")
+        if (bandSummaryOn()) {
+            options.push({ key: 'leader', html: m.isYou
+                ? (m.isBandLeader ? addPieceRow('Stop being the band leader', 'You stop seeing the band summary') : addPieceRow('Make me the band leader', 'You see a summary of the Levels players choose to share - never anyone by name'))
+                : (m.isBandLeader ? addPieceRow('Not the band leader any more', 'They stop seeing the band summary') : addPieceRow('Make them the band leader', 'They see a summary of the Levels players choose to share - never anyone by name')) });
+        }
         if (!m.isYou) options.push({ key: 'remove', html: addPieceRow('Remove from the band', 'What they added stays with the band') });
         openFlowChoiceModal(m.name, options, (opt) => {
             if (opt.key === m.level) return;
-            if (opt.key === 'leader') { bandMembersDo(() => API.account.setBandLeader(bandMembers.bandId, m.accountId, !m.isBandLeader), m.isBandLeader ? 'No longer the band leader' : 'Now the band leader'); return; }
+            if (opt.key === 'leader') { bandMembersDo(() => API.account.setBandLeader(bandMembers.bandId, m.accountId, !m.isBandLeader), m.isYou ? (m.isBandLeader ? "You're no longer the band leader" : "You're now the band leader") : (m.isBandLeader ? 'No longer the band leader' : 'Now the band leader')); return; }
             if (opt.key !== 'remove') { bandMembersDo(() => API.account.setBandMemberLevel(bandMembers.bandId, m.accountId, opt.key)); return; }
             showConfirmModal('Remove from the band', `Remove ${m.name} from ${bandMembers.bandName}? They will no longer see the band's music. What they added stays with the band.`,
                 () => bandMembersDo(() => API.account.removeBandMember(bandMembers.bandId, m.accountId), 'Removed'), true, 'Remove');

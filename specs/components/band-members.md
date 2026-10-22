@@ -60,7 +60,8 @@ who runs a band). Two places:
   band leader". Off until they switch it on; never asked anywhere else. Its line names the band leader (or says there
   isn't one) and what they would see. A **band leader** shows as "· Band leader" beside what they can do, for everyone
   in the band; an organiser makes someone one, or not, from that member's pop-up ("Make them the band leader" / "Not
-  the band leader any more"). Nobody else's switch is ever shown - not even to an organiser. What the band leader sees
+  the band leader any more") - themselves included, from their own row ("Make me the band leader" / "Stop being the
+  band leader"). Only an organiser can; there may be more than one band leader. Nobody else's switch is ever shown - not even to an organiser. What the band leader sees
   is [band-summary](band-summary.md).
 - **Don't use** it for the directory (Admin → Bands).
 
