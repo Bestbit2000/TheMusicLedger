@@ -50,7 +50,7 @@ export async function assertReadLeft(accountId) {
   if (a.left > 0) return a;
   throw withStatus(409, a.limit === 0
     ? "Reading a piece from a photo isn't included on your account."
-    : `You have used this quarter's ${a.limit} photo reads. They start again on ${sayDay(a.startsAgainOn)}.`);
+    : `You have used this quarter's ${a.limit} photo reads. They reset on ${sayDay(a.startsAgainOn)}.`);
 }
 
 // Only ever this app's own file store, at the pathname the upload returned, under the folder this account

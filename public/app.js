@@ -22804,8 +22804,8 @@
         if (pieceReadBusy) return;
         if (a && a.limit === 0) { setShown(pieceReadBtn, false); return; }
         const left = !a || a.limit >= 100000 ? ''
-            : a.left === 0 ? ` None left this quarter - they start again on ${pieceReadDay(a.startsAgainOn)}.`
-            : ` ${a.left} of ${a.limit} left this quarter.`;
+            : a.left === 0 ? ` No reads left this quarter - resets on ${pieceReadDay(a.startsAgainOn)}.`
+            : ` ${a.left} of ${a.limit} reads left this quarter - resets on ${pieceReadDay(a.startsAgainOn)}.`;
         help.textContent = left ? `${help.dataset.base}.${left}` : help.dataset.base;
     }
     pieceReadBtn?.addEventListener('click', () => {
@@ -22848,7 +22848,7 @@
         const allowance = await pieceReadAllowance;
         if (allowance && allowance.left === 0) {
             showWarningToast(allowance.limit === 0 ? "Reading a piece from a photo isn't included on your account."
-                : `You have used this quarter's ${allowance.limit} photo reads. They start again on ${pieceReadDay(allowance.startsAgainOn)}.`);
+                : `You have used this quarter's ${allowance.limit} photo reads. They reset on ${pieceReadDay(allowance.startsAgainOn)}.`);
             return;
         }
         const target = addPieceTakeTarget();
