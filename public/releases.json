@@ -1,5 +1,41 @@
 [
   {
+    "version": "0.68.0",
+    "date": "2026-10-22",
+    "changes": [
+      {
+        "key": "ML-585",
+        "type": "Fixes",
+        "summary": "We fixed the time shown for a piece with 6/8, 9/8 or 12/8 in it, which came out too long, and now show how long each movement takes."
+      },
+      {
+        "key": "ML-584",
+        "type": "Fixes",
+        "summary": "We renamed the Auto switch on a practice session's Pieces to \"Smart choose bars?\", so it says what it does."
+      },
+      {
+        "key": "ML-583",
+        "type": "Fixes",
+        "summary": "We fixed the count of pieces you picked for a practice session, which could include a piece you had since archived or deleted."
+      },
+      {
+        "key": "ML-582",
+        "type": "Fixes",
+        "summary": "We ask how you got on with the last block of a practice session before saying time's up, and took out \"Carry on without the timer\"."
+      },
+      {
+        "key": "ML-581",
+        "type": "New",
+        "summary": "We let you share a summary of your Levels on a band's pieces with its band leader if you choose to - averages from 3 or more players, never your name."
+      },
+      {
+        "key": "ML-578",
+        "type": "New",
+        "summary": "We let you make a piece straight from a MuseScore 4 file: its bars, time signatures, speeds, letters, repeats and signs come in, and the file isn't kept."
+      }
+    ]
+  },
+  {
     "version": "0.67.0",
     "date": "2026-10-22",
     "changes": [
