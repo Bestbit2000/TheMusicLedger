@@ -177,11 +177,12 @@
             <div id="burgerDropdown" class="dropdown-menu nav-menu">
                 <!-- ML-326: two panels - the menu itself, and Tools, which slides in over it (openNavTools). -->
                 <!-- ML-239: on a tablet or desktop this menu is a rail down the left (specs/components/menu-rail.md).
-                     Its head - the app's name and the button that folds it to icons - shows only then. -->
+                     Its head - the button that folds it to icons, then the app's name - shows only then. ML-590: the
+                     button comes first, so it's in the same place open or folded; folded, the name and mark go. -->
                 <div class="nav-rail-head">
+                    <button type="button" class="nav-rail-fold" id="navRailFoldBtn" aria-label="Fold the menu to icons" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true" id="navRailFoldIcon">menu_open</span></button>
                     <img class="brand-mark" id="railBrandMark" src="images/brands/notably-better-mark.svg" alt="" aria-hidden="true">
                     <span class="nav-rail-name" id="railBrandName">Notably Better</span>
-                    <button type="button" class="nav-rail-fold" id="navRailFoldBtn" aria-label="Fold the menu to icons" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true" id="navRailFoldIcon">menu_open</span></button>
                 </div>
                 <div class="nav-panel" id="navMainPanel">
                 <button type="button" class="dropdown-item nav-item" data-view="mainView" data-act="view-menu" data-arg="mainView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">home</span><span class="nav-item-text">Home</span></button>

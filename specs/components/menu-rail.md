@@ -17,8 +17,14 @@ remembered on the device (`localStorage`, `tml.railFolded`). Owner's decision, 7
 The admin panel has its own side menu ([admin-shell](admin-shell.md)).
 
 ## 3. Anatomy
-- **The head** - `div.nav-rail-head`, first thing in `.nav-menu`: the [brand mark](brand-mark.md), the app's name (`span.nav-rail-name`) and the
-  fold button (`button.nav-rail-fold#navRailFoldBtn`, icon `menu_open` open / `menu` folded). Hidden on a phone.
+- **The head** - `div.nav-rail-head`, first thing in `.nav-menu`: the fold button (`button.nav-rail-fold#navRailFoldBtn`, icon
+  `menu_open` open / `menu` folded), then the [brand mark](brand-mark.md) and the app's name (`span.nav-rail-name`). Hidden on a phone.
+  **The button comes first and doesn't move** (ML-590, owner 23 Oct 2026 - it used to be at the end of the row open and under the
+  mark folded): flush with the menu's edge, so it's in the same place open and folded, centred in the folded rail like the
+  icons under it - as Gmail and YouTube do it. Not the logo as the button (people expect a logo to go home), and not a
+  round toggle half over the rail's edge (led by hover, and small and easy to miss on a tablet).
+- **A count** (`.notif-count` - Notifications, Administration) sits at the end of its row open; folded, it's a small badge
+  on the icon's top right corner (ML-590), so the icon stays centred.
 - **The items** - the menu's own `.nav-item` buttons, `.nav-section-title`s and `.nav-divider`s, unchanged
   ([dropdown-menu](dropdown-menu.md)). The row lines between items go; each item is a rounded row.
 - **Log out** sits at the bottom of the rail (the divider before it takes the spare height).
@@ -44,7 +50,8 @@ the menu), `--touch-target`, `--radius-md`, `--space-1`, `--space-2`, `--space-3
   has just been opened.
 - The top bar's title on Home is "Home" while the rail shows (the rail carries the app's name).
 
-- Folded, the head is the mark above the fold button (the name is hidden).
+- Folded, the head is just the fold button, where it was (the mark and the name are hidden), and a count is a badge on
+  its icon.
 
 ## 6. States
 Open / folded. Item: default / hover / current (`aria-current="page"`) / focus. Panel: main / Tools. Folded,
@@ -54,10 +61,11 @@ Tools opens the rail first (its panel needs the room).
 ```html
 <div id="burgerDropdown" class="dropdown-menu nav-menu">
   <div class="nav-rail-head">
-    <span class="nav-rail-name">Notably Better</span>
     <button type="button" class="nav-rail-fold" id="navRailFoldBtn" aria-label="Fold the menu to icons" aria-pressed="false">
       <span class="material-symbols-outlined" aria-hidden="true">menu_open</span>
     </button>
+    <img class="brand-mark" src="images/brands/notably-better-mark.svg" alt="" aria-hidden="true">
+    <span class="nav-rail-name">Notably Better</span>
   </div>
   <div class="nav-panel" id="navMainPanel">…the menu's items…</div>
 </div>
