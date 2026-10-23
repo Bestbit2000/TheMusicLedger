@@ -8,6 +8,9 @@
 import pool from '../config/db.js';
 import { withStatus } from './flows.js';
 import { bandNewsWords } from './autoNotices.js';
+import { fromWords } from './bandNotices.js';
+import { accountDisplayName } from './accounts.js';
+import { checkEmailCopy, sendEmailCopies } from './noticeEmails.js';
 
 const MAX_TITLE_LENGTH = 120;
 const MAX_BODY_LENGTH = 4000;
@@ -37,8 +40,19 @@ function toUserDto(row) {
     important: !!row.important,
     policyLink: !!row.policy_link,
     read: !!row.read_at,
-    readAt: row.read_at || null
+    readAt: row.read_at || null,
+    // ML-498: a band's notice says who sent it - "From Sam Smith, The Cobham Band" - and can be reported
+    kind: row.kind || null,
+    from: row.kind === 'band_notice' ? senderWords(row) : null
   };
+}
+
+// ML-498: who sent a band's notice and from which band (SENDER_COLUMNS in the query)
+const SENDER_COLUMNS = `(SELECT b.name FROM bands b WHERE b.id = (n.details->>'bandId')::bigint) AS band_name,
+            sx.display_name AS sender_display_name, sx.first_name AS sender_first_name, sx.surname AS sender_surname`;
+const SENDER_JOIN = `LEFT JOIN accounts sx ON sx.id = n.created_by_account_id AND n.kind = 'band_notice'`;
+function senderWords(row) {
+  return fromWords(accountDisplayName({ display_name: row.sender_display_name, first_name: row.sender_first_name, surname: row.sender_surname }), row.band_name);
 }
 
 // Live notifications for this account, newest first, plus the unread count the red dot needs. A
@@ -47,9 +61,10 @@ function toUserDto(row) {
 export async function listNotificationsForAccount(accountId) {
   const { rows } = await pool.query(
     `SELECT n.id, n.title, n.body, n.publish_at, n.urgent, n.important, n.policy_link, n.kind, n.details, r.read_at,
-            (SELECT b.name FROM bands b WHERE b.id = (n.details->>'bandId')::bigint) AS band_name
+            ${SENDER_COLUMNS}
      FROM notifications n
      LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.account_id = $1
+     ${SENDER_JOIN}
      WHERE ${LIVE_CONDITION} AND ${FOR_ACCOUNT('$1')} AND r.cleared_at IS NULL
      ORDER BY n.publish_at DESC, n.id DESC
      LIMIT 100`,
@@ -73,9 +88,10 @@ export async function listNotificationsForAccount(accountId) {
 // clear-up (ML-494) takes it in the end. Not a history of every notice.
 export async function listClearedNotifications(accountId) {
   const { rows } = await pool.query(
-    `SELECT n.id, n.title, n.body, n.publish_at, n.urgent, n.important, n.policy_link, r.read_at, r.cleared_at
+    `SELECT n.id, n.title, n.body, n.publish_at, n.urgent, n.important, n.policy_link, n.kind, r.read_at, r.cleared_at, ${SENDER_COLUMNS}
        FROM notifications n
        JOIN notification_reads r ON r.notification_id = n.id AND r.account_id = $1 AND r.cleared_at IS NOT NULL
+       ${SENDER_JOIN}
       WHERE ${LIVE_CONDITION} AND ${FOR_ACCOUNT('$1')}
       ORDER BY r.cleared_at DESC, n.id DESC
       LIMIT 100`,
@@ -236,6 +252,14 @@ function toAdminDto(row) {
     // everyone, null) every account that can still read it
     recipientCount: row.recipient_count == null ? null : Number(row.recipient_count),
     createdBy: row.created_by_email || null,
+    // ML-498: a band's notice - sent by one of the band's own, not by the owner
+    kind: row.kind || null,
+    from: row.kind === 'band_notice' ? senderWords(row) : null,
+    // ML-499: the email copy - asked for, and once sent, how many went (and any that couldn't)
+    emailCopy: !!row.email_copy,
+    emailedCount: row.emailed_count == null ? null : Number(row.emailed_count),
+    emailFailedCount: Number(row.email_failed_count || 0),
+    emailedAt: row.emailed_at || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -246,14 +270,16 @@ function toAdminDto(row) {
 const ADMIN_SELECT = `SELECT n.*, a.email AS created_by_email,
             (SELECT COUNT(*) FROM notification_reads r WHERE r.notification_id = n.id) AS read_count,
             CASE WHEN n.audience <> 'all' THEN (SELECT COUNT(*) FROM (${AUDIENCE_ACCOUNTS}) x) END AS recipient_count,
-            ab.name AS audience_band_name
+            ab.name AS audience_band_name, ${SENDER_COLUMNS}
      FROM notifications n
      LEFT JOIN accounts a ON a.id = n.created_by_account_id
-     LEFT JOIN bands ab ON ab.id = n.audience_band_id`;
+     LEFT JOIN bands ab ON ab.id = n.audience_band_id
+     ${SENDER_JOIN}`;
 
 export async function listNotificationsForAdmin() {
-  // ML-497: the notices the app sends itself are each to one or two members - not shown here
-  const { rows } = await pool.query(`${ADMIN_SELECT} WHERE n.kind IS NULL ORDER BY n.publish_at DESC, n.id DESC`);
+  // ML-497: the notices the app sends itself are each to one or two members - not shown here. ML-498: a band's
+  // notice is, so the owner sees every one and can withdraw it.
+  const { rows } = await pool.query(`${ADMIN_SELECT} WHERE n.kind IS NULL OR n.kind = 'band_notice' ORDER BY n.publish_at DESC, n.id DESC`);
   const { rows: totals } = await pool.query('SELECT COUNT(*) AS n FROM accounts WHERE deleted_at IS NULL');
   return { notifications: rows.map(toAdminDto), accountCount: Number(totals[0].n) };
 }
@@ -332,18 +358,23 @@ async function tidyAudience(client, { audience = 'all', accountLevel = null, ban
   throw withStatus(400, 'Choose who it is for.');
 }
 
-export async function createNotification(adminAccountId, data) {
+// ML-499: `origin` is the app's address, for the link in an email copy (APP_URL where emails really go).
+export async function createNotification(adminAccountId, data, { origin = '' } = {}) {
   const v = validateNotification(data || {});
+  const emailCopy = (data || {}).emailCopy === true;
   const client = await pool.connect();
   let id;
   try {
     await client.query('BEGIN');
     const who = await tidyAudience(client, data || {});
+    // ML-499: refused before anything is saved if it can't go as asked (not urgent or important, published later,
+    // or more than the day's allowance)
+    if (emailCopy) await checkEmailCopy({ ...who, urgent: v.urgent, important: v.important }, v.publishAt);
     const { rows } = await client.query(
-      `INSERT INTO notifications (title, body, publish_at, expires_at, urgent, important, policy_link, banner, audience, audience_account_level, audience_band_id, created_by_account_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+      `INSERT INTO notifications (title, body, publish_at, expires_at, urgent, important, policy_link, banner, audience, audience_account_level, audience_band_id, created_by_account_id, email_copy)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
       // ML-495: only a notice for everyone can be a banner
-      [v.title, v.body, v.publishAt, v.expiresAt, v.urgent, v.important, v.policyLink, v.banner && who.audience === 'all', who.audience, who.accountLevel, who.bandId, adminAccountId]
+      [v.title, v.body, v.publishAt, v.expiresAt, v.urgent, v.important, v.policyLink, v.banner && who.audience === 'all', who.audience, who.accountLevel, who.bandId, adminAccountId, emailCopy]
     );
     id = rows[0].id;
     if (who.accountIds.length) await client.query('INSERT INTO notification_recipients (notification_id, account_id) SELECT $1, unnest($2::bigint[])', [id, who.accountIds]);
@@ -354,6 +385,8 @@ export async function createNotification(adminAccountId, data) {
   } finally {
     client.release();
   }
+  // ML-499: the email copies go now, once the notice is saved - a failure is counted on the row, never undoes it
+  if (emailCopy) await sendEmailCopies(id, origin).catch(error => console.error('Email copies not sent:', error.message));
   return getAdminNotification(id);
 }
 
@@ -397,6 +430,9 @@ export async function createTargetedNotification(adminAccountId, { title, body, 
 // for some members into one for everyone, or the other way round.
 export async function updateNotification(notificationId, data) {
   const v = validateNotification(data || {});
+  // ML-498: a band's notice is its sender's words - the owner withdraws or deletes one, never rewrites it
+  const { rows: kindRows } = await pool.query('SELECT kind FROM notifications WHERE id = $1', [notificationId]);
+  if (kindRows.length && kindRows[0].kind) throw withStatus(400, "This notice was sent by the app or by a band - withdraw it rather than change it.");
   // ML-495: a banner reaches everyone, signed in or not - so a notice for named members can never be one
   const { rowCount } = await pool.query(
     `UPDATE notifications SET title = $1, body = $2, publish_at = $3, expires_at = $4, urgent = $5, important = $6, policy_link = $7,

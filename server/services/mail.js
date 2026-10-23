@@ -28,26 +28,56 @@ export function sentOrHeld(sent, held, provider = mailProvider()) {
   return emailOutcome(provider).emailed ? sent : held;
 }
 
+async function smtpTransport(options = {}) {
+  let nodemailer;
+  try { nodemailer = (await import('nodemailer')).default; } catch { throw new Error('MAIL_PROVIDER=smtp needs nodemailer - run npm install nodemailer in server/.'); }
+  const port = Number(process.env.SMTP_PORT || 465);
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST, port, secure: port === 465,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    ...options
+  });
+}
+const mailFrom = () => process.env.MAIL_FROM || 'Notably Better <noreply@notablybetter.com>';
+async function logMail({ to, subject, text, html }) {
+  await pool.query('INSERT INTO email_outbox (to_email, subject, body_text, body_html) VALUES ($1, $2, $3, $4)', [to, subject, text, html || null]);
+  if (process.env.NODE_ENV !== 'test') console.log(`[mail:log] to ${to}: ${subject}`);
+}
+
 export async function sendMail({ to, subject, text, html }) {
   const provider = mailProvider();
-  const from = process.env.MAIL_FROM || 'Notably Better <noreply@notablybetter.com>';
-  if (provider === 'log') {
-    await pool.query('INSERT INTO email_outbox (to_email, subject, body_text, body_html) VALUES ($1, $2, $3, $4)', [to, subject, text, html || null]);
-    if (process.env.NODE_ENV !== 'test') console.log(`[mail:log] to ${to}: ${subject}`);
-    return;
-  }
+  if (provider === 'log') return logMail({ to, subject, text, html });
   if (provider === 'smtp') {
-    let nodemailer;
-    try { nodemailer = (await import('nodemailer')).default; } catch { throw new Error('MAIL_PROVIDER=smtp needs nodemailer - run npm install nodemailer in server/.'); }
-    const port = Number(process.env.SMTP_PORT || 465);
-    const transport = nodemailer.createTransport({
-      host: process.env.SMTP_HOST, port, secure: port === 465,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-    });
-    await transport.sendMail({ from, to, subject, text, html });
+    const transport = await smtpTransport();
+    await transport.sendMail({ from: mailFrom(), to, subject, text, html });
     return;
   }
   throw new Error(`Unknown MAIL_PROVIDER "${provider}".`);
+}
+
+// ML-499: many emails at once (a notice's email copies) - one connection kept open for the lot, one at a time.
+// A failed one is counted and the rest carry on. Returns { sent, failed }.
+export async function sendMailBatch(messages) {
+  const provider = mailProvider();
+  if (provider !== 'log' && provider !== 'smtp') throw new Error(`Unknown MAIL_PROVIDER "${provider}".`);
+  const transport = provider === 'smtp' ? await smtpTransport({ pool: true, maxConnections: 1 }) : null;
+  let sent = 0;
+  let failed = 0;
+  try {
+    for (const m of messages) {
+      try {
+        if (transport) await transport.sendMail({ from: mailFrom(), ...m });
+        else await logMail(m);
+        sent++;
+      } catch (error) {
+        failed++;
+        console.error('An email in a batch could not be sent:', error.message);
+      }
+    }
+  } finally {
+    if (transport) transport.close();
+  }
+  return { sent, failed };
 }
 
 // The one layout every email from the app uses: a few lines, one button, a small footer (and the same in

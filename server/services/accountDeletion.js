@@ -71,6 +71,10 @@ export async function deleteMyAccount(accountId) {
       [accountId]
     );
 
+    // ML-498: the notices they sent a band are their words - deleted, not kept with no name (the link from
+    // notifications only sets the sender to nothing, as it must for the owner's own notices)
+    await client.query("DELETE FROM notifications WHERE kind = 'band_notice' AND created_by_account_id = $1", [accountId]);
+
     for (const link of await accountLinks(client)) {
       if (link.sets_null) await client.query(`UPDATE ${link.tbl} SET ${link.col} = NULL WHERE ${link.col} = $1`, [accountId]);
       else if (!KEPT.has(link.tbl)) await client.query(`DELETE FROM ${link.tbl} WHERE ${link.col} = $1`, [accountId]);

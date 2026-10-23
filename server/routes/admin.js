@@ -35,6 +35,7 @@ import { getFlowAuthoringStats, setFlowAuthoringSessionExcluded, currentAppVersi
 import { listFeedbackForAdmin, updateFeedbackAdmin } from '../services/feedback.js';
 import { listFlowsForAdmin, exportFlows, previewImport, previewSummary, commitImport, MAX_IMPORT_BYTES } from '../services/flowTransfer.js';
 import { listNotificationsForAdmin, notificationAudienceForAdmin, listNoticeBands, createNotification, updateNotification, setNotificationWithdrawn, deleteNotification } from '../services/notifications.js';
+import { emailCopyPreview } from '../services/noticeEmails.js';
 import { listRecordingsForAdmin, removeRecordingOnRequest, renameBandOnRequest } from '../services/recordingRemovals.js';
 import { closeReport } from '../services/contentReports.js';
 import { getSiteSecurityReview, runSiteSecurityReviewNow } from '../services/siteSecurityReview.js';
@@ -775,9 +776,19 @@ router.get('/notifications/:id/audience', requireAuth, resolveAccount, requireSu
   }
 });
 
+// ML-499: how many an email copy of this notice would send, and how many can go today - asked before saving
+router.post('/notifications/email-count', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    res.json(await emailCopyPreview(req.body || {}));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 router.post('/notifications', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
-    res.json(await createNotification(req.accountId, req.body));
+    // ML-499: the link in an email copy - only worked out when one is asked for (appUrl insists on APP_URL for real email)
+    res.json(await createNotification(req.accountId, req.body, { origin: req.body?.emailCopy === true ? appUrl(req) : '' }));
   } catch (error) {
     sendError(res, error);
   }

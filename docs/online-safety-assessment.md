@@ -1,6 +1,6 @@
 # Online Safety Act run-through (ML-507)
 
-**Version 3, 22 October 2026**, against release 0.67.0 (version 2: 19 October 2026, release 0.63.0; version 1: 8 October 2026, release 0.52.0). A first pass at what the Online Safety Act 2023
+**Version 5, 23 October 2026**, before ML-498 (version 4: 22 October 2026, ML-581; version 3: 22 October 2026, release 0.67.0; version 2: 19 October 2026, release 0.63.0; version 1: 8 October 2026, release 0.52.0). A first pass at what the Online Safety Act 2023
 asks of this app, done from Ofcom's published guidance. It is a careful reading by Claude, **not legal
 advice**, and **the owner should confirm it with Ofcom's own tools** (below) - they are the official
 route and they produce the records Ofcom expects.
@@ -10,6 +10,8 @@ route and they produce the records Ofcom expects.
 | 1 | 8 October 2026 | Claude, for Andrew Storey | The first run-through: scope, an illegal content risk assessment, a children's access assessment, a children's risk assessment, and the measures expected of a small low-risk service. |
 | 2 | 19 October 2026 | Claude, for Andrew Storey | Done again before ML-534: **a band's logo** - the first picture one member uploads for others to see, shown to the band, to people it invites and in the invitation email. Sections 2, 3, 5 and 6, actions 9 and 10 and "What would change the answer" are updated; the rest still holds. See "Version 2" below. |
 | 3 | 22 October 2026 | Claude, for Andrew Storey | Done again before 0.67.0: **the public page's waiting list** (ML-580) - a non-member's name, email, band and instrument go to the owner and, on his decision, to the organisers of the band they named; adding pieces free for Standard (ML-579) and the public page itself (ML-242) change nothing a member can show another. See "Version 3" below. |
+| 4 | 22 October 2026 | Claude, for Andrew Storey | Done again before ML-581: **the band leader's summary**. See "Version 4" below. |
+| 5 | 23 October 2026 | Claude, for Andrew Storey | Done again before ML-498 (action 3): **a band's notice to its members** - the first free text one member writes to the whole band, and so the first contact between members. Sections 2 and 3 and actions 3 and 11 are updated; the rest still holds. See "Version 5" below. ML-499 (email copies of the owner's notices) adds nothing a member can show another. |
 
 **Next review:** 19 October 2027 at the latest. Ofcom asks for a review at least once a year, **and before
 any significant change** to how the service works. It is on Admin → Security → Reviews.
@@ -54,11 +56,12 @@ This is the whole of it, and the smallness of the list is the main reason the ri
 | A band's name | Whoever sets up sharing | The band, and people invited to it |
 | A band's logo: one picture, PNG, JPEG or WebP, up to 1 MB (version 2, ML-534) | An organiser of the band - an adult (action 2) | The band; people invited to it, on the welcome and at the top of the invitation email |
 | A member's name and picture (initials or one of twelve drawings - no photo upload) | The member | The band |
+| A band's notice: a title (up to 120 characters) and a message (up to 1000), with the sender's name - one way, no replies (version 5, ML-498) | An organiser, a member with "change music" or the band leader - each confirmed an adult; at most 3 a day and 10 a week per band | The band's members at the time, less anyone who switched band notices off |
 
 (A band's logo is the only picture a member can upload for others to see. It belongs to the band, not to a person.)
 | A public piece | The owner only | Everyone |
 
-**What the app does not have:** messages between members, comments, a public profile, a way to search for
+**What the app does not have:** messages between members (a band's notice goes one way, to the whole band - version 5), comments, a public profile, a way to search for
 or find other members, a feed, live video or audio, anonymous use, or sign-up without an invitation. A
 band is joined only by an organiser's invitation.
 
@@ -139,7 +142,7 @@ are written to meet both.
 |---|---|---|---|
 | 1 | Run Ofcom's checker and its children's access tool, and keep what they produce with this record | The owner | Open - ML-509 |
 | 2 | **An organiser is an adult**: a one-time confirmation before setting up sharing or inviting, and a line in the terms. (The same action as in `childrens-code-assessment.md`.) | Claude | **Built 8 October 2026**, released in 0.53.0: the server refuses both until confirmed; the day is kept, and the terms say so. A route for a 16- or 17-year-old organiser was considered and turned down by the owner the same day: an adult sets up the band and can give a young helper the "change music" level |
-| 3 | Keep organisers messaging their band (ML-498) parked, and re-run this before building it: it would add contact between members, which changes sections 3 and 5 | - | Parked 8 October 2026 |
+| 3 | Keep organisers messaging their band (ML-498) parked, and re-run this before building it: it would add contact between members, which changes sections 3 and 5 | - | Parked 8 October 2026. **Re-run 23 October 2026 (version 5)** when the owner asked for it to be built, one way only |
 | 4 | The terms say what may not be shared (anything illegal, anything sexual, anything hateful or bullying, anything not yours to share), that it will be removed and the account may be closed, how to report it, and who is responsible | The owner (wording) | **Done 8 October 2026**, released in 0.53.0: in the terms' "What you put in", with a report looked at within two working days |
 | 5 | **"Report this"** on any piece, recording, document, video link or band a member can see: one tap, an optional line of text, sent to the owner with what it was about. Always there, whatever features an account type has | Claude | **Built 8 October 2026**, released in 0.53.0: "Report" on the menu of a band's or a public piece in My music - the piece is reported with its recordings, documents and links. **Finished 10 October 2026 (ML-510):** the same Report is on the play screen's menu, on a shared band in My bands ("Report the name", once someone else is in the band) and on a band's practice list ("Report this list"). A list or a band only the member can see has none |
 | 6 | **One place for the owner to take anything down**: extend Admin → Recordings to documents, pieces and practice lists. Each removal tells the people it belonged to and is kept on record, as recordings are now | Claude | **Built 8 October 2026**, released in 0.53.0: the page is now Admin → Shared music - members' reports, recordings and videos, documents, and the pieces a band shares or that are public. **Finished 10 October 2026 (ML-511):** the page also lists every band's practice lists (Remove - the pieces stay) and every band (Rename - a band can't be removed without its music, so a name that breaks the terms is changed). The band's organisers are told each time and both are on the same record |
@@ -147,6 +150,7 @@ are written to meet both.
 | 8 | Reports are answered: say in the terms how quickly, and keep a simple log of each report and what was done | The owner, Claude | The log is built (a report is closed with a line saying what was done). How quickly is for the terms (action 4). **10 October 2026 (ML-502):** the owner can also warn the member and close their account - `docs/account-closing.md` |
 | 9 | **A band's logo is covered by Report and take-down** (version 2): reported with the band, removed on Admin → Shared music with its file, the organisers told; only an organiser can add one; a picture only (never SVG, which can carry script); kept only in the band's own folder of the file store | Claude | **Built 19 October 2026 (ML-534)**, released in 0.63.0 |
 | 10 | Say on the Members page that the logo should be the band's logo, **not a photo of people**, so a picture of young players is not shown to everyone the band invites | The owner (wording) | **Done 19 October 2026**, released in 0.63.0: the help line says "Use the band's logo, not a photo of people. Only use a logo the band has the right to use." Admin → Shared music removes one on request |
+| 11 | **A band's notice** (version 5): one way only; sent only by an organiser, a member with "change music" or the band leader, each confirmed 18 or over; to their own band only; limits per band; plain text, escaped, with the sender's name; "Report this notice" on each; the owner sees every one on Admin → Notifications and withdraws it; deleted with the sender's account; members can switch them off | Claude | **Built 23 October 2026 (ML-498)**, not released. The owner completed the Children's Code self-assessment for it on 23 October 2026 - very low risk (standards 5, 11 and 13 - see version 5). The privacy policy and terms lines were approved by the owner as drafted, 23 October 2026 |
 
 ## Version 2: a band's logo (ML-534, 19 October 2026)
 
@@ -248,9 +252,43 @@ average Level and the lowest to highest - for the piece and each bar - made from
 self-assessment, approves the privacy policy line, and a notice tells members (it changes what is held about them
 and who may see a summary of it).
 
+## Version 5: a band's notice (ML-498, 23 October 2026)
+
+**Why again:** action 3 - it is the first thing one member writes for the whole band to read, so it is contact
+between members. Done before it was built.
+
+**What it is** (docs/notifications.md, "A band's notice"): on a band's Members page, its organisers, the members who
+can change its music and its band leader can send everyone in the band a notice - a title and a message, shown in the
+notification centre with "From Sam Smith, The Cobham Band". The owner's answers, 23 October 2026: one way only, those
+three kinds of sender, 3 a day and 10 a week per band, a switch for members to turn them off (on until they do).
+
+**Against the questions above:**
+- **Is it user-to-user content?** Yes - new free text from one member, seen by others. It is the same kind as a
+  piece's title or a band's name, only longer, and it reaches only one band: the sender's own, which nobody joins
+  without an invitation.
+- **Contact and grooming:** it is one to many, never one to one - there is no way to write to a single member, no
+  reply, no thread, and nothing that tells the sender who has read it. A band's notice goes to the whole band, so
+  every adult in it sees what a child sees. The risk stays **low**.
+- **Who sends:** "change music" and the band leader need not be organisers, and an organiser may give "change music"
+  to a young helper (action 2). So the sender confirms once that they are 18 or over - the same confirmation an
+  organiser gives - before the first notice goes. A young helper can still add music; they cannot write to the band.
+- **Harmful content, bullying:** the same as a piece's title: one band, a named sender, and the limits. "Report this
+  notice" sends it to the owner (action 5), who withdraws it on Admin → Notifications; the terms already say what may
+  not be shared (action 4). A notice is plain text - nothing in it is a link or a picture.
+- **Children's risk assessment (section 5):** contact from adults - **low**: there is contact now, but only to the
+  whole band at once, from a named adult in the band, and a member can switch band notices off. No pressure (ML-471):
+  it is for the band's own news, never "you haven't practised" - the app shows nobody anyone's practice (product
+  value 2), so a notice can't be built from it.
+
+**Result:** the service's risk levels are unchanged (low), with action 11. Before release: the owner checks the
+Children's Code self-assessment - standards 5 (detrimental use), 11 (parental controls) and 13 (nudge) against this -
+and approves the privacy policy lines (approved as drafted, 23 October 2026); a notice tells members, since it changes what one member can show another.
+**Replies, or a notice to one member, would need this run again.**
+
 ## What would change the answer
 
-Run this again **before** building any of these: messages or comments between members; a member profile
+Run this again **before** building any of these: messages or comments between members (a band's notice, one way to
+the whole band, is version 5 - replies to it, or a notice to one member, are not covered); a member profile
 others can open; any way to find or search for members or bands' content from outside a band; photo or
 video upload beyond a band's logo (version 2); live audio or video; sign-up without an invitation; letting members make a piece public;
 a band directory that shows members.

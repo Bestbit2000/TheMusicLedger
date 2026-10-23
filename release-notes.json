@@ -1,4 +1,6 @@
 {
+  "ML-499": "We can now email you a copy of an urgent or important notice, and you can switch off copies of urgent ones in Settings.",
+  "ML-498": "We let the people who run a band send everyone in it a notice in the app, with their name on it - one way, and you can switch them off.",
   "ML-585": "We fixed the time shown for a piece with 6/8, 9/8 or 12/8 in it, which came out too long, and now show how long each movement takes.",
   "ML-584": "We renamed the Auto switch on a practice session's Pieces to \"Smart choose bars?\", so it says what it does.",
   "ML-583": "We fixed the count of pieces you picked for a practice session, which could include a piece you had since archived or deleted.",

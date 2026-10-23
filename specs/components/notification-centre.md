@@ -25,6 +25,10 @@ Clearing (ML-556): the × top right of a notification - a bare icon button (no f
 list for good, at once, with no question (it reads it too). **Clear all** asks first, in the confirm pop-up
 ("Clear all notifications?" / **Clear all**). An urgent or important notification still waiting for Got it has
 no ×, and Clear all leaves it. There is no history of cleared ones. Needs a connection.
+A band's notice (ML-498): an ordinary notification whose `.notification-date` starts "From Sam Smith, The Cobham Band ·"
+(who sent it, in words). Once opened (expanded), a `.flex-row.justify-end` under its row holds a `.btn-text`
+**Report this notice** that opens the usual Report pop-up (ML-507). No new styles. Settings → Notifications has
+its switch, **Notices from my bands**, and ML-499's **Email me a copy of urgent notices** - the same toggle rows.
 Update card: `.notification-item.notification-update` with a `.btn-submit` Reload button.
 Urgent (ML-167): in the list, an amber `.notification-urgent-tag` "Urgent" after the title. While unread it also
 pops up - `#urgentNotificationModal` (`role=dialog`) › `.modal-content.notification-urgent` › the tag ›
