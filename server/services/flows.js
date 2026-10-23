@@ -146,6 +146,7 @@ function toFlowDetailDto(score, recordingRows, documentRows, summary, canEdit, c
     isPublic: score.is_public,
     canEdit: !!canEdit,
     canDelete: !!canDelete, // ML-411
+    speedsBeforeMatch: score.speeds_before_match || null, // ML-597
     createdAt: score.created_at,
     recordings: recordingRows.map((r) => toRecordingDto(r, markRows)),
     documents: documentRows.map(toDocumentDto),
@@ -405,11 +406,35 @@ export async function updateFlowMetadata(accountId, scoreId, data) {
       sets.push(`${field} = $${values.length}`);
     }
   }
+  // ML-597: the speeds from before they were matched to a recording (null once they've been put back)
+  if (data.speedsBeforeMatch !== undefined) {
+    values.push(data.speedsBeforeMatch === null ? null : JSON.stringify(cleanSpeedsBeforeMatch(data.speedsBeforeMatch)));
+    sets.push(`speeds_before_match = $${values.length}`);
+  }
   if (sets.length) {
     values.push(scoreId);
     await pool.query(`UPDATE scores SET ${sets.join(', ')} WHERE id = $${values.length}`, values);
   }
   return getFlowDetail(accountId, scoreId);
+}
+
+// { recordingId, blocks: [{ id, bpm, ramps }] } - only those keys, whole numbers where they should be, and no more
+// blocks than a piece could have. A ramp is kept as it was sent: it only ever goes back into a block, and a block's
+// save checks it then (flowBlocks.js validateSegmentPayload).
+const SPEEDS_BEFORE_MATCH_MAX_BLOCKS = 2000;
+export function cleanSpeedsBeforeMatch(v) {
+  const bad = () => withStatus(400, 'Those speeds can\'t be kept.');
+  if (!v || typeof v !== 'object' || !Array.isArray(v.blocks) || v.blocks.length > SPEEDS_BEFORE_MATCH_MAX_BLOCKS) throw bad();
+  const recordingId = v.recordingId === null || v.recordingId === undefined ? null : Number(v.recordingId);
+  if (recordingId !== null && !(Number.isInteger(recordingId) && recordingId > 0)) throw bad();
+  const blocks = v.blocks.map((b) => {
+    const id = Number(b && b.id);
+    const bpm = Number(b && b.bpm);
+    const ramps = b && Array.isArray(b.ramps) ? b.ramps : [];
+    if (!Number.isInteger(id) || id <= 0 || !Number.isInteger(bpm) || bpm < 1 || bpm > 1000 || ramps.length > 50 || ramps.some((r) => !r || typeof r !== 'object')) throw bad();
+    return { id, bpm, ramps };
+  });
+  return { recordingId, blocks };
 }
 
 export async function moveFlowToBand(accountId, scoreId, bandId) {

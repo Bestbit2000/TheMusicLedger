@@ -1,4 +1,6 @@
 {
+  "ML-597": "We moved marking a recording's start, bars and end to the piece's Media tab, in one pop-up, and keep the speeds from before matching so you can put them back.",
+  "ML-598": "We show how long each stretch of a recording takes against the same bars at the piece's own speeds, on the Media tab and while it plays.",
   "ML-587": "We put a practice's Level, sub beats and count-in under one Playback button, and you can now count in before every go, or not at all - on a video too.",
   "ML-592": "We added a search to Rehearse's list of pieces, so you can find a piece by its title or composer.",
   "ML-593": "We moved Archive several and Delete several to a menu at the top of My music, where you can find them however long your list is.",

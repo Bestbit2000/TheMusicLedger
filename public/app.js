@@ -77,6 +77,9 @@
         'barmap-play': (el) => barMapPlayFrom(Number(actArg(el))),
         'barmap-save': () => saveBarMapModal(),
         'barmap-match': () => matchSpeedsToBarMap(), // ML-533
+        'barmap-clip-mark': (el) => barMapClipMark(actArg(el)), // ML-597
+        'barmap-clip-nudge': (el) => barMapClipNudge(actArg(el), Number(el.dataset.ms)),
+        'flow-speeds-restore': () => restoreSpeedsBeforeMatch(), // ML-597
         // ML-489: the Recordings tool
         'recordings-give': (el) => recordingsGive(actArg(el)),
         'recordings-cut-change': (el) => recordingsCutChange(actArg(el)),
@@ -11622,10 +11625,22 @@
         } else {
             playerHtml = `<audio class="flow-media-player-audio" controls preload="metadata" src="${escapeHtml(r.blobUrl + uploadClipFragment(clip))}"></audio>`;
         }
-        // One button showing the answer, opening the pop-up that changes it ("one button, one pop-up")
-        const clipHtml = isFeatureEnabled('recording_clip')
-            ? `<button type="button" class="metroBlk-ctrl-value-btn w-full" data-act="flow-recording-clip" data-arg="${escapeHtml(r.id)}" aria-haspopup="dialog" aria-label="Start and end of ${escapeHtml(r.title)}: ${escapeHtml(FlowJourney.clipLabel(clip))} - tap to change"><strong>${escapeHtml(FlowJourney.clipLabel(clip))}</strong><span class="metroBlk-ctrl-value-label">start and end</span></button>`
-            : '';
+        // One button showing the answer, opening the pop-up that changes it ("one button, one pop-up").
+        // ML-597: with the rehearsal score on it is the start, the bars and the end - one pop-up for all three, here
+        // only (not on the play screen) - and under it how long each stretch takes against the piece (ML-598).
+        let clipHtml = '';
+        if (isFeatureEnabled('rehearsal_score')) {
+            const marked = (r.marks || []).length ? FlowJourney.usableMarks(FlowJourney.journeyPlaces(currentFlowBlocks || [], recOpts(r)), r.marks).length : 0;
+            const barsText = marked ? `${marked} bar${marked === 1 ? '' : 's'} marked` : 'no bars marked';
+            const lines = (currentFlowBlocks || []).length ? recordingStretchLines(currentFlowBlocks, r, r.marks || [], clip) : [];
+            const kept = currentFlowDetail && currentFlowDetail.speedsBeforeMatch;
+            const matched = kept && kept.recordingId !== null && String(kept.recordingId) === String(r.id);
+            clipHtml = `<button type="button" class="metroBlk-ctrl-value-btn w-full" data-act="rec-map" data-arg="${escapeHtml(r.id)}" aria-haspopup="dialog" aria-label="${escapeHtml(r.title)}: ${escapeHtml(FlowJourney.clipLabel(clip))}, ${barsText} - tap to change"><strong>${escapeHtml(FlowJourney.clipLabel(clip))} · ${barsText}</strong><span class="metroBlk-ctrl-value-label">start, bars and end</span></button>`
+                + lines.map(l => `<p class="text-sm text-muted mt-2">${escapeHtml(l)}</p>`).join('')
+                + (matched ? `<p class="text-sm mt-2">The piece's speeds are matched to this recording.</p><button type="button" class="btn-text" data-act="flow-speeds-restore">Put the original speeds back</button>` : '');
+        } else if (isFeatureEnabled('recording_clip')) {
+            clipHtml = `<button type="button" class="metroBlk-ctrl-value-btn w-full" data-act="flow-recording-clip" data-arg="${escapeHtml(r.id)}" aria-haspopup="dialog" aria-label="Start and end of ${escapeHtml(r.title)}: ${escapeHtml(FlowJourney.clipLabel(clip))} - tap to change"><strong>${escapeHtml(FlowJourney.clipLabel(clip))}</strong><span class="metroBlk-ctrl-value-label">start and end</span></button>`;
+        }
         // ML-531: which movement it is of, for a piece in movements
         const moves = FlowJourney.movements(currentFlowBlocks || []);
         const mv = r.movementNumber && moves.length > 1 ? moves.find(m => m.number === r.movementNumber) : null;
@@ -11869,6 +11884,11 @@
         if (videoCountPill) videoCountPill.innerText = `${videoLinks.length} linked`;
         if (videoList) videoList.innerHTML = videoLinks.length ? videoLinks.map(r => flowMediaItemHtml(r, true)).join('') : '<p class="text-muted">No video linked yet.</p>';
 
+        // ML-597: speeds matched to a recording that's no longer on the piece can still be put back - under the videos
+        const kept = currentFlowDetail && currentFlowDetail.speedsBeforeMatch;
+        const orphan = kept && isFeatureEnabled('rehearsal_score') && !recordings.some(r => kept.recordingId !== null && String(r.id) === String(kept.recordingId));
+        if (videoList && orphan) videoList.insertAdjacentHTML('beforeend', '<p class="text-sm mt-3">The piece\'s speeds were matched to a recording that is no longer here.</p><button type="button" class="btn-text" data-act="flow-speeds-restore">Put the original speeds back</button>');
+
         updateFlowEditTabCounts();
     }
 
@@ -11880,11 +11900,14 @@
             if (flowEditMode === 'edit') {
                 currentFlowDetail.recordings = (currentFlowDetail.recordings || []).filter(r => String(r.id) !== String(recordingId));
                 renderFlowRecordingsList();
+                offerSpeedsBack(recordingId, 'it has been taken off'); // ML-597
                 return;
             }
             try {
+                const kept = currentFlowDetail.speedsBeforeMatch; // the answer below no longer knows the recording
                 currentFlowDetail = await API.flows.recordings.delete(currentFlowId, recordingId);
                 renderFlowRecordingsList();
+                if (kept) { currentFlowDetail.speedsBeforeMatch = currentFlowDetail.speedsBeforeMatch || kept; offerSpeedsBack(recordingId, 'it has been taken off'); }
             } catch (error) {
                 showWarningToast('Error deleting recording: ' + error.message);
             }
@@ -15263,10 +15286,15 @@
 
         const newRecordings = curRecordings.filter(r => typeof r.id === 'string');
         const newDocuments = curDocuments.filter(d => typeof d.id === 'string');
+        const known = new Set(curRecordings.filter(r => typeof r.id !== 'string').map(r => String(r.id)));
         for (const r of newRecordings) {
             const clip = { clipStartMs: r.clipStartMs || null, clipEndMs: r.clipEndMs || null, movementNumber: r.movementNumber || null }; // ML-312, ML-531
-            if (r.type === 'youtube') await API.flows.recordings.addYouTube(currentFlowId, { url: r.sourceUrl, title: r.title, ...clip });
-            else await API.flows.recordings.addUploaded(currentFlowId, { blobUrl: r.blobUrl, blobPathname: r.blobPathname, fileName: r.fileName, fileSizeBytes: r.fileSizeBytes, mimeType: r.mimeType, ...clip });
+            const detail = r.type === 'youtube'
+                ? await API.flows.recordings.addYouTube(currentFlowId, { url: r.sourceUrl, title: r.title, ...clip })
+                : await API.flows.recordings.addUploaded(currentFlowId, { blobUrl: r.blobUrl, blobPathname: r.blobPathname, fileName: r.fileName, fileSizeBytes: r.fileSizeBytes, mimeType: r.mimeType, ...clip });
+            // ML-597: which one it became, so marks made on it before Save can follow it (saveFlowMarkEdits)
+            const made = (detail && detail.recordings || []).find(x => !known.has(String(x.id)));
+            if (made) { r.savedId = made.id; known.add(String(made.id)); }
         }
         // ML-312: a start and end changed on a recording that was already there
         // ML-531: the movement changed on a recording that was already there (its marks go)
@@ -15281,6 +15309,21 @@
         }
         for (const d of newDocuments) {
             await API.flows.documents.add(currentFlowId, { blobUrl: d.blobUrl, blobPathname: d.blobPathname, fileName: d.fileName, fileSizeBytes: d.fileSizeBytes, mimeType: d.mimeType });
+        }
+    }
+
+    // ML-597: bar marks made in Edit are kept until Save - and saved after the bars, which the server checks them
+    // against. A recording added in this edit has its new id by now (saveFlowMediaEdits).
+    async function saveFlowMarkEdits(curRecordings) {
+        const same = (a, b) => JSON.stringify((a || []).map(m => [m.place, m.number, m.pass, m.atMs])) === JSON.stringify((b || []).map(m => [m.place, m.number, m.pass, m.atMs]));
+        for (const r of curRecordings) {
+            const id = typeof r.id === 'string' ? r.savedId : r.id;
+            if (!id) continue;
+            const before = flowEditSnapshot.recordings.find(sr => sr.id === r.id);
+            if (typeof r.id === 'string' ? !(r.marks || []).length : (before && same(before.marks, r.marks))) continue;
+            // only the marks that still fit the bars as saved - a bar changed after marking leaves its mark behind
+            const marks = FlowJourney.usableMarks(FlowJourney.journeyPlaces(currentFlowBlocks, recOpts(r)), r.marks || []);
+            await API.flows.recordings.setMarks(currentFlowId, id, { marks });
         }
     }
 
@@ -15323,16 +15366,19 @@
         // would silently miss whatever's staged.
         const stagedRecordings = currentFlowDetail.recordings || [];
         const stagedDocuments = currentFlowDetail.documents || [];
+        const stagedSpeedsBeforeMatch = currentFlowDetail.speedsBeforeMatch ?? null; // ML-597
         try {
             currentFlowDetail = await API.flows.update(currentFlowId, {
                 title: nameEl.value.trim(),
                 composer: document.getElementById('flowComposerInput').value,
                 arranger: document.getElementById('flowArrangerInput').value,
                 publisher: document.getElementById('flowPublisherInput').value,
-                description: document.getElementById('flowDescriptionInput').value
+                description: document.getElementById('flowDescriptionInput').value,
+                speedsBeforeMatch: stagedSpeedsBeforeMatch
             });
             await saveFlowMediaEdits(stagedRecordings, stagedDocuments);
             await saveFlowBlockEdits();
+            await saveFlowMarkEdits(stagedRecordings); // ML-597: after the bars, which the marks are checked against
             // Refreshed once more at the end - the Details PATCH's own response (above) predates
             // the media/block syncing that just happened, so it's stale by now (missing real ids
             // for anything just created). Whatever view goBack() lands on next (e.g. Play Flow's
@@ -15948,19 +15994,30 @@
     function recScoreControlsHtml(slide) {
         if (!recScoreOn()) return '';
         const key = flowMediaSlideKey(slide);
-        const mapBtn = currentFlowDetail && currentFlowDetail.canEdit
-            ? `<button type="button" class="metroBlk-ctrl-value-btn" data-act="rec-map" data-arg="${escapeHtml(slide.data.id)}" data-rec-map-btn aria-haspopup="dialog"><strong data-rec-map-lbl></strong><span class="metroBlk-ctrl-value-label">bars marked</span></button>`
-            : '';
-        // ML-587: in a practice, a Play of its own - it counts you in (the practice's count-in), then plays the bars
-        // being practised; the repeat is the practice's bars, shown but not changed here
+        // ML-597: marking the bars (and matching the speeds) is on the piece's Edit -> Media tab only - set up there, not
+        // changed while playing. ML-587: in a practice, a Play of its own - it counts you in (the practice's count-in),
+        // then plays the bars being practised; the repeat is the practice's bars, shown but not changed here.
+        // ML-598: under the boxes, how long the stretch it's in takes on the recording against the piece's speeds.
         return `
             <div class="metro-transport-grid" data-rec-controls="${key}">
                 <button type="button" class="metroBlk-ctrl-value-btn" data-act="rec-loop" data-rec-loop-btn aria-haspopup="dialog"><strong data-rec-loop-lbl>off</strong><span class="metroBlk-ctrl-value-label">repeat</span></button>
                 <button type="button" class="metro-play-grid-btn hidden-group" data-act="rec-play" data-rec-play-btn aria-label="Count in, then play"><span class="material-symbols-outlined" data-rec-play-icon>play_arrow</span><span class="metroBlk-ctrl-value-label">play</span></button>
                 <button type="button" class="metroBlk-ctrl-value-btn" data-act="rec-speed" data-rec-speed-btn aria-haspopup="dialog"><strong data-rec-speed-lbl>100%</strong><span class="metroBlk-ctrl-value-label">play speed</span></button>
-                ${mapBtn}
             </div>
-            <p class="theory-best-line" data-rec-bar-line="${key}" role="status" aria-live="off"></p>`;
+            <p class="theory-best-line" data-rec-bar-line="${key}" role="status" aria-live="off"></p>
+            <p class="text-sm text-muted" data-rec-stretch-line="${key}"></p>`;
+    }
+    // ML-598: the stretch the recording is in (the first, before it's played) - on the recording and at the piece's speeds
+    function recStretchText(slide, atMs) {
+        const r = slide.data;
+        const stretches = FlowJourney.recordingStretches(currentFlowBlocks, recOpts(r), r.marks || [], recordingClip(r));
+        if (!stretches.length) return '';
+        const lines = recordingStretchLines(currentFlowBlocks, r, r.marks || [], recordingClip(r));
+        if (atMs === null) return lines[0];
+        const map = recMapFor(r);
+        const place = map ? FlowJourney.placeAt(map, atMs) : -1;
+        const k = stretches.findIndex(s => place >= s.fromPlace && place <= s.toPlace);
+        return lines[k === -1 ? 0 : k];
     }
     // What the three boxes say on every recording slide - after the repeat, the speed or a map changes.
     function renderRecScoreControls() {
@@ -15987,21 +16044,17 @@
             const speed = recSpeedOf(slide);
             box.querySelector('[data-rec-speed-lbl]').textContent = `${speed}%`;
             box.querySelector('[data-rec-speed-btn]').setAttribute('aria-label', `Play speed - ${speed}%. Tap to change`);
-            const mapLbl = box.querySelector('[data-rec-map-lbl]');
             // ML-531: the marks that still fit the piece - a change to its bars (or making it a piece in movements) can
-            // leave some that don't; they are left out, and the member is told once
+            // leave some that don't; they are left out, and whoever can change the piece is told once
             const stored = (slide.data.marks || []).length;
             const usable = stored ? FlowJourney.usableMarks(FlowJourney.journeyPlaces(currentFlowBlocks, recOpts(slide.data)), slide.data.marks).length : 0;
-            if (stored > usable && !recDroppedTold.has(slide.data.id)) {
+            if (stored > usable && !recDroppedTold.has(slide.data.id) && currentFlowDetail && currentFlowDetail.canEdit) {
                 recDroppedTold.add(slide.data.id);
                 const k = stored - usable;
-                showWarningToast(`${k} bar mark${k === 1 ? '' : 's'} on ${slide.data.title} no longer fit${k === 1 ? 's' : ''} the piece's bars and ${k === 1 ? 'is' : 'are'} left out. Mark ${k === 1 ? 'it' : 'them'} again if you need to.`);
+                showWarningToast(`${k} bar mark${k === 1 ? '' : 's'} on ${slide.data.title} no longer fit${k === 1 ? 's' : ''} the piece's bars and ${k === 1 ? 'is' : 'are'} left out. Mark ${k === 1 ? 'it' : 'them'} again on the piece's Media tab if you need to.`);
             }
-            if (mapLbl) {
-                const n = usable;
-                mapLbl.textContent = n ? String(n) : 'none';
-                box.querySelector('[data-rec-map-btn]').setAttribute('aria-label', `${n ? `${n} bar${n === 1 ? '' : 's'} marked` : 'No bars marked yet'} on ${slide.data.title} - tap to mark where bars fall`);
-            }
+            const stretchLine = document.querySelector(`#flowMediaTrack [data-rec-stretch-line="${box.dataset.recControls}"]`);
+            if (stretchLine && !stretchLine.textContent) stretchLine.textContent = recStretchText(slide, null);
         });
     }
     // While a recording plays, a few times a second: keep it inside the bars being repeated, and say
@@ -16033,6 +16086,8 @@
             const blockId = k === -1 ? null : map.places[k].blockId;
             if (blockId !== recTileBlockId) { recTileBlockId = blockId; renderFlowPlaybackTiles(); }
         }
+        const stretchLine = document.querySelector(`#flowMediaTrack [data-rec-stretch-line="${flowMediaSlideKey(slide)}"]`);
+        if (stretchLine && playing) { const t = recStretchText(slide, at); if (stretchLine.textContent !== t) stretchLine.textContent = t; } // ML-598
         if (line && map) {
             const place = FlowJourney.placeAt(map, at);
             const mv = recMovement(slide.data);
@@ -16158,15 +16213,54 @@
         });
     }
 
-    // --- Marking where bars fall: the "bars marked" pop-up ---
-    // Its own player, like the start-and-end pop-up's. The place being marked steps on by one after
-    // each mark, so tapping along bar by bar marks a run of bars; ◀ ▶ or a typed bar number moves it.
-    let barMap = null; // { recordingId, marks: [...], place, places, media, yt }
+    // --- Marking a recording: its start, the bars and its end (ML-488; ML-597 made it one pop-up, on Edit -> Media) ---
+    // Its own player. The place being marked steps on by one after each mark, so tapping along bar by bar marks a run
+    // of bars; ◀ ▶ or a typed bar number moves it. The start and end are the clip (ML-312) - the same rules as the
+    // old start-and-end pop-up (FlowJourney.cleanClip / nudgeClip), which the Recordings tool still uses.
+    let barMap = null; // { recordingId, marks: [...], clip: { startMs, endMs }, place, places, media, yt, movement }
     const barMapPositionMs = () => {
         if (!barMap) return 0;
         if (barMap.media) return (barMap.media.currentTime || 0) * 1000;
         try { return (barMap.yt && barMap.yt.getCurrentTime ? barMap.yt.getCurrentTime() : 0) * 1000; } catch (error) { return 0; }
     };
+    const barMapDurationMs = () => {
+        if (!barMap) return null;
+        let seconds = 0;
+        if (barMap.media) seconds = barMap.media.duration;
+        else { try { seconds = barMap.yt && barMap.yt.getDuration ? barMap.yt.getDuration() : 0; } catch (error) { seconds = 0; } }
+        return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : null;
+    };
+    function barMapClipMark(which) {
+        if (!barMap) return;
+        const at = Math.round(barMapPositionMs());
+        const next = { ...barMap.clip, [which === 'start' ? 'startMs' : 'endMs']: at };
+        // A start put after the end (or an end before the start) lets go of the other - the one just tapped is meant
+        if (next.startMs && next.endMs && next.endMs - next.startMs < FlowJourney.CLIP_MIN_LENGTH_MS) next[which === 'start' ? 'endMs' : 'startMs'] = null;
+        const checked = FlowJourney.cleanClip(next, barMapDurationMs());
+        if (!checked.ok) { showWarningToast(which === 'end' && at < FlowJourney.CLIP_MIN_LENGTH_MS ? 'Play it to where the piece ends, then tap Ends here.' : checked.message); return; }
+        barMap.clip = { startMs: checked.startMs, endMs: checked.endMs };
+        renderBarMapModal();
+    }
+    function barMapClipNudge(which, deltaMs) {
+        if (!barMap) return;
+        barMap.clip = FlowJourney.nudgeClip(barMap.clip, which, deltaMs, barMapDurationMs());
+        renderBarMapModal();
+        // Hear where the mark now is: the start plays from it; the end plays its last two seconds
+        barMapSeekAndPlay(which === 'start' ? (barMap.clip.startMs || 0) : Math.max(barMap.clip.startMs || 0, (barMap.clip.endMs || barMapDurationMs() || 0) - 2000));
+    }
+    // ML-598: "Bars 1 to 16: 0:42 on the recording, 0:40 at the piece's speeds (5% slower)" - one line a stretch
+    const stretchClock = (ms) => (ms >= 60000 ? FlowJourney.clockText(ms) : `${(ms / 1000).toFixed(1)}s`);
+    function recordingStretchLines(blocks, r, marks, clip) {
+        const places = FlowJourney.journeyPlaces(blocks, recOpts(r));
+        return FlowJourney.recordingStretches(blocks, recOpts(r), marks, clip).map((s) => {
+            const from = FlowJourney.placeLabel(places, s.fromPlace);
+            const to = FlowJourney.placeLabel(places, s.toPlace);
+            const bars = s.fromPlace === s.toPlace ? from : `${from.replace(/^Bar /, 'Bars ')} to ${to.replace(/^Bar /, '')}`;
+            const pct = s.pieceMs ? Math.round((s.playedMs / s.pieceMs - 1) * 100) : 0;
+            const diff = pct === 0 ? 'the same' : `${Math.abs(pct)}% ${pct > 0 ? 'slower' : 'faster'}`;
+            return `${bars}: ${stretchClock(s.playedMs)} on the recording, ${stretchClock(s.pieceMs)} at the piece's speeds (${diff})`;
+        });
+    }
     function barMapSeekAndPlay(ms) {
         if (!barMap) return;
         if (barMap.media) { barMap.media.currentTime = ms / 1000; barMap.media.play().catch(() => { /* wants a tap on the player first */ }); }
@@ -16192,14 +16286,23 @@
                 </div>`).join('')
             : `<p class="text-muted">No bars marked yet. Until one is, ${barMap.movement ? `bar ${barMap.movement.startBar} (the start of ${escapeHtml(FlowJourney.movementLabel(barMap.movement, false))})` : 'bar 1'} is taken to be at the recording's start mark and the rest follows the piece's speeds.</p>`;
         document.getElementById('barMapCount').textContent = used.length ? `${used.length} bar${used.length === 1 ? '' : 's'} marked` : '';
+        const { clip } = barMap;
+        document.getElementById('barMapStartTime').textContent = clip.startMs ? FlowJourney.clockText(clip.startMs) : 'The very start';
+        document.getElementById('barMapEndTime').textContent = clip.endMs ? FlowJourney.clockText(clip.endMs) : 'The very end';
+        const r = (currentFlowDetail?.recordings || []).find(x => String(x.id) === String(barMap.recordingId));
+        const lines = r ? recordingStretchLines(currentFlowBlocks, r, barMap.marks, clip) : [];
+        document.getElementById('barMapStretches').innerHTML = lines.length
+            ? lines.map(l => `<p class="text-sm mb-2">${escapeHtml(l)}</p>`).join('')
+            : '<p class="text-sm text-muted">Tap Ends here, or mark a bar, to see how long the bars take on the recording.</p>';
     }
     function openBarMapModal(recordingId) {
         const r = (currentFlowDetail?.recordings || []).find(x => String(x.id) === String(recordingId));
         const places = r ? FlowJourney.journeyPlaces(currentFlowBlocks, recOpts(r)) : []; // ML-531: a movement's recording - its bars
-        if (!r || !places.length) return;
-        pauseAllFlowMedia(); // the slide's own player must not play under the pop-up's
+        if (!r) return;
+        if (!places.length) { showWarningToast('Add the piece\'s bars first - then mark where they fall in the recording.'); return; }
+        stopFlowEditorMedia(); // the row's own preview must not play under the pop-up's
         const isYoutube = r.type === 'youtube';
-        barMap = { recordingId: r.id, marks: FlowJourney.usableMarks(places, r.marks || []), places, place: 0, media: null, yt: null, movement: recMovement(r) };
+        barMap = { recordingId: r.id, marks: FlowJourney.usableMarks(places, r.marks || []), clip: recordingClip(r), places, place: 0, media: null, yt: null, movement: recMovement(r) };
         // Start on the bar after the last one marked - the next one you will want.
         if (barMap.marks.length) barMap.place = Math.min(places.length - 1, barMap.marks[barMap.marks.length - 1].place + 1);
         document.getElementById('barMapName').textContent = r.title;
@@ -16213,7 +16316,9 @@
                 mine.yt = new YT.Player(frame, {});
             });
         } else {
-            host.innerHTML = `<audio id="barMapMedia" class="flow-media-player-audio" controls preload="metadata" src="${escapeHtml(r.blobUrl)}"></audio>`;
+            host.innerHTML = (r.mimeType || '').startsWith('video/')
+                ? `<div class="flow-media-player-video"><video id="barMapMedia" controls preload="metadata" src="${escapeHtml(r.blobUrl)}"></video></div>`
+                : `<audio id="barMapMedia" class="flow-media-player-audio" controls preload="metadata" src="${escapeHtml(r.blobUrl)}"></audio>`;
             barMap.media = document.getElementById('barMapMedia');
         }
         document.getElementById('barMapBarInput').value = '';
@@ -16265,31 +16370,43 @@
         const m = barMap && barMap.marks.find(x => x.place === place);
         if (m) barMapSeekAndPlay(m.atMs);
     }
-    async function saveBarMapModal() {
+    // Done. In Edit (and for a recording not saved yet) the start, end and marks are kept until Save, like everything
+    // else there (saveFlowMediaEdits, saveFlowMarkEdits); a new piece being made saves them at once.
+    async function saveBarMapModal(opts = {}) {
         if (!barMap) return false;
-        const { recordingId, marks } = barMap;
+        const { recordingId, marks, clip } = barMap;
+        const rec = (currentFlowDetail?.recordings || []).find(x => String(x.id) === String(recordingId));
+        if (!rec) return false;
+        const before = recordingClip(rec);
+        const clipChanged = (before.startMs || null) !== (clip.startMs || null) || (before.endMs || null) !== (clip.endMs || null);
         try {
-            currentFlowDetail = await API.flows.recordings.setMarks(currentFlowDetail.id, recordingId, { marks });
+            if (flowEditMode === 'edit' || typeof recordingId === 'string') {
+                currentFlowDetail.recordings = currentFlowDetail.recordings.map(x => (String(x.id) === String(recordingId) ? { ...x, clipStartMs: clip.startMs, clipEndMs: clip.endMs, marks } : x));
+            } else {
+                if (clipChanged) currentFlowDetail = await API.flows.recordings.setClip(currentFlowId, recordingId, { startMs: clip.startMs, endMs: clip.endMs });
+                currentFlowDetail = await API.flows.recordings.setMarks(currentFlowId, recordingId, { marks });
+            }
         } catch (error) {
             showWarningToast('That couldn\'t be saved: ' + error.message);
             return false;
         }
         closeBarMapModal();
-        // The slides hold the recordings as they were when the play screen opened: give them the new marks.
-        flowMediaSlides.forEach(s => { if (s.data) s.data = currentFlowDetail.recordings.find(r => r.id === s.data.id) || s.data; });
-        renderRecScoreControls();
+        renderFlowRecordingsList();
+        // ML-597: the speeds were matched to this recording and where it starts or ends has moved - offer the old ones
+        if (clipChanged && opts.offer !== false) offerSpeedsBack(recordingId, `where ${rec.title} starts or ends has changed`);
         return true;
     }
 
     // ML-533: the piece's own speeds matched to a recording's marks, so the metronome lands where the recording does
-    // (FlowJourney.matchSpeeds). The marks are saved first; then it says what would change and asks; then each block
-    // that changes is saved, with an Undo that puts the old speeds back.
+    // (FlowJourney.matchSpeeds). The marks are kept first; then it says what would change and asks. ML-597: in Edit the
+    // new speeds are kept until Save like any other change to the bars, and the speeds from before the first match are
+    // kept on the piece (speedsBeforeMatch) so they can be put back later.
     async function matchSpeedsToBarMap() {
         if (!barMap) return;
         const recordingId = barMap.recordingId;
         if (!FlowJourney.usableMarks(barMap.places, barMap.marks).length) { showWarningToast('Mark at least one bar first - where the speed changes, and after a pause.'); return; }
-        if (!(await saveBarMapModal())) return;
-        const r = (currentFlowDetail.recordings || []).find(x => x.id === recordingId);
+        if (!(await saveBarMapModal({ offer: false }))) return; // matching again is the answer to "the speeds no longer fit"
+        const r = (currentFlowDetail.recordings || []).find(x => String(x.id) === String(recordingId));
         if (!r) return;
         const out = FlowJourney.matchSpeeds(currentFlowBlocks, recOpts(r), r.marks || [], recordingClip(r));
         if (!out.ok) { showWarningToast('Mark at least one bar first.'); return; }
@@ -16302,32 +16419,66 @@
         const secs = (s) => `${s.toFixed(s < 1 ? 2 : 1)} seconds`;
         const worst = out.inside.length ? Math.max(...out.inside.map(m => m.errorSeconds)) : 0;
         const inside = out.inside.length ? ` ${out.inside.length === 1 ? `The mark on bar ${out.inside[0].number} is` : `${out.inside.length} marks (bars ${out.inside.map(m => m.number).join(', ')}) are`} part-way through a block of bars, where the speed can't change: ${out.inside.length === 1 ? 'it would be' : 'they would be up to'} ${secs(worst)} out. To meet ${out.inside.length === 1 ? 'it' : 'them'} too, split the bars there in the edit screen, then match again.` : '';
+        const band = currentFlowDetail.ownerBandId ? ' Everyone in the band will play at these speeds.' : ''; // ML-597: said plainly on a band's piece
         showConfirmModal('Match the piece\'s speeds?',
-            `${out.changes.length} speed${out.changes.length === 1 ? '' : 's'} would change, by up to ${most} bpm (${list}). The metronome would then meet the bars you marked${onStarts} ${near}.${inside} You can undo it straight after.`,
-            () => applyMatchedSpeeds(out), false, 'Change the speeds', 'Leave them');
+            `${out.changes.length} speed${out.changes.length === 1 ? '' : 's'} would change, by up to ${most} bpm (${list}). The metronome would then meet the bars you marked${onStarts} ${near}.${inside}${band} The speeds from before are kept, so you can put them back.`,
+            () => applyMatchedSpeeds(out, r.id), false, 'Change the speeds', 'Leave them');
     }
-    async function applyMatchedSpeeds(out) {
-        const before = out.changes.map(c => ({ id: c.blockId, bpm: c.oldBpm, ramps: (currentFlowBlocks[c.blockIndex].ramps || []).map(x => ({ ...x })) }));
-        const after = out.changes.map(c => ({ id: c.blockId, bpm: c.newBpm, ramps: out.blocks[c.blockIndex].ramps || [] }));
-        const write = async (list) => {
-            for (const b of list) await API.flows.blocks.update(b.id, { bpm: b.bpm, ramps: b.ramps });
-            const blocks = await API.flows.blocks.list(currentFlowDetail.id); // the play screen has the piece in currentFlowDetail
-            flowLeadInBlock = blocks.find(x => x.isLeadIn) || null;
-            currentFlowBlocks = blocks.filter(x => !x.isLeadIn);
-            buildFlowPlayQueue();
-            renderFlowPlaybackRow();
-            renderFlowPlaybackTiles(); // the tiles show each block's speed
-            renderFlowPlaySummary();
-            renderRecScoreControls();
-        };
+
+    // ML-597: the bars' speeds and speed changes, block by block - the real (saved) blocks only
+    const speedsOfBlocks = () => currentFlowBlocks.filter(b => typeof b.id !== 'string').map(b => ({ id: b.id, bpm: b.bpm, ramps: (b.ramps || []).map(x => ({ ...x })) }));
+    // Puts speeds onto the piece: in Edit onto the bars being edited (saved with Save); otherwise saved now
+    async function writeBlockSpeeds(list, speedsBeforeMatch) {
+        const byId = new Map(list.map(b => [String(b.id), b]));
+        if (flowEditMode === 'edit') {
+            currentFlowBlocks.forEach(b => { const s = byId.get(String(b.id)); if (s) { b.bpm = s.bpm; b.ramps = (s.ramps || []).map(x => ({ ...x })); } });
+            currentFlowDetail.speedsBeforeMatch = speedsBeforeMatch;
+            renderFlowBlocksStudio();
+            renderFlowRecordingsList();
+            return;
+        }
+        for (const b of list) await API.flows.blocks.update(b.id, { bpm: b.bpm, ramps: b.ramps });
+        currentFlowDetail = await API.flows.update(currentFlowId, { speedsBeforeMatch });
+        const blocks = await API.flows.blocks.list(currentFlowId);
+        flowLeadInBlock = blocks.find(x => x.isLeadIn) || null;
+        currentFlowBlocks = blocks.filter(x => !x.isLeadIn);
+        renderFlowBlocksStudio();
+        renderFlowRecordingsList();
+    }
+    async function applyMatchedSpeeds(out, recordingId) {
+        const before = speedsOfBlocks();
+        const keptBefore = currentFlowDetail.speedsBeforeMatch || null;
+        // The speeds from before the FIRST match are the ones kept - matching again (to this or another recording) keeps them
+        const kept = { recordingId: typeof recordingId === 'string' ? null : recordingId, blocks: keptBefore ? keptBefore.blocks : before };
+        const changed = new Map(out.changes.map(c => [String(c.blockId), { id: c.blockId, bpm: c.newBpm, ramps: out.blocks[c.blockIndex].ramps || [] }]));
+        const after = before.map(b => changed.get(String(b.id)) || b);
         try {
-            await write(after);
-            showUndoToast(`${out.changes.length} speed${out.changes.length === 1 ? '' : 's'} changed to match the recording`, async () => {
-                try { await write(before); } catch (e) { showWarningToast('The old speeds couldn\'t be put back: ' + e.message); }
+            await writeBlockSpeeds(after, kept);
+            const saveWord = flowEditMode === 'edit' ? ' - Save to keep them' : '';
+            showUndoToast(`${out.changes.length} speed${out.changes.length === 1 ? '' : 's'} changed to match the recording${saveWord}`, async () => {
+                try { await writeBlockSpeeds(before, keptBefore); } catch (e) { showWarningToast('The old speeds couldn\'t be put back: ' + e.message); }
             });
         } catch (e) {
             showWarningToast('The speeds couldn\'t all be saved: ' + e.message);
         }
+    }
+    // ML-597: the speeds from before the first match, back on the bars that are still there
+    async function restoreSpeedsBeforeMatch() {
+        const kept = currentFlowDetail && currentFlowDetail.speedsBeforeMatch;
+        if (!kept) return;
+        try {
+            await writeBlockSpeeds(kept.blocks, null);
+            showSuccessToast(flowEditMode === 'edit' ? 'The original speeds are back - Save to keep them' : 'The original speeds are back');
+        } catch (e) { showWarningToast('The original speeds couldn\'t be put back: ' + e.message); }
+    }
+    // Offered - never done on its own (owner, 23 Oct 2026) - when the recording the speeds were matched to is taken off,
+    // or where it starts or ends moves.
+    function offerSpeedsBack(recordingId, why) {
+        const kept = currentFlowDetail && currentFlowDetail.speedsBeforeMatch;
+        if (!kept || kept.recordingId === null || String(kept.recordingId) !== String(recordingId)) return;
+        // after whatever pop-up asked first has closed (the confirm pop-up closes itself once its answer has run)
+        setTimeout(() => showConfirmModal('Put the original speeds back?', `The piece's speeds were matched to this recording, and ${why}. Put back the speeds the piece had before, or keep the matched ones?`,
+            () => restoreSpeedsBeforeMatch(), false, 'Put them back', 'Keep these speeds'), 0);
     }
 
     // ===== ML-489: the Recordings tool (the rehearsal score, step B) =====

@@ -66,7 +66,14 @@ A recording's or video's slide has three value boxes under the player and a line
   (what `getAvailablePlaybackRates` says - usually 25% to 200% in 25s), so it offers the list's speeds it can play
   and plays the nearest of them: 70% on the metronome is 75% on a video, and the metronome stays at 70%
   (`recSpeedsFor` / `recSpeedOf`). In a practice, choosing a speed here is a Custom speed for that go (ML-588).
-- **bars marked** - how many marks there are; opens "Mark the bars". Only for someone who can change the piece.
+- **No "bars marked" here (ML-597, owner 23 Oct 2026).** Marking the bars, and matching the piece's speeds to them,
+  is set up on the piece's **Edit → Media** tab only - it isn't changed while playing, and it was unclear whether marks
+  made here were saved on the piece (and so for everyone in a band). See "Marking" below.
+- **How long it takes (ML-598)** - a line under the boxes: the stretch the recording is in (between the start mark,
+  bar marks and the end mark) - its length on the recording against at the piece's speeds, and how much slower or
+  faster (`recStretchText`).
+- **In a practice (ML-587)** the slide gets its own **Play** - the practice's count-in, then the practised bars - and
+  its repeat is the practice's bars, shown but not changed.
 - Tapping a **bar tile** while a recording's slide is showing starts the recording at that bar.
 - **The bar tiles light up** for where the recording is, as they do for the metronome (the owner, 8 Oct
   2026): `flowActiveTileBlockId` is where a recording is when its slide is showing and it has been played,
@@ -110,10 +117,21 @@ that is a touch out still catches the first note. **Rest bars are ignored on a r
 
 ### Marking
 
-"Mark the bars" (`#barMapModal`): its own player; a bar to mark (Bar before / Next bar, or type a bar
-number); **This is bar N** puts the mark where the player is and steps on to the next bar - so tapping
-along bar by bar marks a run of them. A mark that would make the recording run backwards is refused,
-saying which mark it clashes with. Save replaces the whole list.
+**Start, bars and end** (`#barMapModal`, ML-597 - it was "Mark the bars" on the play screen plus a separate start-and-end
+pop-up): one pop-up, opened from a recording's **start, bars and end** value box on the piece's **Edit → Media** tab
+(the box shows "0:12 to 4:05 · 6 bars marked"). Its own player; **Starts here** (with a second's nudge either way); a bar
+to mark (Bar before / Next bar, or type a bar number) - **This is bar N** puts the mark where the player is and steps on
+to the next bar, so tapping along bar by bar marks a run of them; **Ends here**; then **How long it takes** (ML-598).
+A mark that would make the recording run backwards is refused, saying which mark it clashes with. **Done** keeps the
+start, the end and the whole list of marks - **in Edit, until Save**, like everything else on that screen (the marks are
+saved after the bars, `saveFlowMarkEdits`, keeping only the ones that still fit them); a new piece being made saves them
+at once. The Recordings tool still uses the start-and-end pop-up on its own (`openClipPopup`).
+
+**How long it takes (ML-598, owner 23 Oct 2026):** `FlowJourney.recordingStretches` - the recording split at its fixed
+points (the start mark, each usable mark, the end mark; with only a start and an end it is one stretch), each with how
+long it lasts on the recording and at the piece's own speeds. Shown in the pop-up and under the recording on the Media
+tab, one line a stretch, and on the play screen for the stretch it's in. With no end mark the bars after the last fixed
+point aren't measured. Tests: "how long each stretch of a recording takes" in `server/test/rehearsalScore.test.js`.
 
 `usableMarks` drops a mark the map can't use: outside the piece, at a time that isn't a time, out of
 order, or made on a bar that is no longer the same bar (each mark remembers its bar number and which time
@@ -161,10 +179,19 @@ Tests: "a recording of one movement (ML-531)" in `server/test/rehearsalScore.tes
 ## Matching the piece's speeds to a recording (ML-533)
 
 Mark the bars makes the **recording** follow the bars. When the piece's own speeds are off - The Snowman against a
-YouTube performance, 19 Oct 2026 - the **metronome** can be made to follow the recording too: "Mark the bars" has
-**Match the piece's speeds to these marks** (for whoever can change the piece). It saves the marks, then says what
+YouTube performance, 19 Oct 2026 - the **metronome** can be made to follow the recording too: the Start, bars and end
+pop-up has **Match the piece's speeds to these marks** (for whoever can change the piece). It keeps the marks, then says what
 would change ("1 speed would change, by up to 13 bpm (bars 1-8: 120 to 107). The metronome would then meet the bars
-you marked to within 0.06 seconds."), changes the speeds only when asked, and Undo puts them back.
+you marked to within 0.06 seconds."), changes the speeds only when asked, and Undo puts them back. On a band's piece it
+says plainly that everyone in the band will play at these speeds (ML-597). In Edit the new speeds are kept until Save,
+like any other change to the bars.
+
+**The speeds from before (ML-597, owner 23 Oct 2026):** the first match keeps every bar block's speed and speed changes
+on the piece (`scores.speeds_before_match`, migration 152: `{ recordingId, blocks: [{ id, bpm, ramps }] }`; matching again
+keeps the first ones). **Put the original speeds back** is under the matched recording on the Media tab (or under the
+videos, once that recording has gone). It is **offered, never done on its own**, when the matched recording is taken
+off or where it starts or ends changes. Saved through the piece's own update (`PUT /api/flows/:id`,
+`cleanSpeedsBeforeMatch`); blocks added since keep their speed.
 
 `FlowJourney.matchSpeeds(blocks, opts, marks, clip)`:
 - each block's speed is scaled by how long its bars last on the recording against how long they last at its own

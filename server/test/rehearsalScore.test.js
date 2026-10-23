@@ -278,3 +278,36 @@ describe('matching the piece\'s speeds to a recording (ML-533)', () => {
         assert.equal(FJ.matchSpeeds(two(), {}, [], { startMs: 1000, endMs: null }).reason, 'noMarks');
     });
 });
+
+describe('how long each stretch of a recording takes against the piece (ML-598)', () => {
+    test('a start and an end mark: one stretch, the whole piece', () => {
+        // 8 bars of 2 seconds = 16 seconds by the piece; the band took 20
+        const out = FJ.recordingStretches(eight(), {}, [], { startMs: 10000, endMs: 30000 });
+        assert.deepEqual(out, [{ fromPlace: 0, toPlace: 7, playedMs: 20000, pieceMs: 16000 }]);
+    });
+
+    test('every mark between them splits it - each stretch on its own', () => {
+        const places = FJ.journeyPlaces(eight(), {});
+        const out = FJ.recordingStretches(eight(), {}, [mark(places, 4, 11000)], { startMs: 1000, endMs: 18000 });
+        assert.deepEqual(out, [
+            { fromPlace: 0, toPlace: 3, playedMs: 10000, pieceMs: 8000 },
+            { fromPlace: 4, toPlace: 7, playedMs: 7000, pieceMs: 8000 }
+        ]);
+    });
+
+    test('with no end mark the bars after the last fixed point are not measured', () => {
+        const places = FJ.journeyPlaces(eight(), {});
+        assert.deepEqual(FJ.recordingStretches(eight(), {}, [], null), []);
+        assert.deepEqual(FJ.recordingStretches(eight(), {}, [mark(places, 2, 5000)], null), [{ fromPlace: 0, toPlace: 1, playedMs: 5000, pieceMs: 4000 }]);
+    });
+
+    test('a mark on bar 1 is the start, and a repeat is counted in the order it is played', () => {
+        const blocks = [blk('A', { barCount: 2, isRepeatStart: true, isRepeatEnd: true }), blk('B', { barCount: 1 })];
+        const places = FJ.journeyPlaces(blocks, {});
+        const out = FJ.recordingStretches(blocks, {}, [mark(places, 0, 3000), mark(places, 2, 8000)], { startMs: 1000, endMs: 15000 });
+        assert.deepEqual(out, [
+            { fromPlace: 0, toPlace: 1, playedMs: 5000, pieceMs: 4000 },
+            { fromPlace: 2, toPlace: 4, playedMs: 7000, pieceMs: 6000 }
+        ]);
+    });
+});

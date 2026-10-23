@@ -2579,16 +2579,24 @@
         </div>
     </div>
 
-    <!-- ML-488: marking where bars fall in a recording or video (the rehearsal score, step C). Opened
-         from the "bars marked" value box on a recording's slide on the play screen, by whoever can change
-         the piece. Its own player, put into #barMapPlayerHost when it opens and taken out when it closes.
-         It has a field to type into, so a tap outside does not close it. specs/components/rehearsal-score.md -->
+    <!-- ML-488: marking where bars fall in a recording or video (the rehearsal score, step C). ML-597 (owner, 23 Oct
+         2026): only on the piece's Edit -> Media tab now, never the play screen, and one pop-up for the start, the bars
+         and the end (it was two). Kept until Save in Edit, like everything else there. Its own player, put into
+         #barMapPlayerHost when it opens and taken out when it closes. It has a field to type into, so a tap outside
+         does not close it. specs/components/rehearsal-score.md -->
     <div class="modal" id="barMapModal" role="dialog" aria-modal="true" aria-labelledby="barMapModalTitle">
         <div class="modal-content"><button type="button" class="modal-close-x" data-act="barmap-close" aria-label="Close">&times;</button>
-            <h2 id="barMapModalTitle">Mark the bars</h2>
+            <h2 id="barMapModalTitle">Start, bars and end</h2>
             <p class="metro-help-text"><strong id="barMapName"></strong></p>
-            <p class="metro-help-text">Play it. When the band reaches a bar you know, choose that bar and tap the button as it starts. A few are enough - where the speed changes, and after a pause. The bars in between are worked out for you.</p>
+            <p class="metro-help-text">Play it. Tap <strong>Starts here</strong> when the piece begins and <strong>Ends here</strong> when it is over. In between, mark a few bars you know as they start - where the speed changes, and after a pause; the bars between are worked out for you. The recording itself is not changed.</p>
             <div id="barMapPlayerHost"></div>
+
+            <div class="section-title"><span>Start</span><span id="barMapStartTime" aria-live="polite">The very start</span></div>
+            <button type="button" class="flow-action-btn flow-action-btn-wide" data-act="barmap-clip-mark" data-arg="start"><span class="material-symbols-outlined" aria-hidden="true">first_page</span> Starts here</button>
+            <div class="flex-row gap-sm">
+                <button type="button" class="btn-text" data-act="barmap-clip-nudge" data-arg="start" data-ms="-1000" aria-label="Start 1 second earlier">1 second back</button>
+                <button type="button" class="btn-text" data-act="barmap-clip-nudge" data-arg="start" data-ms="1000" aria-label="Start 1 second later">1 second on</button>
+            </div>
 
             <div class="section-title"><span>Which bar</span><span id="barMapPlaceLbl" aria-live="polite"></span></div>
             <div class="flex-row gap-sm">
@@ -2607,8 +2615,20 @@
             <div class="section-title"><span>Marked</span><span id="barMapCount"></span></div>
             <div id="barMapList"></div>
 
-            <button type="button" class="btn-submit" data-act="barmap-save">Save</button>
-            <!-- ML-533: the piece's own speeds (so the metronome) matched to these marks - saves the marks first, then asks -->
+            <div class="section-title"><span>End</span><span id="barMapEndTime" aria-live="polite">The very end</span></div>
+            <button type="button" class="flow-action-btn flow-action-btn-wide" data-act="barmap-clip-mark" data-arg="end"><span class="material-symbols-outlined" aria-hidden="true">last_page</span> Ends here</button>
+            <div class="flex-row gap-sm">
+                <button type="button" class="btn-text" data-act="barmap-clip-nudge" data-arg="end" data-ms="-1000" aria-label="End 1 second earlier">1 second back</button>
+                <button type="button" class="btn-text" data-act="barmap-clip-nudge" data-arg="end" data-ms="1000" aria-label="End 1 second later">1 second on</button>
+            </div>
+
+            <!-- ML-598: each stretch between the start, the marks and the end - how long on the recording, and at the piece's speeds -->
+            <div class="section-title"><span>How long it takes</span></div>
+            <div id="barMapStretches" role="status" aria-live="polite"></div>
+
+            <button type="button" class="btn-submit" data-act="barmap-save">Done</button>
+            <!-- ML-533: the piece's own speeds (so the metronome) matched to these marks - ML-597: kept until Save in Edit,
+                 and the speeds from before are kept on the piece so they can be put back -->
             <button type="button" class="btn-nav" data-act="barmap-match" id="barMapMatchBtn">Match the piece's speeds to these marks</button>
             <button type="button" class="btn-cancel btn-nav" data-act="barmap-close">Cancel</button>
         </div>

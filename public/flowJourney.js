@@ -1022,6 +1022,31 @@
         return { places: out, marks: used, totalMs: out[n - 1].endMs, span: [points[0][0], points[points.length - 1][0]] };
     }
 
+    // ML-598: how long each stretch of a recording takes against how long the same bars take at the piece's own speeds.
+    // A stretch runs between two fixed points - the start mark (where bar 1 is, or a movement's first bar), each usable
+    // mark, and the end mark - so a recording with only a start and an end is one stretch, and every mark between
+    // splits it. With no end mark the bars after the last fixed point aren't measured. The points are the ones
+    // recordingMap stretches the bars between. Returns [{ fromPlace, toPlace (its last place), playedMs, pieceMs }].
+    function recordingStretches(blocks, opts, marks, clip) {
+        const places = journeyPlaces(blocks, opts);
+        if (!places.length) return [];
+        const n = places.length;
+        const pieceEnd = places[n - 1].at + places[n - 1].seconds;
+        const points = usableMarks(places, marks).map(m => ({ place: m.place, t: places[m.place].at, ms: m.atMs }));
+        const startMs = clip && clip.startMs ? clip.startMs : 0;
+        if (!points.length || (points[0].t > 0 && startMs < points[0].ms)) points.unshift({ place: 0, t: 0, ms: startMs });
+        const endMs = clip && clip.endMs ? clip.endMs : null;
+        const last = points[points.length - 1];
+        if (endMs !== null && last.t < pieceEnd && endMs > last.ms) points.push({ place: n, t: pieceEnd, ms: endMs });
+        const out = [];
+        for (let k = 1; k < points.length; k++) {
+            const a = points[k - 1];
+            const b = points[k];
+            out.push({ fromPlace: a.place, toPlace: b.place - 1, playedMs: b.ms - a.ms, pieceMs: Math.round((b.t - a.t) * 1000) });
+        }
+        return out;
+    }
+
     // ML-533: the piece's speeds matched to a recording's marked bars - so the metronome lands where the recording does.
     // Each block's speed is scaled by how long its bars last on the recording against how long they last at its own
     // speed (every time it plays, over the stretch the marks measure; a block outside that stretch keeps its speed).
@@ -1109,7 +1134,7 @@
     }
 
     return {
-        journeyPlaces, placeLabel, usableMarks, recordingMap, placeAt, mapLoop,
+        journeyPlaces, placeLabel, usableMarks, recordingMap, recordingStretches, placeAt, mapLoop,
         cleanClip, nudgeClip, clockText, clipLabel, clipAction, CLIP_MIN_LENGTH_MS,
         METER_TABLE, meterInfo, writtenBeatsPerBar, writtenBeatToClick, pauseStepsPerBeat,
         buildJourney, passagesOf, loopPlan, countInSteps, barNumberOf, totalBars, tempoAt, rampSpans, pausesInBar,
