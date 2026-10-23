@@ -6958,7 +6958,7 @@
     // top (ML-400: it opens the Add a piece screen). The filter and search start fresh on each visit.
     function metroBlkShowEntryScreen() {
         document.getElementById('metroBlkEntryScreen')?.classList.remove('hidden-group');
-        flowLibraryFilter = 'all';
+        flowLibraryState = {};
         flowLibraryQuery = '';
         const search = document.getElementById('flowLibrarySearch');
         if (search) search.value = '';
@@ -9516,11 +9516,13 @@
     document.querySelectorAll('[data-new-list]').forEach(b => b.addEventListener('click', () => newPracticeList()));
     // The practice lists, drawn into both screens' Practice lists tab
     let plShowArchived = false;
+    let plCurrentLists = []; // ML-595: the lists, for My music's filter "On a practice list"
     async function renderPracticeListRows() {
         if (!isFeatureEnabled('practice_levels')) return;
         const boxes = document.querySelectorAll('[data-practice-lists]');
         try {
             const { lists: current } = await API.practiceLists.list();
+            plCurrentLists = current;
             // Archived lists are out of the way until asked for: two pills, there only once a list is archived
             if (!plArchivedLists.length) plShowArchived = false;
             const lists = plShowArchived ? plArchivedLists : current;
@@ -10361,9 +10363,137 @@
     // an oversight), same "list-item-menu-btn + one shared floating menu" pattern as session history.
     // ML-310 / ML-329: All / Mine (your own) / one pill per band / Public, plus a title/composer search -
     // both per visit only. A band pill shows once one of its pieces is in the list.
-    let flowLibraryFilter = 'all';
+    // ===== ML-595: FILTERS - one Filter button on every list (owner, 23 Oct 2026) =====
+    // The button says how many filters are on and how many things show ("4 filters on · showing 3 of 42"); the filters
+    // on are chips under it, each with an x that takes just that one off, and Clear all. Tapping it lists every way of
+    // filtering in one pop-up - a group's choices are pills that wrap, a yes/no is a switch - each choice saying how
+    // many it would show, and the list behind changes as you tap. Inside a pop-up (a pick list) the filters open in place
+    // of the list, never as a second pop-up. The rules are public/filters.js; specs/components/filter-bar.md.
+    // cfg: { id (the bar's element), title ('Show pieces'), allLabel ('All pieces'), noun ('pieces'), groups(), state(),
+    //        setState(s), items() (what the groups count over), match(item, key, value), shown(), total(), onChange(),
+    //        modal (the pick list's pop-up id, to open in place) }
+    const filterCfgs = {};
+    const filterPlural = (n) => `${n} filter${n === 1 ? '' : 's'} on`;
+    function renderFilterBar(cfg) {
+        filterCfgs[cfg.id] = cfg;
+        const bar = document.getElementById(cfg.id);
+        if (!bar) return;
+        const groups = cfg.groups();
+        const state = Filters.clean(groups, cfg.state());
+        const n = Filters.activeCount(groups, state);
+        const showing = n ? `showing ${cfg.shown()} of ${cfg.total()}` : `showing ${cfg.total()}`;
+        bar.innerHTML = `<div class="filter-bar-row">
+                <button type="button" class="metroBlk-ctrl-value-btn${n ? ' metroBlk-ctrl-value-btn-on' : ''}" data-filter-open aria-haspopup="dialog" aria-label="${n ? filterPlural(n) : escapeHtml(cfg.allLabel)}, ${showing} - tap to ${n ? 'change' : 'filter'}"><span class="material-symbols-outlined" aria-hidden="true">filter_list</span><span class="filter-bar-text"><strong>${n ? filterPlural(n) : escapeHtml(cfg.allLabel)}</strong><span class="metroBlk-ctrl-value-label">${showing} · tap to ${n ? 'change' : 'filter'}</span></span></button>
+                ${n ? '<button type="button" class="btn-text" data-filter-clear>Clear all</button>' : ''}
+            </div>
+            ${n ? `<div class="filter-bar-chips" role="group" aria-label="Filters on">${Filters.chips(groups, state).map(c => `<button type="button" class="filter-pill active filter-chip" data-filter-chip="${escapeHtml(c.group)}" data-value="${escapeHtml(c.value)}" aria-label="Take off the filter ${escapeHtml(c.label)}">${escapeHtml(c.label)}<span class="material-symbols-outlined" aria-hidden="true">close</span></button>`).join('')}</div>` : ''}`;
+        bar.querySelector('[data-filter-open]').addEventListener('click', () => openFilterPanel(cfg.id));
+        bar.querySelector('[data-filter-clear]')?.addEventListener('click', () => { cfg.setState({}); cfg.onChange(); });
+        bar.querySelectorAll('[data-filter-chip]').forEach(b => b.addEventListener('click', () => { cfg.setState(Filters.toggle(state, groups, b.dataset.filterChip, b.dataset.value)); cfg.onChange(); }));
+    }
+    // Every way of filtering: a heading and pills for a group, a switch for a yes/no (toggle: true), each choice with
+    // how many it would show (a group the screen handles itself gives its own count)
+    function filterPanelHtml(cfg) {
+        const groups = cfg.groups();
+        const state = Filters.clean(groups, cfg.state());
+        const items = cfg.items();
+        return groups.filter(g => g.options.length).map((g) => {
+            if (g.toggle) {
+                const o = g.options[0];
+                const on = (state[g.key] || []).includes(o.value);
+                return `<div class="display-toggle-row warmups-settings-row"><span id="flt-${cfg.id}-${g.key}">${escapeHtml(o.label)}${g.help ? `<span class="display-toggle-help">${escapeHtml(g.help)}</span>` : ''}</span><label class="toggle-switch"><input type="checkbox" data-filter-pick="${escapeHtml(g.key)}" data-value="${escapeHtml(o.value)}" aria-labelledby="flt-${cfg.id}-${g.key}"${on ? ' checked' : ''}><span class="toggle-slider"></span></label></div>`;
+            }
+            return `<h3 class="warmups-settings-head" id="fltg-${cfg.id}-${g.key}">${escapeHtml(g.label)}</h3><div class="filter-panel-choices" role="group" aria-labelledby="fltg-${cfg.id}-${g.key}">${g.options.map((o) => {
+                const on = (state[g.key] || []).includes(o.value);
+                const count = g.apply === false ? (o.count ?? '') : Filters.count(items, groups, state, cfg.match, g.key, o.value);
+                return `<button type="button" class="filter-pill${on ? ' active' : ''}" data-filter-pick="${escapeHtml(g.key)}" data-value="${escapeHtml(o.value)}" aria-pressed="${on}">${on ? '<span class="material-symbols-outlined" aria-hidden="true">check</span>' : ''}${escapeHtml(o.label)} <span class="filter-pill-count">${count}</span></button>`;
+            }).join('')}</div>`;
+        }).join('') || '<p class="text-sm text-muted">Nothing to filter by yet.</p>';
+    }
+    function wireFilterPanel(box, cfg, redraw) {
+        const pick = (key, value) => {
+            const groups = cfg.groups();
+            cfg.setState(Filters.toggle(Filters.clean(groups, cfg.state()), groups, key, value));
+            cfg.onChange();
+            redraw();
+        };
+        box.querySelectorAll('button[data-filter-pick]').forEach(b => b.addEventListener('click', () => pick(b.dataset.filterPick, b.dataset.value)));
+        box.querySelectorAll('input[data-filter-pick]').forEach(b => b.addEventListener('change', () => pick(b.dataset.filterPick, b.dataset.value)));
+        box.querySelector('[data-filter-clear-all]')?.addEventListener('click', () => { cfg.setState({}); cfg.onChange(); redraw(); });
+    }
+    const filterClearAllHtml = (cfg) => (Filters.activeCount(cfg.groups(), cfg.state()) ? '<button type="button" class="btn-text" data-filter-clear-all>Clear all</button>' : '');
+    function openFilterPanel(id) {
+        const cfg = filterCfgs[id];
+        if (!cfg) return;
+        if (cfg.modal) { openFilterInPopup(cfg); return; }
+        document.getElementById('flowChoiceTitle').innerText = cfg.title;
+        const inlineExtra = document.getElementById('flowChoiceInlineExtra');
+        inlineExtra.classList.add('hidden-group');
+        inlineExtra.innerHTML = '';
+        const box = document.getElementById('flowChoiceOptions');
+        const redraw = () => {
+            box.innerHTML = filterPanelHtml(cfg) + filterClearAllHtml(cfg);
+            wireFilterPanel(box, cfg, redraw);
+            document.getElementById('flowChoiceCancelBtn').textContent = `Show ${cfg.shown()} ${cfg.noun}`;
+        };
+        redraw();
+        showModal('flowChoiceModal');
+    }
+    // In a pick list's own pop-up: the list steps aside and the filters take its place - Done brings it back
+    function openFilterInPopup(cfg) {
+        const modal = document.getElementById(cfg.modal);
+        const area = modal && modal.querySelector('.metroSeg-scroll-area');
+        if (!area) return;
+        closeFilterInPopup(cfg.modal);
+        const footer = modal.querySelector('.metroSeg-sticky-footer');
+        [...area.children, footer].filter(Boolean).forEach(el => { if (isShown(el)) { el.dataset.filterHid = '1'; setShown(el, false); } });
+        const panel = document.createElement('div');
+        panel.dataset.filterPanel = '1';
+        area.appendChild(panel);
+        const backTo = (modal.querySelector('h2')?.textContent || 'the list').trim();
+        const redraw = () => {
+            panel.innerHTML = `<button type="button" class="btn-text flex-row items-center gap-sm" data-filter-back><span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>${escapeHtml(backTo)}</button>
+                <h2>${escapeHtml(cfg.title)}</h2>${filterPanelHtml(cfg)}${filterClearAllHtml(cfg)}
+                <button type="button" class="btn-submit" data-filter-back>Done - show ${cfg.shown()}</button>`;
+            wireFilterPanel(panel, cfg, redraw);
+            panel.querySelectorAll('[data-filter-back]').forEach(b => b.addEventListener('click', () => closeFilterInPopup(cfg.modal)));
+        };
+        redraw();
+        area.scrollTop = 0;
+    }
+    function closeFilterInPopup(modalId) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+        modal.querySelectorAll('[data-filter-panel]').forEach(p => p.remove());
+        modal.querySelectorAll('[data-filter-hid]').forEach(el => { delete el.dataset.filterHid; setShown(el, true); });
+    }
+
+    // The ways a list of pieces can be filtered - the same groups wherever pieces are listed. opts: { prepared, lists,
+    // archived: the archived pieces (a switch - they are a different list) }. Only choices that something has are offered.
+    function pieceFilterGroups(items, opts = {}) {
+        const whoseKeys = new Set(items.map(flowLibraryFilterKey));
+        const bands = [...whoseKeys].filter(k => k.startsWith('band:')).map(k => ({ value: k, label: flowLibraryBandNames[Number(k.slice(5))] || 'Band' })).sort((a, b) => a.label.localeCompare(b.label));
+        const whose = [...(whoseKeys.has('mine') ? [{ value: 'mine', label: 'Mine' }] : []), ...bands, ...(whoseKeys.has('public') ? [{ value: 'public', label: 'Public' }] : [])];
+        const has = [...(items.some(f => f.recordingCount > 0) ? [{ value: 'recording', label: 'A recording' }] : []), ...(items.some(f => f.documentCount > 0) ? [{ value: 'sheet', label: 'Sheet music' }] : [])];
+        const groups = [{ key: 'whose', label: 'Whose', options: whose.length > 1 ? whose : [] }, { key: 'has', label: 'Has', options: has }];
+        if (opts.prepared) groups.push({ key: 'prepared', label: 'Prepared', single: true, options: [{ value: 'yes', label: 'Prepared' }, { value: 'no', label: 'Not prepared yet' }] });
+        if (opts.lists) groups.push({ key: 'list', label: 'On a practice list', options: (plCurrentLists || []).filter(l => items.some(f => (f.listIds || []).includes(l.id))).map(l => ({ value: String(l.id), label: l.name })) });
+        if (opts.archived) groups.push({ key: 'archived', label: 'Archived', toggle: true, apply: false, help: 'Show the pieces you have archived instead', options: opts.archived.length ? [{ value: 'yes', label: 'Archived pieces', count: opts.archived.length }] : [] });
+        return groups;
+    }
+    function pieceFilterMatch(f, key, value) {
+        if (key === 'whose') return flowLibraryFilterKey(f) === value;
+        if (key === 'has') return value === 'recording' ? f.recordingCount > 0 : f.documentCount > 0;
+        if (key === 'prepared') return !!f.prepared === (value === 'yes');
+        if (key === 'list') return (f.listIds || []).includes(Number(value));
+        return true;
+    }
+    const pieceSearchMatch = (f, q) => !q || `${f.title || ''} ${f.composer || ''}`.toLowerCase().includes(q);
+
+    let flowLibraryState = {};
     let flowLibraryQuery = '';
     let flowLibraryBandNames = {};
+    const flowLibraryShowsArchived = () => (flowLibraryState.archived || []).includes('yes') && flowsArchivedCache.length > 0;
     async function loadFlowLibraryBandNames() {
         try {
             const bands = (await API.account.getBands()).myBands || [];
@@ -10376,39 +10506,27 @@
         if (f.isPublic) return 'public';
         return f.ownerBandId ? 'band:' + f.ownerBandId : 'mine';
     }
+    // ML-595: My music's Filter - whose, has, prepared, on a practice list, and the archived pieces (a switch: they are
+    // shown instead of the others, still narrowed by the rest). Per visit only.
+    const flowLibraryBase = () => (flowLibraryShowsArchived() ? flowsArchivedCache : flowsListCache);
+    const flowLibraryGroups = () => pieceFilterGroups(flowLibraryBase(), { prepared: true, lists: isFeatureEnabled('practice_levels'), archived: flowsArchivedCache });
     function renderFlowLibraryFilter() {
-        const pills = document.getElementById('flowLibraryFilterPills');
-        if (!pills) return;
-        const counts = { all: flowsListCache.length, mine: 0, public: 0 };
-        flowsListCache.forEach(f => { const k = flowLibraryFilterKey(f); counts[k] = (counts[k] || 0) + 1; });
-        const bandKeys = Object.keys(counts).filter(k => k.startsWith('band:'))
-            .map(k => [k, flowLibraryBandNames[Number(k.slice(5))] || 'Band'])
-            .sort((a, b) => a[1].localeCompare(b[1]));
-        // ML-489: only the pieces with a recording or video - there once any piece has one
-        counts.recorded = flowsListCache.filter(f => f.recordingCount > 0).length;
-        if (!counts.recorded && flowLibraryFilter === 'recorded') flowLibraryFilter = 'all';
-        // Archived: last, and only there once something is archived - the one way to see those pieces again
-        counts.archived = flowsArchivedCache.length;
-        if (!counts.archived && flowLibraryFilter === 'archived') flowLibraryFilter = 'all';
-        pills.innerHTML = [['all', 'All'], ['mine', 'Mine'], ...bandKeys, ['public', 'Public'], ...(counts.recorded ? [['recorded', 'With a recording']] : []), ...(counts.archived ? [['archived', 'Archived']] : [])].map(([key, label]) =>
-            `<button type="button" class="filter-pill${flowLibraryFilter === key ? ' active' : ''}" data-flow-library-filter="${escapeHtml(key)}" aria-pressed="${flowLibraryFilter === key}">${escapeHtml(label)} <span class="filter-pill-count">${counts[key] || 0}</span></button>`).join('');
-        pills.querySelectorAll('[data-flow-library-filter]').forEach(b => b.addEventListener('click', () => {
-            flowLibraryFilter = b.dataset.flowLibraryFilter;
-            renderFlowsList();
-        }));
+        renderFilterBar({
+            id: 'flowLibraryFilterBar', title: 'Show pieces', allLabel: 'All pieces', noun: 'pieces',
+            groups: flowLibraryGroups, state: () => flowLibraryState, setState: (s) => { flowLibraryState = s; },
+            items: flowLibraryBase, match: pieceFilterMatch,
+            shown: () => flowLibraryVisible().length, total: () => flowsListCache.length,
+            onChange: renderFlowsList
+        });
     }
     document.getElementById('flowLibrarySearch')?.addEventListener('input', (e) => {
         flowLibraryQuery = e.target.value.trim().toLowerCase();
         renderFlowsList();
     });
     function flowLibraryVisible() {
-        return (flowLibraryFilter === 'archived' ? flowsArchivedCache : flowsListCache).filter(f => {
-            if (flowLibraryFilter === 'archived') { /* every archived piece, whoever's it is */ }
-            else if (flowLibraryFilter === 'recorded' ? !(f.recordingCount > 0) : (flowLibraryFilter !== 'all' && flowLibraryFilterKey(f) !== flowLibraryFilter)) return false;
-            if (!flowLibraryQuery) return true;
-            return (f.title || '').toLowerCase().includes(flowLibraryQuery) || (f.composer || '').toLowerCase().includes(flowLibraryQuery);
+        return Filters.apply(flowLibraryBase(), flowLibraryGroups(), flowLibraryState, pieceFilterMatch).filter(f => pieceSearchMatch(f, flowLibraryQuery))
         // By name, A to Z (owner, 4 Oct 2026) - not the order they were added; capitals don't matter and "Piece 2" comes before "Piece 10"
-        }).sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base', numeric: true }));
+            .sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base', numeric: true }));
     }
 
     function renderFlowsList() {
@@ -10526,7 +10644,7 @@
     const flowCanRestore = (f) => !f.archivedForAll || f.canEdit; // as the ⋮ menu's Restore
     const flowBulkArchiveOffered = () => (flowBulkArchive.restore ? flowsArchivedCache.filter(flowCanRestore) : flowsListCache);
     function renderFlowBulkArchiveBtn() {
-        const restore = flowLibraryFilter === 'archived';
+        const restore = flowLibraryShowsArchived();
         const btn = document.getElementById('flowBulkArchiveBtn');
         if (!btn) return;
         document.getElementById('flowBulkArchiveText').textContent = restore ? 'Restore several pieces' : 'Archive several pieces';
@@ -10548,7 +10666,7 @@
         e.currentTarget.setAttribute('aria-expanded', String(open));
     });
     function openFlowBulkArchive() {
-        flowBulkArchive.restore = flowLibraryFilter === 'archived';
+        flowBulkArchive.restore = flowLibraryShowsArchived();
         flowBulkArchive.filter = 'all';
         flowBulkArchive.query = '';
         flowBulkArchive.picked = new Set();

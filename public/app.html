@@ -1720,11 +1720,9 @@
             <!-- ML-400: opens the Add a piece screen (#addPieceView), the same one as the Add a piece tool. -->
             <button type="button" class="btn-nav" id="myMusicAddBtn" data-music-panel="pieces" data-music-screen="mymusic">+ Add a piece</button>
             <div id="metroBlkEntryLibrary" data-music-panel="pieces" data-music-screen="mymusic">
-                <div class="filter-strip" id="flowLibraryFilterStrip">
-                    <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span></span>
-                    <div class="filter-strip-pills" id="flowLibraryFilterPills" role="group" aria-label="Show pieces"></div>
-                </div>
-                <input type="search" id="flowLibrarySearch" class="mb-4" placeholder="Search by title or composer" aria-label="Search pieces by title or composer">
+                <input type="search" id="flowLibrarySearch" class="mb-2" placeholder="Search by title or composer" aria-label="Search pieces by title or composer">
+                <!-- ML-595: one Filter button, the filters on as chips under it (renderFilterBar) -->
+                <div class="filter-bar" id="flowLibraryFilterBar"></div>
                 <div id="metroBlkSetupsList">Loading...</div>
             </div>
         </div>
@@ -4758,6 +4756,7 @@
 <!-- ML-193: the Flow journey engine (play order, tempo ramps, consistency checks) - app.js uses it. -->
 <script src="flowJourney.js"></script>
 <script src="practicePlan.js"></script>
+<script src="filters.js"></script>
 <script src="pieceOutline.js"></script>
 <script src="notation.js"></script>
 <script src="range.js"></script>

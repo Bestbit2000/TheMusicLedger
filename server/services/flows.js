@@ -90,6 +90,9 @@ function toFlowSummaryDto(row, canEdit, canDelete) {
     listCount: Number(row.list_count || 0),
     // ML-489: how many recordings and videos it has - the lists say so, and My music can show only those
     recordingCount: Number(row.recording_count || 0),
+    // ML-595: sheet music (PDF, MusicXML...) on it, and the practice lists of this member's it is on - for the filters
+    documentCount: Number(row.document_count || 0),
+    listIds: Array.isArray(row.list_ids) ? row.list_ids.map(Number) : [],
     canEdit: !!canEdit, // ML-310: a public piece is view/play/copy for everyone, edit for super admins
     // ML-411: your own piece, or a band piece you added (a super admin: any piece they can reach)
     canDelete: !!canDelete,
@@ -301,6 +304,12 @@ export async function listFlows(accountId) {
             EXISTS (SELECT 1 FROM piece_chunks pc WHERE pc.account_id = $1 AND pc.score_id = s.id AND pc.level IS NOT NULL) AS prepared,
             (SELECT COUNT(*) FROM practice_list_scores pls WHERE pls.score_id = s.id) AS list_count,
             (SELECT COUNT(*) FROM score_recordings sr WHERE sr.score_id = s.id) AS recording_count,
+            (SELECT COUNT(*) FROM score_documents sd WHERE sd.score_id = s.id) AS document_count,
+            -- ML-595: the practice lists this member can see that it is on (the filter "On a practice list")
+            (SELECT COALESCE(json_agg(DISTINCT pls.practice_list_id), '[]'::json) FROM practice_list_scores pls
+               JOIN practice_lists pl ON pl.id = pls.practice_list_id
+               LEFT JOIN band_members lbm ON lbm.band_id = pl.owner_band_id AND lbm.account_id = $1
+              WHERE pls.score_id = s.id AND (pl.owner_account_id = $1 OR lbm.account_id IS NOT NULL)) AS list_ids,
             (s.archived_at IS NOT NULL) AS archived_for_all,
             EXISTS (SELECT 1 FROM archived_scores ar WHERE ar.account_id = $1 AND ar.score_id = s.id) AS archived_mine
      FROM scores s

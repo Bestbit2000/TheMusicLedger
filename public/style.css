@@ -464,6 +464,21 @@
     .filter-pill.active { border-color: var(--filter-pill-accent-text, var(--primary-action-strong)); background: color-mix(in srgb, var(--filter-pill-accent, var(--primary-action)) 15%, var(--input-bg)); color: var(--text-color); } /* ML-210: text stays --text-color - accent text on its own 15% wash failed contrast (axe); the category shows in the outline + wash */
     .filter-pill-count { font-weight: var(--font-weight-normal); opacity: 0.75; }
 
+    /* ML-595: the one Filter on every list (filters.js has the rules, app.js's FILTERS draws it). The button says how
+       many filters are on and how many things show; the filters on are chips under it (.filter-chip), each with an x
+       that takes just that one off - they wrap, so a long band name never runs off the screen. The pop-up lists every
+       way of filtering: a group's choices are pills that wrap (.filter-panel-choices). See specs/components/filter-bar.md. */
+    .filter-bar { margin: var(--space-3) 0 var(--space-4); }
+    .filter-bar-row { display: flex; align-items: center; gap: var(--space-2); }
+    .filter-bar .metroBlk-ctrl-value-btn { flex: 1 1 auto; min-width: 0; flex-direction: row; justify-content: flex-start; gap: var(--space-3); padding: 0 var(--space-4); text-align: left; }
+    .filter-bar-row .btn-text { flex: 0 0 auto; width: auto; }
+    .filter-bar-text { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+    .filter-bar-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+    .filter-chip { flex-shrink: 1; min-width: 0; white-space: normal; text-align: left; padding-right: var(--space-2); }
+    .filter-chip .material-symbols-outlined, .filter-panel-choices .filter-pill .material-symbols-outlined { font-size: var(--font-md); }
+    .filter-panel-choices { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
+    .filter-panel-choices .filter-pill { flex-shrink: 1; white-space: normal; text-align: left; }
+
     .form-group { margin-bottom: var(--space-5); }
     .hidden-group { display: none !important; }
     label { display: block; margin-bottom: var(--space-2); font-weight: var(--font-weight-semibold); }
