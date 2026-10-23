@@ -150,7 +150,7 @@ are written to meet both.
 | 8 | Reports are answered: say in the terms how quickly, and keep a simple log of each report and what was done | The owner, Claude | The log is built (a report is closed with a line saying what was done). How quickly is for the terms (action 4). **10 October 2026 (ML-502):** the owner can also warn the member and close their account - `docs/account-closing.md` |
 | 9 | **A band's logo is covered by Report and take-down** (version 2): reported with the band, removed on Admin → Shared music with its file, the organisers told; only an organiser can add one; a picture only (never SVG, which can carry script); kept only in the band's own folder of the file store | Claude | **Built 19 October 2026 (ML-534)**, released in 0.63.0 |
 | 10 | Say on the Members page that the logo should be the band's logo, **not a photo of people**, so a picture of young players is not shown to everyone the band invites | The owner (wording) | **Done 19 October 2026**, released in 0.63.0: the help line says "Use the band's logo, not a photo of people. Only use a logo the band has the right to use." Admin → Shared music removes one on request |
-| 11 | **A band's notice** (version 5): one way only; sent only by an organiser, a member with "change music" or the band leader, each confirmed 18 or over; to their own band only; limits per band; plain text, escaped, with the sender's name; "Report this notice" on each; the owner sees every one on Admin → Notifications and withdraws it; deleted with the sender's account; members can switch them off | Claude | **Built 23 October 2026 (ML-498)**, not released. Before release: the owner checks the Children's Code self-assessment (standards 5, 11 and 13 - see version 5) and approves the privacy policy lines |
+| 11 | **A band's notice** (version 5): one way only; sent only by an organiser, a member with "change music" or the band leader, each confirmed 18 or over; to their own band only; limits per band; plain text, escaped, with the sender's name; "Report this notice" on each; the owner sees every one on Admin → Notifications and withdraws it; deleted with the sender's account; members can switch them off | Claude | **Built 23 October 2026 (ML-498)**, not released. Before release: the owner checks the Children's Code self-assessment (standards 5, 11 and 13 - see version 5). The privacy policy and terms lines were approved by the owner as drafted, 23 October 2026 |
 
 ## Version 2: a band's logo (ML-534, 19 October 2026)
 
@@ -282,7 +282,7 @@ three kinds of sender, 3 a day and 10 a week per band, a switch for members to t
 
 **Result:** the service's risk levels are unchanged (low), with action 11. Before release: the owner checks the
 Children's Code self-assessment - standards 5 (detrimental use), 11 (parental controls) and 13 (nudge) against this -
-and approves the privacy policy lines; a notice tells members, since it changes what one member can show another.
+and approves the privacy policy lines (approved as drafted, 23 October 2026); a notice tells members, since it changes what one member can show another.
 **Replies, or a notice to one member, would need this run again.**
 
 ## What would change the answer
