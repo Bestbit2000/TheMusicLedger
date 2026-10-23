@@ -254,7 +254,7 @@ it takes its cuts off; there is no file to remove. `POST /api/recordings/youtube
   played. It is about the member's own uploads in the tool. One that is only on this list's pieces is
   deleted, file and all; one that is also on a piece outside the list only comes off this list's pieces.
   It says what it will do, and to keep your own copy of the files, before it does anything.
-- **Which pieces have a recording:** My music has a "With a recording" filter (it appears once any piece
+- **Which pieces have a recording:** My music's Filter has "Has: A recording" (it appears once any piece
   has one), and a piece's row in My music and Rehearse says "2 recordings". The count is every recording and
   video on the piece (`recordingCount` from the pieces list), not only ones from the tool.
 

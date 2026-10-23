@@ -1,6 +1,6 @@
 # Pick list
 
-> Also used by My music's **Archive several pieces** / **Restore several pieces** (ML-570, `#flowBulkArchiveModal`): the Add pieces layout - owner filter, search, Select all - over the pieces in My music (or the archived ones you can bring back), and "Archive N pieces" in the sticky footer; then, only if band pieces you may change are ticked, one "for who?" choice. Done is a toast with Undo.
+> Also used by My music's **Archive several pieces** / **Restore several pieces** (ML-570, `#flowBulkArchiveModal`): the Add pieces layout - search, the one Filter ([filter bar](filter-bar.md), opening in place), Select all - over the pieces in My music (or the archived ones you can bring back), and "Archive N pieces" in the sticky footer; then, only if band pieces you may change are ticked, one "for who?" choice. Done is a toast with Undo.
 >
 > Also used by My music's **Delete several pieces** (ML-404, `#flowBulkDeleteModal`): the pieces you can delete as rows (your own, and band pieces you added - ML-411), the Select all bar, and a `.btn-submit.is-danger` "Delete N pieces" in the sticky footer, followed by the standard confirm pop-up.
 
@@ -16,7 +16,7 @@ and skills to a skills list (Add skills). **Don't use** for a single choice (use
 
 ## 3. Anatomy
 In a popup: `.modal-content.modal-content-sticky-footer` › `.metroSeg-scroll-area` (title › optional
-[filter strip](filter-strip.md) › optional search › `.pick-bar` › rows) › `.metroSeg-sticky-footer`
+optional search › [filter bar](filter-bar.md) (ML-595) › `.pick-bar` › rows) › `.metroSeg-sticky-footer`
 (the one `.btn-submit`, **always visible** however long the list is).
 
 - **Row:** `.flow-choice-option.level-answer.pick-row` - a `<button>` with a tick box on the left

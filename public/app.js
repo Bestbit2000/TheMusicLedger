@@ -8125,6 +8125,7 @@
         inlineExtra.classList.add('hidden-group');
         inlineExtra.innerHTML = '';
         renderFlowPlaybackModal();
+        filterPanelOpen = null; // ML-595: the choice pop-up is Playback now
         document.getElementById('flowChoiceCancelBtn').textContent = 'Done'; // ML-587: every choice here takes effect at once
         showModal('flowChoiceModal');
     }
@@ -9870,7 +9871,7 @@
             plState.list = await API.practiceLists.setArchived(l.id, archived, forAll);
             renderPracticeList();
             renderPracticeListRows();
-            showSuccessToast(!archived ? 'Back in your practice lists' : forAll ? `Archived for everyone in ${l.bandName || 'the band'}` : 'Archived - choose Archived on the Practice lists tab to see it again');
+            showSuccessToast(!archived ? 'Back in your practice lists' : forAll ? `Archived for everyone in ${l.bandName || 'the band'}` : 'Archived - switch on Archived lists in the Filter on the Practice lists tab to see it again');
         } catch (e) { showWarningToast((archived ? 'Not archived: ' : 'Not brought back: ') + e.message); }
     }
     document.getElementById('plArchiveBtn')?.addEventListener('click', () => {
@@ -10379,6 +10380,7 @@
     //        setState(s), items() (what the groups count over), match(item, key, value), shown(), total(), onChange(),
     //        modal (the pick list's pop-up id, to open in place) }
     const filterCfgs = {};
+    let filterPanelOpen = null; // { id, redraw, drawing } while a filter pop-up (or in-place panel) is showing
     const filterPlural = (n) => `${n} filter${n === 1 ? '' : 's'} on`;
     function renderFilterBar(cfg) {
         filterCfgs[cfg.id] = cfg;
@@ -10395,6 +10397,8 @@
             ${n ? `<div class="filter-bar-chips" role="group" aria-label="Filters on">${Filters.chips(groups, state).map(c => `<button type="button" class="filter-pill active filter-chip" data-filter-chip="${escapeHtml(c.group)}" data-value="${escapeHtml(c.value)}" aria-label="Take off the filter ${escapeHtml(c.label)}">${escapeHtml(c.label)}<span class="material-symbols-outlined" aria-hidden="true">close</span></button>`).join('')}</div>` : ''}`;
         bar.querySelector('[data-filter-open]').addEventListener('click', () => openFilterPanel(cfg.id));
         bar.querySelector('[data-filter-clear]')?.addEventListener('click', () => { cfg.setState({}); cfg.onChange(); });
+        // the list changed under an open pop-up (it finished loading, a piece was archived): its choices and counts follow
+        if (filterPanelOpen && filterPanelOpen.id === cfg.id && !filterPanelOpen.drawing) filterPanelOpen.redraw();
         bar.querySelectorAll('[data-filter-chip]').forEach(b => b.addEventListener('click', () => { cfg.setState(Filters.toggle(state, groups, b.dataset.filterChip, b.dataset.value)); cfg.onChange(); }));
     }
     // Every way of filtering: a heading and pills for a group, a switch for a yes/no (toggle: true), each choice with
@@ -10438,12 +10442,16 @@
         inlineExtra.innerHTML = '';
         const box = document.getElementById('flowChoiceOptions');
         const redraw = () => {
+            if (!isShown(document.getElementById('flowChoiceModal')) && filterPanelOpen && filterPanelOpen.shown) { filterPanelOpen = null; return; } // closed since
             box.innerHTML = filterPanelHtml(cfg) + filterClearAllHtml(cfg);
-            wireFilterPanel(box, cfg, redraw);
+            wireFilterPanel(box, cfg, guarded);
             document.getElementById('flowChoiceCancelBtn').textContent = `Show ${cfg.shown()} ${cfg.noun}`;
         };
-        redraw();
+        const guarded = () => { if (!filterPanelOpen) return; filterPanelOpen.drawing = true; try { redraw(); } finally { if (filterPanelOpen) filterPanelOpen.drawing = false; } };
+        filterPanelOpen = { id, redraw: guarded, drawing: false, shown: false };
+        guarded();
         showModal('flowChoiceModal');
+        filterPanelOpen.shown = true;
     }
     // In a pick list's own pop-up: the list steps aside and the filters take its place - Done brings it back
     function openFilterInPopup(cfg) {
@@ -10458,6 +10466,12 @@
         area.appendChild(panel);
         const backTo = (modal.querySelector('h2')?.textContent || 'the list').trim();
         const redraw = () => {
+            if (!panel.isConnected) { filterPanelOpen = null; return; } // closed since
+            if (filterPanelOpen) filterPanelOpen.drawing = true;
+            try { drawPanel(); } finally { if (filterPanelOpen) filterPanelOpen.drawing = false; }
+        };
+        filterPanelOpen = { id: cfg.id, redraw, drawing: false };
+        const drawPanel = () => {
             panel.innerHTML = `<button type="button" class="btn-text flex-row items-center gap-sm" data-filter-back><span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>${escapeHtml(backTo)}</button>
                 <h2>${escapeHtml(cfg.title)}</h2>${filterPanelHtml(cfg)}${filterClearAllHtml(cfg)}
                 <button type="button" class="btn-submit" data-filter-back>Done - show ${cfg.shown()}</button>`;
@@ -10977,7 +10991,7 @@
         try {
             await API.flows.setArchived(flow.id, archived, forAll);
             await loadFlowsList();
-            showSuccessToast(!archived ? 'Back in My music' : forAll ? `Archived for everyone in ${flowBandName(flow)}` : 'Archived - choose Archived in My music to see it again');
+            showSuccessToast(!archived ? 'Back in My music' : forAll ? `Archived for everyone in ${flowBandName(flow)}` : 'Archived - switch on Archived pieces in My music\'s Filter to see it again');
         } catch (error) {
             showWarningToast((archived ? 'Not archived: ' : 'Not brought back: ') + error.message);
         }
@@ -13512,6 +13526,7 @@
                 onSelect(opt);
             });
         });
+        filterPanelOpen = null; // ML-595: the choice pop-up is something else now
         document.getElementById('flowChoiceCancelBtn').textContent = 'Cancel';
         showModal('flowChoiceModal');
     }
@@ -13571,6 +13586,7 @@
             onSelect(items[Number(row.dataset.searchIdx)]);
         };
         draw();
+        filterPanelOpen = null; // ML-595: the choice pop-up is something else now
         document.getElementById('flowChoiceCancelBtn').textContent = 'Cancel';
         showModal('flowChoiceModal');
     }

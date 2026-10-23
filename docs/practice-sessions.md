@@ -323,7 +323,7 @@ Super admin only until switched on.
   button is one fixed quarter-width cell of the 4-across grid, showing dd mmm yy). Each piece row
   has a ⋮ menu (ML-349): **Prepare this piece** (**Its path and Levels** once it has them - ML-390), then **Delete**,
   which asks first and offers Undo. **Add pieces** (ML-351) is the same pick list as Add skills,
-  offering only pieces not on the list yet, filtered like My music (All / Mine / each band / Public,
+  offering only pieces not on the list yet, filtered like My music (the one Filter - ML-595: whose, has, prepared -
   plus search); Select all / Unselect all act on what the filter shows. It's
   personal, or a band's: any member of the band can create and change a band's list. There's nothing
   else to type in (ML-333 took out sessions a week and minutes each; the columns stay, unused).
@@ -458,12 +458,12 @@ not be lost in a sea of music you no longer need.
 - **Where it shows.** `API.flows.list` and `API.practiceLists.list` hand back only what is current, so Rehearse,
   Prepare, the session builder, the piece pickers and the home screen's next-concert line all leave archived
   things out without knowing about it. What was left out is kept beside them (`flowsArchivedCache`,
-  `plArchivedLists`) for the one place it can be seen again: the **Archived** pill in My music (last, there only
-  once something is archived) and the **Current / Archived** pills on the Practice lists tab.
+  `plArchivedLists`) for the one place it can be seen again: the **Archived pieces** switch in My music's Filter
+  (ML-595 - there only once something is archived) and the **Archived lists** switch in the Practice lists tab's Filter (ML-595).
 - **Archive / Restore** are on a piece's ⋮ menu in My music, and a button on the practice list's own screen. A
   piece archived for the whole band is brought back only by someone who can change the band's music.
 - **Several at once (ML-570).** On My music's ⋮ menu at the top of the page (ML-593 - under a long list nobody found them), **Archive several pieces** (or, with Archived showing,
-  **Restore several pieces**) opens the pick list Add pieces uses - owner filter, search, Select all, the button
+  **Restore several pieces**) opens the pick list Add pieces uses - search, the one Filter, Select all, the button
   pinned at the bottom. The same rules as the ⋮ menu: everything is archived for the member, and if some ticked
   pieces are band pieces they may change, one "for who?" question covers all of them; bringing back a piece
   archived for the band does it for the band when they may change it. One call, `PUT /api/flows/archive`

@@ -12,7 +12,7 @@ A way straight into preparing a piece, as a tool of its own (All tools › Pract
 Rehearse - add, prepare, rehearse), so it isn't buried in a piece's path or a practice session. Shown with
 `practice_levels`.
 - **The list** is every piece you can see - yours, your bands', public - that has bars to play.
-- **To start with, only the ones you haven't prepared** ("To prepare"); the **All pieces** filter adds the rest.
+- **To start with, only the ones you haven't prepared** (the Filter starts on "Not prepared yet" - ML-595; take that chip off for every piece).
   "Prepared" means you've given at least one of its bars a Level; it's per person, so a band or public piece can
   be prepared for you and not for someone else.
 - **Tapping a piece opens its path** ([piece-path](piece-path.md)), where the run-through, painting and cutting

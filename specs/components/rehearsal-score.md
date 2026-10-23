@@ -104,7 +104,7 @@ players, the upload progress bar and the action button).
 | A recording is playing | the bar tile it is in is lit (`.metroBlk-tile-active`), as for the metronome, and is scrolled into view if it is off the screen |
 | First upload of music (ML-278) | the confirm pop-up "Before you upload" - **I have the right to upload it** / Cancel; asked once per account |
 | A practice list with pieces | **Delete this list's recordings** (`.btn-text.btn-text-danger`) above Delete this list; it says what will go before anything does |
-| A piece has recordings | its row in My music and Rehearse ends "• 2 recordings"; My music's filter gains "With a recording" |
+| A piece has recordings | its row in My music and Rehearse ends "• 2 recordings"; My music's Filter gains "Has: A recording" |
 | No recordings | "No recordings here yet." |
 | A recording on no piece | "Not on a piece yet." |
 | Offline | saving a clip, marks or a recording needs a connection (`docs/offline.md`) |
