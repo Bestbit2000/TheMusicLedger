@@ -1,5 +1,46 @@
 [
   {
+    "version": "0.69.0",
+    "date": "2026-10-23",
+    "changes": [
+      {
+        "key": "ML-591",
+        "type": "New",
+        "summary": "We made the Tuner's Transposition and Tuning reference open inside its settings, so closing them no longer closes the settings too."
+      },
+      {
+        "key": "ML-590",
+        "type": "New",
+        "summary": "We kept the menu's fold button in one place on a tablet or computer, open or folded, and put counts on the icons when it's folded so nothing shifts."
+      },
+      {
+        "key": "ML-589",
+        "type": "New",
+        "summary": "We made Scales work like the new Warm-ups: one Settings button saved on your account, and your own pace or the metronome moving on to the next scale."
+      },
+      {
+        "key": "ML-588",
+        "type": "New",
+        "summary": "We let you change the sub-beats (off, auto or a set number) and set your own speed, as a percentage of the piece's speed, while you practise a piece in a session."
+      },
+      {
+        "key": "ML-586",
+        "type": "New",
+        "summary": "We made Warm-ups simpler: one Settings button saved on your account, your own pace or the metronome moving on to the next, and every warm-up drawn the same size."
+      },
+      {
+        "key": "ML-499",
+        "type": "New",
+        "summary": "We can now email you a copy of an urgent or important notice, and you can switch off copies of urgent ones in Settings."
+      },
+      {
+        "key": "ML-498",
+        "type": "New",
+        "summary": "We let the people who run a band send everyone in it a notice in the app, with their name on it - one way, and you can switch them off."
+      }
+    ]
+  },
+  {
     "version": "0.68.0",
     "date": "2026-10-22",
     "changes": [
