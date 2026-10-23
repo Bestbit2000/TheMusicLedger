@@ -758,6 +758,7 @@
        the tile groups above it. */
     .tuner-settings-row-btn { position: relative; width: 100%; display: flex; align-items: center; justify-content: space-between; height: 52px; padding: 0 var(--space-4); margin-bottom: var(--space-5); border: 2px solid var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); font-size: var(--font-base); font-weight: var(--font-weight-bold); cursor: pointer; box-sizing: border-box; }
     .tuner-settings-row-btn span:last-child { font-weight: var(--font-weight-normal); color: var(--label-color); }
+    .tuner-settings-row-btn[aria-expanded="true"] { margin-bottom: var(--space-3); } /* ML-591: open, its choices sit right under it */
 
     /* #tunerTranspositionOptions - no caption under each tile (just the note letter), so the shared
        .flow-picker-tile's own min-height/reserved caption row (.flow-picker-tile-label, normally
