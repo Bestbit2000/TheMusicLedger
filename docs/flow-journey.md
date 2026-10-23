@@ -226,8 +226,9 @@ nothing saved as it plays; at the end (or Done) it goes on to setting the level 
 - **The tiles:** 4, not 5 (ML-587): reset, **Playback**, play and **Finish**. Playback takes the place of repeat,
   sub beats and play speed: one pop-up (`openFlowPlaybackModal`) with three rows - **Level** (pick any Level, faster or
   slower, straight away - in a block it's saved as `during`; ML-537; or a Custom speed, ML-588), **Sub beats** (Off /
-  Auto / a number a beat) and **Count-in** - each opening its choices under its row, one at a time, the pop-up staying
-  open (as the Tuner settings, ML-591). The button shows the Level's number (or the Custom %), never a Level's % (ML-535).
+  Auto / a number a beat) and **Count-in** - each one box (a choice group, `specs/components/selectable-tile.md`) whose
+  choices open inside it, one at a time, the pop-up staying open; its bottom button says Done, since every choice
+  takes effect at once. The button shows the Level's number (or the Custom %), never a Level's % (ML-535).
 - **A recording or video in a practice (ML-587):** its slide gets a **Play** of its own: the count-in clicks at the
   speed of the bar the practice starts on (at the play speed), with the big count-down over the slide, then the
   recording plays from the practised bars (`recPlayInPractice`); with the count-in every time round it stops at the

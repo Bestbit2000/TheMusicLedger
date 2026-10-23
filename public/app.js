@@ -8085,40 +8085,53 @@
         const s = flowSession;
         if (!s) { hideModal('flowChoiceModal'); return; }
         const v = flowPlaybackValues();
-        const row = (key, name) => `
-            <button type="button" class="flow-choice-option${flowPlaybackOpen === key ? ' selected' : ''}" data-pb-row="${key}" aria-expanded="${flowPlaybackOpen === key}">
-                <span><strong>${name}</strong><br><span class="text-sm text-muted">${escapeHtml(v[key])}</span></span>
-                <span class="material-symbols-outlined" aria-hidden="true">${flowPlaybackOpen === key ? 'expand_less' : 'expand_more'}</span>
-            </button>`;
+        // Each setting is one box (.choice-group): its head says what it is now, and its choices open inside the same
+        // box - radio-style rows, then value tiles where there are many (owner, 23 Oct 2026: not separate boxes).
+        const group = (key, name, body) => {
+            const open = flowPlaybackOpen === key;
+            return `<div class="choice-group${open ? ' is-open' : ''}">
+                <button type="button" class="choice-group-head" data-pb-row="${key}" aria-expanded="${open}"${open ? ` aria-controls="pbBody-${key}"` : ''}>
+                    <span><strong>${name}</strong><br><span class="text-sm text-muted">${escapeHtml(v[key])}</span></span>
+                    <span class="material-symbols-outlined" aria-hidden="true">${open ? 'expand_less' : 'expand_more'}</span>
+                </button>
+                ${open ? `<div class="choice-group-body" id="pbBody-${key}">${body}</div>` : ''}
+            </div>`;
+        };
+        const choice = (attrs, on, inner) => `<button type="button" class="choice-group-option" role="radio" aria-checked="${!!on}" ${attrs}><span class="material-symbols-outlined" aria-hidden="true">${on ? 'radio_button_checked' : 'radio_button_unchecked'}</span><span class="grow">${inner}</span></button>`;
         const tile = (attrs, label, on) => `<button type="button" class="metroBlk-timesig-opt${on ? ' selected' : ''}" ${attrs} aria-pressed="${!!on}">${label}</button>`;
-        let panel = '';
+        let body = '';
         if (flowPlaybackOpen === 'level') {
             const speeds = await ensurePlaySpeeds(); // ML-596: the one list
             const floor = flowSessionCustomFloor();
             const lowest = speeds.find(p => p >= floor);
             const note = speeds.some(p => p < floor) && lowest ? `<p class="text-sm text-muted mt-2">It goes down to ${lowest}% here, so the slowest bar stays at ${FLOW_CUSTOM_MIN_BPM} bpm or more.</p>` : '';
-            panel = [1, 2, 3, 4, 5].map(n => `<button type="button" class="flow-choice-option${!s.custom && n === s.level ? ' selected' : ''}" data-pb-level="${n}" aria-pressed="${!s.custom && n === s.level}"><span class="flex-row items-center gap-sm"><span class="level-chip lv-${n}">${n}</span><strong>${levelWord(n)}</strong></span></button>`).join('')
-                + `<p class="text-sm text-muted mt-3">Or your own speed - a % of the piece's own, for this go</p><div class="metroBlk-speed-options mt-2">${speeds.filter(p => p >= floor).map(p => tile(`data-pb-speed="${p}"`, `${p}%`, s.custom && p === s.customPercent)).join('')}</div>${note}`;
+            body = `<div role="radiogroup" aria-label="Level">${[1, 2, 3, 4, 5].map(n => choice(`data-pb-level="${n}"`, !s.custom && n === s.level, `<span class="flex-row items-center gap-sm"><span class="level-chip lv-${n}">${n}</span><strong>${levelWord(n)}</strong></span>`)).join('')}</div>`
+                + `<p class="text-sm text-muted mt-3">Or your own speed - a % of the piece's own, for this go:</p><div class="metroBlk-speed-options mt-2" role="group" aria-label="Your own speed">${speeds.filter(p => p >= floor).map(p => tile(`data-pb-speed="${p}"`, `${p}%`, s.custom && p === s.customPercent)).join('')}</div>${note}`;
         } else if (flowPlaybackOpen === 'sub') {
             const fixed = flowSubBeatsMode === 'fixed' ? flowSubdivideOverride : null;
             const on = v.sub !== 'Off';
-            panel = `<div class="metroBlk-speed-options">${tile('data-pb-sub="off"', 'Off', !on)}${tile('data-pb-sub="auto"', 'Auto', on && !fixed)}</div>
-                <p class="text-sm text-muted mt-3">Auto fits the time signature. Or set how many a beat:</p>
-                <div class="metroBlk-speed-options mt-2">${Array.from({ length: FLOW_SUBDIVIDE_MAX - FLOW_SUBDIVIDE_MIN + 1 }, (_, i) => FLOW_SUBDIVIDE_MIN + i).map(n => tile(`data-pb-sub="${n}"`, String(n), fixed === n)).join('')}</div>`;
+            body = `<div role="radiogroup" aria-label="Sub beats">${choice('data-pb-sub="off"', !on, '<strong>Off</strong><br><span class="text-sm text-muted">Just the beats</span>')}${choice('data-pb-sub="auto"', on && !fixed, '<strong>Auto</strong><br><span class="text-sm text-muted">The number that fits the time signature</span>')}</div>
+                <p class="text-sm text-muted mt-3">Or set how many a beat:</p>
+                <div class="metroBlk-speed-options mt-2" role="group" aria-label="Sub beats a beat">${Array.from({ length: FLOW_SUBDIVIDE_MAX - FLOW_SUBDIVIDE_MIN + 1 }, (_, i) => FLOW_SUBDIVIDE_MIN + i).map(n => tile(`data-pb-sub="${n}"`, String(n), fixed === n)).join('')}</div>`;
         } else if (flowPlaybackOpen === 'countIn') {
             const when = practiceCountInWhen();
             const sub = { off: 'It starts as soon as you press play', first: 'Before the first go, then one bar between goes', every: 'Before every go' };
-            panel = Object.keys(COUNT_IN_WHEN).map(k => `<button type="button" class="flow-choice-option${when === k ? ' selected' : ''}" data-pb-count="${k}" aria-pressed="${when === k}"><span><strong>${COUNT_IN_WHEN[k]}</strong><br><span class="text-sm text-muted">${sub[k]}</span></span></button>`).join('')
+            body = `<div role="radiogroup" aria-label="Count-in">${Object.keys(COUNT_IN_WHEN).map(k => choice(`data-pb-count="${k}"`, when === k, `<strong>${COUNT_IN_WHEN[k]}</strong><br><span class="text-sm text-muted">${sub[k]}</span>`)).join('')}</div>`
                 + `<p class="text-sm text-muted mt-2">How many bars it counts: ${countInText(practiceCountInBars() || 1)} - change it in Settings.</p>`;
         }
         const box = document.getElementById('flowChoiceOptions');
         box.innerHTML = [['level', s.custom ? 'Speed' : 'Level'], ['sub', 'Sub beats'], ['countIn', 'Count-in']].map(([k, name]) =>
-            row(k, name) + (flowPlaybackOpen === k ? `<div class="mb-4" role="group" aria-label="${name}">${panel}</div>` : '')).join('');
-        box.querySelectorAll('[data-pb-row]').forEach(b => b.addEventListener('click', () => {
-            flowPlaybackOpen = flowPlaybackOpen === b.dataset.pbRow ? null : b.dataset.pbRow;
-            renderFlowPlaybackModal();
+            group(k, name, flowPlaybackOpen === k ? body : '')).join('');
+        const focusHead = (key) => box.querySelector(`[data-pb-row="${key}"]`)?.focus(); // the list is drawn again - keep the place
+        // ...from the keyboard only (detail 0): after a tap the focus ring would show as a stray line under the head
+        box.querySelectorAll('[data-pb-row]').forEach(b => b.addEventListener('click', (e) => {
+            const key = b.dataset.pbRow;
+            flowPlaybackOpen = flowPlaybackOpen === key ? null : key;
+            renderFlowPlaybackModal().then(() => { if (e.detail === 0) focusHead(key); });
         }));
-        const done = () => { flowPlaybackOpen = null; renderFlowPlaybackModal(); };
+        let byKeyboard = false;
+        box.addEventListener('click', (e) => { byKeyboard = e.detail === 0; }, { capture: true, once: true });
+        const done = () => { const key = flowPlaybackOpen; flowPlaybackOpen = null; renderFlowPlaybackModal().then(() => { if (byKeyboard) focusHead(key); }); };
         box.querySelectorAll('[data-pb-level]').forEach(b => b.addEventListener('click', () => { flowSessionSetLevel(Number(b.dataset.pbLevel)).then(done); }));
         box.querySelectorAll('[data-pb-speed]').forEach(b => b.addEventListener('click', () => {
             const pct = Number(b.dataset.pbSpeed);
@@ -8152,6 +8165,7 @@
         inlineExtra.classList.add('hidden-group');
         inlineExtra.innerHTML = '';
         renderFlowPlaybackModal();
+        document.getElementById('flowChoiceCancelBtn').textContent = 'Done'; // ML-587: every choice here takes effect at once
         showModal('flowChoiceModal');
     }
     document.getElementById('flowPlaybackBtn')?.addEventListener('click', openFlowPlaybackModal);
@@ -13393,6 +13407,7 @@
                 onSelect(opt);
             });
         });
+        document.getElementById('flowChoiceCancelBtn').textContent = 'Cancel';
         showModal('flowChoiceModal');
     }
     function closeFlowChoiceModal() {
@@ -13451,6 +13466,7 @@
             onSelect(items[Number(row.dataset.searchIdx)]);
         };
         draw();
+        document.getElementById('flowChoiceCancelBtn').textContent = 'Cancel';
         showModal('flowChoiceModal');
     }
 

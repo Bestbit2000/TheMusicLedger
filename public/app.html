@@ -2346,7 +2346,8 @@
                  (`extra` - Add a piece's "+ New practice list" name and Save, ML-400) grows its own row
                  into a box instead - never a second popup stacked on top, nor a field left on the page. -->
             <div id="flowChoiceInlineExtra" class="flow-choice-inline-extra hidden-group"></div>
-            <button class="btn-cancel btn-nav" data-act="hide-modal" data-arg="flowChoiceModal">Cancel</button>
+            <!-- "Done" in a practice's Playback (ML-587), where every choice takes effect at once - "Cancel" elsewhere -->
+            <button class="btn-cancel btn-nav" id="flowChoiceCancelBtn" data-act="hide-modal" data-arg="flowChoiceModal">Cancel</button>
         </div>
     </div>
 
