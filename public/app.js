@@ -19778,7 +19778,25 @@
     // now" card itself shows (updateTunerTranspositionLabel).
     function updateTunerTranspositionRowValue() {
         const rowValue = document.getElementById('tunerTranspositionRowValue');
-        if (rowValue) rowValue.innerText = `${tunerInstrumentKeyName(tunerTransposition)} ›`;
+        if (rowValue) rowValue.innerText = tunerInstrumentKeyName(tunerTransposition);
+    }
+    // ML-591 (owner, 23 Oct 2026): Transposition and Tuning reference show their choices under their row, inside this
+    // popup - a second tap hides them, one open at a time. They used to open popups of their own, and closing one of
+    // those closed this popup too.
+    function setTunerSettingsPanel(open) {
+        [['tunerTranspositionBtn', 'tunerTranspositionPanel', 'tunerTranspositionChevron'], ['tunerA4Btn', 'tunerA4Panel', 'tunerA4Chevron']].forEach(([btn, panel, chevron]) => {
+            const on = panel === open;
+            setShown(panel, on);
+            document.getElementById(btn)?.setAttribute('aria-expanded', String(on));
+            const icon = document.getElementById(chevron);
+            if (icon) icon.textContent = on ? 'expand_less' : 'expand_more';
+        });
+    }
+    function toggleTunerSettingsPanel(panel) {
+        const open = document.getElementById(panel)?.classList.contains('hidden-group');
+        if (open && panel === 'tunerTranspositionPanel') renderTunerTranspositionTiles();
+        if (open && panel === 'tunerA4Panel') renderTunerA4Slider();
+        setTunerSettingsPanel(open ? panel : null);
     }
     function renderTunerSettingsModal() {
         const useFlats = localStorage.getItem(TUNER_USE_FLATS_KEY) === 'true';
@@ -19808,7 +19826,7 @@
         renderTunerTranspositionSetting();
 
         const a4RowValue = document.getElementById('tunerA4RowValue');
-        if (a4RowValue) a4RowValue.innerText = `${tunerA4Freq}Hz ›`;
+        if (a4RowValue) a4RowValue.innerText = `${tunerA4Freq}Hz`;
 
         syncTunerDisplayToggles();
     }
@@ -19828,28 +19846,25 @@
         updateTunerTranspositionRowValue();
     });
 
-    // Transposition opens its own popup (12 options - too many to sit inline as a "glance at it" row)
-    // rather than showing the tile grid inline in #tunerSettingsModal - same tap-a-tile-to-select-and-
-    // close shape as the Flow editor's own glyph pickers (openFlowGlyphPicker), not the "stay open,
-    // just re-render" shape the groups still inline in that popup use.
-    function openTunerTranspositionPicker() {
-        closeTunerSettingsModal();
+    // Transposition's 12 tiles (the Flow editor's glyph-picker tiles), under its row (ML-591) - tap one to choose it,
+    // and the row folds back up.
+    function renderTunerTranspositionTiles() {
         const options = tunerTranspositionOffsetsByKey().map(o => ({
             icon: tunerInstrumentKeyName(o), caption: '', ariaLabel: tunerTranspositionLabel(o), selected: tunerTransposition === o, value: o
         }));
-        openFlowGlyphPicker('tunerTranspositionModal', 'tunerTranspositionOptions', options, (opt) => {
+        renderTunerInlineTiles('tunerTranspositionOptions', options, (opt) => {
             tunerTransposition = opt.value;
             localStorage.setItem(TUNER_TRANSPOSITION_KEY, String(tunerTransposition));
             const settingsSelect = document.getElementById('tunerTranspositionSetting');
             if (settingsSelect) settingsSelect.value = String(tunerTransposition);
             updateTunerTranspositionLabel();
             updateTunerTranspositionRowValue();
+            renderTunerTranspositionTiles();
+            setTunerSettingsPanel(null);
+            document.getElementById('tunerTranspositionBtn')?.focus();
         });
     }
-    document.getElementById('tunerTranspositionBtn')?.addEventListener('click', openTunerTranspositionPicker);
-    document.getElementById('tunerTranspositionCloseBtn')?.addEventListener('click', () => {
-        hideModal('tunerTranspositionModal');
-    });
+    document.getElementById('tunerTranspositionBtn')?.addEventListener('click', () => toggleTunerSettingsPanel('tunerTranspositionPanel'));
 
     // Settings-screen toggle for the "right now" card's Concert column (updateTunerTranspositionLabel
     // decides the actual hide/show, since it also depends on the transposition choice too) - the popup
@@ -19870,6 +19885,7 @@
     // Cancel/Save, it's just live picks/toggles.
     function openTunerSettingsModal() {
         renderTunerSettingsModal();
+        setTunerSettingsPanel(null); // opens with Transposition and Tuning reference folded
         showModal('tunerSettingsModal');
     }
     function closeTunerSettingsModal() {
@@ -19928,30 +19944,15 @@
         const valueEl = document.getElementById('tunerA4PopupValue');
         if (valueEl) valueEl.innerText = String(tunerA4Freq);
         const rowValue = document.getElementById('tunerA4RowValue');
-        if (rowValue) rowValue.innerText = `${tunerA4Freq}Hz ›`;
+        if (rowValue) rowValue.innerText = `${tunerA4Freq}Hz`;
     }
     function setTunerA4(value) {
         tunerA4Freq = Math.round(Math.min(TUNER_A4_MAX, Math.max(TUNER_A4_MIN, value)));
         localStorage.setItem(TUNER_A4_KEY, String(tunerA4Freq));
         renderTunerA4Slider();
     }
-    function openTunerA4Modal() {
-        renderTunerA4Slider();
-        showModal('tunerA4Modal');
-    }
-    function closeTunerA4Modal() {
-        hideModal('tunerA4Modal');
-    }
-    // Tuning opens its own popup (a slider needs more room than a tile grid) - closes the Settings
-    // popup first rather than stacking two dark-backdrop modals on top of each other.
-    document.getElementById('tunerA4Btn')?.addEventListener('click', () => {
-        closeTunerSettingsModal();
-        openTunerA4Modal();
-    });
-    document.getElementById('tunerA4CloseBtn')?.addEventListener('click', closeTunerA4Modal);
-    document.getElementById('tunerA4Modal')?.addEventListener('click', (e) => {
-        if (e.target.id === 'tunerA4Modal') closeTunerA4Modal();
-    });
+    // Tuning reference shows its stepper, slider and Reset under its row (ML-591), open while you adjust.
+    document.getElementById('tunerA4Btn')?.addEventListener('click', () => toggleTunerSettingsPanel('tunerA4Panel'));
     document.getElementById('tunerA4ResetBtn')?.addEventListener('click', () => setTunerA4(TUNER_A4_DEFAULT));
     setupHoldStepper('tunerA4Minus', -1, (amount) => setTunerA4(tunerA4Freq + amount));
     setupHoldStepper('tunerA4Plus', 1, (amount) => setTunerA4(tunerA4Freq + amount));
