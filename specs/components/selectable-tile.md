@@ -1,7 +1,7 @@
 # Selectable tile
 
 ## 1. Metadata
-- **Name:** Selectable tile (`.flow-picker-tile`, `.flow-choice-option`, `.metro-beats-option`, `.flow-tile-grid`; the choice group `.choice-group`, `.choice-group-head`, `.choice-group-body`, `.choice-group-option` - ML-587)
+- **Name:** Selectable tile (`.flow-picker-tile`, `.flow-choice-option`, `.metro-beats-option`, `.flow-tile-grid`)
 - **Category:** Inputs
 - **Status:** Stable. Four class families share one visual pattern and should converge on it
 
@@ -27,16 +27,10 @@ The multi-select variant (`.flow-multiselect-grid`) allows many.
 
 **Number/value first, label underneath (ML-203).** Every box that pairs a value with a label (tiles, value boxes, stat cards, admin stat tiles) shows the value on top and the caption below it.
 
-**Choice group (ML-587, owner 23 Oct 2026).** For a pop-up holding several settings at once (a practice's
-Playback: Level, Sub beats, Count-in), each setting is ONE box, `.choice-group`. Its head, `.choice-group-head` (a
-`<button>` with `aria-expanded`), shows the setting's name, what it is now, and an arrow; tapping it shows its choices in
-`.choice-group-body` **inside the same box** - never as boxes of their own under it, which read as separate settings.
-One group open at a time; the pop-up stays open and a choice takes effect at once, folding its group back up. Choices
-are radio-style rows, `.choice-group-option` (`role="radio"`, `aria-checked`, a `radio_button_checked` /
-`radio_button_unchecked` icon, gold when chosen), divided by a hairline; a long run of values (speeds, numbers) is
-`.metroBlk-timesig-opt` tiles in `.metroBlk-speed-options`, also inside the body. Open, the box takes the gold outline and
-its head the gold tint. The arrow here is the one place a show/hide arrow is used - by the owner's say-so - see the next
-rule for everywhere else.
+**A pop-up of several settings shows them all at once (ML-587, owner 23 Oct 2026).** No show/hide arrows: a short set
+of values is a row of tiles (a practice's Playback: the five Levels, `.level-picker`); anything else is a yes/no toggle
+switch, off by default, whose choices (tiles) appear right under it when it is on - as on Warm-ups' and Scales'
+settings. A choice takes effect at once, so the pop-up's button says Done.
 
 **No dropdown carets (ML-205).** A control that opens one of these tile pickers is itself a tile (see the Flow block tiles and the metronome value boxes), not a dropdown, so it never shows a ▾ arrow. The same goes for the top-bar timer pill, which opens the timer popup. There are no dropdown carets anywhere in the app.
 

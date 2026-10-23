@@ -224,11 +224,12 @@ nothing saved as it plays; at the end (or Done) it goes on to setting the level 
   For this go only (`flowSession.custom`): the Level isn't changed, the button shows the % ("70%" over "speed"),
   picking a Level goes back to its speed, and a Level change or rating records the speed played (`percentPlayed`, up to 100).
 - **The tiles:** 4, not 5 (ML-587): reset, **Playback**, play and **Finish**. Playback takes the place of repeat,
-  sub beats and play speed: one pop-up (`openFlowPlaybackModal`) with three rows - **Level** (pick any Level, faster or
-  slower, straight away - in a block it's saved as `during`; ML-537; or a Custom speed, ML-588), **Sub beats** (Off /
-  Auto / a number a beat) and **Count-in** - each one box (a choice group, `specs/components/selectable-tile.md`) whose
-  choices open inside it, one at a time, the pop-up staying open; its bottom button says Done, since every choice
-  takes effect at once. The button shows the Level's number (or the Custom %), never a Level's % (ML-535).
+  sub beats and play speed: one pop-up (`openFlowPlaybackModal`) showing everything at once, no show/hide arrows
+  (owner, 23 Oct 2026): the **Level** as a row of the five Level tiles (pick any, faster or slower, straight away - in a
+  block it's saved as `during`; ML-537), then three yes/no switches, off by default, each showing its choices under it
+  when on - **My own speed** (the % tiles, ML-588; switching it off goes back to the Level), **Sub beats** (Auto or a
+  number a beat) and **Count-in** (First time only / Every time round). Its button says Done: every choice takes effect
+  at once. The button shows the Level's number (or the Custom %), never a Level's % (ML-535).
 - **A recording or video in a practice (ML-587):** its slide gets a **Play** of its own: the count-in clicks at the
   speed of the bar the practice starts on (at the play speed), with the big count-down over the slide, then the
   recording plays from the practised bars (`recPlayInPractice`); with the count-in every time round it stops at the

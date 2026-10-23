@@ -2331,21 +2331,6 @@
     .flow-choice-option .pick-row-check { flex-shrink: 0; color: var(--label-color); }
     .flow-choice-option.selected .pick-row-check { color: var(--primary-action-strong); font-variation-settings: 'FILL' 1; }
     .pick-bar { display: flex; justify-content: flex-end; gap: var(--space-4); margin-bottom: var(--space-2); }
-    /* ML-587 (owner, 23 Oct 2026): a choice group - one setting in a pop-up of several (Playback). One box: its head
-       (the name, what it is now, an arrow) shows and hides its choices INSIDE the same box, so they read as one
-       group, not as more boxes of their own. Choices are radio-style rows (.choice-group-option) and/or value tiles.
-       See specs/components/selectable-tile.md. */
-    .choice-group { border: 2px solid var(--control-border); border-radius: var(--radius-lg); margin-bottom: var(--space-2); overflow: hidden; }
-    .choice-group.is-open { border-color: var(--primary-action-strong); }
-    .choice-group-head { width: 100%; min-height: var(--touch-target); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border: none; background: none; color: var(--text-color); font: inherit; text-align: left; cursor: pointer; box-sizing: border-box; }
-    .choice-group.is-open .choice-group-head { background: var(--primary-action-tint); }
-    .choice-group-head .material-symbols-outlined { flex-shrink: 0; color: var(--primary-action-strong); }
-    .choice-group-body { padding: var(--space-2) var(--space-4) var(--space-4); border-top: 1px solid var(--input-border); }
-    .choice-group-option { width: 100%; min-height: var(--touch-target); display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) 0; border: none; background: none; color: var(--text-color); font: inherit; text-align: left; cursor: pointer; box-sizing: border-box; }
-    .choice-group-option + .choice-group-option { border-top: 1px solid var(--input-border); }
-    .choice-group-option .material-symbols-outlined { flex-shrink: 0; color: var(--label-color); }
-    .choice-group-option[aria-checked="true"] .material-symbols-outlined { color: var(--primary-action-strong); font-variation-settings: 'FILL' 1; }
-    .choice-group-option[aria-checked="true"] strong { color: var(--primary-action-strong); }
     .pick-bar .btn-text { width: auto; padding: var(--space-3) var(--space-1); }
     /* Segno/coda glyphs (flowSignIconSvg) - the real Unicode Musical Symbols characters, set in Noto
        Music (loaded in index.html) rather than drawn by hand; plain text, so it inherits currentColor

@@ -8047,8 +8047,8 @@
     const flowSessionPercentPlayed = () => { const s = flowSession; return s.custom ? Math.min(100, Math.max(1, Math.round(flowSpeedPercent))) : s.percents[s.level - 1]; };
     // ===== ML-587 (owner, 23 Oct 2026): a practice's playback settings, one button =====
     // In a practice the play screen has 4 buttons under the metronome - reset, playback, play, finish - not 5: the
-    // Level (or a Custom speed), sub beats and the count-in are one "playback" button. Its pop-up opens each one's
-    // choices under its row, one at a time, and stays open (as the Tuner settings, ML-591); a choice takes effect at once.
+    // Level (or a Custom speed), sub beats and the count-in are one "playback" button, its pop-up showing them all at
+    // once (renderFlowPlaybackModal); a choice takes effect at once.
     // ML-537: any Level while you play - faster or slower; in a practice block the change is saved as it happens (source
     // 'during'), in a run-through it's only the speed you play at. ML-588: or a Custom speed, for this go only (picking a
     // Level goes back to that Level's speed).
@@ -8070,7 +8070,6 @@
     // The gap between goes: one bar, or the whole count-in again when it comes every time round
     const practiceGapBars = () => (practiceCountInWhen() === 'every' ? practiceCountInBars() : 1);
     function flowCountInEveryGo() { return !!flowSession && flowSession.mode !== 'runthrough' && practiceCountInWhen() === 'every'; }
-    let flowPlaybackOpen = null; // the row whose choices are showing: 'level', 'sub' or 'countIn'
     function flowPlaybackValues() {
         const s = flowSession;
         const subOn = flowSubBeatsMode === 'session' ? flowSessionSubBeatsOn() : flowSubBeatsMode !== 'off';
@@ -8081,85 +8080,69 @@
             countIn: when === 'off' ? 'Off' : `${COUNT_IN_WHEN[when]} · ${countInText(practiceCountInBars())}`
         };
     }
+    // Everything shows at once - no show/hide arrows (ML-205; owner, 23 Oct 2026): the Level is a row of the five Level
+    // tiles (the paint pots' and the rating's .level-picker); My own speed, Sub beats and Count-in are yes/no switches,
+    // as on Warm-ups' settings, each showing its choices under it when on. A choice takes effect at once.
     async function renderFlowPlaybackModal() {
         const s = flowSession;
         if (!s) { hideModal('flowChoiceModal'); return; }
-        const v = flowPlaybackValues();
-        // Each setting is one box (.choice-group): its head says what it is now, and its choices open inside the same
-        // box - radio-style rows, then value tiles where there are many (owner, 23 Oct 2026: not separate boxes).
-        const group = (key, name, body) => {
-            const open = flowPlaybackOpen === key;
-            return `<div class="choice-group${open ? ' is-open' : ''}">
-                <button type="button" class="choice-group-head" data-pb-row="${key}" aria-expanded="${open}"${open ? ` aria-controls="pbBody-${key}"` : ''}>
-                    <span><strong>${name}</strong><br><span class="text-sm text-muted">${escapeHtml(v[key])}</span></span>
-                    <span class="material-symbols-outlined" aria-hidden="true">${open ? 'expand_less' : 'expand_more'}</span>
-                </button>
-                ${open ? `<div class="choice-group-body" id="pbBody-${key}">${body}</div>` : ''}
-            </div>`;
-        };
-        const choice = (attrs, on, inner) => `<button type="button" class="choice-group-option" role="radio" aria-checked="${!!on}" ${attrs}><span class="material-symbols-outlined" aria-hidden="true">${on ? 'radio_button_checked' : 'radio_button_unchecked'}</span><span class="grow">${inner}</span></button>`;
+        const subOn = flowSubBeatsMode === 'session' ? flowSessionSubBeatsOn() : flowSubBeatsMode !== 'off';
+        const fixed = flowSubBeatsMode === 'fixed' ? flowSubdivideOverride : null;
+        const when = practiceCountInWhen();
+        const bars = countInText(practiceCountInBars() || 1);
         const tile = (attrs, label, on) => `<button type="button" class="metroBlk-timesig-opt${on ? ' selected' : ''}" ${attrs} aria-pressed="${!!on}">${label}</button>`;
-        let body = '';
-        if (flowPlaybackOpen === 'level') {
+        const toggle = (id, label, help, on) => `<div class="display-toggle-row warmups-settings-row"><span id="${id}Lbl">${label}<span class="display-toggle-help">${help}</span></span><label class="toggle-switch"><input type="checkbox" id="${id}" aria-labelledby="${id}Lbl"${on ? ' checked' : ''}><span class="toggle-slider"></span></label></div>`;
+        let own = '';
+        if (s.custom) {
             const speeds = await ensurePlaySpeeds(); // ML-596: the one list
             const floor = flowSessionCustomFloor();
             const lowest = speeds.find(p => p >= floor);
-            const note = speeds.some(p => p < floor) && lowest ? `<p class="text-sm text-muted mt-2">It goes down to ${lowest}% here, so the slowest bar stays at ${FLOW_CUSTOM_MIN_BPM} bpm or more.</p>` : '';
-            body = `<div role="radiogroup" aria-label="Level">${[1, 2, 3, 4, 5].map(n => choice(`data-pb-level="${n}"`, !s.custom && n === s.level, `<span class="flex-row items-center gap-sm"><span class="level-chip lv-${n}">${n}</span><strong>${levelWord(n)}</strong></span>`)).join('')}</div>`
-                + `<p class="text-sm text-muted mt-3">Or your own speed - a % of the piece's own, for this go:</p><div class="metroBlk-speed-options mt-2" role="group" aria-label="Your own speed">${speeds.filter(p => p >= floor).map(p => tile(`data-pb-speed="${p}"`, `${p}%`, s.custom && p === s.customPercent)).join('')}</div>${note}`;
-        } else if (flowPlaybackOpen === 'sub') {
-            const fixed = flowSubBeatsMode === 'fixed' ? flowSubdivideOverride : null;
-            const on = v.sub !== 'Off';
-            body = `<div role="radiogroup" aria-label="Sub beats">${choice('data-pb-sub="off"', !on, '<strong>Off</strong><br><span class="text-sm text-muted">Just the beats</span>')}${choice('data-pb-sub="auto"', on && !fixed, '<strong>Auto</strong><br><span class="text-sm text-muted">The number that fits the time signature</span>')}</div>
-                <p class="text-sm text-muted mt-3">Or set how many a beat:</p>
-                <div class="metroBlk-speed-options mt-2" role="group" aria-label="Sub beats a beat">${Array.from({ length: FLOW_SUBDIVIDE_MAX - FLOW_SUBDIVIDE_MIN + 1 }, (_, i) => FLOW_SUBDIVIDE_MIN + i).map(n => tile(`data-pb-sub="${n}"`, String(n), fixed === n)).join('')}</div>`;
-        } else if (flowPlaybackOpen === 'countIn') {
-            const when = practiceCountInWhen();
-            const sub = { off: 'It starts as soon as you press play', first: 'Before the first go, then one bar between goes', every: 'Before every go' };
-            body = `<div role="radiogroup" aria-label="Count-in">${Object.keys(COUNT_IN_WHEN).map(k => choice(`data-pb-count="${k}"`, when === k, `<strong>${COUNT_IN_WHEN[k]}</strong><br><span class="text-sm text-muted">${sub[k]}</span>`)).join('')}</div>`
-                + `<p class="text-sm text-muted mt-2">How many bars it counts: ${countInText(practiceCountInBars() || 1)} - change it in Settings.</p>`;
+            const note = speeds.some(p => p < floor) && lowest ? `<p class="text-sm text-muted">It goes down to ${lowest}% here, so the slowest bar stays at ${FLOW_CUSTOM_MIN_BPM} bpm or more.</p>` : '';
+            own = `<div class="metroBlk-speed-options warmups-settings-grid" role="group" aria-label="My own speed">${speeds.filter(p => p >= floor).map(p => tile(`data-pb-speed="${p}"`, `${p}%`, p === s.customPercent)).join('')}</div>${note}`;
         }
+        document.getElementById('flowChoiceOptions').innerHTML = `
+            <h3 class="warmups-settings-head mt-0" id="pbLevelHead">Level</h3>
+            <div class="level-picker" role="group" aria-labelledby="pbLevelHead">${[1, 2, 3, 4, 5].map(n => `<button type="button" class="level-pick lv-${n}${!s.custom && n === s.level ? ' selected' : ''}" data-pb-level="${n}" aria-pressed="${!s.custom && n === s.level}" aria-label="Level ${n}, ${levelWord(n).toLowerCase()}">${n}<small>${levelWord(n)}</small></button>`).join('')}</div>
+            ${toggle('pbOwnToggle', 'My own speed', 'A % of the piece\'s speed, for this go', s.custom)}
+            ${own}
+            ${toggle('pbSubToggle', 'Sub beats', subOn ? 'Auto fits the time signature - or set how many a beat' : 'Off: just the beats', subOn)}
+            ${subOn ? `<div class="metroBlk-speed-options warmups-settings-grid" role="group" aria-label="Sub beats">${tile('data-pb-sub="auto"', 'Auto', !fixed)}${Array.from({ length: FLOW_SUBDIVIDE_MAX - FLOW_SUBDIVIDE_MIN + 1 }, (_, i) => FLOW_SUBDIVIDE_MIN + i).map(n => tile(`data-pb-sub="${n}"`, String(n), fixed === n)).join('')}</div>` : ''}
+            ${toggle('pbCountToggle', 'Count-in', when === 'off' ? 'Off: it starts as soon as you press play' : `${bars} - how many is in Settings`, when !== 'off')}
+            ${when !== 'off' ? `<div class="metro-transport-grid metro-transport-grid-2 warmups-settings-grid" role="group" aria-label="When it counts in">${tile('data-pb-count="first"', '<span>First time only<br><small>then a bar between goes</small></span>', when === 'first')}${tile('data-pb-count="every"', '<span>Every time round<br><small>before every go</small></span>', when === 'every')}</div>` : ''}`;
         const box = document.getElementById('flowChoiceOptions');
-        box.innerHTML = [['level', s.custom ? 'Speed' : 'Level'], ['sub', 'Sub beats'], ['countIn', 'Count-in']].map(([k, name]) =>
-            group(k, name, flowPlaybackOpen === k ? body : '')).join('');
-        const focusHead = (key) => box.querySelector(`[data-pb-row="${key}"]`)?.focus(); // the list is drawn again - keep the place
-        // ...from the keyboard only (detail 0): after a tap the focus ring would show as a stray line under the head
-        box.querySelectorAll('[data-pb-row]').forEach(b => b.addEventListener('click', (e) => {
-            const key = b.dataset.pbRow;
-            flowPlaybackOpen = flowPlaybackOpen === key ? null : key;
-            renderFlowPlaybackModal().then(() => { if (e.detail === 0) focusHead(key); });
-        }));
-        let byKeyboard = false;
-        box.addEventListener('click', (e) => { byKeyboard = e.detail === 0; }, { capture: true, once: true });
-        const done = () => { const key = flowPlaybackOpen; flowPlaybackOpen = null; renderFlowPlaybackModal().then(() => { if (byKeyboard) focusHead(key); }); };
-        box.querySelectorAll('[data-pb-level]').forEach(b => b.addEventListener('click', () => { flowSessionSetLevel(Number(b.dataset.pbLevel)).then(done); }));
-        box.querySelectorAll('[data-pb-speed]').forEach(b => b.addEventListener('click', () => {
-            const pct = Number(b.dataset.pbSpeed);
-            s.custom = true;
-            s.customPercent = pct;
-            setFlowSpeedPercent(pct);
-            flowSessionRestartHere();
-            done();
-        }));
-        box.querySelectorAll('[data-pb-sub]').forEach(b => b.addEventListener('click', () => {
-            const val = b.dataset.pbSub;
-            flowSubBeatsMode = val === 'off' || val === 'auto' ? val : 'fixed';
-            flowSubdivideOverride = flowSubBeatsMode === 'fixed' ? Number(val) : null;
+        const again = () => renderFlowPlaybackModal();
+        box.querySelectorAll('[data-pb-level]').forEach(b => b.addEventListener('click', () => { flowSessionSetLevel(Number(b.dataset.pbLevel)).then(again); }));
+        const ownSpeed = (pct) => { s.custom = true; s.customPercent = pct; setFlowSpeedPercent(pct); flowSessionRestartHere(); };
+        box.querySelectorAll('[data-pb-speed]').forEach(b => b.addEventListener('click', () => { ownSpeed(Number(b.dataset.pbSpeed)); again(); }));
+        document.getElementById('pbOwnToggle').addEventListener('change', async (e) => {
+            if (!e.target.checked) { await flowSessionSetLevel(s.level); again(); return; } // back to the Level's own speed
+            // on: the list's speed nearest the one playing now, so nothing jumps
+            const speeds = (await ensurePlaySpeeds()).filter(p => p >= flowSessionCustomFloor());
+            if (!speeds.length) { e.target.checked = false; return; }
+            ownSpeed(speeds.reduce((best, p) => (Math.abs(p - flowSpeedPercent) < Math.abs(best - flowSpeedPercent) ? p : best), speeds[0]));
+            again();
+        });
+        const setSub = (mode, n) => {
+            flowSubBeatsMode = mode;
+            flowSubdivideOverride = mode === 'fixed' ? n : null;
             flowSessionRestartHere(); // sub beats change the clicks in a bar - the go restarts from the bar it's on
             renderFlowSubdivideLabel();
-            done();
-        }));
-        box.querySelectorAll('[data-pb-count]').forEach(b => b.addEventListener('click', () => {
-            setPracticeCountInWhen(b.dataset.pbCount);
+            again();
+        };
+        document.getElementById('pbSubToggle').addEventListener('change', (e) => setSub(e.target.checked ? 'auto' : 'off'));
+        box.querySelectorAll('[data-pb-sub]').forEach(b => b.addEventListener('click', () => (b.dataset.pbSub === 'auto' ? setSub('auto') : setSub('fixed', Number(b.dataset.pbSub)))));
+        const setCount = (w) => {
+            setPracticeCountInWhen(w);
             // the goes still to come take the new gap; the count-in before the first is used from the next start
             if (flowLoop && s.mode !== 'runthrough') { flowLoop.restBars = practiceGapBars(); flowComputeLoopPlan(); }
             renderFlowSessionControls();
-            done();
-        }));
+            again();
+        };
+        document.getElementById('pbCountToggle').addEventListener('change', (e) => setCount(e.target.checked ? 'first' : 'off'));
+        box.querySelectorAll('[data-pb-count]').forEach(b => b.addEventListener('click', () => setCount(b.dataset.pbCount)));
     }
     function openFlowPlaybackModal() {
         if (!flowSession) return;
-        flowPlaybackOpen = null;
         document.getElementById('flowChoiceTitle').innerText = 'Playback';
         const inlineExtra = document.getElementById('flowChoiceInlineExtra');
         inlineExtra.classList.add('hidden-group');
