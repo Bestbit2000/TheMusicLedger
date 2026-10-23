@@ -564,13 +564,8 @@
             <div class="stat-card edge-lesson"><div class="label">Lessons</div><div class="value" id="statLess">-</div></div>
         </div>
 
-        <!-- ML-176: inline filter strip (design system component, see styleguide.html) - replaces
-             the old "Filter stats (All)" button + blocking checkbox modal. Counts/highlight state are
-             filled in by renderFilterStrip (app.js), scoped to this screen's own timeframe. -->
-        <div class="filter-strip" id="statsFilterStrip">
-            <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span><span class="filter-strip-badge hidden-group" id="statsFilterBadge"></span></span>
-            <div class="filter-strip-pills" id="statsFilterPills"></div>
-        </div>
+        <!-- ML-595: the one Filter (kind, instrument) - shared with History, its counts this timeframe's (renderSessionFilterBar) -->
+        <div class="filter-bar" id="statsFilterBar"></div>
 
         <div class="section-title">Daily time</div>
         <div class="scroll-wrapper heatmap-scroll-wrapper"><button class="scroll-btn left" data-act="scroll-area" data-arg="-200">&lt;</button><div class="heatmap-wrapper" tabindex="0" role="group" aria-label="Time practised, day by day - scrolls sideways"><div class="heatmap-container" id="timeHeatmap"></div></div><div class="heatmap-daylabels"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div><button class="scroll-btn right" data-act="scroll-area" data-arg="200">&gt;</button></div>
@@ -599,13 +594,8 @@
     <div id="historyView" class="hidden-group">
         <button class="btn-submit mb-4" data-act="view" data-arg="entryForm">Add session time</button>
         <div class="month-nav"><button id="prevMonthBtn">&lt;</button><span id="currentMonthDisplay" class="fw-bold">Loading...</span><button id="nextMonthBtn">&gt;</button></div>
-        <!-- ML-176: inline filter strip (design system component, see styleguide.html) - replaces
-             the old "Filter history (All)" button + blocking checkbox modal, moved below the month
-             selector and above the summary/log area per the ticket's own layout. -->
-        <div class="filter-strip" id="historyFilterStrip">
-            <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span><span class="filter-strip-badge hidden-group" id="historyFilterBadge"></span></span>
-            <div class="filter-strip-pills" id="historyFilterPills"></div>
-        </div>
+        <!-- ML-595: the one Filter (kind, instrument) - below the month, above the summary; shared with Stats -->
+        <div class="filter-bar" id="historyFilterBar"></div>
         <div id="historySummary" class="text-center mb-4 fw-bold"></div>
         <div id="historyList"><div class="text-center text-muted">Loading entries...</div></div>
     </div>
@@ -1773,11 +1763,9 @@
 
     <div id="prepareListView" class="hidden-group">
         <p class="theory-intro">Get a piece ready to practise: play it through, mark how each bar went, and split it into focus sections to work on. Pick a piece to start.</p>
-        <div class="filter-strip">
-            <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span></span>
-            <div class="filter-strip-pills" id="prepareFilterPills" role="group" aria-label="Show pieces"></div>
-        </div>
-        <input type="search" id="prepareSearch" class="mb-4" placeholder="Search by title or composer" aria-label="Search pieces by title or composer">
+        <input type="search" id="prepareSearch" class="mb-2" placeholder="Search by title or composer" aria-label="Search pieces by title or composer">
+        <!-- ML-595: the one Filter (renderFilterBar) - it starts on "Not prepared yet" -->
+        <div class="filter-bar" id="prepareFilterBar"></div>
         <div id="prepareList">Loading...</div>
     </div>
 
@@ -3956,11 +3944,8 @@
         <div class="metroSeg-scroll-area">
             <h2 id="flowBulkArchiveTitle">Archive pieces</h2>
             <p class="metro-help-text" id="flowBulkArchiveIntro"></p>
-            <div class="filter-strip">
-                <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span></span>
-                <div class="filter-strip-pills" id="flowBulkArchiveFilterPills" role="group" aria-label="Show pieces"></div>
-            </div>
-            <input type="search" id="flowBulkArchiveSearch" class="mb-3" placeholder="Search by title or composer" aria-label="Search pieces by title or composer">
+            <input type="search" id="flowBulkArchiveSearch" class="mb-2" placeholder="Search by title or composer" aria-label="Search pieces by title or composer">
+            <div class="filter-bar" id="flowBulkArchiveFilterBar"></div>
             <div class="pick-bar" id="flowBulkArchivePickBar"></div>
             <div id="flowBulkArchiveOptions"></div>
         </div>
@@ -3975,11 +3960,8 @@
         <button type="button" class="modal-close-x" id="skillsAddCloseBtn" aria-label="Close">&times;</button>
         <div class="metroSeg-scroll-area">
             <h2 id="skillsAddTitle">Add skills</h2>
-            <!-- ML-352: the standard filter strip (tune icon on the left), same as My music/Stats/History. -->
-            <div class="filter-strip">
-                <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span></span>
-                <div class="filter-strip-pills" id="skillsAddGrades" role="group" aria-label="Show skills for"></div>
-            </div>
+            <!-- ML-595: the one Filter (the grade), as on My music, Stats and History -->
+            <div class="filter-bar" id="skillsAddFilterBar"></div>
             <div class="pick-bar" id="skillsAddPickBar"></div>
             <div id="skillsAddOptions"></div>
         </div>
@@ -4155,7 +4137,8 @@
         <button type="button" class="modal-close-x" id="sessPiecesCloseBtn" aria-label="Close">&times;</button>
         <div class="metroSeg-scroll-area">
             <h2 id="sessPiecesTitleModal">Choose pieces</h2>
-            <input type="search" id="sessPiecesSearch" class="mb-3" placeholder="Search by title or composer" aria-label="Search pieces by title or composer">
+            <input type="search" id="sessPiecesSearch" class="mb-2" placeholder="Search by title or composer" aria-label="Search pieces by title or composer">
+            <div class="filter-bar" id="sessPiecesFilterBar"></div>
             <div class="pick-bar" id="sessPiecesPickBar"></div>
             <div id="sessPiecesOptions"></div>
         </div>
@@ -4200,11 +4183,8 @@
         <button type="button" class="modal-close-x" id="plPiecesCloseBtn" aria-label="Close">&times;</button>
         <div class="metroSeg-scroll-area">
             <h2 id="plPiecesTitle">Add pieces</h2>
-            <div class="filter-strip">
-                <span class="filter-strip-icon" aria-hidden="true"><span class="material-symbols-outlined">tune</span></span>
-                <div class="filter-strip-pills" id="plPiecesFilterPills" role="group" aria-label="Show pieces"></div>
-            </div>
-            <input type="search" id="plPiecesSearch" class="mb-3" placeholder="Search by title or composer" aria-label="Search pieces by title or composer">
+            <input type="search" id="plPiecesSearch" class="mb-2" placeholder="Search by title or composer" aria-label="Search pieces by title or composer">
+            <div class="filter-bar" id="plPiecesFilterBar"></div>
             <div class="pick-bar" id="plPiecesPickBar"></div>
             <div id="plPiecesOptions"></div>
         </div>

@@ -10,9 +10,10 @@ Inline, horizontally scrollable category filter above a list or stats (Session h
 stats). Replaced the old full-width filter button + modal. **Don't use** for more than ~8 options,
 or for a single required choice (use [radio-group](radio-group.md)).
 
+**The app's own lists now use the [filter bar](filter-bar.md)** (ML-595, owner 23 Oct 2026) - one Filter button, the
+filters on as chips. This strip is left for the admin panel (Accounts, Release tests, Flows) and Skills' list switcher.
 **Every filter row uses the whole strip, icon included** (ML-352) - never bare `.filter-strip-pills`,
-so it's obvious the pills filter the list. Used on Session history, Stats, My music, the Add skills
-popup and the Add pieces popup.
+so it's obvious the pills filter the list.
 
 ## 3. Anatomy
 `.filter-strip` › `.filter-strip-icon` (decorative, not a button: no outline, no fill, just a `--label-color` icon (ML-200), with the `.filter-strip-badge` active count) › `.filter-strip-pills` (drag-scrollable) › `.filter-pill[.active]` × n › optional `.filter-pill-count`

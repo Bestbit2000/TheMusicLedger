@@ -737,7 +737,6 @@
     const homeGreetingRoll = Math.random(); // one roll per visit, so "Ready to practise?" doesn't flicker
     let toolsEditing = false;          // ML-378: All tools is in "Choose favourite tools" mode (switchView uses it)
     let currentHistDate = new Date();
-    let activeFilters = { 'Practise': true, 'Rehearsal': true, 'Lesson': true, 'Performance': true };
     // ML-288: a session category's colours come from a class (.category-practise etc., style.css), which
     // sets --category-accent (the fill) and --category-accent-text (the same hue as text - ML-210, the
     // fill fails 4.5:1 as text in light mode). .category-edge / .category-text / .filter-pill read them.
@@ -3460,68 +3459,41 @@
         if(statPerf) statPerf.innerHTML = `${formatMins(catStats['Performance'].m)} <span class="sess-count">(${catStats['Performance'].s})</span>`;
         if(statLess) statLess.innerHTML = `${formatMins(catStats['Lesson'].m)} <span class="sess-count">(${catStats['Lesson'].s})</span>`;
 
-        // ML-176: the Detailed stats screen's own inline filter strip - counts are session counts
-        // for this same timeframe, same as the stat cards above, so they never shift just because a
-        // pill got toggled off.
-        renderFilterStrip('statsFilterPills', 'statsFilterBadge', {
-            Practise: catStats['Practise'].s, Rehearsal: catStats['Rehearsal'].s,
-            Lesson: catStats['Lesson'].s, Performance: catStats['Performance'].s
-        }, totalSess, onFilterStripToggle);
+        // ML-595: the one Filter - kind and instrument, the same on Stats and History. The counts are this timeframe's.
+        const inTimeframe = rawData.filter(d => { const dObj = parseDateSafely(d.dateStr); return dObj >= start && dObj <= end; });
+        renderSessionFilterBar('statsFilterBar', () => inTimeframe, totalSess);
     }
 
-    // ML-176: replaces the old "Filter history/stats (All)" button + blocking checkbox modal on
-    // both screens with an inline, 1-tap chip track - see docs on renderFilterStrip below. Order
-    // matches the ticket's own wireframe (All, then Practise/Rehearsal/Lesson/Performance).
+    // ML-176 / ML-595: the kinds of practice - and the order the Filter lists them in
     const FILTER_CATEGORIES = ['Practise', 'Rehearsal', 'Lesson', 'Performance'];
-
-    // Shared design-system renderer (see styleguide.html) for any screen's inline filter strip: the
-    // leading icon's active-count badge plus the All/category pill track. counts/totalCount are
-    // whatever the caller has already scoped (current month for History, current timeframe for
-    // Stats) - toggling a pill never changes those counts, only which rows/totals elsewhere on the
-    // page are currently shown, via onToggle. Re-run on every relevant re-render (not just once)
-    // since it also has to reflect activeFilters changing.
-    function renderFilterStrip(pillsId, badgeId, counts, totalCount, onToggle) {
-        const pillsEl = document.getElementById(pillsId);
-        if (!pillsEl) return;
-        const activeCount = FILTER_CATEGORIES.filter(c => activeFilters[c]).length;
-
-        const badgeEl = document.getElementById(badgeId);
-        if (badgeEl) {
-            badgeEl.innerText = activeCount;
-            badgeEl.classList.toggle('hidden-group', activeCount === FILTER_CATEGORIES.length);
-        }
-
-        const allActive = activeCount === FILTER_CATEGORIES.length;
-        pillsEl.innerHTML = `
-            <button type="button" class="filter-pill${allActive ? ' active' : ''}" data-filter-all>All <span class="filter-pill-count">${totalCount}</span></button>
-            ${FILTER_CATEGORIES.map(cat => `
-                <button type="button" class="filter-pill ${categoryClass(cat)}${activeFilters[cat] ? ' active' : ''}" data-filter-cat="${cat}">${categoryLabel(cat)} <span class="filter-pill-count">${counts[cat] || 0}</span></button>
-            `).join('')}
-        `;
-        pillsEl.querySelector('[data-filter-all]').addEventListener('click', () => {
-            FILTER_CATEGORIES.forEach(c => activeFilters[c] = true);
-            onToggle();
-        });
-        pillsEl.querySelectorAll('[data-filter-cat]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                activeFilters[btn.dataset.filterCat] = !activeFilters[btn.dataset.filterCat];
-                onToggle();
-            });
+    // ML-595: Stats and History share one Filter (kind, and instrument once more than one has been played) - a change
+    // on either shows on both. Per visit of the app.
+    let sessionFilterState = {};
+    function sessionFilterGroups() {
+        const played = [...new Map((rawData || []).filter(d => d.instrumentId).map(d => [d.instrumentId, d.instrumentName || 'Instrument'])).entries()]
+            .map(([id, name]) => ({ value: String(id), label: name })).sort((a, b) => a.label.localeCompare(b.label));
+        return [{ key: 'kind', label: 'Kind', options: FILTER_CATEGORIES.map(c => ({ value: c, label: categoryLabel(c) })) },
+            { key: 'instrument', label: 'Instrument', options: played.length > 1 ? played : [] }];
+    }
+    const sessionFilterMatch = (d, key, v) => (key === 'kind' ? d.category === v : String(d.instrumentId) === v);
+    const sessionFiltered = (list) => Filters.apply(list, sessionFilterGroups(), sessionFilterState, sessionFilterMatch);
+    function renderSessionFilterBar(id, items, total) {
+        renderFilterBar({
+            id, title: 'Show practice', allLabel: 'All practice', noun: 'sessions',
+            groups: sessionFilterGroups, state: () => sessionFilterState, setState: (s) => { sessionFilterState = s; },
+            items, match: sessionFilterMatch, shown: () => sessionFiltered(items()).length, total: () => total, onChange: onFilterStripToggle
         });
     }
 
-    // activeFilters is shared across both screens (as it already was pre-ML-176), so a toggle on
-    // either one re-renders both - otherwise the screen you're not looking at would show a stale
-    // pill highlight/badge next time you open it.
+    // the Filter is shared across both screens, so a change on either re-renders both - otherwise the screen you're
+    // not looking at would show a stale count next time you open it.
     function onFilterStripToggle() {
         renderStatsBoxes();
         renderFilteredVisuals();
     }
 
     function renderHistoryFilterStrip(monthDataAll) {
-        const counts = { Practise: 0, Rehearsal: 0, Lesson: 0, Performance: 0 };
-        monthDataAll.forEach(d => { if (counts[d.category] !== undefined) counts[d.category]++; });
-        renderFilterStrip('historyFilterPills', 'historyFilterBadge', counts, monthDataAll.length, onFilterStripToggle);
+        renderSessionFilterBar('historyFilterBar', () => monthDataAll, monthDataAll.length);
     }
 
     // A mouse has no touch-swipe/trackpad-scroll equivalent for reaching an overflowing pill, so
@@ -3645,7 +3617,7 @@
 
     function renderFilteredVisuals() {
         try {
-            const filtered = rawData.filter(d => activeFilters[d.category]);
+            const filtered = sessionFiltered(rawData); // ML-595
             let dailyMins = {}, dailySess = {};
             filtered.forEach(d => {
                 const dateKey = d.dateStr;
@@ -3947,7 +3919,7 @@
                 return dObj.getFullYear()===y && dObj.getMonth()===m;
             });
             renderHistoryFilterStrip(monthDataAll);
-            const monthData = monthDataAll.filter(d => activeFilters[d.category]);
+            const monthData = sessionFiltered(monthDataAll); // ML-595
 
             if(monthData.length === 0) {
                 list.innerHTML = '<div class="text-center p-5">No entries.</div>';
@@ -6971,17 +6943,22 @@
     // from you yet); "All pieces" adds the rest. A piece opens its path (openPiecePath), where the
     // run-through, painting and cutting already live. A public piece first asks whether to prepare it
     // as it is (your Levels are your own either way) or copy it into your library and prepare the copy.
-    let prepareFilter = 'todo';
+    // ML-595: the one Filter - it starts on "Not prepared yet" (a chip, taken off with its x for every piece)
+    const PREPARE_START = { prepared: ['no'] };
+    let prepareState = { ...PREPARE_START };
     let prepareQuery = '';
     const preparePieces = () => (flowsListCache || []).filter(f => f.blockCount > 0);
+    const prepareGroups = () => pieceFilterGroups(preparePieces(), { prepared: true });
     function renderPrepareList() {
-        const all = preparePieces(), todo = all.filter(f => !f.prepared);
-        const pills = document.getElementById('prepareFilterPills');
-        pills.innerHTML = [['todo', 'To prepare', todo.length], ['all', 'All pieces', all.length]].map(([key, label, n]) =>
-            `<button type="button" class="filter-pill${prepareFilter === key ? ' active' : ''}" data-prepare-filter="${key}" aria-pressed="${prepareFilter === key}">${label} <span class="filter-pill-count">${n}</span></button>`).join('');
-        pills.querySelectorAll('[data-prepare-filter]').forEach(b => b.addEventListener('click', () => { prepareFilter = b.dataset.prepareFilter; renderPrepareList(); }));
+        const all = preparePieces();
         const q = prepareQuery.trim().toLowerCase();
-        const shown = (prepareFilter === 'todo' ? todo : all).filter(f => !q || `${f.title} ${f.composer || ''}`.toLowerCase().includes(q));
+        const shown = Filters.apply(all, prepareGroups(), prepareState, pieceFilterMatch).filter(f => pieceSearchMatch(f, q));
+        renderFilterBar({
+            id: 'prepareFilterBar', title: 'Show pieces', allLabel: 'All pieces', noun: 'pieces',
+            groups: prepareGroups, state: () => prepareState, setState: (s) => { prepareState = s; },
+            items: preparePieces, match: pieceFilterMatch, shown: () => shown.length, total: () => all.length, onChange: renderPrepareList
+        });
+        const todoOnly = JSON.stringify(Filters.clean(prepareGroups(), prepareState)) === JSON.stringify(PREPARE_START);
         const ui = document.getElementById('prepareList');
         ui.innerHTML = shown.length ? shown.map(f => `
             <button type="button" class="history-item clickable" data-prepare-id="${f.id}"${f.isPublic && !f.prepared ? ' aria-haspopup="dialog"' : ''}>
@@ -6991,7 +6968,7 @@
                 </span>
                 <span class="material-symbols-outlined" aria-hidden="true">${f.prepared ? 'check_circle' : 'construction'}</span>
             </button>`).join('')
-            : `<p class="text-muted">${q ? 'No pieces match that search.' : prepareFilter === 'todo' && all.length ? 'Every piece is prepared. Tap All pieces to see them.' : 'No pieces to prepare yet - add one with Add a piece.'}</p>`;
+            : `<p class="text-muted">${q ? 'No pieces match that search.' : todoOnly && all.length ? 'Every piece is prepared. Take off "Not prepared yet" to see them.' : all.length ? 'No pieces match.' : 'No pieces to prepare yet - add one with Add a piece.'}</p>`;
         ui.querySelectorAll('[data-prepare-id]').forEach(b => b.addEventListener('click', () => preparePiece(shown.find(f => f.id === Number(b.dataset.prepareId)))));
     }
     function preparePiece(f) {
@@ -7011,7 +6988,7 @@
     // A fresh visit starts on "To prepare" with no search; coming Back (from a piece's path) keeps the
     // filter and re-reads the pieces, as one may just have been prepared.
     async function openPrepareList(isBack) {
-        if (!isBack) { prepareFilter = 'todo'; prepareQuery = ''; document.getElementById('prepareSearch').value = ''; }
+        if (!isBack) { prepareState = { ...PREPARE_START }; prepareQuery = ''; document.getElementById('prepareSearch').value = ''; }
         if (flowsListCache.length) renderPrepareList();
         try { flowsListCache = await API.flows.list(); } catch (e) { showWarningToast('Pieces not loaded: ' + e.message); }
         if (isShown('prepareListView')) renderPrepareList();
@@ -8779,20 +8756,28 @@
     }
     document.getElementById('sessPiecesSourceBtn')?.addEventListener('click', () => openContentChooser('pieces'));
     // Pieces I choose - the same pick list as a practice list's Add pieces.
-    const sessPick = { picked: new Set(), query: '' };
+    const sessPick = { picked: new Set(), query: '', state: {} }; // ML-595: state - the one Filter
     async function openSessPiecesModal() {
         if (!flowsListCache.length) await rehearseRefresh();
         const src = sessPlan.source || {};
         const can = new Set(rehearsePlayable().map(f => f.id)); // ML-583: only pieces the list shows
         sessPick.picked = new Set((src.type === 'pieces' ? src.scoreIds || [] : []).map(Number).filter(id => can.has(id)));
         sessPick.query = '';
+        sessPick.state = {};
         document.getElementById('sessPiecesSearch').value = '';
+        closeFilterInPopup('sessPiecesModal');
         renderSessPiecesModal();
         showModal('sessPiecesModal');
     }
     function renderSessPiecesModal() {
-        const q = sessPick.query;
-        const shown = rehearsePlayable().filter(f => !q || f.title.toLowerCase().includes(q) || (f.composer || '').toLowerCase().includes(q));
+        const groups = () => pieceFilterGroups(rehearsePlayable(), { prepared: true, lists: isFeatureEnabled('practice_levels') });
+        const filtered = () => Filters.apply(rehearsePlayable(), groups(), sessPick.state, pieceFilterMatch).filter(f => pieceSearchMatch(f, sessPick.query));
+        renderFilterBar({
+            id: 'sessPiecesFilterBar', title: 'Show pieces', allLabel: 'All pieces', noun: 'pieces', modal: 'sessPiecesModal',
+            groups, state: () => sessPick.state, setState: (s) => { sessPick.state = s; }, items: rehearsePlayable, match: pieceFilterMatch,
+            shown: () => filtered().length, total: () => rehearsePlayable().length, onChange: renderSessPiecesModal
+        });
+        const shown = filtered();
         const rows = shown.map(f => ({ key: f.id, html: `<strong>${escapeHtml(f.title)}</strong><br><span class="text-sm text-muted">${f.composer ? escapeHtml(f.composer) + ' · ' : ''}${f.totalBars} bar${f.totalBars === 1 ? '' : 's'}</span>` }));
         renderPickList(document.getElementById('sessPiecesOptions'), document.getElementById('sessPiecesPickBar'), rows, sessPick.picked, () => {
             const btn = document.getElementById('sessPiecesDoneBtn');
@@ -9515,28 +9500,44 @@
     }));
     document.querySelectorAll('[data-new-list]').forEach(b => b.addEventListener('click', () => newPracticeList()));
     // The practice lists, drawn into both screens' Practice lists tab
-    let plShowArchived = false;
-    let plCurrentLists = []; // ML-595: the lists, for My music's filter "On a practice list"
+    // ML-595: the one Filter - whose list, and the archived lists (a switch: shown instead of the others). There once
+    // there is something to filter by. Per visit, the same on both screens.
+    let plListState = {};
+    let plCurrentLists = []; // also for the pieces' filter "On a practice list"
+    const plShowsArchived = () => (plListState.archived || []).includes('yes') && plArchivedLists.length > 0;
+    const plListBase = () => (plShowsArchived() ? plArchivedLists : plCurrentLists);
+    function plListGroups() {
+        const all = [...plCurrentLists, ...plArchivedLists];
+        const bands = [...new Map(all.filter(l => l.bandId).map(l => [l.bandId, l.bandName || 'Band'])).entries()].map(([id, name]) => ({ value: `band:${id}`, label: name })).sort((a, b) => a.label.localeCompare(b.label));
+        const whose = [...(all.some(l => !l.bandId) ? [{ value: 'mine', label: 'Mine' }] : []), ...bands];
+        return [{ key: 'whose', label: 'Whose', options: whose.length > 1 ? whose : [] },
+            { key: 'archived', label: 'Archived', toggle: true, apply: false, help: 'Show the lists you have archived instead', options: plArchivedLists.length ? [{ value: 'yes', label: 'Archived lists', count: plArchivedLists.length }] : [] }];
+    }
+    const plListMatch = (l, key, v) => (key === 'whose' ? (v === 'mine' ? !l.bandId : `band:${l.bandId}` === v) : true);
     async function renderPracticeListRows() {
         if (!isFeatureEnabled('practice_levels')) return;
         const boxes = document.querySelectorAll('[data-practice-lists]');
         try {
             const { lists: current } = await API.practiceLists.list();
             plCurrentLists = current;
-            // Archived lists are out of the way until asked for: two pills, there only once a list is archived
-            if (!plArchivedLists.length) plShowArchived = false;
-            const lists = plShowArchived ? plArchivedLists : current;
-            const pill = (on, label, n) => `<button type="button" class="filter-pill${on ? ' active' : ''}" data-list-archived="${label === 'Archived'}" aria-pressed="${on}">${label} <span class="filter-pill-count">${n}</span></button>`;
-            const pills = plArchivedLists.length ? `<div class="filter-strip-pills mb-2" role="group" aria-label="Show practice lists">${pill(!plShowArchived, 'Current', current.length)}${pill(plShowArchived, 'Archived', plArchivedLists.length)}</div>` : '';
-            const html = pills + (lists.length ? lists.map(l => `
+            const lists = Filters.apply(plListBase(), plListGroups(), plListState, plListMatch);
+            const filterable = plListGroups().some(g => g.options.length);
+            const rows = lists.length ? lists.map(l => `
                 <div class="history-item">
                     <button type="button" class="level-row-body grow text-left" data-list="${l.id}">
                         <span><strong>${escapeHtml(l.name)}</strong><br><span class="text-sm text-muted">${l.bandName ? `${escapeHtml(l.bandName)} · ` : ''}${plDateText(l.eventDate)} · ${l.pieceCount} piece${l.pieceCount === 1 ? '' : 's'}</span></span>
                     </button>
-                </div>`).join('') : '<p class="text-sm text-muted">A list is the pieces you\'re working towards - give it a target date and it shows the pace you need.</p>');
-            boxes.forEach(box => {
-                box.innerHTML = html;
-                box.querySelectorAll('[data-list-archived]').forEach(b => b.addEventListener('click', () => { plShowArchived = b.dataset.listArchived === 'true'; renderPracticeListRows(); }));
+                </div>`).join('') : plListBase().length ? '<p class="text-sm text-muted">No lists match.</p>' : '<p class="text-sm text-muted">A list is the pieces you\'re working towards - give it a target date and it shows the pace you need.</p>';
+            boxes.forEach((box, i) => {
+                box.innerHTML = (filterable ? `<div class="filter-bar" id="plListsFilter${i}"></div>` : '') + rows;
+                if (filterable) {
+                    renderFilterBar({
+                        id: `plListsFilter${i}`, title: 'Show practice lists', allLabel: 'All lists', noun: 'lists',
+                        groups: plListGroups, state: () => plListState, setState: (s) => { plListState = s; }, items: plListBase, match: plListMatch,
+                        shown: () => Filters.apply(plListBase(), plListGroups(), plListState, plListMatch).length, total: () => plCurrentLists.length,
+                        onChange: renderPracticeListRows
+                    });
+                }
                 box.querySelectorAll('[data-list]').forEach(b => b.addEventListener('click', () => openPracticeList(Number(b.dataset.list))));
             });
             document.querySelectorAll('[data-list-count]').forEach(el => { el.textContent = current.length ? String(current.length) : ''; });
@@ -9812,32 +9813,33 @@
     }
     // ML-351: Add pieces - a pick list of the pieces not on the list yet, filtered like My music (All /
     // Mine / each band / Public, plus a title/composer search; flowLibraryFilterKey), both per visit.
-    const plPick = { filter: 'all', query: '' };
+    // ML-595: the one Filter, opening in place inside the pop-up.
+    const plPick = { state: {}, query: '' };
     function openPlPiecesModal() {
         if (!plState.list) return; // still loading
         plState.picked = new Set();
-        plPick.filter = 'all';
+        plPick.state = {};
         plPick.query = '';
         document.getElementById('plPiecesSearch').value = '';
+        closeFilterInPopup('plPiecesModal');
         renderPlPiecesModal();
         showModal('plPiecesModal');
         if (!Object.keys(flowLibraryBandNames).length) loadFlowLibraryBandNames().then(renderPlPiecesModal);
     }
+    const plOffered = () => { const onList = new Set(plState.list.pieces.map(p => p.scoreId)); return ((typeof rehearsePlayable === 'function' ? rehearsePlayable() : flowsListCache) || []).filter(f => !onList.has(f.id)); };
     function renderPlPiecesModal() {
         const onList = new Set(plState.list.pieces.map(p => p.scoreId));
-        const offered = ((typeof rehearsePlayable === 'function' ? rehearsePlayable() : flowsListCache) || []).filter(f => !onList.has(f.id));
+        const offered = plOffered();
         const ownerName = (key) => key === 'mine' ? 'Mine' : key === 'public' ? 'Public' : (flowLibraryBandNames[Number(key.slice(5))] || 'Band');
-        const counts = { all: offered.length, mine: 0, public: 0 };
-        offered.forEach(f => { const k = flowLibraryFilterKey(f); counts[k] = (counts[k] || 0) + 1; });
-        const bandKeys = Object.keys(counts).filter(k => k.startsWith('band:')).sort((a, b) => ownerName(a).localeCompare(ownerName(b)));
-        if (plPick.filter !== 'all' && !counts[plPick.filter]) plPick.filter = 'all';
-        const pills = document.getElementById('plPiecesFilterPills');
-        pills.innerHTML = ['all', 'mine', ...bandKeys, 'public'].map(k =>
-            `<button type="button" class="filter-pill${plPick.filter === k ? ' active' : ''}" data-pl-filter="${escapeHtml(k)}" aria-pressed="${plPick.filter === k}">${escapeHtml(k === 'all' ? 'All' : ownerName(k))} <span class="filter-pill-count">${counts[k] || 0}</span></button>`).join('');
-        pills.querySelectorAll('[data-pl-filter]').forEach(b => b.addEventListener('click', () => { plPick.filter = b.dataset.plFilter; renderPlPiecesModal(); }));
+        const groups = () => pieceFilterGroups(plOffered(), { prepared: true });
         const q = plPick.query;
-        const shown = offered.filter(f => (plPick.filter === 'all' || flowLibraryFilterKey(f) === plPick.filter)
-            && (!q || f.title.toLowerCase().includes(q) || (f.composer || '').toLowerCase().includes(q)));
+        const shown = Filters.apply(offered, groups(), plPick.state, pieceFilterMatch).filter(f => pieceSearchMatch(f, q));
+        renderFilterBar({
+            id: 'plPiecesFilterBar', title: 'Show pieces', allLabel: 'All pieces', noun: 'pieces', modal: 'plPiecesModal',
+            groups, state: () => plPick.state, setState: (s) => { plPick.state = s; }, items: plOffered, match: pieceFilterMatch,
+            shown: () => Filters.apply(plOffered(), groups(), plPick.state, pieceFilterMatch).filter(f => pieceSearchMatch(f, plPick.query)).length,
+            total: () => plOffered().length, onChange: renderPlPiecesModal
+        });
         const rows = shown.map(f => ({ key: f.id, html: `<strong>${escapeHtml(f.title)}</strong><br><span class="text-sm text-muted">${f.composer ? escapeHtml(f.composer) + ' · ' : ''}${f.totalBars} bar${f.totalBars === 1 ? '' : 's'} · ${escapeHtml(ownerName(flowLibraryFilterKey(f)))}</span>` }));
         renderPickList(document.getElementById('plPiecesOptions'), document.getElementById('plPiecesPickBar'), rows, plState.picked, renderPlPiecesDone,
             `<p class="metro-help-text">${!offered.length ? (onList.size ? 'Every piece is on this list already.' : 'No pieces yet - add one in My music.') : 'No pieces match.'}</p>`);
@@ -10082,23 +10084,27 @@
 
     // ML-340: tick several skills, then Add. ML-338: All or Grade 1-5 - a grade shows the skills that
     // belong to it (SKILLS[k].grades). With no list yet, adding starts "My skills". ML-353: a pick list.
-    const skillsAdd = { grade: 0, picked: new Set() };
+    // ML-595: the grade is the one Filter (a chip once chosen), opening in place inside the pop-up.
+    const skillsAdd = { state: {}, picked: new Set() };
     function openSkillsAddModal() {
         skillsAdd.picked = new Set();
+        closeFilterInPopup('skillsAddModal');
         renderSkillsAddModal();
         showModal('skillsAddModal');
     }
+    const skillsAddOffered = () => { const have = new Set(skillsData.map(s => s.key)); return Object.keys(SKILLS).filter(k => !have.has(k) && (!SKILLS[k].feature || isFeatureEnabled(SKILLS[k].feature))
+        && !(SKILLS[k].tool === 'scales' && scaleLevelsOn())); }; // ML-391: scales belong to the Scales block's Levels
+    const skillsAddGroups = () => [{ key: 'grade', label: 'Grade', single: true, options: SKILL_GRADES.map(n => ({ value: String(n), label: `Grade ${n}` })) }];
+    const skillsAddMatch = (k, key, v) => SKILLS[k].grades[0] <= Number(v) && Number(v) <= SKILLS[k].grades[1];
     function renderSkillsAddModal() {
-        const have = new Set(skillsData.map(s => s.key));
-        const g = skillsAdd.grade;
-        const grades = document.getElementById('skillsAddGrades');
-        grades.innerHTML = [[0, 'All'], ...SKILL_GRADES.map(n => [n, `Grade ${n}`])].map(([n, label]) =>
-            `<button type="button" class="filter-pill${g === n ? ' active' : ''}" aria-pressed="${g === n}" data-grade="${n}">${label}</button>`).join('');
-        grades.querySelectorAll('[data-grade]').forEach(b => b.addEventListener('click', () => { skillsAdd.grade = Number(b.dataset.grade); renderSkillsAddModal(); }));
         const box = document.getElementById('skillsAddOptions');
-        const keys = Object.keys(SKILLS).filter(k => !have.has(k) && (!SKILLS[k].feature || isFeatureEnabled(SKILLS[k].feature))
-            && !(SKILLS[k].tool === 'scales' && scaleLevelsOn()) // ML-391: scales belong to the Scales block's Levels
-            && (!g || (SKILLS[k].grades[0] <= g && g <= SKILLS[k].grades[1])));
+        const keys = Filters.apply(skillsAddOffered(), skillsAddGroups(), skillsAdd.state, skillsAddMatch);
+        renderFilterBar({
+            id: 'skillsAddFilterBar', title: 'Show skills for', allLabel: 'All grades', noun: 'skills', modal: 'skillsAddModal',
+            groups: skillsAddGroups, state: () => skillsAdd.state, setState: (s) => { skillsAdd.state = s; }, items: skillsAddOffered, match: skillsAddMatch,
+            shown: () => Filters.apply(skillsAddOffered(), skillsAddGroups(), skillsAdd.state, skillsAddMatch).length, total: () => skillsAddOffered().length, onChange: renderSkillsAddModal
+        });
+        const g = Number((skillsAdd.state.grade || [])[0] || 0);
         const gradeText = (d) => (d.grades[0] === d.grades[1] ? `Grade ${d.grades[0]}` : `Grades ${d.grades[0]}-${d.grades[1]}`);
         const rows = keys.map(k => {
             const d = SKILLS[k];
@@ -10477,7 +10483,7 @@
         const has = [...(items.some(f => f.recordingCount > 0) ? [{ value: 'recording', label: 'A recording' }] : []), ...(items.some(f => f.documentCount > 0) ? [{ value: 'sheet', label: 'Sheet music' }] : [])];
         const groups = [{ key: 'whose', label: 'Whose', options: whose.length > 1 ? whose : [] }, { key: 'has', label: 'Has', options: has }];
         if (opts.prepared) groups.push({ key: 'prepared', label: 'Prepared', single: true, options: [{ value: 'yes', label: 'Prepared' }, { value: 'no', label: 'Not prepared yet' }] });
-        if (opts.lists) groups.push({ key: 'list', label: 'On a practice list', options: (plCurrentLists || []).filter(l => items.some(f => (f.listIds || []).includes(l.id))).map(l => ({ value: String(l.id), label: l.name })) });
+        if (opts.lists) groups.push({ key: 'list', label: 'On a practice list', options: (plCurrentLists.length ? plCurrentLists : (sessPracticeLists || [])).filter(l => items.some(f => (f.listIds || []).includes(l.id))).map(l => ({ value: String(l.id), label: l.name })) });
         if (opts.archived) groups.push({ key: 'archived', label: 'Archived', toggle: true, apply: false, help: 'Show the pieces you have archived instead', options: opts.archived.length ? [{ value: 'yes', label: 'Archived pieces', count: opts.archived.length }] : [] });
         return groups;
     }
@@ -10640,7 +10646,7 @@
     // Archived filter showing, over the archived ones that can be brought back. Archiving is for you, as from a
     // row's ⋮; band pieces you may change ask once for all of them: just me, or everyone in the band. One call
     // for the lot (each piece checked on its own), then one toast with Undo. Nothing is deleted.
-    const flowBulkArchive = { restore: false, filter: 'all', query: '', picked: new Set() };
+    const flowBulkArchive = { restore: false, state: {}, query: '', picked: new Set() }; // ML-595: state - the one Filter
     const flowCanRestore = (f) => !f.archivedForAll || f.canEdit; // as the ⋮ menu's Restore
     const flowBulkArchiveOffered = () => (flowBulkArchive.restore ? flowsArchivedCache.filter(flowCanRestore) : flowsListCache);
     function renderFlowBulkArchiveBtn() {
@@ -10667,31 +10673,29 @@
     });
     function openFlowBulkArchive() {
         flowBulkArchive.restore = flowLibraryShowsArchived();
-        flowBulkArchive.filter = 'all';
+        flowBulkArchive.state = {};
         flowBulkArchive.query = '';
+        closeFilterInPopup('flowBulkArchiveModal');
         flowBulkArchive.picked = new Set();
         document.getElementById('flowBulkArchiveSearch').value = '';
         document.getElementById('flowBulkArchiveTitle').textContent = flowBulkArchive.restore ? 'Restore pieces' : 'Archive pieces';
         document.getElementById('flowBulkArchiveIntro').textContent = flowBulkArchive.restore
             ? 'Tick the pieces to bring back to My music.'
-            : 'Tick the pieces you are done with. They leave My music until you choose Archived - nothing is deleted, and they stay on their practice lists.';
+            : 'Tick the pieces you are done with. They leave My music until you switch on Archived pieces in its Filter - nothing is deleted, and they stay on their practice lists.';
         renderFlowBulkArchive();
         showModal('flowBulkArchiveModal');
     }
     function renderFlowBulkArchive() {
         const offered = flowBulkArchiveOffered();
         const ownerName = (key) => key === 'mine' ? 'Mine' : key === 'public' ? 'Public' : (flowLibraryBandNames[Number(key.slice(5))] || 'Band');
-        const counts = { all: offered.length, mine: 0, public: 0 };
-        offered.forEach(f => { const k = flowLibraryFilterKey(f); counts[k] = (counts[k] || 0) + 1; });
-        const bandKeys = Object.keys(counts).filter(k => k.startsWith('band:')).sort((a, b) => ownerName(a).localeCompare(ownerName(b)));
-        if (flowBulkArchive.filter !== 'all' && !counts[flowBulkArchive.filter]) flowBulkArchive.filter = 'all';
-        const pills = document.getElementById('flowBulkArchiveFilterPills');
-        pills.innerHTML = ['all', 'mine', ...bandKeys, 'public'].filter(k => k === 'all' || counts[k]).map(k =>
-            `<button type="button" class="filter-pill${flowBulkArchive.filter === k ? ' active' : ''}" data-bulk-archive-filter="${escapeHtml(k)}" aria-pressed="${flowBulkArchive.filter === k}">${escapeHtml(k === 'all' ? 'All' : ownerName(k))} <span class="filter-pill-count">${counts[k] || 0}</span></button>`).join('');
-        pills.querySelectorAll('[data-bulk-archive-filter]').forEach(b => b.addEventListener('click', () => { flowBulkArchive.filter = b.dataset.bulkArchiveFilter; renderFlowBulkArchive(); }));
-        const q = flowBulkArchive.query;
-        const shown = offered.filter(f => (flowBulkArchive.filter === 'all' || flowLibraryFilterKey(f) === flowBulkArchive.filter)
-            && (!q || (f.title || '').toLowerCase().includes(q) || (f.composer || '').toLowerCase().includes(q)))
+        const groups = () => pieceFilterGroups(flowBulkArchiveOffered(), { prepared: true });
+        const filtered = () => Filters.apply(flowBulkArchiveOffered(), groups(), flowBulkArchive.state, pieceFilterMatch).filter(f => pieceSearchMatch(f, flowBulkArchive.query));
+        renderFilterBar({
+            id: 'flowBulkArchiveFilterBar', title: 'Show pieces', allLabel: 'All pieces', noun: 'pieces', modal: 'flowBulkArchiveModal',
+            groups, state: () => flowBulkArchive.state, setState: (s) => { flowBulkArchive.state = s; }, items: flowBulkArchiveOffered,
+            match: pieceFilterMatch, shown: () => filtered().length, total: () => flowBulkArchiveOffered().length, onChange: renderFlowBulkArchive
+        });
+        const shown = filtered()
             .sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base', numeric: true }));
         const rows = shown.map(f => ({ key: f.id, html: `<strong>${escapeHtml(f.title)}</strong><br><span class="text-sm text-muted">${f.composer ? escapeHtml(f.composer) + ' &bull; ' : ''}${f.totalBars} bar${f.totalBars === 1 ? '' : 's'} &bull; ${escapeHtml(ownerName(flowLibraryFilterKey(f)))}${flowArchivedText(f)}</span>` }));
         renderPickList(document.getElementById('flowBulkArchiveOptions'), document.getElementById('flowBulkArchivePickBar'), rows, flowBulkArchive.picked, renderFlowBulkArchiveDone,
