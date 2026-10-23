@@ -3078,7 +3078,8 @@
         .rail-demo.is-folded { width: var(--rail-width-folded); }
         .rail-demo .nav-menu { display: flex; position: static; width: auto; }
         :is(body.app-shell, .rail-demo) .nav-menu { flex-direction: column; min-width: 0; max-width: none; box-sizing: border-box; padding: var(--space-2); border: none; border-right: 1px solid var(--input-border); border-radius: 0; box-shadow: none; }
-        :is(body.app-shell, .rail-demo) .nav-rail-head { display: flex; align-items: center; gap: var(--space-2); min-height: var(--touch-target); padding: 0 0 var(--space-2) var(--space-2); }
+        /* ML-590: the fold button first, flush with the menu's own edge - so it sits in the same place open and folded (centred in the folded rail) */
+        :is(body.app-shell, .rail-demo) .nav-rail-head { display: flex; align-items: center; gap: var(--space-2); min-height: var(--touch-target); padding: 0 0 var(--space-2) 0; }
         .nav-rail-head .brand-mark { margin-right: 0; }
         .nav-rail-name { flex: 1 1 auto; min-width: 0; font-size: var(--font-base); font-weight: var(--font-weight-bold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .nav-rail-fold { flex: 0 0 auto; display: grid; place-items: center; width: var(--touch-target); height: var(--touch-target); padding: 0; border: none; border-radius: var(--radius-md); background: none; color: var(--label-color); cursor: pointer; }
@@ -3098,9 +3099,11 @@
         :is(body.app-shell, .rail-demo) .nav-tool-label { font-size: var(--font-sm); }
 
         /* folded to icons: the names are still there for a screen reader, and show as a tip on hover */
-        :is(body.app-shell.rail-folded, .rail-demo.is-folded) .nav-rail-head { flex-direction: column; padding: var(--space-2) 0; justify-content: center; } /* the mark over the button */
-        :is(body.app-shell.rail-folded, .rail-demo.is-folded) .nav-rail-head .brand-mark { margin-right: 0; }
-        :is(body.app-shell.rail-folded, .rail-demo.is-folded) :is(.nav-rail-name, .nav-section-title, .nav-item-chevron, .nav-item-meta) { display: none; }
+        /* ML-590: folded, the head is just the button, where it was - the mark and the name go */
+        :is(body.app-shell.rail-folded, .rail-demo.is-folded) :is(.nav-rail-head .brand-mark, .nav-rail-name, .nav-section-title, .nav-item-chevron, .nav-item-meta) { display: none; }
+        /* ML-590: a count (Notifications, Administration) is a small badge on the icon's top right corner, so the icon stays centred */
+        :is(body.app-shell.rail-folded, .rail-demo.is-folded) .nav-menu .nav-item:has(.notif-count) { position: relative; }
+        :is(body.app-shell.rail-folded, .rail-demo.is-folded) .nav-menu .notif-count { position: absolute; top: var(--space-0-5); left: calc(50% + var(--space-1)); min-width: var(--space-4); margin: 0; padding: 0 var(--space-1); font-size: var(--font-2xs); line-height: var(--space-4); box-sizing: border-box; }
         :is(body.app-shell.rail-folded, .rail-demo.is-folded) .nav-menu .nav-item-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } /* token-audit-ignore: standard screen-reader-only clip pattern */
         :is(body.app-shell.rail-folded, .rail-demo.is-folded) .nav-menu .dropdown-item.nav-item:not(.hidden-group) { justify-content: center; padding: var(--space-2) 0; }
 
