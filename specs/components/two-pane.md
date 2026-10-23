@@ -25,10 +25,15 @@ list whose rows open a pop-up.
 - With nothing opened yet the second column shows a hint in muted text (`data-pane-hint` on the card, drawn
   by `::after`): "Pick a piece to play."
 - `.history-item.pane-selected` - the row that was tapped, marked with the primary tint and edge.
+- `.container.play-wide` (ML-601) - Rehearse's list **folded away** while a piece plays: not two panes; the play
+  screen's controls keep about one column (`minmax(--play-col-min, 1fr)`) and the tiles get two (`2fr`), fitting as
+  many across as they can (`--play-tile-min` small tiles, `--play-tile-detail-min` detail tiles; the full layout
+  two across when there is room). Back brings the list back beside the piece (`rehearseListOpen`); picking a piece
+  folds it again.
 
 ## 4. Tokens used
-`--pane-list-width`, `--page-max-panes`, `--pane-col-min`, `--play-col-min`, `--input-border`, `--label-color`,
-`--primary-action`, `--primary-action-tint`, `--space-5`, `--space-6`, `--space-8`, `--space-10`.
+`--pane-list-width`, `--page-max-panes`, `--pane-col-min`, `--play-col-min`, `--play-tile-min`, `--play-tile-detail-min`,
+`--input-border`, `--label-color`, `--primary-action`, `--primary-action-tint`, `--space-5`, `--space-6`, `--space-8`, `--space-10`.
 
 ## 5. Props / API
 `PANES` in `app.js` says which screens are lists and what each opens:
@@ -49,7 +54,8 @@ list whose rows open a pop-up.
 - To add a list page, add a line to `PANES`. Nothing else.
 
 ## 6. States
-List alone (hint showing) / list with something opened (row marked). Below 1000px: not two panes at all.
+List alone (hint showing) / list with something opened (row marked) / Rehearse playing with its list folded away
+(`.play-wide`, ML-601). Below 1000px: not two panes at all.
 Turning a tablet or resizing a window across 1000px re-lays the current screen.
 
 ## 7. Code example

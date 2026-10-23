@@ -353,6 +353,8 @@ one ladder, low to high. Never invent a number in a component.
 | `--page-max-panes` | `none` | a two-pane page fills the room beside the menu: the list, and what opens beside it |
 | `--play-col-min` | `380px` | narrowest the controls and the piece get side by side on the play screen |
 | `--tile-col-min` | `96px` | narrowest a tool tile gets when a row fits as many as it can |
+| `--play-tile-min` | `96px` | ML-601: narrowest a piece's small bar tile gets on a wide play screen, fitting as many across as it can |
+| `--play-tile-detail-min` | `240px` | ML-601: the same for the 2-column layout's detail tiles |
 | `--stat-col-min` | `180px` | narrowest a stat card gets on the Stats page's grid |
 | `--rail-head-height` | `58px` | the rail's head lines up with the top bar |
 | `--touch-target` | `48px` | minimum tap target for any button |

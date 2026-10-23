@@ -2107,10 +2107,18 @@
         const top = viewStack[viewStack.length - 1], from = viewStack[viewStack.length - 2];
         return PANES_QUERY.matches && top !== viewName && !!from && !!PANES[from] && PANES[from].details.includes(top) && PANES[from].details.includes(viewName);
     }
+    // ML-601 (owner, 23 Oct 2026): playing a piece from Rehearse on a wide screen, the list folds away - the other pieces
+    // are a distraction while you rehearse - and the music takes the room (.play-wide). Back brings the list back beside
+    // the piece (goBack); picking a piece from it folds it again. The one list page that does this (layout.md).
+    let rehearseListOpen = false;
+    const rehearsePlayFolded = (viewName) => PANES_QUERY.matches && viewName === 'flowPlayView' && paneListFor(viewName) === 'rehearseView' && !rehearseListOpen;
     function applyPanes(viewName) {
         const page = document.querySelector('#mainContainer > .container');
         if (!page) return;
-        const list = PANES_QUERY.matches ? paneListFor(viewName) : null;
+        const folded = rehearsePlayFolded(viewName);
+        page.classList.toggle('play-wide', folded);
+        if (folded) setShown('rehearseView', false);
+        const list = PANES_QUERY.matches && !folded ? paneListFor(viewName) : null;
         page.querySelectorAll(':scope > .pane-list').forEach((el) => { if (el.id !== list) el.classList.remove('pane-list'); });
         page.classList.toggle('two-pane', !!list);
         page.classList.toggle('has-detail', !!list && list !== viewName);
@@ -2441,6 +2449,7 @@
 
         const targetEl = document.getElementById(viewName);
         setShown(targetEl, true);
+        if (!isBack && viewName === 'flowPlayView') rehearseListOpen = false; // ML-601: a piece opened folds the list away
         applyPanes(viewName); // ML-239: on a wide screen a list page keeps its list on the left
         if (railOn()) renderNavMenu(); // ML-239: the rail is always showing, so it is kept as fresh as an opened menu
 
@@ -2665,6 +2674,9 @@
     }
 
     window.goBack = function() {
+        // ML-601: on a wide screen, Back from a piece whose Rehearse list is folded away brings the list back beside it
+        const top = viewStack[viewStack.length - 1];
+        if (rehearsePlayFolded(top)) { rehearseListOpen = true; applyPanes(top); markNavCurrent(); return; }
         // Quick entry's < leaves it from any step (owner, 5 Oct 2026): the Back button at the bottom is the step back.
         // What was typed is kept - coming back asks whether to carry on with it (openPieceOutline).
         if (viewStack.length > 1) {

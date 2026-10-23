@@ -3131,6 +3131,14 @@
         :is(.container.two-pane, .two-pane-demo)::after { content: attr(data-pane-hint); grid-column: 2; align-self: center; justify-self: center; padding: var(--space-10) var(--space-5); color: var(--label-color); text-align: center; }
         :is(.container.two-pane, .two-pane-demo).has-detail::after { content: none; }
         .pane-list .section-title:first-child { margin-top: 0; }
+
+        /* --- ML-601: playing a piece from Rehearse, the list folded away (.play-wide, set by applyPanes from 1000px):
+               the controls keep about one column's width, the piece's tiles get the other two - with more tiles across
+               in every layout (small: as many as fit; detail: as many as fit; full: two when there is room) --- */
+        body.app-shell .container.play-wide #flowPlayView { grid-template-columns: minmax(var(--play-col-min), 1fr) minmax(0, 2fr); }
+        .container.play-wide #flowPlayTiles.metroBlk-tile-strip { grid-template-columns: repeat(auto-fill, minmax(var(--play-tile-min), 1fr)); }
+        .container.play-wide #flowPlayTiles.flow-bar-grid-2 { grid-template-columns: repeat(auto-fill, minmax(var(--play-tile-detail-min), 1fr)); }
+        .container.play-wide #flowPlayTiles.flow-bar-list-1 { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--play-col-min), 1fr)); align-items: start; }
     }
     /* ML-242: the public page (welcome.html) and the pricing page (pricing.html), read signed out. A summary a visitor
        takes in at a glance - dark bands top and bottom, cards that open for the detail (<details>, no script), the
