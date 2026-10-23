@@ -25,7 +25,7 @@ the practice history with it. It is anonymised in place instead.
 | | What | How |
 |---|---|---|
 | **Scrubbed** | Name, email, display name, avatar, the date last seen (`last_seen_on`, ML-443), the date set-up was gone through (`setup_done_on`, ML-517), account type, home screen choices, display and practice-year settings | The row becomes "Deleted account", email `deleted-<id>@deleted.invalid`, `deleted_at` set |
-| **Deleted** | Sign-in details (password, two-step, recovery codes), the member's own pieces with their blocks, recordings and documents (the stored files too), practice lists, plans, skill and warm-up lists, Levels, range, scales and rhythm progress, saved metronome set-ups and time signatures, feedback notes, band memberships, their teachers (the names they typed in), invitations into a band sent by them or addressed to them, invites and emails held under their address | Every table that points at an account is found from the database and cleared, unless it is in `KEPT` |
+| **Deleted** | Sign-in details (password, two-step, recovery codes), the member's own pieces with their blocks, recordings and documents (the stored files too), practice lists, plans, skill and warm-up lists, Levels, range, scales and rhythm progress, saved metronome set-ups and time signatures, feedback notes, band memberships, their teachers (the names they typed in), invitations into a band sent by them or addressed to them, the notices they sent a band (ML-498 - deleted by name, as the link from `notifications` only empties the sender), their switches for which notices they get, invites and emails held under their address | Every table that points at an account is found from the database and cleared, unless it is in `KEPT` |
 | **Kept, anonymous** | Practice sessions, Theory quiz results, drill results, piece-entry timings | They stay attached to the anonymised row |
 | **Kept for others** | A band the member started, pieces they added to a band, and a band's logo they added (ML-534) | The band points at the anonymised row; `scores.added_by_account_id` becomes empty; `bands.logo_set_by_account_id` points at the anonymised row |
 
@@ -117,7 +117,7 @@ having to ask. Owner's decision, 4 Oct 2026.
   says hash, secret or token. `signIn` in the file just says whether a password and two-step are set.
 - **Left out, because it is the app's and not the member's (ML-480):** what a super admin enters while running
   the app - the shared band directory (`bands` of kind `directory`; a member's own My bands rows and a shared
-  space they set up are still theirs), announcements (`notifications`), the business's costs
+  space they set up are still theirs), announcements (`notifications` - but a notice the member sent their band, ML-498, is theirs and is in it), the business's costs
   (`third_party_costs`) and security review runs. Each of those rows records who entered it, which is why the
   owner's first download held all 45 directory bands. `APP_OWNED` and `ROW_FILTER` in the code. An ordinary
   member has no such rows. **A new table that records "created by" for an admin's own work goes in `APP_OWNED`.**

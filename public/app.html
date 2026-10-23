@@ -993,6 +993,23 @@
                 <label class="toggle-switch"><input type="checkbox" id="bandShareLevelsToggle" aria-labelledby="bandShareLevelsLbl" aria-describedby="bandShareLevelsNote"><span class="toggle-slider"></span></label>
             </div>
         </div>
+        <!-- ML-498: a notice to everyone in the band - for its organisers, the members who can change its music and its
+             band leader. One way only: nobody can reply. The help line says how many the band has left. -->
+        <div class="hidden-group" id="bandNoticeSection">
+            <div class="section-title mt-4">Tell the band</div>
+            <p class="metro-help-text" id="bandNoticeHelp"></p>
+            <div class="form-group">
+                <label for="bandNoticeTitle">Title</label>
+                <input type="text" id="bandNoticeTitle" maxlength="120" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="bandNoticeBody">Message</label>
+                <textarea id="bandNoticeBody" rows="4" maxlength="1000"></textarea>
+            </div>
+            <button type="button" class="btn-submit" id="bandNoticeSendBtn">Send to the band</button>
+            <div class="section-title mt-4 hidden-group" id="bandNoticeSentTitle">Sent lately</div>
+            <div id="bandNoticeSentList"></div>
+        </div>
         <div class="hidden-group" id="bandMembersOrganiser">
             <!-- ML-534: the band's logo - an organiser adds, changes or takes it off (renderBandLogo) -->
             <div class="hidden-group" id="bandLogoSection">

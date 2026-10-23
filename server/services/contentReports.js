@@ -4,8 +4,8 @@
 // deal with those complaints" (docs/online-safety-assessment.md). The Children's Code asks for the
 // same (standard 15, online tools).
 //
-// A report is about a piece (its bars, recordings, documents and links go with it), a band's name or a
-// band's practice list (ML-510). It can only be made about something the member can see and somebody
+// A report is about a piece (its bars, recordings, documents and links go with it), a band's name, a
+// band's practice list (ML-510) or a band's notice to its members (ML-498 - withdrawn on Admin -> Notifications). It can only be made about something the member can see and somebody
 // else can see too. It is not behind a feature switch - every member can always report.
 // The owner sees reports on Admin -> Shared music, takes the thing down there if it should go, and
 // closes the report with a line saying what was done.
@@ -41,6 +41,16 @@ async function reportTarget(accountId, kind, id) {
     if (!rows[0].member) throw withStatus(400, 'This list is your own - nobody else can see it. You can change or delete it yourself.');
     return { title: rows[0].name, bandName: rows[0].band_name || '', what: `the practice list "${rows[0].name}"${rows[0].band_name ? ` (${rows[0].band_name})` : ''}` };
   }
+  if (kind === 'notice') {
+    // ML-498: a band's notice - only one sent to you (the sender can't report their own)
+    const { rows } = await pool.query(
+      `SELECT n.title, b.name AS band_name FROM notifications n
+         JOIN notification_recipients nr ON nr.notification_id = n.id AND nr.account_id = $2
+         LEFT JOIN bands b ON b.id = (n.details->>'bandId')::bigint
+        WHERE n.id = $1 AND n.kind = 'band_notice'`, [id, accountId]);
+    if (!rows.length) throw withStatus(404, 'Notice not found');
+    return { title: rows[0].title, bandName: rows[0].band_name || '', what: `the notice "${rows[0].title}"${rows[0].band_name ? ` sent to ${rows[0].band_name}` : ''}` };
+  }
   const score = await assertFlowReadAccess(accountId, id); // only something you can see
   if (Number(score.owner_account_id) === Number(accountId) && !score.owner_band_id && !score.is_public) {
     throw withStatus(400, 'This piece is your own - nobody else can see it. You can change or delete it yourself.');
@@ -57,7 +67,7 @@ async function reportTarget(accountId, kind, id) {
 }
 
 export async function createReport(accountId, { kind, id, note }) {
-  if (!['piece', 'band', 'list'].includes(kind) || !/^\d+$/.test(String(id))) throw withStatus(400, 'That can\'t be reported from here.');
+  if (!['piece', 'band', 'list', 'notice'].includes(kind) || !/^\d+$/.test(String(id))) throw withStatus(400, 'That can\'t be reported from here.');
   const text = String(note || '').trim();
   if (text.length > MAX_NOTE) throw withStatus(400, `Keep it to ${MAX_NOTE} characters.`);
   const target = await reportTarget(accountId, kind, id);
@@ -86,6 +96,7 @@ export async function listReports() {
     `SELECT r.*, a.first_name, a.surname,
             CASE r.kind WHEN 'list' THEN EXISTS (SELECT 1 FROM practice_lists pl WHERE pl.id = r.target_id)
                         WHEN 'band' THEN EXISTS (SELECT 1 FROM bands b WHERE b.id = r.target_id AND b.name = r.title)
+                        WHEN 'notice' THEN EXISTS (SELECT 1 FROM notifications n WHERE n.id = r.target_id AND n.withdrawn_at IS NULL)
                         ELSE EXISTS (SELECT 1 FROM scores s WHERE s.id = r.target_id) END AS still_there
        FROM content_reports r LEFT JOIN accounts a ON a.id = r.reported_by_account_id
       ORDER BY (r.closed_at IS NULL) DESC, r.created_at DESC LIMIT 200`);

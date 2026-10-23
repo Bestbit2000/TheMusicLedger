@@ -2403,13 +2403,15 @@
                             ${n.urgent ? '<span class="admin-feedback-badge notification-status-urgent">Urgent</span>' : ''}
                             ${n.important ? `<span class="admin-feedback-badge notification-status-urgent">Important${n.policyLink ? ' - with the privacy policy link' : ''}</span>` : ''}
                             ${n.banner ? '<span class="admin-feedback-badge notification-status-scheduled">Banner</span>' : ''}
+                            ${n.from ? `<span class="admin-feedback-badge cat">${escapeHtml(n.from)}</span>` : ''}
                             <span class="admin-feedback-badge cat">${escapeHtml(noticeAudienceWords(n))}</span>
                             <span class="admin-feedback-badge cat">Read by ${n.readCount} of ${n.audience === 'all' ? data.accountCount : n.recipientCount}</span>
+                            ${noticeEmailWords(n)}
                         </div>
                     </div>
                     <div class="admin-feature-actions">
                         ${notificationHasWho(n) ? `<button class="btn-edit" type="button" data-notification-who="${n.id}">${n.urgent || n.important ? 'Who has seen it' : "Who it's for"}</button>` : ''}
-                        <button class="btn-edit" type="button" data-notification-edit="${n.id}">Edit</button>
+                        ${n.kind ? '' : `<button class="btn-edit" type="button" data-notification-edit="${n.id}">Edit</button>`}
                         <button class="btn-edit" type="button" data-notification-withdraw="${n.id}">${n.status === 'withdrawn' ? 'Restore' : 'Withdraw'}</button>
                         <button class="btn-delete" type="button" data-notification-delete="${n.id}">Delete</button>
                     </div>
@@ -2425,6 +2427,12 @@
     // asked for here, not shown on the list) and on an urgent or important one, where who hasn't tapped Got it matters.
     // The owner's only: never offered to a band organiser about their members.
     const notificationHasWho = (n) => n.audience !== 'all' || n.urgent || n.important;
+    // ML-499: "Emailed to 12" (and any that couldn't go) once an email copy has been sent
+    function noticeEmailWords(n) {
+        if (!n.emailCopy) return '';
+        if (n.emailedCount == null) return '<span class="admin-feedback-badge cat">Email copy not sent yet</span>';
+        return `<span class="admin-feedback-badge cat">Emailed to ${n.emailedCount}${n.emailFailedCount ? ` - ${n.emailFailedCount} couldn't be sent` : ''}</span>`;
+    }
     // ML-496: "For everyone", "For 2 members", "For Premium members (3 now)", "For The Cobham Band (12 now)"
     function noticeAudienceWords(n) {
         const plural = (c, one, many) => `${c} ${c === 1 ? one : many}`;
@@ -2475,6 +2483,46 @@
         ['notificationWhoBtn', 'notificationWhichBtn'].forEach(id => { document.getElementById(id).disabled = noticeAudienceLocked; });
         setShown('notificationWhoLocked', noticeAudienceLocked);
         setShown('notificationBannerRow', a.audience === 'all'); // ML-495: a banner is for everyone
+        syncEmailCopyRow();
+    }
+
+    // ===== ML-499: an email copy - for an urgent or important notice, sent when it is published =====
+    // Offered on a new notice only (an edit never sends one). The line under the switch says how many it will send and
+    // how many more can go today; the server refuses more than that when it is saved.
+    let emailCopyCountAsk = 0;
+    function syncEmailCopyRow() {
+        const row = document.getElementById('notificationEmailCopyRow');
+        if (!row) return;
+        const offered = !editingNotificationId && (document.getElementById('notificationUrgentInput').checked || document.getElementById('notificationImportantInput').checked);
+        const input = document.getElementById('notificationEmailCopyInput');
+        if (!offered) input.checked = false;
+        setShown('notificationEmailCopyRow', offered);
+        const line = document.getElementById('notificationEmailCopyCount');
+        const scheduled = document.getElementById('notificationPublishMode').value === 'scheduled';
+        input.disabled = scheduled;
+        if (offered && scheduled) input.checked = false;
+        setShown('notificationEmailCopyCount', offered && (scheduled || input.checked));
+        if (!offered) return;
+        if (scheduled) { line.textContent = 'The email copy goes when the notice is published, so it can only be sent with a notice published now.'; return; }
+        if (!input.checked) return;
+        const a = noticeAudience;
+        if ((a.audience === 'account_level' && !a.accountLevel) || (a.audience === 'band' && !a.bandId) || (a.audience === 'accounts' && !a.accountIds.length)) {
+            line.textContent = 'Choose who it is for, and this says how many emails it will send.';
+            return;
+        }
+        line.textContent = 'Counting...';
+        const ask = ++emailCopyCountAsk;
+        apiCall('/api/admin/notifications/email-count', 'POST', {
+            audience: a.audience, accountLevel: a.accountLevel, bandId: a.bandId, accountIds: a.accountIds,
+            urgent: document.getElementById('notificationUrgentInput').checked,
+            important: document.getElementById('notificationImportantInput').checked
+        }).then(({ count, left, allowance }) => {
+            if (ask !== emailCopyCountAsk) return; // a newer count is on its way
+            const people = `${count} ${count === 1 ? 'person' : 'people'}`;
+            line.textContent = count > left
+                ? `This would email ${people}, but only ${left} more can go today (the allowance is ${allowance} a day). Send it without the email copy, or tomorrow.`
+                : `This will email ${people}. ${left - count} more can go today after it.`;
+        }).catch(error => { if (ask === emailCopyCountAsk) line.textContent = 'Not counted: ' + error.message; });
     }
     function openNoticeAudienceChoice(title, rows, { multi = false, search = false, picked = new Set(), onPick }) {
         noticeAudiencePick = { rows, picked, multi, onPick };
@@ -2537,6 +2585,7 @@
     function syncNotificationPublishMode() {
         const scheduled = document.getElementById('notificationPublishMode').value === 'scheduled';
         document.getElementById('notificationPublishAtGroup').classList.toggle('hidden-group', !scheduled);
+        syncEmailCopyRow(); // ML-499: only with a notice published now
     }
 
     function openNotificationForm(n) {
@@ -2553,6 +2602,7 @@
         document.getElementById('notificationImportantInput').checked = !!(n && n.important); // ML-463
         document.getElementById('notificationPolicyLinkInput').checked = !!(n && n.policyLink);
         document.getElementById('notificationBannerInput').checked = !!(n && n.banner); // ML-495
+        document.getElementById('notificationEmailCopyInput').checked = false; // ML-499: asked for each time, on a new notice
         // ML-496: who it is for - chosen for a new notice; an edit keeps it (the boxes are shown, not changeable)
         noticeAudience = n ? { audience: n.audience, accountLevel: n.audienceAccountLevel, bandId: n.audienceBandId, bandName: n.audienceBandName, accountIds: [], count: n.recipientCount }
             : { audience: 'all', accountLevel: null, bandId: null, bandName: null, accountIds: [], count: null };
@@ -2584,17 +2634,22 @@
             audience: noticeAudience.audience,
             accountLevel: noticeAudience.accountLevel,
             bandId: noticeAudience.bandId,
-            accountIds: noticeAudience.accountIds
+            accountIds: noticeAudience.accountIds,
+            // ML-499: an email copy, sent as it is published (new notices only)
+            emailCopy: !editingNotificationId && !scheduled && document.getElementById('notificationEmailCopyInput').checked
         };
         const btn = document.getElementById('notificationFormSaveBtn');
         btn.disabled = true;
         btn.innerText = 'Saving...';
         try {
-            if (editingNotificationId) await apiCall(`/api/admin/notifications/${editingNotificationId}`, 'PUT', body);
-            else await apiCall('/api/admin/notifications', 'POST', body);
+            let saved;
+            if (editingNotificationId) saved = await apiCall(`/api/admin/notifications/${editingNotificationId}`, 'PUT', body);
+            else saved = await apiCall('/api/admin/notifications', 'POST', body);
             closeNotificationForm();
             await reloadNotificationsAdmin();
-            showToast(scheduled ? 'Notification scheduled' : 'Notification published', 'success');
+            // ML-499: and how many email copies went
+            const emailed = saved && saved.emailCopy ? ` and emailed to ${saved.emailedCount || 0}${saved.emailFailedCount ? ` (${saved.emailFailedCount} couldn't be sent)` : ''}` : '';
+            showToast((scheduled ? 'Notification scheduled' : 'Notification published') + emailed, 'success');
         } catch (error) {
             showToast(error.message);
         } finally {
@@ -2632,7 +2687,10 @@
         document.getElementById('addNotificationBtn')?.addEventListener('click', () => openNotificationForm(null));
         document.getElementById('notificationPublishMode')?.addEventListener('change', syncNotificationPublishMode);
         // ML-463: the privacy policy link is only offered for an important notice (the pop-up is where it shows)
-        document.getElementById('notificationImportantInput')?.addEventListener('change', (e) => setShown('notificationPolicyLinkRow', e.target.checked));
+        document.getElementById('notificationImportantInput')?.addEventListener('change', (e) => { setShown('notificationPolicyLinkRow', e.target.checked); syncEmailCopyRow(); });
+        // ML-499: the email copy is offered with urgent or important, and counted when it is switched on
+        document.getElementById('notificationUrgentInput')?.addEventListener('change', syncEmailCopyRow);
+        document.getElementById('notificationEmailCopyInput')?.addEventListener('change', syncEmailCopyRow);
         document.getElementById('notificationFormCancelBtn')?.addEventListener('click', closeNotificationForm);
         document.getElementById('notificationFormSaveBtn')?.addEventListener('click', saveNotificationForm);
         // ML-496: who it is for
@@ -2778,7 +2836,7 @@
     let adminRecordingsData = null;
     let removingRecording = null; // the row the pop-up is about
     const RECORDING_KIND = { rehearsal: 'Rehearsal recording', piece: 'On a piece', video: 'YouTube link', document: 'Document', score: 'Piece', list: 'Practice list', band: 'Band name', logo: 'Band logo' };
-    const REPORT_KIND = { piece: 'Piece', list: 'Practice list', band: 'Band name or logo' };
+    const REPORT_KIND = { piece: 'Piece', list: 'Practice list', band: 'Band name or logo', notice: "A band's notice - withdraw it on Notifications" }; // ML-498
     const piecesText = (pieces) => pieces.map(p => `${p.title}${p.band ? ` (${p.band})` : ''}`).join(', ');
     // What the members are told, by reason. Plain words: what happened, why, what to do next.
     function removalMessage(rec, reason) {

@@ -25,7 +25,7 @@ const NOT_FOLLOWED = new Set(['bands', 'band_members', 'notifications', 'securit
 // written and the business's costs. An ordinary member has no such rows, so nothing changes for them.
 //   APP_OWNED  - whole tables that are the app's records: left out.
 //   ROW_FILTER - a table that holds both: only the rows that are the member's own are taken.
-export const APP_OWNED = new Set(['notifications', 'third_party_costs', 'security_review_runs']);
+export const APP_OWNED = new Set(['third_party_costs', 'security_review_runs']);
 // Other people's details, and the app's own workings (the owner, 7 Oct 2026):
 //   OTHER_PEOPLE - invites the member sent hold the name and email address of the person invited. That is
 //                  someone else's information, so it does not go in a file the member takes away.
@@ -38,7 +38,9 @@ const LEFT_OUT = (table) => SECRET_TABLES.has(table) || APP_OWNED.has(table) || 
 export const ROW_FILTER = {
   // My bands (a member's own 'label' rows) and a shared space they set up ('group') are theirs; the band
   // directory ('directory') is a list for everyone, whoever typed it in.
-  bands: "kind <> 'directory'"
+  bands: "kind <> 'directory'",
+  // ML-498: a notice the member sent their band is theirs; an announcement a super admin wrote is the app's
+  notifications: "kind = 'band_notice'"
 };
 const MAX_DEPTH = 4;
 

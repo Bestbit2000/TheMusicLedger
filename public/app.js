@@ -689,6 +689,8 @@
             cancelBandInvite: (id, inviteId) => apiCall(`/api/account/bands/${id}/invites/${inviteId}`, 'DELETE'),
             setBandMemberLevel: (id, memberId, level) => apiCall(`/api/account/bands/${id}/members/${memberId}`, 'PUT', { level }),
             setBandLeader: (id, memberId, on) => apiCall(`/api/account/bands/${id}/members/${memberId}/band-leader`, 'PUT', { on }), // ML-581
+            bandNotices: (id) => apiCall(`/api/account/bands/${id}/notices`), // ML-498
+            sendBandNotice: (id, title, body) => apiCall(`/api/account/bands/${id}/notices`, 'POST', { title, body }),
             setShareLevels: (id, on) => apiCall(`/api/account/bands/${id}/share-levels`, 'PUT', { on }),
             removeBandMember: (id, memberId) => apiCall(`/api/account/bands/${id}/members/${memberId}`, 'DELETE'),
             acceptBandInvite: (inviteId, labelId) => apiCall(`/api/account/band-invites/${inviteId}/accept`, 'POST', { labelId: labelId ?? null }),
@@ -1721,7 +1723,8 @@
         renderNotificationIndicators();
         document.getElementById('feedbackNavItem')?.classList.toggle('hidden-group', !isFeatureEnabled('feedback'));
         document.getElementById('settingsSetupLink')?.classList.toggle('hidden-group', !isFeatureEnabled('member_setup')); // ML-517
-        document.getElementById('settingsNoticesLink')?.classList.toggle('hidden-group', !(isFeatureEnabled('auto_notices') && isFeatureEnabled('notifications'))); // ML-501
+        // ML-501, and ML-498/499: the switches for automatic notices, a band's notices and email copies
+        document.getElementById('settingsNoticesLink')?.classList.toggle('hidden-group', !(isFeatureEnabled('notifications') && ['auto_notices', 'band_notices', 'notice_emails'].some(k => isFeatureEnabled(k))));
         renderInviteNav(); // ML-402
         document.getElementById('theoryToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('theory_practice'));
         document.getElementById('scalesToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('scales_practice'));
@@ -3155,14 +3158,20 @@
             <div class="notification-row${clearable ? ' has-clear' : ''}">
                 <button type="button" class="notification-item${n.read ? '' : ' unread'}${expanded ? ' expanded' : ''}" data-notification-id="${n.id}" aria-expanded="${expanded}">
                     <div class="notification-head">${n.read ? '' : '<span class="notification-unread-dot" aria-label="Unread"></span>'}<strong>${escapeHtml(n.title)}</strong>${n.important ? '<span class="notification-urgent-tag">Important</span>' : n.urgent ? '<span class="notification-urgent-tag">Urgent</span>' : ''}</div>
-                    <div class="notification-date">${escapeHtml(formatNotificationDate(n.publishAt))}</div>
+                    <div class="notification-date">${n.from ? `${escapeHtml(n.from)} &middot; ` : ''}${escapeHtml(formatNotificationDate(n.publishAt))}</div>
                     <p class="notification-body">${escapeHtml(n.body)}</p>
                 </button>
                 ${clearable ? `<button type="button" class="notification-clear-btn" data-notification-clear="${n.id}" aria-label="Clear ${escapeHtml(n.title)}"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>` : ''}
-            </div>`;
+            </div>${expanded && n.kind === 'band_notice' ? `
+            <div class="flex-row justify-end mb-2"><button type="button" class="btn-text" data-notification-report="${n.id}">Report this notice</button></div>` : ''}`;
         }).join('');
         list.querySelectorAll('[data-notification-id]').forEach(el => {
             el.addEventListener('click', () => openNotification(Number(el.dataset.notificationId)));
+        });
+        // ML-498: a band's notice is one member's words shown to others, so it can be reported (ML-507)
+        list.querySelectorAll('[data-notification-report]').forEach(el => {
+            const n = notificationsCache.find(x => x.id === Number(el.dataset.notificationReport));
+            el.addEventListener('click', () => { if (n) openReport('notice', n.id, n.title); });
         });
         list.querySelectorAll('[data-notification-clear]').forEach(el => {
             el.addEventListener('click', () => clearNotification(Number(el.dataset.notificationClear)));
@@ -4506,10 +4515,11 @@
     // account that hasn't confirmed it ('needs-adult') - and, since ML-554, any organiser action: what a member
     // can do, removing someone, the band's logo. Ask once, keep the day, then carry on with what they were
     // doing. No proof is asked for - the same weight as the upload confirmation (ML-278).
-    function organiserAdultNeeded(error, again) {
+    // (ML-498: a band's notice asks the same, in its own words - `words` is { title, text })
+    function organiserAdultNeeded(error, again, words) {
         if (error.reason !== 'needs-adult') return false;
-        showConfirmModal('Running a band\'s space',
-            'Running a band\'s space - setting up sharing, inviting people, choosing what each member can do and the band\'s logo - is for adults: you choose who is in it and what it shares. Please confirm that you are 18 or over and responsible for this band.',
+        showConfirmModal(words ? words.title : 'Running a band\'s space',
+            words ? words.text : 'Running a band\'s space - setting up sharing, inviting people, choosing what each member can do and the band\'s logo - is for adults: you choose who is in it and what it shares. Please confirm that you are 18 or over and responsible for this band.',
             async () => {
                 try {
                     await apiCall('/api/account/organiser-adult', 'POST');
@@ -4632,6 +4642,64 @@
             bandMembers.data = { isOrganiser: false, yourLevel: 'play', members: [], invites: [], openInvites: 0 };
         }
         renderBandMembers();
+        loadBandNotices();
+    }
+
+    // ---- ML-498: Tell the band - a notice to everyone in it, from an organiser, a member who can change its music or
+    // its band leader. One way only. The server says whether you can send and how many the band has left.
+    let bandNotices = null;
+    function bandNoticesOn() { return isFeatureEnabled('band_notices') && isFeatureEnabled('notifications'); }
+    async function loadBandNotices() {
+        bandNotices = null;
+        setShown('bandNoticeSection', false);
+        if (!bandNoticesOn() || !bandMembers.bandId) return;
+        const bandId = bandMembers.bandId;
+        try {
+            const data = await API.account.bandNotices(bandId);
+            if (bandId !== bandMembers.bandId) return; // another band opened meanwhile
+            bandNotices = data;
+        } catch (error) {
+            return; // nothing to show - the rest of the page still works
+        }
+        renderBandNotices();
+    }
+    function renderBandNotices() {
+        const d = bandNotices;
+        setShown('bandNoticeSection', !!(d && d.canSend));
+        if (!d || !d.canSend) return;
+        const when = d.nextAt ? new Date(d.nextAt).toLocaleString('en-GB', { weekday: 'long', hour: '2-digit', minute: '2-digit' }) : '';
+        document.getElementById('bandNoticeHelp').textContent =
+            `Send everyone in ${bandMembers.bandName || 'the band'} a notice in the app, with your name on it. Nobody can reply to it. The band can send ${d.perDay} a day and ${d.perWeek} a week - `
+            + (d.leftToday ? `${d.leftToday} more can go now.` : `none more until ${when}.`);
+        document.getElementById('bandNoticeSendBtn').disabled = !d.leftToday;
+        setShown('bandNoticeSentTitle', d.sent.length > 0);
+        document.getElementById('bandNoticeSentList').innerHTML = d.sent.map(n =>
+            `<div class="history-item"><span class="band-row-text"><span>${escapeHtml(n.title)}</span><span class="text-sm text-muted">${escapeHtml(n.from)} &middot; ${escapeHtml(formatNotificationDate(n.sentAt))}${n.withdrawn ? ' &middot; taken down' : ''}</span></span></div>`).join('');
+    }
+    document.getElementById('bandNoticeSendBtn')?.addEventListener('click', () => {
+        const title = document.getElementById('bandNoticeTitle');
+        const body = document.getElementById('bandNoticeBody');
+        if (!title.value.trim()) { showWarningToast('Give the notice a title.'); title.focus(); return; }
+        if (!body.value.trim()) { showWarningToast('Write the message.'); body.focus(); return; }
+        showConfirmModal('Send to the band?', `Everyone in ${bandMembers.bandName || 'the band'} gets it in the app, with your name on it. It can't be changed once it has gone.`,
+            () => sendBandNoticeNow(), false, 'Send');
+    });
+    async function sendBandNoticeNow() {
+        const btn = document.getElementById('bandNoticeSendBtn');
+        const title = document.getElementById('bandNoticeTitle');
+        const body = document.getElementById('bandNoticeBody');
+        btn.disabled = true;
+        try {
+            bandNotices = await API.account.sendBandNotice(bandMembers.bandId, title.value, body.value);
+            title.value = '';
+            body.value = '';
+            showSuccessToast(`Sent to ${bandNotices.sentTo} ${bandNotices.sentTo === 1 ? 'person' : 'people'} in the band`);
+        } catch (error) {
+            const adult = { title: 'Sending the band a notice', text: 'A notice goes to everyone in the band, and some of them may be young players. Please confirm that you are 18 or over.' };
+            if (!bandNameNeeded(error) && !organiserAdultNeeded(error, sendBandNoticeNow, adult)) showWarningToast(error.offline ? error.message : 'Not sent: ' + error.message);
+        } finally {
+            renderBandNotices();
+        }
     }
     // ML-534: the band's logo on its Members page - an organiser adds, changes or takes it off
     function renderBandLogo() {
@@ -10529,7 +10597,8 @@
     const REPORT_WORDS = {
         piece: { why: 'it is not theirs to share, it is not suitable, or someone in a recording does not want to be', lead: '', after: ' - with its recordings and documents -' },
         band: { why: 'the name is not suitable, or is not theirs to use', lead: 'The band\'s name, ', after: ',' },
-        list: { why: 'the name is not suitable, or is not theirs to use', lead: 'The practice list\'s name, ', after: ',' }
+        list: { why: 'the name is not suitable, or is not theirs to use', lead: 'The practice list\'s name, ', after: ',' },
+        notice: { why: 'it is not suitable, or it should not have been sent to the band', lead: 'The notice ', after: ',' } // ML-498
     };
     let reporting = null; // { kind, id }
     function openReport(kind, id, title) {

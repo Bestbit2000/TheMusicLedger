@@ -63,6 +63,17 @@ who runs a band). Two places:
   the band leader any more") - themselves included, from their own row ("Make me the band leader" / "Stop being the
   band leader"). Only an organiser can; there may be more than one band leader. Nobody else's switch is ever shown - not even to an organiser. What the band leader sees
   is [band-summary](band-summary.md).
+- **Tell the band** (ML-498, feature `band_notices`; the owner's decisions, 23 Oct 2026): on the Members page, for the
+  band's organisers, the members who can change its music and its band leader only (`#bandNoticeSection` - no new
+  styles: `.section-title`, `.metro-help-text`, two `.form-group`s, `.btn-submit`, `.history-item` rows). A title
+  (up to 120) and a message (up to 1000), **Send to the band** asks first ("Everyone in X gets it in the app, with
+  your name on it. It can't be changed once it has gone."), and goes as a notice to everyone in the band. **One way
+  only** - nobody can reply. The help line says it has their name on it, that nobody can reply, the band's limits
+  (3 a day, 10 a week) and how many can go now - or, with none left, when the next can. **Sent lately** lists the
+  band's last ten (title over "From Sam Smith · 23 Oct", "taken down" once the owner withdrew it). The first time,
+  a sender with no name is sent to My details (`bandNameNeeded`), and one who hasn't said they are 18 or over is asked
+  (`organiserAdultNeeded`, in the notice's own words). Hidden for everyone else. How it reaches members:
+  [notification-centre](notification-centre.md) and `docs/notifications.md`.
 - **Don't use** it for the directory (Admin → Bands).
 
 **A band's logo and its welcome** (ML-534, feature `band_welcome`; the owner's decisions, 19 Oct 2026):
@@ -97,6 +108,10 @@ who runs a band). Two places:
   organiser) `p.metro-help-text` "One more person has been invited." › (organiser) `.section-title` "Invite
   someone" › help line › `.form-group` (their email address) › the level value box › **Invite** (`.btn-submit`) ›
   `.section-title` "Waiting for an answer" › a value box per invitation (the address over level · invited date).
+- ML-498, between the members (and My Levels) and the organiser's part: `#bandNoticeSection` › `.section-title`
+  "Tell the band" › `p.metro-help-text#bandNoticeHelp` › `.form-group` (Title) › `.form-group` (Message, a
+  `textarea`) › **Send to the band** (`.btn-submit`) › `.section-title` "Sent lately" › a `.history-item` ›
+  `.band-row-text` per notice.
 
 ## 4. Tokens used
 None of its own - see [form-field](form-field.md), [button](button.md), [list-row](list-row.md) and

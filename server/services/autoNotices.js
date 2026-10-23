@@ -10,13 +10,22 @@
 import pool from '../config/db.js';
 import { isFeatureEnabled } from './features.js';
 
-// The kinds a member chooses between, in Settings -> Notifications (ML-501), with their words.
+// The kinds a member chooses between, in Settings -> Notifications (ML-501), with their words. Each is shown only
+// while its feature is on for the member's account type: the automatic notices (auto_notices), a band's notices
+// (band_notices, ML-498) and email copies of urgent notices (notice_emails, ML-499).
 export const NOTICE_KINDS = [
-  { key: 'band_invite', title: 'Invitations to a band', sub: 'When an organiser invites you to join a band.' },
-  { key: 'band_change', title: 'Changes in a band', sub: 'When what you can do in a band changes, or you are taken out of it.' },
-  { key: 'band_news', title: 'New music in your bands', sub: 'New pieces and practice lists - one notice a day for each band.' },
-  { key: 'piece_deleted', title: 'A piece you added is deleted', sub: 'When someone else deletes a piece you added to a band.' },
+  { key: 'band_invite', title: 'Invitations to a band', sub: 'When an organiser invites you to join a band.', feature: 'auto_notices' },
+  { key: 'band_change', title: 'Changes in a band', sub: 'When what you can do in a band changes, or you are taken out of it.', feature: 'auto_notices' },
+  { key: 'band_news', title: 'New music in your bands', sub: 'New pieces and practice lists - one notice a day for each band.', feature: 'auto_notices' },
+  { key: 'piece_deleted', title: 'A piece you added is deleted', sub: 'When someone else deletes a piece you added to a band.', feature: 'auto_notices' },
+  { key: 'band_notice', title: 'Notices from my bands', sub: 'When someone who runs one of your bands sends the band a notice.', feature: 'band_notices' },
+  { key: 'email_urgent', title: 'Email me a copy of urgent notices', sub: 'Notices about how your information is used are always emailed.', feature: 'notice_emails' },
 ];
+async function kindsOnHere() {
+  const out = [];
+  for (const k of NOTICE_KINDS) if (await isFeatureEnabled(k.feature)) out.push(k);
+  return out;
+}
 const CHOICE_OF = { band_invite: 'band_invite', band_level: 'band_change', band_removed: 'band_change', band_news: 'band_news', piece_deleted: 'piece_deleted' };
 // How long each stays: an invitation as long as one waits (30 days, ML-473), the rest 90 days; then the 12-month
 // clear-up (ML-494) takes them.
@@ -31,10 +40,10 @@ const log = (what) => (error) => console.error(`Automatic notice (${what}) not s
 export async function getNoticePreferences(accountId) {
   const { rows } = await pool.query('SELECT kind, enabled FROM notice_preferences WHERE account_id = $1', [accountId]);
   const off = new Set(rows.filter(r => !r.enabled).map(r => r.kind));
-  return { kinds: NOTICE_KINDS.map(k => ({ ...k, enabled: !off.has(k.key) })) };
+  return { kinds: (await kindsOnHere()).map(({ feature, ...k }) => ({ ...k, enabled: !off.has(k.key) })) };
 }
 export async function setNoticePreference(accountId, kind, enabled) {
-  if (!NOTICE_KINDS.some(k => k.key === kind)) throw Object.assign(new Error('Unknown kind of notice.'), { status: 400 });
+  if (!(await kindsOnHere()).some(k => k.key === kind)) throw Object.assign(new Error('Unknown kind of notice.'), { status: 400 });
   await pool.query(
     `INSERT INTO notice_preferences (account_id, kind, enabled) VALUES ($1, $2, $3)
      ON CONFLICT (account_id, kind) DO UPDATE SET enabled = $3, updated_at = now()`,

@@ -45,9 +45,63 @@ The app sends a notice itself when something happens to a member's things (`serv
 - **Choosing (ML-501):** Settings -> **Notifications** has a toggle switch for each of four kinds - Invitations to a
   band, Changes in a band (`band_level` and `band_removed`), New music in your bands, A piece you added is deleted.
   **All on** until switched off (the owner's choice); saved on the account (`notice_preferences`, no row = on),
-  deleted with it and in the data download. Notices from the Notably Better team always come. Email and phone
-  switches come with ML-499 / ML-500.
+  deleted with it and in the data download. Notices from the Notably Better team always come. Two more switches sit
+  in the same list, each shown only with its own feature: **Notices from my bands** (`band_notice`, ML-498) and
+  **Email me a copy of urgent notices** (`email_urgent`, ML-499). Phone push is ML-500.
 - Back-test case 89 (the switches); the sending was checked on dev with a throwaway band.
+
+## A band's notice (ML-498)
+
+"Rehearsal moved to Thursday": a band's own people tell the whole band something, in the app. The owner's answers,
+23 Oct 2026 (`server/services/bandNotices.js`, `150_band_notices_and_email_copies.sql`):
+
+- **One way only.** A title (up to 120 characters) and a message (up to 1000), to everyone in the band. Nobody can
+  reply, there is no notice to one member, and the sender is never told who has read it. Not events or availability -
+  that is still the owner's open question (`docs/product-values.md`, "Proposed, not yet agreed").
+- **Who sends:** the band's organisers, the members who can change its music, and its band leader - on the band's
+  **Members** page, **Tell the band** (shown only to them). Only to their own band (anyone else gets a 404). The sender
+  confirms once that they are 18 or over (the organiser's confirmation, `organiser_adult_confirmed_on`) and must
+  have a name on their account - the notice says who it is from.
+- **Limits per band:** 3 in 24 hours and 10 in 7 days, `band_notices_day` and `band_notices_week` on Admin -> Feature
+  access (Limits; the sender's account type's value). The page says how many are left and, when none, when the next
+  can go. Two people sending at once can't both take the last one (an advisory lock per band).
+- **Who gets it:** everyone in the band when it is sent, less the sender, anyone who switched **Notices from my bands**
+  off (Settings -> Notifications, on until switched off), and anyone whose account type doesn't have both
+  `band_notices` and `notifications`. A fixed list (`audience = 'accounts'`, `kind = 'band_notice'`, `details.bandId`,
+  the sender in `created_by_account_id`). If nobody would get it, nothing is sent and the sender is told.
+- **What a member sees:** an ordinary notice - the list and the red dot, never urgent or a pop-up - with
+  "From Sam Smith, The Cobham Band" over the date (worked out as it is read, `fromWords`). Opened, it has **Report this
+  notice** (`content_reports` kind `notice`, ML-507). It is shown for 30 days, then the 12-month clear-up takes it.
+- **The owner:** every band notice is on Admin -> Notifications with who sent it - Withdraw or Delete, never Edit (it
+  is the sender's words). A reported one says so on Admin -> Shared music.
+- **The sender's account deleted:** the notices they sent go too (`accountDeletion.js`).
+- Behind its own switch, `band_notices`, Super admin only until switched on - for sending and for getting one.
+- Checked against the Online Safety Act (`docs/online-safety-assessment.md`, version 5) and the Children's Code
+  (`docs/childrens-code-assessment.md`, version 4). Tests: `server/test/bandNotices.test.js`.
+
+## Email copies (ML-499)
+
+An urgent or important notice can also go by email (`server/services/noticeEmails.js`). The owner's answers, 23 Oct
+2026:
+
+- On the Admin -> Notifications form, **Also send by email** is offered once Urgent or Important is on, for a **new
+  notice published now** (the email goes as it is saved; an edit never sends it again, and a scheduled one can't have
+  one - there is no scheduler to send it later).
+- The line under it says **how many it will send** and how many more can go today (`POST
+  /api/admin/notifications/email-count`). Saving **refuses more than the day's allowance**: `notice_emails_day` on
+  Admin -> Feature access, 250 to start, less the copies sent in the last 24 hours. Brevo's free plan sends 300 a day
+  in all, so the allowance leaves room for invitations and password resets.
+- **Who gets one:** the people the notice is for, still here and not closed, with an address that can be emailed (not
+  `.local`, `.invalid` or `.test`), whose account type has `notice_emails` (Super admin only until switched on). For an
+  urgent one, also only those who can read it in the app and haven't switched off **Email me a copy of urgent notices**
+  (Settings -> Notifications, on until switched off). **An important one - about how their information is used -
+  always goes**, with no switch.
+- **The email** is the notice's own title (the subject) and text, plain, then a line saying why they are getting it
+  (and, for an urgent one, how to stop them), a button into the app, and the privacy policy's address if the notice
+  links to it. One connection for the lot (`sendMailBatch`); a failure is counted, never stops the rest.
+- The notice's row on the admin page says **"Emailed to 12"** (and how many couldn't be sent): `emailed_count`,
+  `email_failed_count`, `emailed_at`. The row is claimed before sending, so it is never sent twice.
+- On dev and sandbox (`MAIL_PROVIDER=log`) the copies are kept in `email_outbox`, as every email is.
 
 ## Sending to a group (ML-496)
 
@@ -244,14 +298,13 @@ never offered to a band organiser about their members without a separate decisio
 Roughly in the order they'd matter:
 
 - **Targeting by instrument or plan** - a band, an account type and named members are built (ML-496).
-- **Band admins notifying their own members** ("rehearsal moved to Thursday") - the biggest one for
-  bands. Needs targeting plus a band-admin screen, with super-admin moderation/abuse limits.
-- **Push notifications** that arrive while the app is closed (Web Push via the service worker, VAPID
-  keys, a `push_subscriptions` table, iOS only as an installed PWA) - everything here is in-app, so
-  an urgent notice reaches nobody who doesn't open the app.
-- **Email fallback** for urgent notices (the ML-355 `MAIL_PROVIDER` plumbing already exists).
-- **More ways to get a notice** - email copies (ML-499) and phone push (ML-500), and their switches and quiet hours
-  in Settings -> Notifications. Urgent ones ignore them.
+- (Built: a band's notice to its members, ML-498, and email copies of urgent and important notices, ML-499 - above.)
+- **Replies to a band's notice, or a notice to one member** - left out on purpose (one way only, the owner, 23 Oct
+  2026); either would need the Online Safety run-through again.
+- **Push notifications** that arrive while the app is closed - ML-500, now a story of its own: it belongs with the
+  Play Store and App Store launch planned for next year (a store app has its own way of doing push). Everything here
+  is in-app or email, so an urgent notice reaches nobody who doesn't open the app or read their email.
+- **Quiet hours** in Settings -> Notifications.
 - **More automatic notices** - left out on purpose: milestones and streaks, and a practice list's target date
   coming up (the no-pressure rule, ML-471).
 - **Real-time delivery** (SSE/websockets or a hosted pub/sub such as Pusher/Ably) if a minute's
@@ -269,6 +322,7 @@ Roughly in the order they'd matter:
 | `db/migrations/139_notice_banner.sql` | `notifications.banner` (ML-495) |
 | `db/migrations/140_notice_audiences.sql` | `audience` 'account_level' and 'band' (ML-496) |
 | `db/migrations/142_automatic_notices.sql`, `server/services/autoNotices.js` | Automatic notices and the member's choices (ML-497, ML-501) |
+| `db/migrations/150_band_notices_and_email_copies.sql`, `server/services/bandNotices.js`, `server/services/noticeEmails.js` | A band's notice (ML-498) and email copies (ML-499); `server/test/bandNotices.test.js` |
 | `db/migrations/082_urgent_notifications.sql` | `notifications.urgent` (ML-167) |
 | `db/migrations/113_important_notices.sql` | `notifications.important`, `notifications.policy_link` (ML-463) |
 | Back-test case 56 (`createImportantNotice` in `tests/helpers/seedNotifications.ts`) | The pop-up on opening, must be answered, once per account, reaches a Standard member |

@@ -53,6 +53,7 @@ import { exportFlowForUser } from '../services/flowTransfer.js';
 import { submitFeedback } from '../services/feedback.js';
 import { requestUpgrade } from '../services/upgradeRequest.js';
 import { getNoticePreferences, setNoticePreference } from '../services/autoNotices.js';
+import { bandNoticesForMember, sendBandNotice } from '../services/bandNotices.js';
 import { listBannerNotices, listNotificationsForAccount, markNotificationRead, markAllNotificationsRead, clearNotification, clearAllNotifications, listClearedNotifications, restoreNotifications, listImportantNotices, acknowledgeImportantNotice } from '../services/notifications.js';
 import { saveTheoryAttempt, getTheoryHistory, getTheorySummary, getTheoryLevels, getTheoryWeights, getTheoryPlayed } from '../services/theoryPractice.js';
 import { assertDrillEnabled, saveDrillAttempt, getDrillHistory, getDrillSummary, getDrillWeights, getRhythmLevels, setRhythmWord } from '../services/drills.js';
@@ -221,9 +222,12 @@ router.post('/notifications/clear-all', requireAuth, resolveAccount, async (req,
   }
 });
 
-// ML-501: which automatic notices (ML-497) a member gets - one switch per kind, all on until switched off.
+// ML-501: which automatic notices (ML-497) a member gets - one switch per kind, all on until switched off. ML-498/499:
+// and notices from their bands, and email copies of urgent notices - each switch shown only with its own feature.
 async function assertAutoNoticesEnabled() {
-  if (!(await isFeatureEnabled('auto_notices')) || !(await isFeatureEnabled('notifications'))) throw withStatus(403, "This feature isn't available right now.");
+  if (!(await isFeatureEnabled('notifications'))) throw withStatus(403, "This feature isn't available right now.");
+  for (const key of ['auto_notices', 'band_notices', 'notice_emails']) if (await isFeatureEnabled(key)) return;
+  throw withStatus(403, "This feature isn't available right now.");
 }
 router.get('/account/notice-preferences', requireAuth, resolveAccount, async (req, res) => {
   try {
@@ -1286,6 +1290,24 @@ router.put('/account/bands/:id/members/:memberId/band-leader', requireAuth, reso
   try {
     await setBandLeader(req.accountId, req.params.id, req.params.memberId, (req.body || {}).on === true);
     res.json(await listBandMembers(req.accountId, req.params.id));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+// ML-498: a band's notice to its members - sent by an organiser, a member who can change music or the band leader,
+// within the band's limits. One way only: there is no route to answer one.
+router.get('/account/bands/:id/notices', requireAuth, resolveAccount, requireFeature('band_notices'), async (req, res) => {
+  try {
+    await assertNotificationsEnabled();
+    res.json(await bandNoticesForMember(req.accountId, req.params.id));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/account/bands/:id/notices', requireAuth, resolveAccount, requireFeature('band_notices'), async (req, res) => {
+  try {
+    await assertNotificationsEnabled();
+    res.json(await sendBandNotice(req.accountId, req.params.id, req.body || {}));
   } catch (error) {
     sendError(res, error);
   }
