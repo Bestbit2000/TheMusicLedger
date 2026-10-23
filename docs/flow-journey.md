@@ -207,11 +207,20 @@ nothing saved as it plays; at the end (or Done) it goes on to setting the level 
 - **The loop:** it repeats the chunk with Repeat bars (`restBars: 1`, the gap bar the chunk length rule
   assumes). This is set in memory only, so the piece's own saved repeat setting isn't touched.
 - **Speed and sub-beats:** the speed is the Level's %, and `flowSubBeatsMode = 'session'` asks
-  `sessionSubBeats` for every bar (a run-through starts at `'off'`). ML-537: the **sub beats** switch turns them
-  on (`'auto'` - every bar) or off for the rest of the go; until it's touched, a block follows the Level.
-- **The tiles:** repeat, sub beats and speed are swapped for **Level** (a button: pick any Level, faster or
-  slower, straight away - in a block it's saved as `during`; ML-537, it was a status plus a Level up button),
-  **sub beats** (the switch) and **Finish**. The Level shows its number and word, never its % (ML-535).
+  `sessionSubBeats` for every bar (a run-through starts at `'off'`). ML-588 (owner, 23 Oct 2026 - it was an on/off
+  switch, ML-537): **sub beats** is Rehearse's own button and pop-up - **Off / Auto / Fixed** (a number of sub-beats) -
+  for the rest of the go; until it's touched, a block follows the Level, and the pop-up opens on Auto or Off to match.
+  **Custom speed** (ML-588): the Level pop-up has a sixth option - inside its box, Rehearse's **play speeds** (the
+  `playback_speed_options` meta table, Admin-managed - 30% to 150% in 10s), tapped to play straight away. A **% of the
+  piece's own speed**, not a bpm (owner, 23 Oct 2026): a piece's speed can change and the bars practised can run from a
+  slow bit into a fast one, so every bar keeps its shape. A speed that would take the slowest bar practised under 30
+  bpm (`FLOW_CUSTOM_MIN_BPM` - under the Levels' 40 floor, so there's room below Level 1) is left out, and a line says
+  where it stops ("It goes down to 50% here..."). It's the one place a % is shown (ML-535 keeps it off the Levels).
+  For this go only (`flowSession.custom`): the Level isn't changed, the button shows the % ("70%" over "speed"),
+  picking a Level goes back to its speed, and a Level change or rating records the speed played (`percentPlayed`, up to 100).
+- **The tiles:** repeat and speed are swapped for **Level** (a button: pick any Level, faster or
+  slower, straight away - in a block it's saved as `during`; ML-537, it was a status plus a Level up button; ML-588,
+  or a Custom speed) and **Finish**; **sub beats** stays (ML-588 - it was a switch of its own). The Level shows its number and word, never its % (ML-535).
 - **Finish:** "How did you get on?" (ML-390, worded by ML-559) - Good (up one, a short star celebration) / Needs a bit more (stay) in one tap;
   "Too fast? Back to Level N" is a link under them, and "Move up even further" opens the jumps to higher Levels. Saved as `rating` with the speed played.
 - **Leaving:** leaving the play screen any other way ends the practice unrated. The player's own speed,

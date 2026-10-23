@@ -2145,10 +2145,10 @@
                             <strong id="flowLoopLbl">off</strong>
                             <span class="metroBlk-ctrl-value-label">repeat</span>
                         </button>
-                        <!-- ML-317: in a Levels practice (flowSession, app.js) these three replace repeat,
-                             sub beats and play speed - the Level sets the speed and the loop, so you just play.
-                             ML-537: the Level is a button (pick a faster or slower Level while you play - it was
-                             a separate Level up button), and sub beats is a switch of its own. -->
+                        <!-- ML-317: in a Levels practice (flowSession, app.js) Level and Finish replace repeat and
+                             play speed - the Level sets the speed and the loop, so you just play. ML-537: the Level is
+                             a button (pick a faster or slower Level while you play). ML-588: its pop-up also has a
+                             Custom speed (bpm, for this go), and sub beats is Rehearse's own button (off / auto / fixed). -->
                         <button type="button" class="metroBlk-ctrl-value-btn hidden-group" id="flowSessionLevelBtn" aria-haspopup="dialog" aria-label="Level 1 - tap to change">
                             <strong id="flowSessionLevelLbl">1</strong>
                             <span class="metroBlk-ctrl-value-label" id="flowSessionLevelSub">level</span>
@@ -2160,10 +2160,6 @@
                         <button type="button" class="metroBlk-ctrl-value-btn" id="flowSubdivideBtn" aria-label="Sub beats - tap to change" aria-haspopup="dialog" aria-expanded="false">
                             <strong id="flowSubdivideLbl">1</strong>
                             <span class="metroBlk-ctrl-value-label" id="flowSubdivideUnitLbl">sub beats</span>
-                        </button>
-                        <button type="button" class="metroBlk-ctrl-value-btn hidden-group" id="flowSessionSubBtn" aria-pressed="false" aria-label="Sub beats">
-                            <strong id="flowSessionSubLbl">off</strong>
-                            <span class="metroBlk-ctrl-value-label">sub beats</span>
                         </button>
                         <button type="button" class="metroBlk-ctrl-value-btn" id="flowSpeedBtn" aria-label="Play speed - tap to change" aria-haspopup="dialog" aria-expanded="false">
                             <strong id="flowSpeedLbl">100%</strong>
