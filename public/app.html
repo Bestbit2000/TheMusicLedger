@@ -2958,7 +2958,105 @@
             </div>
         </div>
     </div>
-    <!-- ML-357: the Scales setting row's pickers - tap one to choose (it closes). -->
+    <!-- ML-589: Scales settings - everything but Previous / Next / Play, under one button, saved on the account (as
+         Warm-ups', ML-586): my scales (instrument, clef, grades - the grade grid -, music size - shared with Warm-ups -,
+         shuffle; how many are in the list and See your range), how they're shown (direction, detail), then the
+         metronome (on: it plays each scale and carries on to the next - speed, notes a beat, play each one, count-in,
+         volume, lighting the note). Each value box opens its own pop-up, which come after this one so they open over it. -->
+    <div class="modal" id="scalesSettingsModal" role="dialog" aria-modal="true" aria-labelledby="scalesSettingsModalTitle">
+        <div class="modal-content modal-content-sticky-footer">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <div class="metroSeg-scroll-area">
+                <h2 id="scalesSettingsModalTitle">Settings</h2>
+                <h3 class="warmups-settings-head">My scales</h3>
+                <div class="metro-transport-grid metro-transport-grid-2 warmups-settings-grid">
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="scalesInstrumentBtn" aria-haspopup="dialog"><strong id="scalesInstrumentVal">-</strong><span class="metroBlk-ctrl-value-label">instrument</span></button>
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="scalesClefBtn" aria-haspopup="dialog"><strong id="scalesClefBtnVal">Treble</strong><span class="metroBlk-ctrl-value-label">clef</span></button>
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="scalesPoolBtn" aria-haspopup="dialog"><strong id="scalesGradesVal">1</strong><span class="metroBlk-ctrl-value-label">grades</span></button>
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="scalesSizeBtn" aria-haspopup="dialog"><strong id="scalesSizeVal">Medium</strong><span class="metroBlk-ctrl-value-label">music size</span></button>
+                </div>
+                <div class="display-toggle-row warmups-settings-row" id="scalesShuffleRow">
+                    <span id="scalesShuffleLabel">Shuffle<span class="display-toggle-help">Mix up the order</span></span><label class="toggle-switch"><input type="checkbox" id="scalesShuffleToggle" aria-labelledby="scalesShuffleLabel"><span class="toggle-slider"></span></label>
+                </div>
+                <div class="scales-pool-line">
+                    <p class="scales-pool-count" id="scalesSettingsCount" aria-live="polite"></p>
+                    <button type="button" class="scales-range-link" id="scalesSettingsRangeBtn" aria-haspopup="dialog">See your range</button>
+                </div>
+                <h3 class="warmups-settings-head">How they're shown</h3>
+                <div class="metro-transport-grid metro-transport-grid-2 warmups-settings-grid">
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="scalesDirBtn" aria-haspopup="dialog"><strong id="scalesDirBtnVal">Up &amp; down</strong><span class="metroBlk-ctrl-value-label">direction</span></button>
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="scalesDetailBtn" aria-haspopup="dialog"><strong id="scalesDetailBtnVal">Notes</strong><span class="metroBlk-ctrl-value-label">detail</span></button>
+                </div>
+                <h3 class="warmups-settings-head" id="scalesMetronomeHead">Metronome</h3>
+                <div class="display-toggle-row warmups-settings-row" id="scalesMetronomeRow">
+                    <span id="scalesMetronomeLbl">Play with the metronome<span class="display-toggle-help">It plays each scale, then carries on to the next</span></span><label class="toggle-switch"><input type="checkbox" id="scalesMetronomeToggle" aria-labelledby="scalesMetronomeLbl"><span class="toggle-slider"></span></label>
+                </div>
+                <div class="metro-transport-grid metro-transport-grid-2 warmups-settings-grid" id="scalesMetronomeSettings">
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="scalesSpeedBtn" aria-haspopup="dialog"><strong id="scalesSpeedVal">72 bpm</strong><span class="metroBlk-ctrl-value-label">speed</span></button>
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="scalesNpbBtn" aria-haspopup="dialog"><strong id="scalesNpbVal">1</strong><span class="metroBlk-ctrl-value-label">notes / beat</span></button>
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="scalesRepeatBtn" aria-haspopup="dialog"><strong id="scalesRepeatVal">Twice</strong><span class="metroBlk-ctrl-value-label">play each one</span></button>
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="scalesCountInBtn" aria-haspopup="dialog"><strong id="scalesCountInVal">1 bar</strong><span class="metroBlk-ctrl-value-label">count-in</span></button>
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="scalesVolumeBtn" aria-haspopup="dialog"><strong id="scalesVolumeVal">80%</strong><span class="metroBlk-ctrl-value-label">volume</span></button>
+                </div>
+                <div class="display-toggle-row warmups-settings-row" id="scalesLightRow">
+                    <span id="scalesLightLbl">Light the note being played<span class="display-toggle-help">Off if you just want the music</span></span><label class="toggle-switch"><input type="checkbox" id="scalesLightToggle" aria-labelledby="scalesLightLbl"><span class="toggle-slider"></span></label>
+                </div>
+                <p class="text-sm text-muted" id="scalesSavedNote">Kept on your account - the same on every device.</p>
+            </div>
+            <div class="metroSeg-sticky-footer">
+                <button type="button" class="btn-submit no-margin" data-modal-close>Done</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal" id="scalesInstrumentModal" role="dialog" aria-modal="true" aria-labelledby="scalesInstrumentModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="scalesInstrumentModalTitle">Instrument</h2>
+            <p class="text-muted modal-intro">Its ABRSM list, range and clef decide which scales are in your list.</p>
+            <div id="scalesGradeInstrument"></div>
+        </div>
+    </div>
+    <div class="modal" id="scalesSizeModal" role="dialog" aria-modal="true" aria-labelledby="scalesSizeModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="scalesSizeModalTitle">Music size</h2>
+            <p class="text-muted modal-intro">The same size for every scale - and for Warm-ups.</p>
+            <div class="flow-tile-grid flow-tile-grid-3" id="scalesSizeGrid"></div>
+        </div>
+    </div>
+    <div class="modal" id="scalesSpeedModal" role="dialog" aria-modal="true" aria-labelledby="scalesSpeedModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="scalesSpeedModalTitle">Speed</h2>
+            <p class="text-muted modal-intro">The beat for every scale in your list.</p>
+            <div class="metroBlk-bpm-box">
+                <div class="metro-speed-row no-margin">
+                    <button class="metro-bpm-step" type="button" id="scalesBpmMinus" aria-label="Decrease beats per minute">&minus;</button>
+                    <div class="metro-speed-readout">
+                        <div id="scalesBpmVal">72</div>
+                        <div class="metro-speed-sub">bpm</div>
+                    </div>
+                    <button class="metro-bpm-step" type="button" id="scalesBpmPlus" aria-label="Increase beats per minute">+</button>
+                </div>
+                <div class="slider-wrap no-margin">
+                    <div class="slider-track" id="scalesBpmTrack">
+                        <div class="slider-fill" id="scalesBpmFill"></div>
+                        <div class="slider-thumb" id="scalesBpmThumb" tabindex="0" role="slider" aria-label="Beats per minute" aria-valuemin="15" aria-valuemax="200" aria-valuenow="72"></div>
+                    </div>
+                    <div class="slider-scale"><span>15</span><span>200</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal" id="scalesRepeatModal" role="dialog" aria-modal="true" aria-labelledby="scalesRepeatModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="scalesRepeatModalTitle">Play each one</h2>
+            <p class="text-muted modal-intro">Once or twice, then on to the next scale - or keep repeating this one until you move on.</p>
+            <div class="flow-tile-grid flow-tile-grid-3" id="scalesRepeatGrid"></div>
+        </div>
+    </div>
+    <!-- ML-357 / ML-589: the Scales settings' pickers - tap one to choose (it closes). -->
     <div class="modal" id="scalesClefModal" role="dialog" aria-modal="true" aria-labelledby="scalesClefModalTitle">
         <div class="modal-content">
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
@@ -2999,29 +3097,70 @@
         <div class="modal-content">
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
             <h2 id="scalesCountInModalTitle">Count-in</h2>
-            <p class="text-muted modal-intro">Beats before the first note, to get ready. Only at the start - the repeats run straight on.</p>
+            <p class="text-muted modal-intro">Beats before each scale, to get ready. Keep repeating runs straight on.</p>
             <div class="flow-tile-grid flow-tile-grid-2-centered" id="scalesCountInGrid"></div>
         </div>
     </div>
 
-    <!-- ML-361: Warm-ups - the instrument (whose range and clef count), the kinds (the standard pick list),
-         how many are in your list and how many are locked (outside your range for now). -->
+    <!-- ML-586: Warm-ups settings - everything but Previous / Next / Play, under one button, saved on the account:
+         my warm-ups (instrument, clef, topics, music size, shuffle; how many are in the list and how many are
+         locked - outside your range for now), then the metronome (on: it plays each warm-up and carries on to the
+         next - speed, how many times, count-in, volume). Each value box opens its own pop-up below. -->
     <div class="modal" id="warmupsSettingsModal" role="dialog" aria-modal="true" aria-labelledby="warmupsSettingsModalTitle">
         <div class="modal-content modal-content-sticky-footer">
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
             <div class="metroSeg-scroll-area">
-                <h2 id="warmupsSettingsModalTitle">Warm-ups</h2>
-                <div class="form-group" role="group" aria-labelledby="warmupsInstrumentLabel"><label id="warmupsInstrumentLabel">Instrument</label><div id="warmupsInstrument"></div></div>
-                <div class="form-group" role="group" aria-labelledby="warmupsKindsLabel">
-                    <label id="warmupsKindsLabel">Topics</label>
-                    <div class="pick-bar" id="warmupsKindsBar"></div>
-                    <div id="warmupsKindsList"></div>
+                <h2 id="warmupsSettingsModalTitle">Settings</h2>
+                <h3 class="warmups-settings-head">My warm-ups</h3>
+                <div class="metro-transport-grid metro-transport-grid-2 warmups-settings-grid">
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsInstrumentBtn" aria-haspopup="dialog"><strong id="warmupsInstrumentVal">-</strong><span class="metroBlk-ctrl-value-label">instrument</span></button>
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsClefBtn" aria-haspopup="dialog"><strong id="warmupsClefVal">Treble</strong><span class="metroBlk-ctrl-value-label">clef</span></button>
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsTopicsBtn" aria-haspopup="dialog"><strong id="warmupsTopicsVal">All</strong><span class="metroBlk-ctrl-value-label">topics</span></button>
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsSizeBtn" aria-haspopup="dialog"><strong id="warmupsSizeVal">Medium</strong><span class="metroBlk-ctrl-value-label">music size</span></button>
+                </div>
+                <div class="display-toggle-row warmups-settings-row">
+                    <span id="warmupsShuffleLabel">Shuffle<span class="display-toggle-help">Mix up the order</span></span><label class="toggle-switch"><input type="checkbox" id="warmupsShuffleToggle" aria-labelledby="warmupsShuffleLabel"><span class="toggle-slider"></span></label>
                 </div>
                 <div class="scales-pool-line">
                     <p class="scales-pool-count" id="warmupsCount" aria-live="polite"></p>
                     <button type="button" class="scales-range-link" id="warmupsSeeRangeBtn" aria-haspopup="dialog">See your range</button>
                 </div>
                 <p class="text-sm text-muted" id="warmupsLockedNote"></p>
+                <h3 class="warmups-settings-head">Metronome</h3>
+                <div class="display-toggle-row warmups-settings-row">
+                    <span id="warmupsMetronomeLbl">Play with the metronome<span class="display-toggle-help">It plays each warm-up, then carries on to the next</span></span><label class="toggle-switch"><input type="checkbox" id="warmupsMetronomeToggle" aria-labelledby="warmupsMetronomeLbl"><span class="toggle-slider"></span></label>
+                </div>
+                <div class="metro-transport-grid metro-transport-grid-2 warmups-settings-grid" id="warmupsMetronomeSettings">
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsSpeedBtn" aria-haspopup="dialog"><strong id="warmupsSpeedVal">Their own</strong><span class="metroBlk-ctrl-value-label">speed</span></button>
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsRepeatBtn" aria-haspopup="dialog"><strong id="warmupsRepeatVal">Twice</strong><span class="metroBlk-ctrl-value-label">play each one</span></button>
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsCountInBtn" aria-haspopup="dialog"><strong id="warmupsCountInVal">1 bar</strong><span class="metroBlk-ctrl-value-label">count-in</span></button>
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsVolumeBtn" aria-haspopup="dialog"><strong id="warmupsVolumeVal">80%</strong><span class="metroBlk-ctrl-value-label">volume</span></button>
+                </div>
+                <div class="display-toggle-row warmups-settings-row" id="warmupsLightRow">
+                    <span id="warmupsLightLbl">Light the note being played<span class="display-toggle-help">Off if you just want the music</span></span><label class="toggle-switch"><input type="checkbox" id="warmupsLightToggle" aria-labelledby="warmupsLightLbl"><span class="toggle-slider"></span></label>
+                </div>
+                <p class="text-sm text-muted" id="warmupsSavedNote">Kept on your account - the same on every device.</p>
+            </div>
+            <div class="metroSeg-sticky-footer">
+                <button type="button" class="btn-submit no-margin" data-modal-close>Done</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal" id="warmupsInstrumentModal" role="dialog" aria-modal="true" aria-labelledby="warmupsInstrumentModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="warmupsInstrumentModalTitle">Instrument</h2>
+            <p class="text-muted modal-intro">Its range and clef decide which warm-ups are in your list.</p>
+            <div id="warmupsInstrument"></div>
+        </div>
+    </div>
+    <div class="modal" id="warmupsTopicsModal" role="dialog" aria-modal="true" aria-labelledby="warmupsTopicsModalTitle">
+        <div class="modal-content modal-content-sticky-footer">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <div class="metroSeg-scroll-area">
+                <h2 id="warmupsTopicsModalTitle">Topics</h2>
+                <div class="pick-bar" id="warmupsKindsBar"></div>
+                <div id="warmupsKindsList"></div>
             </div>
             <div class="metroSeg-sticky-footer">
                 <button type="button" class="btn-submit no-margin" data-modal-close>Done</button>
@@ -3035,25 +3174,42 @@
             <div class="flow-tile-grid flow-tile-grid-3 scales-choice-grid" id="warmupsClefGrid"></div>
         </div>
     </div>
-    <!-- ML-361: Choose a warm-up (from Select): the list by kind; the locked ones in place with a lock. -->
+    <div class="modal" id="warmupsSizeModal" role="dialog" aria-modal="true" aria-labelledby="warmupsSizeModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="warmupsSizeModalTitle">Music size</h2>
+            <p class="text-muted modal-intro">The same size for every warm-up.</p>
+            <div class="flow-tile-grid flow-tile-grid-3" id="warmupsSizeGrid"></div>
+        </div>
+    </div>
+    <div class="modal" id="warmupsSpeedModal" role="dialog" aria-modal="true" aria-labelledby="warmupsSpeedModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="warmupsSpeedModalTitle">Speed</h2>
+            <p class="text-muted modal-intro">Every warm-up has its own speed. This makes them all a little slower or faster.</p>
+            <div class="flow-tile-grid flow-tile-grid-4" id="warmupsSpeedGrid"></div>
+        </div>
+    </div>
+    <!-- ML-361: Choose a warm-up (the title): the list by kind; the locked ones in place with a lock. -->
     <div class="modal" id="warmupsChooseModal" role="dialog" aria-modal="true" aria-labelledby="warmupsChooseTitle">
         <div class="modal-content modal-content-sticky-footer">
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
             <div class="metroSeg-scroll-area">
-                <h2 id="warmupsChooseTitle">Choose a warm-up</h2>
+                <h2 id="warmupsChooseTitle">My warm-ups</h2>
                 <p class="text-muted modal-intro" id="warmupsChooseIntro"></p>
                 <div id="warmupsChooseList"></div>
             </div>
             <div class="metroSeg-sticky-footer">
-                <button type="button" class="btn-nav btn-cancel no-margin" id="warmupsChooseEditBtn">Change your warm-ups</button>
+                <button type="button" class="btn-nav btn-cancel no-margin" id="warmupsChooseEditBtn">Change my warm-ups</button>
             </div>
         </div>
     </div>
     <div class="modal" id="warmupsRepeatModal" role="dialog" aria-modal="true" aria-labelledby="warmupsRepeatModalTitle">
         <div class="modal-content">
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
-            <h2 id="warmupsRepeatModalTitle">Repeat</h2>
-            <div class="flow-tile-grid flow-tile-grid-3" id="warmupsRepeatGrid"></div>
+            <h2 id="warmupsRepeatModalTitle">Play each one</h2>
+            <p class="text-muted modal-intro">Once moves through the list faster.</p>
+            <div class="flow-tile-grid flow-tile-grid-2-centered" id="warmupsRepeatGrid"></div>
         </div>
     </div>
     <div class="modal" id="warmupsCountInModal" role="dialog" aria-modal="true" aria-labelledby="warmupsCountInModalTitle">
@@ -3120,8 +3276,7 @@
         <div class="modal-content modal-content-sticky-footer">
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
             <div class="metroSeg-scroll-area">
-                <h2 id="scalesPoolModalTitle">Scales</h2>
-                <div class="form-group" role="group" aria-labelledby="scalesGradeInstrumentLabel"><label id="scalesGradeInstrumentLabel">Instrument</label><div id="scalesGradeInstrument"></div></div>
+                <h2 id="scalesPoolModalTitle">Grades</h2>
                 <div class="form-group" role="group" aria-labelledby="scalesGradesLabel"><label id="scalesGradesLabel">Grades <span class="text-muted" id="scalesGradesSummary"></span></label>
                     <div class="radio-group compact scales-grade-options" id="scalesGradeOptions"><input type="checkbox" id="scalesGrade-1" name="scalesGrade" value="1"><label for="scalesGrade-1">1</label><input type="checkbox" id="scalesGrade-2" name="scalesGrade" value="2"><label for="scalesGrade-2">2</label><input type="checkbox" id="scalesGrade-3" name="scalesGrade" value="3"><label for="scalesGrade-3">3</label><input type="checkbox" id="scalesGrade-4" name="scalesGrade" value="4"><label for="scalesGrade-4">4</label><input type="checkbox" id="scalesGrade-5" name="scalesGrade" value="5"><label for="scalesGrade-5">5</label><input type="checkbox" id="scalesGrade-6" name="scalesGrade" value="6"><label for="scalesGrade-6">6</label><input type="checkbox" id="scalesGrade-7" name="scalesGrade" value="7"><label for="scalesGrade-7">7</label><input type="checkbox" id="scalesGrade-8" name="scalesGrade" value="8"><label for="scalesGrade-8">8</label><input type="checkbox" id="scalesGrade-else" name="scalesGrade" value="else"><label for="scalesGrade-else">Everything else</label></div>
                 </div>
@@ -3328,178 +3483,84 @@
     </div>
 
 
-    <!-- ML-9: Scales practice. Four setup tiles (each opens its own small picker), Previous / Next / Shuffle /
-         My scales (in order, or at random, from the keys you can play), the scale written on the stave in rows that fit the
-         screen - the note to play lights gold while the metronome runs - then the same transport and
-         tempo box as the Metronome tool. Glue: the SCALES PRACTICE section of app.js; scales are built
-         by TheoryEngine.buildScale / writeScale, drawn by Notation.staff. See specs/components/scales.md. -->
-    <!-- ML-357 (owner's layout): the settings along the top - which scales (instrument + grades), clef,
-         direction, how much to show - then the scale's box with Previous / Next / Shuffle / Select under
-         it, then the metronome in its own box, switched on or off. -->
+    <!-- ML-9 / ML-357 / ML-589: Scales, laid out as Warm-ups (ML-586) and sharing its classes. The title (tap it to
+         choose a scale) and one Settings button - in a session's Scales block (ML-391) the Level box beside it; the
+         scale at the music size (the note to play lighting gold), or just its name (Detail); the Level link; then the
+         bar fixed to the bottom of the screen - own pace: Previous and Next scale; with the metronome: Previous, Play
+         and Next, carrying on to the next scale, the count-in in place of Play; in a Scales block: Not yet, Play,
+         Got it. Glue: the SCALES PRACTICE section of app.js; scales are built by TheoryEngine.buildScale /
+         writeScale, drawn by Notation.staff. See specs/components/scales.md. -->
     <div id="scalesView" class="hidden-group">
-        <div class="metro-transport-grid scales-setting-row" id="scalesSettingRow">
-            <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="scalesPoolBtn" aria-haspopup="dialog" aria-label="Scales - your instrument and grades"><strong id="scalesPoolBtnVal"><span class="material-symbols-outlined" aria-hidden="true">playlist_add_check</span></strong><span class="metroBlk-ctrl-value-label" id="scalesPoolBtnLbl">scales</span></button>
-            <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="scalesClefBtn" aria-haspopup="dialog" aria-label="Clef - tap to change"><strong id="scalesClefBtnVal">Treble</strong><span class="metroBlk-ctrl-value-label" id="scalesClefBtnLbl">clef</span></button>
-            <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="scalesDirBtn" aria-haspopup="dialog" aria-label="Direction - tap to change"><strong id="scalesDirBtnVal"><span class="material-symbols-outlined" aria-hidden="true" id="scalesDirIcon">swap_vert</span></strong><span class="metroBlk-ctrl-value-label" id="scalesDirBtnLbl">up &amp; down</span></button>
-            <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="scalesDetailBtn" aria-haspopup="dialog" aria-label="Detail - how much of the scale to show"><strong id="scalesDetailBtnVal">Notes</strong><span class="metroBlk-ctrl-value-label" id="scalesDetailBtnLbl">detail</span></button>
-        </div>
-        <!-- ML-391: in a practice session's Scales block (Scales Levels on) the four setting boxes give way to
-             these two - which scale of the block this is, and its Level (tap it for what each Level means, and
-             to set it by hand). The Level sets the detail and the speed; clef and direction stay yours. -->
-        <div class="metro-transport-grid scales-setting-row is-centred hidden-group" id="scalesLadderRow">
-            <div class="metroBlk-ctrl-value-btn scales-setting-btn" id="scalesLadderCount" aria-live="polite"><strong id="scalesLadderCountVal">1 of 3</strong><span class="metroBlk-ctrl-value-label">scale</span></div>
-            <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="scalesLadderLevelBtn" aria-haspopup="dialog" aria-label="Level 1 - tap for what each Level means"><strong><span class="level-chip lv-1" id="scalesLadderLevelChip">1</span></strong><span class="metroBlk-ctrl-value-label">level</span></button>
-        </div>
         <section class="flow-card scales-staff-card" aria-labelledby="scalesTitle">
-            <div class="scales-staff-head">
-                <div class="scales-staff-heading">
-                    <h2 class="scales-staff-title" id="scalesTitle">C major scale</h2>
-                    <span class="scales-staff-sub" id="scalesSub"></span>
-                </div>
-                <!-- The metronome's volume - same button and pop-up as the Metronome tool's (qpVolumeBtn); hidden while the metronome is off. -->
-                <button type="button" class="metroBlk-row-volume-btn" id="scalesVolumeBtn" aria-label="Volume - tap to change" aria-haspopup="dialog" aria-expanded="false"><span class="material-symbols-outlined" id="scalesVolumeIcon">volume_up</span></button>
+            <div class="warmups-head">
+                <h2 class="scales-staff-title warmups-heading">
+                    <button type="button" class="warmups-title-btn" id="scalesChooseBtn" aria-haspopup="dialog">
+                        <span id="scalesTitle">C major scale</span>
+                        <span class="warmups-sub"><span id="scalesSub"></span><span class="material-symbols-outlined" id="scalesSubIcon" aria-hidden="true">expand_more</span></span>
+                    </button>
+                </h2>
+                <!-- ML-391: in a Scales block, the scale's Level - tap it for what each Level means, and to set it by hand -->
+                <button type="button" class="metroBlk-ctrl-value-btn warmups-settings-btn hidden-group" id="scalesLadderLevelBtn" aria-haspopup="dialog" aria-label="Level 1 - tap for what each Level means"><strong><span class="level-chip lv-1" id="scalesLadderLevelChip">1</span></strong><span class="metroBlk-ctrl-value-label">level</span></button>
+                <button type="button" class="metroBlk-ctrl-value-btn warmups-settings-btn" id="scalesSettingsBtn" aria-haspopup="dialog" aria-label="Settings"><strong><span class="material-symbols-outlined" aria-hidden="true">tune</span></strong><span class="metroBlk-ctrl-value-label">settings</span></button>
             </div>
             <!-- Detail: Notes = the scale written out; Key = a blank stave with the key signature (you find the
                  notes); Name = no stave, just the name and what to play. -->
-            <div class="scales-staff" id="scalesStaff"></div>
+            <div class="warmups-staff" id="scalesStaff"></div>
             <div class="scales-memory hidden-group" id="scalesMemory">
                 <div class="scales-memory-name" id="scalesMemoryName">C major</div>
                 <div class="scales-memory-detail" id="scalesMemoryDetail"></div>
                 <div class="scales-memory-progress" id="scalesMemoryProgress" aria-live="off"></div>
             </div>
-            <div class="scales-pick-row" id="scalesPickRow">
-                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesPrevBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_previous</span><span class="metroBlk-ctrl-value-label">previous</span></button>
-                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesNextBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_next</span><span class="metroBlk-ctrl-value-label">next</span></button>
-                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesShuffleBtn"><span class="material-symbols-outlined" aria-hidden="true">shuffle</span><span class="metroBlk-ctrl-value-label">shuffle</span></button>
-                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesChooseBtn" aria-haspopup="dialog" aria-label="Select - choose a scale from your list"><span class="material-symbols-outlined" aria-hidden="true">format_list_bulleted</span><span class="metroBlk-ctrl-value-label">select</span></button>
-            </div>
-            <!-- ML-391: a Scales block: Not yet / Got it for this scale, in place of Previous / Next / Shuffle / Select -->
-            <div class="metro-transport-grid metro-transport-grid-2 mt-3 hidden-group" id="scalesLadderAnswers">
-                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesNotYetBtn"><span class="material-symbols-outlined" aria-hidden="true">replay</span><span class="metroBlk-ctrl-value-label">not yet</span></button>
-                <button type="button" class="metro-play-grid-btn" id="scalesGotItBtn"><span class="material-symbols-outlined" aria-hidden="true">check</span><span class="metroBlk-ctrl-value-label">got it</span></button>
-            </div>
             <!-- ML-391: outside a block, a scale in your list says its Level here - tap to set it by hand -->
             <button type="button" class="btn-text hidden-group" id="scalesLevelLink" aria-haspopup="dialog">Level 1 - change</button>
         </section>
-        <section class="flow-card scales-staff-card scales-metronome-card" aria-labelledby="scalesMetronomeLbl">
-            <!-- ML-542: the big count-in, over the controls (never the music) - showCountIn in app.js -->
-            <div class="count-in-cover hidden-group" id="scalesCountIn" aria-hidden="true"><div class="rest-ring"><svg class="rest-ring-svg" viewBox="0 0 120 120"><circle class="rest-ring-track" cx="60" cy="60" r="52"></circle><circle class="rest-ring-left" cx="60" cy="60" r="52" pathLength="100"></circle></svg><div class="rest-ring-num"><strong>4</strong><span>get ready</span></div></div></div>
-            <div class="scales-staff-head">
-                <h2 class="scales-staff-title" id="scalesMetronomeLbl">Use metronome</h2>
-                <label class="toggle-switch" id="scalesMetronomeSwitch"><input type="checkbox" id="scalesMetronomeToggle" aria-labelledby="scalesMetronomeLbl"><span class="toggle-slider"></span></label>
-            </div>
-            <div id="scalesMetronomeControls">
-        <div class="metro-transport-grid">
-            <button type="button" class="metro-play-grid-btn" id="scalesPlayBtn" aria-label="Play - press and hold to go back to the start" aria-pressed="false">
-                <span class="material-symbols-outlined" id="scalesPlayIcon">play_arrow</span>
-                <span class="metroBlk-ctrl-value-label" id="scalesPlayLbl">play</span>
-            </button>
-            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="scalesResetBtn" aria-label="Back to the start">
-                <span class="material-symbols-outlined">restart_alt</span>
-                <span class="metroBlk-ctrl-value-label">reset</span>
-            </button>
-            <button type="button" class="metroBlk-ctrl-value-btn" id="scalesNpbBtn" aria-label="Notes a beat - tap to change" aria-haspopup="dialog">
-                <strong id="scalesNpbVal">1</strong>
-                <span class="metroBlk-ctrl-value-label">notes / beat</span>
-            </button>
-            <button type="button" class="metroBlk-ctrl-value-btn" id="scalesCountInBtn" aria-label="Count-in - tap to change" aria-haspopup="dialog">
-                <strong id="scalesCountInVal">1 bar</strong>
-                <span class="metroBlk-ctrl-value-label">count-in</span>
-            </button>
-        </div>
-        <div class="metroBlk-bpm-box mt-3">
-            <div class="metro-speed-row no-margin">
-                <button class="metro-bpm-step" type="button" id="scalesBpmMinus" aria-label="Decrease beats per minute">&minus;</button>
-                <div class="metro-speed-readout">
-                    <div id="scalesBpmVal">72</div>
-                    <div class="metro-speed-sub">bpm</div>
-                </div>
-                <button class="metro-bpm-step" type="button" id="scalesBpmPlus" aria-label="Increase beats per minute">+</button>
-            </div>
-            <div class="slider-wrap no-margin">
-                <div class="slider-track" id="scalesBpmTrack">
-                    <div class="slider-fill" id="scalesBpmFill"></div>
-                    <div class="slider-thumb" id="scalesBpmThumb" tabindex="0" role="slider" aria-label="Beats per minute" aria-valuemin="15" aria-valuemax="200" aria-valuenow="72"></div>
-                </div>
-                <div class="slider-scale"><span>15</span><span>200</span></div>
+        <div class="warmups-dock" id="scalesDock">
+            <div class="warmups-progress" aria-hidden="true"><div class="warmups-progress-fill" id="scalesProgress"></div></div>
+            <p class="warmups-status" id="scalesStatus" aria-live="polite"><span id="scalesStatusNow"></span><span id="scalesStatusNext"></span></p>
+            <div class="warmups-dock-row">
+                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset warmups-dock-side" id="scalesPrevBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_previous</span><span class="metroBlk-ctrl-value-label">previous</span></button>
+                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset warmups-dock-side hidden-group" id="scalesNotYetBtn"><span class="material-symbols-outlined" aria-hidden="true">replay</span><span class="metroBlk-ctrl-value-label">not yet</span></button>
+                <button type="button" class="metro-play-grid-btn warmups-dock-main" id="scalesNextMainBtn">Next scale<span class="material-symbols-outlined" aria-hidden="true">skip_next</span></button>
+                <button type="button" class="metro-play-grid-btn warmups-dock-main hidden-group" id="scalesPlayBtn" aria-label="Play - press and hold to go back to the start" aria-pressed="false"><span class="material-symbols-outlined" id="scalesPlayIcon" aria-hidden="true">play_arrow</span><span id="scalesPlayLbl">Play</span></button>
+                <!-- The count-in, in place of Play while it counts (ML-589, as Warm-ups) - always on the screen. -->
+                <button type="button" class="warmups-countin hidden-group" id="scalesCountIn" aria-label="Get ready - tap to stop"><strong id="scalesCountInNum" aria-hidden="true">4</strong><span class="warmups-countin-words" aria-hidden="true"><span>get ready</span><span class="warmups-countin-dots" id="scalesCountInDots"></span></span></button>
+                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset warmups-dock-side hidden-group" id="scalesNextBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_next</span><span class="metroBlk-ctrl-value-label">next</span></button>
+                <button type="button" class="metro-play-grid-btn warmups-dock-side hidden-group" id="scalesGotItBtn"><span class="material-symbols-outlined" aria-hidden="true">check</span><span class="metroBlk-ctrl-value-label">got it</span></button>
             </div>
         </div>
-            </div>
-        </section>
     </div>
 
-
-    <!-- ML-294 / ML-361: Warm-ups, in the Scales layout: Warm-ups (instrument and kinds) and Clef along the
-         top; the exercise - title, tip, the stave (slurs drawn), the note to play lighting gold - with
-         Previous / Next / Shuffle / Select under it; then Use metronome. Exercises come from /api/warmups
+    <!-- ML-294 / ML-361 / ML-586: Warm-ups. The title (tap it for the list) and one Settings button; the tip and the
+         stave (every warm-up at the same music size, the note to play lighting gold); then the bar fixed to the
+         bottom of the screen - own pace: Previous and Next warm-up; with the metronome: Previous, Play and Next,
+         carrying on to the next warm-up, and the count-in in place of Play. Exercises come from /api/warmups
          (Admin -> Warm-ups); drawn by public/warmups.js + Notation.staff. See specs/components/warmups.md. -->
     <div id="warmupsView" class="hidden-group">
-        <div class="metro-transport-grid scales-setting-row is-centred">
-            <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="warmupsSettingsBtn" aria-haspopup="dialog" aria-label="Warm-ups - your instrument and the topics"><strong><span class="material-symbols-outlined" aria-hidden="true">playlist_add_check</span></strong><span class="metroBlk-ctrl-value-label">warm-ups</span></button>
-            <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="warmupsClefBtn" aria-haspopup="dialog" aria-label="Clef - tap to change"><strong id="warmupsClefVal">Treble</strong><span class="metroBlk-ctrl-value-label">clef</span></button>
-        </div>
         <section class="flow-card scales-staff-card" aria-labelledby="warmupsTitle">
-            <div class="scales-staff-head">
-                <div class="scales-staff-heading">
-                    <h2 class="scales-staff-title" id="warmupsTitle">Warm-ups</h2>
-                    <span class="scales-staff-sub" id="warmupsSub"></span>
-                </div>
-                <button type="button" class="metroBlk-row-volume-btn hidden-group" id="warmupsVolumeBtn" aria-label="Volume - tap to change" aria-haspopup="dialog" aria-expanded="false"><span class="material-symbols-outlined" id="warmupsVolumeIcon">volume_up</span></button>
+            <div class="warmups-head">
+                <h2 class="scales-staff-title warmups-heading">
+                    <button type="button" class="warmups-title-btn" id="warmupsChooseBtn" aria-haspopup="dialog">
+                        <span id="warmupsTitle">Warm-ups</span>
+                        <span class="warmups-sub"><span id="warmupsSub"></span><span class="material-symbols-outlined" aria-hidden="true">expand_more</span></span>
+                    </button>
+                </h2>
+                <button type="button" class="metroBlk-ctrl-value-btn warmups-settings-btn" id="warmupsSettingsBtn" aria-haspopup="dialog" aria-label="Settings"><strong><span class="material-symbols-outlined" aria-hidden="true">tune</span></strong><span class="metroBlk-ctrl-value-label">settings</span></button>
             </div>
             <p class="warmups-tip" id="warmupsTip"></p>
-            <div class="scales-staff" id="warmupsStaff"></div>
-            <div class="scales-pick-row">
-                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsPrevBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_previous</span><span class="metroBlk-ctrl-value-label">previous</span></button>
-                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsNextBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_next</span><span class="metroBlk-ctrl-value-label">next</span></button>
-                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsShuffleBtn"><span class="material-symbols-outlined" aria-hidden="true">shuffle</span><span class="metroBlk-ctrl-value-label">shuffle</span></button>
-                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsChooseBtn" aria-haspopup="dialog" aria-label="Select - choose a warm-up from your list"><span class="material-symbols-outlined" aria-hidden="true">format_list_bulleted</span><span class="metroBlk-ctrl-value-label">select</span></button>
-            </div>
+            <div class="warmups-staff" id="warmupsStaff"></div>
         </section>
-        <section class="flow-card scales-staff-card scales-metronome-card" aria-labelledby="warmupsMetronomeLbl">
-            <!-- ML-542: the big count-in, over the controls (never the music) - showCountIn in app.js -->
-            <div class="count-in-cover hidden-group" id="warmupsCountIn" aria-hidden="true"><div class="rest-ring"><svg class="rest-ring-svg" viewBox="0 0 120 120"><circle class="rest-ring-track" cx="60" cy="60" r="52"></circle><circle class="rest-ring-left" cx="60" cy="60" r="52" pathLength="100"></circle></svg><div class="rest-ring-num"><strong>4</strong><span>get ready</span></div></div></div>
-            <div class="scales-staff-head">
-                <h2 class="scales-staff-title" id="warmupsMetronomeLbl">Use metronome</h2>
-                <label class="toggle-switch"><input type="checkbox" id="warmupsMetronomeToggle" aria-labelledby="warmupsMetronomeLbl"><span class="toggle-slider"></span></label>
-            </div>
-            <div id="warmupsMetronomeControls" class="hidden-group">
-        <div class="metro-transport-grid">
-            <button type="button" class="metro-play-grid-btn" id="warmupsPlayBtn" aria-label="Play - press and hold to go back to the start" aria-pressed="false">
-                <span class="material-symbols-outlined" id="warmupsPlayIcon">play_arrow</span>
-                <span class="metroBlk-ctrl-value-label" id="warmupsPlayLbl">play</span>
-            </button>
-            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsResetBtn" aria-label="Back to the start">
-                <span class="material-symbols-outlined">restart_alt</span>
-                <span class="metroBlk-ctrl-value-label">reset</span>
-            </button>
-            <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsRepeatBtn" aria-label="Repeat - tap to change" aria-haspopup="dialog">
-                <strong id="warmupsRepeatVal">once</strong>
-                <span class="metroBlk-ctrl-value-label">repeat</span>
-            </button>
-            <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsCountInBtn" aria-label="Count-in - tap to change" aria-haspopup="dialog">
-                <strong id="warmupsCountInVal">1 bar</strong>
-                <span class="metroBlk-ctrl-value-label">count-in</span>
-            </button>
-        </div>
-        <div class="metroBlk-bpm-box mt-3">
-            <div class="metro-speed-row no-margin">
-                <button class="metro-bpm-step" type="button" id="warmupsBpmMinus" aria-label="Decrease beats per minute">&minus;</button>
-                <div class="metro-speed-readout">
-                    <div id="warmupsBpmVal">72</div>
-                    <div class="metro-speed-sub">bpm</div>
-                </div>
-                <button class="metro-bpm-step" type="button" id="warmupsBpmPlus" aria-label="Increase beats per minute">+</button>
-            </div>
-            <div class="slider-wrap no-margin">
-                <div class="slider-track" id="warmupsBpmTrack">
-                    <div class="slider-fill" id="warmupsBpmFill"></div>
-                    <div class="slider-thumb" id="warmupsBpmThumb" tabindex="0" role="slider" aria-label="Beats per minute" aria-valuemin="15" aria-valuemax="200" aria-valuenow="72"></div>
-                </div>
-                <div class="slider-scale"><span>15</span><span>200</span></div>
+        <div class="warmups-dock" id="warmupsDock">
+            <div class="warmups-progress" aria-hidden="true"><div class="warmups-progress-fill" id="warmupsProgress"></div></div>
+            <p class="warmups-status" id="warmupsStatus" aria-live="polite"><span id="warmupsStatusNow"></span><span id="warmupsStatusNext"></span></p>
+            <div class="warmups-dock-row">
+                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset warmups-dock-side" id="warmupsPrevBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_previous</span><span class="metroBlk-ctrl-value-label">previous</span></button>
+                <button type="button" class="metro-play-grid-btn warmups-dock-main" id="warmupsNextMainBtn">Next warm-up<span class="material-symbols-outlined" aria-hidden="true">skip_next</span></button>
+                <button type="button" class="metro-play-grid-btn warmups-dock-main hidden-group" id="warmupsPlayBtn" aria-label="Play - press and hold to go back to the start" aria-pressed="false"><span class="material-symbols-outlined" id="warmupsPlayIcon" aria-hidden="true">play_arrow</span><span id="warmupsPlayLbl">Play</span></button>
+                <!-- The count-in, in place of Play while it counts (ML-586) - always on the screen, however long the warm-up. -->
+                <button type="button" class="warmups-countin hidden-group" id="warmupsCountIn" aria-label="Get ready - tap to stop"><strong id="warmupsCountInNum" aria-hidden="true">4</strong><span class="warmups-countin-words" aria-hidden="true"><span>get ready</span><span class="warmups-countin-dots" id="warmupsCountInDots"></span></span></button>
+                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset warmups-dock-side hidden-group" id="warmupsNextBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_next</span><span class="metroBlk-ctrl-value-label">next</span></button>
             </div>
         </div>
-            </div>
-        </section>
     </div>
 
     <!-- ML-260 Theory practice: list -> options -> play -> results, one view each so the top bar's

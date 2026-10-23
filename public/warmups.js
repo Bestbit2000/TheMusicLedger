@@ -122,16 +122,24 @@
     // from the start of the next (openStart), as printed.
     // repeat (ML-538): it's played more than once in a row - the end is a repeat sign (back to the start), not
     // the final barline.
-    function rows(ex, clef = 'treble', { perRow = 8, barsPerRow = 4, cls = 'warmup-note', repeat = false } = {}) {
+    // groups (ML-586): how many bars go on each row, worked out by fitRows from the width there is - in place of
+    // perRow / barsPerRow (the admin editor's rows).
+    function rows(ex, clef = 'treble', { perRow = 8, barsPerRow = 4, groups = null, cls = 'warmup-note', repeat = false } = {}) {
         const { bars } = check(ex);
         const notes = ex.notes || [];
         const out = [];
-        let row = [], count = 0;
-        bars.forEach((bar) => {
-            if (row.length && (count + bar.length > perRow || row.length >= barsPerRow)) { out.push(row); row = []; count = 0; }
-            row.push(bar); count += bar.length;
-        });
-        if (row.length) out.push(row);
+        if (groups) {
+            let at = 0;
+            groups.forEach((n) => { if (at < bars.length) out.push(bars.slice(at, at + n)); at += n; });
+            if (at < bars.length) out.push(bars.slice(at));
+        } else {
+            let row = [], count = 0;
+            bars.forEach((bar) => {
+                if (row.length && (count + bar.length > perRow || row.length >= barsPerRow)) { out.push(row); row = []; count = 0; }
+                row.push(bar); count += bar.length;
+            });
+            if (row.length) out.push(row);
+        }
         let carried = false; // a slur still open at the end of the row before
         return out.map((rowBars, r) => {
             const items = [];
@@ -179,6 +187,68 @@
             return { items, spans, from: rowBars[0][0], to: rowBars[rowBars.length - 1][rowBars[rowBars.length - 1].length - 1] };
         });
     }
+    // ML-586: rows that fit a width - as many whole bars on a row as fit, so every warm-up is drawn at the same
+    // size (the music size) instead of each being stretched to fill the screen. measure(row) is the row's
+    // natural width (Notation.staff's), in the same units as width. A bar wider than the width on its own still
+    // gets a row of its own (the tool draws it a little narrower). Returns rows() with { groups }.
+    // The lines are then evened out: the narrowest width that still needs no more lines is used, so seven bars are
+    // 3 + 4 (the first line has the time signature too), not 6 + 1.
+    function fitRows(ex, clef, width, measure, opts = {}) {
+        const nBars = check(ex).bars.length;
+        const pack = (w) => {
+            const groups = [];
+            let done = 0;
+            while (done < nBars) {
+                let n = 1;
+                while (done + n < nBars) {
+                    const tryRow = rows(ex, clef, { ...opts, groups: [...groups, n + 1] })[groups.length];
+                    if (measure(tryRow) > w) break;
+                    n++;
+                }
+                groups.push(n);
+                done += n;
+            }
+            return groups;
+        };
+        let best = pack(width);
+        let lo = width / 2, hi = width;
+        for (let k = 0; k < 8 && best.length > 1; k++) {
+            const mid = (lo + hi) / 2, g = pack(mid);
+            if (g.length <= best.length) { best = g; hi = mid; } else lo = mid;
+        }
+        return rows(ex, clef, { ...opts, groups: best });
+    }
+
+    // ML-586: the tool's settings, saved on the account (server/services/warmups.js checks them with this; the app
+    // reads them back with it). Only these keys and values are kept - anything else is dropped, a bad value refused.
+    //   metronome  own pace (false) or with the metronome, carrying on to the next warm-up (true)
+    //   speed      a percentage of each warm-up's own speed      times    plays each warm-up once or twice
+    //   countIn    a bar before each (1) or none (0)              volume   the click, 0-100
+    //   size       the music size                                 shuffle  a mixed-up order
+    //   kinds      the topics                                     instrumentId  whose range and clef count
+    //   light      the note being played lights gold (off for a player who doesn't need it - owner, 23 Oct 2026)
+    const SPEEDS = [80, 90, 100, 110];
+    const TIMES = [1, 2];
+    const SIZES = ['small', 'medium', 'large'];
+    const PREF_DEFAULTS = { metronome: false, speed: 100, times: 2, countIn: 1, volume: 80, size: 'medium', shuffle: false, light: true, kinds: KIND_IDS.slice(), instrumentId: null };
+    function cleanPrefs(prefs) {
+        const out = {};
+        if (!prefs || typeof prefs !== 'object') return out;
+        const bad = (key) => { const e = new Error(`Unknown ${key} setting.`); e.status = 400; throw e; };
+        const one = (key, allowed) => { if (key in prefs) { if (!allowed.includes(prefs[key])) bad(key); out[key] = prefs[key]; } };
+        one('metronome', [true, false]);
+        one('speed', SPEEDS);
+        one('times', TIMES);
+        one('countIn', [0, 1]);
+        one('size', SIZES);
+        one('shuffle', [true, false]);
+        one('light', [true, false]);
+        if ('volume' in prefs) { if (!Number.isInteger(prefs.volume) || prefs.volume < 0 || prefs.volume > 100) bad('volume'); out.volume = prefs.volume; }
+        if ('kinds' in prefs) { if (!Array.isArray(prefs.kinds) || prefs.kinds.some(k => !KIND_IDS.includes(k))) bad('kinds'); out.kinds = KIND_IDS.filter(k => prefs.kinds.includes(k)); }
+        if ('instrumentId' in prefs) { const v = prefs.instrumentId; if (v !== null && !(Number.isInteger(v) && v > 0)) bad('instrumentId'); out.instrumentId = v; }
+        return out;
+    }
+
     // The lowest and highest note (MIDI) as written in a clef - for "is it in your range" (ML-361).
     function span(ex, clef = 'treble') {
         const ms = (ex.notes || []).filter(n => n.p !== null).map(n => midi(pitchFor(n.p, clef)));
@@ -206,6 +276,6 @@
     // The other way round (tests, and the migration that added the seed exercises' slurs).
     const format = (notes) => notes.map(n => `${n.p === null ? 'r' : n.p}${n.d}${n.dot ? '.' : ''}${n.sl ? '^' : ''}`).join(' ');
 
-    const api = { KINDS, KIND_IDS, LENGTHS, LENGTH_NAMES, RANGE, SAVE_BEATS, beatsOf, midi, check, trimEndRests, toBassClef, pitchFor, timeline, noteAt, rows, span, stepRange, parse, format };
+    const api = { KINDS, KIND_IDS, LENGTHS, LENGTH_NAMES, RANGE, SAVE_BEATS, beatsOf, midi, check, trimEndRests, toBassClef, pitchFor, timeline, noteAt, rows, fitRows, span, stepRange, parse, format, SPEEDS, TIMES, SIZES, PREF_DEFAULTS, cleanPrefs };
     root.Warmups = api;
 })(typeof self !== 'undefined' ? self : globalThis);

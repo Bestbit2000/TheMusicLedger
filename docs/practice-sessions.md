@@ -89,6 +89,9 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
 - **A Warm-up block loops its list** (`sessionWarmupLoop`): one exercise after another with the click on, round
   after round, each round 10% faster (`PracticePlan.warmupRoundBpm`), until the block ends. It's one metronome
   sequence, so the next warm-up comes in on the beat with a single bar-start click (docs/warmups.md, "Playing").
+  ML-586: it's the Warm-ups screen as the tool has it (the bar at the bottom with the count-in, one music size, the
+  line being played kept in view) and follows the member's **speed** and **play each one** settings (twice by
+  default); it starts with the click on whatever the setting, and the switch in Settings turns it off for that block only.
 - **Logging:** a session that ends, or is ended early, is one `sessions` row plus a `session_segments` row per
   block (seconds - the rest counts with the block before it - chunk and tool), so Stats and history see it.
 - **Resume:** the running session is kept on the server (`active_practice_sessions`) whenever it changes,
@@ -260,9 +263,10 @@ stops being "open the Scales tool". It gives **three scales, each at its own Lev
 - **Which scales** (`PracticePlan.scalePool`): your list (the ticked grades' scales in your range - the Scales
   tool's own list), **lowest Level first, then played longest ago**, then list order - so every scale leaves a
   Level before any goes two ahead ("everyone up together", as pieces do).
-- **The block** (`scalesLadder` in app.js): the Scales screen with two boxes in place of its four (which scale of
-  the block - "2 of 3" - and its Level) and **Not yet / Got it** in place of Previous / Next / Shuffle / Select. The
-  Level sets Detail and the metronome; clef and direction stay yours; **your own Scales settings come back when
+- **The block** (`scalesLadder` in app.js): the Scales screen with its Level box beside Settings, and **Not yet |
+  Play | Got it** in the bar at the bottom with "Scale 2 of 3" (ML-589 - it was two boxes along the top and Not yet /
+  Got it under the music). The Level sets Detail and the metronome (those Settings boxes are off for the block, and
+  the scale goes round until you answer); clef and direction stay yours; **your own Scales settings come back when
   the block ends** (they're never saved over). Each scale has about a minute and a half (a nudge to decide at 90
   seconds); answering moves straight on, and a fourth comes in if there's time. When the block's time runs out,
   the scale you're on still asks "got it?" (the Skills block's pop-up), then the rest.

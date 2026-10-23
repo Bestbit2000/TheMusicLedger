@@ -1,4 +1,4 @@
-# Warm-ups (ML-294, ML-361)
+# Warm-ups (ML-294, ML-361, ML-586)
 
 The Warm-ups tool: brass warm-up exercises one at a time, with a metronome that lights the note to
 play. A building block of practice sessions, alongside Scales (ML-9).
@@ -48,21 +48,45 @@ play. A building block of practice sessions, alongside Scales (ML-9).
   tones, articulation (the tonguing kind), finger patterns and easy melodies have none; phrasing those
   is for the editor.
 
-## The tool (ML-361: the Scales layout)
+## The tool (ML-586: two ways to use it, one Settings button)
 
-- **Warm-ups** (top left) picks the **instrument** and the **topics** (the kinds, as the standard pick list, headed "Topics"); **Clef**
-  (top right) is the instrument's own clef (its `theoryClef`) until you choose one - a euphonium can
-  read any of them. **Select** (under the stave) opens Choose a warm-up. **Use metronome** switches the
-  transport, tempo and volume on or off. It starts **off** (ML-368, to keep the screen simple on
-  arrival) and whatever you last chose is remembered on the device (`tml.warmups`). Settings saved
-  before ML-368 were switched off once (`metronomeOffOnce`), since the old default had it on.
+The owner (23 Oct 2026, Jira ML-586 - "too many buttons", 14 of them): there are **two ways to use it** - **at your
+own pace** (Previous / Next warm-up, when you're ready) or **with the metronome** (each warm-up at its own speed,
+twice by default, then straight on to the next in time) - and everything else goes **under one Settings button**.
+The design was agreed on a Claude Design canvas (linked from the Jira issue).
+
+- **The title** is a button: it opens **My warm-ups** (the list, by topic, locked ones in place). **Settings** beside
+  it holds: the **instrument**, the **clef** (the one you read your instrument in until you choose one - for the
+  visit only, ML-528), the **topics** (the kinds, the standard pick list), the **music size**, **Shuffle**, and the
+  **Play with the metronome** switch with, under it, **speed**, **play each one**, **count-in**, **volume** and **Light the note being played** (on to start with - the owner, 23 Oct 2026: a more advanced player may not want the gold note; with it off the lines still move up as it plays).
+- **The settings are saved on the account** (`accounts.warmup_prefs`, migration 148, `GET/PUT /api/account/warmups`,
+  checked by `Warmups.cleanPrefs`) so they're the same on every device - "most of the time you'll just use the
+  defaults" (owner). A copy stays on the device (`tml.warmups`) for offline and for where you were; the first time
+  the account has none, the device's is saved to it. The old "repeat" (once by default) isn't carried over: **play each
+  one starts at twice** (owner); "until stopped" has gone - the list carries on instead. Own pace is where a new
+  member starts (as ML-368's "metronome off on arrival").
+- **Speed is a percentage of each warm-up's own** (80%, 90%, their own, 110% - `Warmups.SPEEDS`), not a bpm, because
+  every warm-up has its own speed. The speed pop-up says so.
+- **The bar at the bottom of the screen** (sticky): how far through the list, what's playing and what's next, and the
+  buttons - own pace: Previous, Next warm-up; with the metronome: Previous, Play / Pause, Next. Previous goes back to
+  the start of the warm-up you're on first (it took Reset's place). **The count-in shows in that bar**, in Play's
+  place - it used to cover the metronome card, which sat off the bottom of the screen on a long warm-up.
+- **One music size for every warm-up** (Small, Medium, Large; `Warmups.fitRows`): as many whole bars on a line as fit
+  the width. Each warm-up used to be stretched to fill the card, so one with few notes was drawn big and one with many
+  small (the owner's report). Scales has the same since ML-589, and the size is one setting for both (owner).
+- **The line being played stays in view**: the page scrolls it up under the top bar when it or the next line would be
+  hidden.
+- **With the metronome, after the last warm-up** it stops: "That's the whole list - well done!". At your own pace the
+  list goes round.
+- **Counted**: an anonymous PostHog `warm-ups setting` event (which setting, its new value), so the screen can be
+  simplified again by what's used (the owner's "measure what people actually use").
 - **Range locking.** A warm-up whose notes go outside your comfortable range (the Range tool's
   `bottomNote` / `topNote`) is **locked**, and one outside the instrument's own range (`rangeLow` /
   `rangeHigh`) is **beyond** - both checked in the instrument's own clef, where those ranges are written.
   On brass and woodwind the top of that is a 4th above `rangeHigh` once your range is set (the usual top
   is soft, ML-370, docs/range.md), so a warm-up up there is locked until your range reaches it.
   They're left out of Previous / Next / Shuffle (and a practice session's warm-up list), counted in the
-  Warm-ups pop-up ("12 warm-ups · 9 locked"), and shown in Choose a warm-up with a lock and why. With no
+  Topics pop-up ("12 warm-ups · 9 locked"), and shown in My warm-ups with a lock and why. With no
   range set nothing is locked. The seeded warm-ups (F♯3 to G5) are never beyond a baritone or euphonium;
   a beginner's range of C4 to C5 locks 25 of the 66.
 
@@ -79,21 +103,37 @@ hide it from the tool without losing it.
 
 `Warmups.timeline`: the metronome clicks every crotchet, or every quaver when the exercise has quavers
 or dotted crotchets (`setNotesPerBeat(2)`), and each note lights for its own length (a semibreve for
-four clicks). A count-in bar first (optional), then once, twice or looped, at the exercise's own
-tempo unless you change it.
+four clicks). A count-in bar before each warm-up (optional), then it plays once or twice, at its own speed times the
+speed setting.
 
-**The repeat sign (ML-538).** When a warm-up plays more than once in a row - always in a session, or the tool set
-to twice or until stopped - its stave ends with a repeat sign (`Warmups.rows(..., { repeat: true })`, Bravura's
-`repeatRight`) instead of the final barline.
+**The repeat sign (ML-538).** When the metronome plays a warm-up more than once in a row (play each one: twice) its
+stave ends with a repeat sign (`Warmups.rows(..., { repeat: true })`, Bravura's `repeatRight`) instead of the final
+barline. At your own pace it doesn't.
 
-In a practice session's Warm-up block (ML-390) the list plays on a loop: **each warm-up twice in a row, then the
-next** (ML-538, `SESSION_WARMUP_TIMES` in app.js - it used to be once each, with the second go a whole list later),
-each round of the list a little faster. The whole loop is one metronome
-**sequence** (the player's ML-193 sequence mode) - each warm-up is a passage (its count-in bar, then its notes twice),
-and the player asks for the next one on the beat the last ends, so it carries straight on in time and the screen
-moves on with the next warm-up's first click. (Stopping and restarting the player between warm-ups played the
-next bar's first click twice.)
+**One sequence (ML-390, ML-586).** With the metronome the list is one metronome **sequence** (the player's ML-193
+sequence mode) - each warm-up is a passage (its count-in bar, then its notes once or twice), and the player asks for
+the next one on the beat the last ends, so it carries straight on in time and the screen moves on with the next
+warm-up's first click. (Stopping and restarting the player between warm-ups played the next bar's first click twice.)
+On the tool's own it ends after the last one (`warmupsToolLoop`); in a practice session's Warm-up block
+(`sessionWarmupLoop`) the list plays on a loop until the block ends, each round a little faster. **A session follows
+the speed and play each one settings** (ML-586 - it used to be twice each whatever; twice is still the default), and
+it **starts with the metronome** whatever the setting (ML-390); the switch in Settings changes it for that block
+only, and the topics and the order are the session's.
 
-**The count-in** shows big (ML-542): the beats left in a ring over the metronome card (`showCountIn`, the rest
-screen's ring - specs/components/rest-screen.md); the stave is never under it. When a session's block runs out of
-time part way through an exercise, the time through it's on is finished first (ML-541, docs/practice-sessions.md).
+**The count-in** (ML-542, ML-586) shows big in the bar at the bottom of the screen, in Play's place: the beats left
+and a dot per beat. When a session's block runs out of time part way through an exercise, the time through it's on
+is finished first (ML-541, docs/practice-sessions.md).
+
+**Headphones (ML-586).** The owner found the gold note up to two beats ahead of the sound in his Bluetooth headphones.
+Three fixes, for every tool's player (`createMetronomePlayer` in app.js):
+- **The sound line is kept awake** while the Warm-ups screen is open with the metronome on (`keepAwake`): Bluetooth
+  headphones, and Chrome's own power saving, switch the sound off when nothing plays, so the first second or two
+  after Play was lost or held back. A signal far too quiet to hear (about -90 dB) - not silence, which is what switches
+  it off - keeps it open; it stops when you leave the screen.
+- **The browser's own figure for the delay** (`AudioContext.outputLatency` + `baseLatency`, where it gives one, up to
+  half a second) is added to when the light comes on - only while no headphone delay has been set by hand in
+  Settings → Metronome & playback (a delay set by hand already includes it).
+- **The headphone delay set by hand now reaches every tool's player at once** (`allMetronomePlayers`); it used to
+  reach only the Metronome, Rehearse and the test loop until the app was opened again.
+A phone app wrapper (which can read the phone's real Bluetooth delay) was discussed and left until these have been
+tried.

@@ -35,6 +35,22 @@ export async function assertWarmupsEnabled() {
   if (!(await isFeatureEnabled('warmups'))) throw withStatus(403, "This feature isn't available right now.");
 }
 
+// ML-586: the tool's settings (accounts.warmup_prefs) - they follow the account to every device. The keys and
+// values are checked by the engine's cleanPrefs (public/warmups.js), the same rules the app reads them back with.
+// {} = nothing chosen yet (the app saves the device's copy the first time).
+export async function getWarmupPrefs(accountId) {
+  const { rows } = await pool.query('SELECT warmup_prefs FROM accounts WHERE id = $1', [accountId]);
+  return rows[0]?.warmup_prefs || {};
+}
+export async function saveWarmupPrefs(accountId, prefs) {
+  const clean = Warmups.cleanPrefs(prefs);
+  // Merged, so one setting can be saved without resending the others.
+  const { rows } = await pool.query(
+    'UPDATE accounts SET warmup_prefs = warmup_prefs || $2::jsonb WHERE id = $1 RETURNING warmup_prefs',
+    [accountId, JSON.stringify(clean)]);
+  return rows[0]?.warmup_prefs || {};
+}
+
 // The tool: switched-on exercises, in order.
 export async function listActiveWarmups() {
   const { rows } = await pool.query(`SELECT ${COLS} FROM warmup_exercises WHERE is_active ORDER BY sort_order, id`);

@@ -92,5 +92,7 @@
   "ML-487": "We fixed a YouTube video that carried on playing after you saved a piece.",
   "ML-456": "We now accept MuseScore files as a piece's score or part.",
   "ML-312": "We added a start and an end to a recording or video on a piece, so it plays only the part you want.",
-  "ML-278": "We now ask you to confirm, once, that you have the right to upload music before your first upload."
+  "ML-278": "We now ask you to confirm, once, that you have the right to upload music before your first upload.",
+  "ML-586": "We made Warm-ups simpler: one Settings button saved on your account, your own pace or the metronome carrying on to the next warm-up, the count-in always on screen, every warm-up drawn the same size, and the gold note better matched to Bluetooth headphones.",
+  "ML-589": "We made Scales work like the new Warm-ups: one Settings button saved on your account, your own pace or the metronome carrying on to the next scale (or keep repeating one), the count-in always on screen, and the music the same size as your warm-ups."
 }

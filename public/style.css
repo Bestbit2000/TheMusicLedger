@@ -2198,6 +2198,41 @@
     .note-keyboard .flow-picker-tile { min-height: var(--touch-target); padding: var(--space-2) 0; }
     /* ML-294: Warm-ups shares the Scales layout classes; its own bit is the exercise's tip under the title. */
     .warmups-tip { margin: 0 var(--space-2) var(--space-2); font-size: var(--font-sm); color: var(--label-color); }
+    /* ML-586: the title (a button - it opens the list) beside the one Settings button */
+    .warmups-head { display: flex; align-items: flex-start; gap: var(--space-3); padding: 0 var(--space-2) var(--space-2); }
+    .warmups-heading { flex: 1; min-width: 0; }
+    .warmups-title-btn { display: block; width: 100%; min-height: var(--touch-target); padding: 0; border: none; background: none; color: var(--text-color); font: inherit; text-align: left; cursor: pointer; }
+    .warmups-sub { display: flex; align-items: center; gap: var(--space-0-5); margin-top: var(--space-0-5); font-size: var(--font-sm); font-weight: var(--font-weight-normal); color: var(--label-color); }
+    .warmups-settings-btn { flex: none; min-width: 0; padding: 0 var(--space-2); }
+    /* Every warm-up at the same music size: each line is drawn at its own width (app.js scales the svg), never
+       stretched to fill the screen; a line wider than the screen shrinks to fit. Scrolled to sits under the top bar. */
+    .warmups-staff { display: flex; flex-direction: column; gap: var(--space-2); }
+    .warmups-row { scroll-margin-top: calc(var(--header-h, var(--space-0)) + var(--space-3)); }
+    .warmups-row svg { display: block; max-width: 100%; height: auto; }
+    .warmups-staff .is-now { fill: var(--primary-action-strong); }
+    /* The bar at the bottom of the screen: it stays in view while the page scrolls (sticky, so on a short warm-up
+       it sits under the music), with how far through the list, what's playing and what's next, then the buttons. */
+    .warmups-dock { position: sticky; bottom: var(--space-0); z-index: var(--z-sticky); display: flex; flex-direction: column; gap: var(--space-2); margin: var(--space-0) calc(-1 * var(--space-4)); padding: var(--space-3) var(--space-4) var(--space-4); background: var(--container-bg); border-top: 1px solid var(--input-border); box-shadow: var(--shadow-top); }
+    .warmups-progress { height: var(--space-1); border-radius: var(--radius-pill); background: var(--input-border); overflow: hidden; }
+    .warmups-progress-fill { width: var(--pct, 0%); height: 100%; background: var(--primary-action); }
+    .warmups-status { display: flex; justify-content: space-between; gap: var(--space-3); min-height: 1.4em; margin: 0; font-size: var(--font-sm); color: var(--label-color); }
+    .warmups-status span:first-child { color: var(--text-color); font-weight: var(--font-weight-semibold); }
+    .warmups-status span:last-child { text-align: right; }
+    .warmups-dock-row { display: flex; gap: var(--space-2); }
+    .warmups-dock-row > button { padding: var(--space-0) var(--space-1); }
+    .warmups-dock-side { flex: 0 0 calc(var(--touch-target) * 1.6); }
+    .warmups-dock-main { flex: 1; flex-direction: row; gap: var(--space-2); font-size: var(--font-md); font-weight: var(--font-weight-bold); }
+    /* The count-in, in Play's place: the beats left, big, and a dot per beat that lights as it's heard (tap: stop). */
+    .warmups-countin { flex: 1; height: 60px; display: flex; align-items: center; justify-content: center; gap: var(--space-3); border: 2px solid var(--primary-action); border-radius: var(--radius-md); background: var(--primary-action-tint); color: var(--text-color); cursor: pointer; }
+    .warmups-countin strong { font-size: var(--font-3xl); line-height: var(--line-height-tight); }
+    .warmups-countin-words { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); font-size: var(--font-sm); font-weight: var(--font-weight-semibold); }
+    .warmups-countin-dots { display: flex; gap: var(--space-1); }
+    .warmups-countin-dot { width: var(--space-2); height: var(--space-2); border-radius: var(--radius-circle); border: 2px solid var(--primary-action-strong); box-sizing: border-box; }
+    .warmups-countin-dot.is-done { background: var(--primary-action-strong); }
+    /* Settings: two headed groups of value boxes, two across, and the on/off rows between them */
+    .warmups-settings-head { margin: var(--space-4) 0 var(--space-2); font-size: var(--font-base); color: var(--label-color); }
+    .warmups-settings-grid { margin: var(--space-2) 0 var(--space-3); }
+    .warmups-settings-row { min-height: var(--touch-target); margin-bottom: var(--space-3); }
     /* ML-357 Choose a scale: your list row by row, each key a 44px+ button, five across */
     .scales-choose-group { margin-top: var(--space-4); }
     .scales-choose-label { margin: 0 0 var(--space-2) 0; font-size: var(--font-sm); font-weight: var(--font-weight-bold); }

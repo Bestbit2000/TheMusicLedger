@@ -397,5 +397,41 @@
         return { sections, pool, needed: items.length };
     }
 
-    return { SOURCES, DATA, RULES, MAJOR_COLUMNS, MINOR_COLUMNS, EVERYTHING, groupFor, requirements, everythingElse, grid, placement, midiOf, lengthLabel };
+    // ML-589: the Scales tool's settings, saved on the account (server/services/scalePrefs.js checks them with this;
+    // the app reads them back with it) - as Warm-ups' (ML-586). Only these keys and values are kept, a bad value is
+    // refused. The music size is Warm-ups' own setting, shared (owner, 23 Oct 2026).
+    //   metronome  own pace (false) or with the metronome (true)        bpm      the speed, 15-200
+    //   npb        notes a beat, 1-4                                     times    play each one: 1, 2, or 0 = keep repeating
+    //   countIn    a bar before each (1) or none (0)                     volume   the click, 0-100
+    //   detail     notes | key | name                                    direction  up | down | both | downUp
+    //   shuffle    a mixed-up order                                      light    the note being played lights gold
+    //   grades     1-8 and 'else' (Everything else)                      gradeInstrumentId  whose list and range count
+    const PREF_TIMES = [1, 2, 0];
+    const PREF_DEFAULTS = { metronome: true, bpm: 72, npb: 1, times: 2, countIn: 1, volume: 80, detail: 'notes', direction: 'both', shuffle: false, light: true, grades: [1], gradeInstrumentId: null };
+    function cleanPrefs(prefs) {
+        const out = {};
+        if (!prefs || typeof prefs !== 'object') return out;
+        const bad = (key) => { const e = new Error(`Unknown ${key} setting.`); e.status = 400; throw e; };
+        const one = (key, allowed) => { if (key in prefs) { if (!allowed.includes(prefs[key])) bad(key); out[key] = prefs[key]; } };
+        const int = (key, lo, hi) => { if (key in prefs) { const v = prefs[key]; if (!Number.isInteger(v) || v < lo || v > hi) bad(key); out[key] = v; } };
+        one('metronome', [true, false]);
+        int('bpm', 15, 200);
+        int('npb', 1, 4);
+        one('times', PREF_TIMES);
+        one('countIn', [0, 1]);
+        int('volume', 0, 100);
+        one('detail', ['notes', 'key', 'name']);
+        one('direction', ['up', 'down', 'both', 'downUp']);
+        one('shuffle', [true, false]);
+        one('light', [true, false]);
+        if ('grades' in prefs) {
+            const g = prefs.grades;
+            if (!Array.isArray(g) || g.some(x => !(x === EVERYTHING || (Number.isInteger(x) && x >= 1 && x <= 8)))) bad('grades');
+            out.grades = [...new Set(g)].sort((a, b) => (a === EVERYTHING) - (b === EVERYTHING) || a - b);
+        }
+        if ('gradeInstrumentId' in prefs) { const v = prefs.gradeInstrumentId; if (v !== null && !(Number.isInteger(v) && v > 0)) bad('gradeInstrumentId'); out.gradeInstrumentId = v; }
+        return out;
+    }
+
+    return { SOURCES, DATA, RULES, MAJOR_COLUMNS, MINOR_COLUMNS, EVERYTHING, groupFor, requirements, everythingElse, grid, placement, midiOf, lengthLabel, PREF_TIMES, PREF_DEFAULTS, cleanPrefs };
 });
