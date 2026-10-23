@@ -871,6 +871,9 @@
     /* ML-449: on a screen with a bar pinned to the bottom, a toast sits above the bar, not on its buttons */
     body:has(#pieceOutlineView:not(.hidden-group)) .toast, body:has(#flowDetailsHubView:not(.hidden-group)) .toast { bottom: var(--toast-above-bottom-bar); }
     .toast.show { display: flex; }
+    /* ML-594: closing, a toast drops straight down off the screen (closeToast in app.js takes .show off when it's
+       done). Far enough from either resting place - 30px up, or --toast-above-bottom-bar over a pinned bar. */
+    .toast.is-leaving { transform: translate(-50%, calc(100% + var(--toast-above-bottom-bar))); transition: transform var(--duration-base) var(--ease-standard); pointer-events: none; }
     .toast.success { background-color: var(--surface-inverse); }
     .toast.warning { background-color: var(--warning-color); color: var(--text-on-warning); font-weight: var(--font-weight-bold); }
     .toast.info { background-color: var(--info-color); color: var(--text-on-accent); font-weight: var(--font-weight-bold); box-shadow: var(--shadow-info); }

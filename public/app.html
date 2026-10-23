@@ -1228,6 +1228,8 @@
         </div>
         <div data-music-panel="pieces" data-music-screen="rehearse">
             <p class="metro-help-text">Pick a piece to play along with.</p>
+            <!-- ML-592: the same search as My music's, shown once there are pieces -->
+            <input type="search" id="rehearseSearch" class="mb-4 hidden-group" placeholder="Search by title or composer" aria-label="Search pieces by title or composer">
             <div id="rehearseList">Loading...</div>
             <div class="hidden-group mt-4" id="rehearseEmpty">
                 <p>No pieces to play yet.</p>
@@ -1688,7 +1690,22 @@
              Public), a search, and the pieces. Each row's ⋮ has Play, Edit and Delete (and Duplicate,
              Copy, Export where they apply); tapping the row itself opens it as before. -->
         <div id="metroBlkEntryScreen">
-            <div class="section-title">My music</div>
+            <!-- ML-593: the page's ⋮ menu holds what used to sit under the list (Archive several / Restore several /
+                 Delete several), where a long list hid them. Shown once one of its items is (renderMyMusicMenuBtn). -->
+            <div class="section-title">
+                <span>My music</span>
+                <div class="pos-relative">
+                    <button type="button" class="list-item-menu-btn hidden-group" id="myMusicMenuBtn" aria-label="My music options" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
+                    <div class="dropdown-menu align-edge" id="myMusicMenu">
+                        <!-- ML-570: tick several pieces and archive them in one go - or, with Archived showing, bring several back
+                             (#flowBulkArchiveModal). Shown once there's a piece to archive or restore (renderFlowsList). -->
+                        <button type="button" class="dropdown-item hidden-group" id="flowBulkArchiveBtn" aria-haspopup="dialog"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true" id="flowBulkArchiveIcon">archive</span><span class="dropdown-item-text" id="flowBulkArchiveText">Archive several pieces</span></button>
+                        <!-- ML-404: tick several pieces and delete them in one go (#flowBulkDeleteModal).
+                             Shown once there's a piece you can delete (renderFlowsList). -->
+                        <button type="button" class="dropdown-item hidden-group" id="flowBulkDeleteBtn" aria-haspopup="dialog"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Delete several pieces</span></button>
+                    </div>
+                </div>
+            </div>
             <p class="metro-help-text">Your pieces, your bands' and the public library. To practise one, use Rehearse.</p>
             <!-- ML-403: Pieces and Practice lists are tabs (Pieces opens first). Shown when practice lists are on for you
                  (practice_levels); without them there is only the pieces, as before. -->
@@ -1709,12 +1726,6 @@
                 </div>
                 <input type="search" id="flowLibrarySearch" class="mb-4" placeholder="Search by title or composer" aria-label="Search pieces by title or composer">
                 <div id="metroBlkSetupsList">Loading...</div>
-                <!-- ML-404: tick several pieces and delete them in one go (#flowBulkDeleteModal).
-                     Shown once there's a piece you can delete (renderFlowsList). -->
-                <!-- ML-570: tick several pieces and archive them in one go - or, with Archived showing, bring several back
-                     (#flowBulkArchiveModal). Shown once there's a piece to archive or restore (renderFlowsList). -->
-                <button type="button" class="btn-text hidden-group" id="flowBulkArchiveBtn" aria-haspopup="dialog">Archive several pieces</button>
-                <button type="button" class="btn-text hidden-group" id="flowBulkDeleteBtn">Delete several pieces</button>
             </div>
         </div>
         <!-- One shared floating menu for every flow-library row - same pattern as flowBlockMenu/

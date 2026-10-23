@@ -5733,7 +5733,7 @@
         // begun while the toast is still display:none never actually animates (there's nothing
         // rendered yet for the browser to animate from), it just snaps straight to the end state the
         // instant display:flex reveals it.
-        t.classList.add('show');
+        toastShown(t);
         toastDismissTimers.toastSuccess = startToastCountdownBar('toastSuccessBar', TOAST_DURATIONS_MS.success, () => closeToast('toastSuccess'));
     }
 
@@ -5745,7 +5745,7 @@
         const msgEl = document.getElementById('toastWarningMsg');
         if(msgEl) msgEl.innerText = msg;
         clearTimeout(toastDismissTimers.toastWarning);
-        t.classList.add('show');
+        toastShown(t);
         toastDismissTimers.toastWarning = startToastCountdownBar('toastWarningBar', TOAST_DURATIONS_MS.warning, () => closeToast('toastWarning'));
     }
 
@@ -5755,7 +5755,7 @@
         const msgEl = document.getElementById('toastInfoMsg');
         if(msgEl) msgEl.innerText = msg;
         clearTimeout(toastDismissTimers.toastInfo);
-        t.classList.add('show');
+        toastShown(t);
         toastDismissTimers.toastInfo = startToastCountdownBar('toastInfoBar', TOAST_DURATIONS_MS.info, () => closeToast('toastInfo'));
     }
 
@@ -5778,15 +5778,27 @@
             closeToast('toastUndo');
             onUndo();
         };
-        t.classList.add('show');
+        toastShown(t);
         toastDismissTimers.toastUndo = startToastCountdownBar('toastUndoBar', TOAST_DURATIONS_MS.undo, () => closeToast('toastUndo'));
     }
 
+    // ML-594: a toast that is showing drops straight down off the screen as it goes (.is-leaving) - unless the
+    // device asks for less motion, when it just goes. Showing it again meanwhile (toastShown) cancels the drop.
+    const toastLeaveTimers = {};
+    const TOAST_LEAVE_MS = 250; // as --duration-base, the drop's length (style.css .toast.is-leaving)
     function closeToast(id) {
         const t = document.getElementById(id);
-        if(t) t.classList.remove('show');
         clearTimeout(toastDismissTimers[id]);
         delete toastCountdowns[id];
+        if (!t || !t.classList.contains('show') || t.classList.contains('is-leaving')) return;
+        if (prefersReducedMotion()) { t.classList.remove('show'); return; }
+        t.classList.add('is-leaving');
+        toastLeaveTimers[id] = setTimeout(() => t.classList.remove('show', 'is-leaving'), TOAST_LEAVE_MS);
+    }
+    function toastShown(t) {
+        clearTimeout(toastLeaveTimers[t.id]);
+        t.classList.remove('is-leaving');
+        t.classList.add('show');
     }
     window.closeToast = closeToast;
 
@@ -7263,12 +7275,17 @@
             .finally(() => { rehearseLoading = null; });
         return rehearseLoading;
     }
+    // ML-592: a title/composer search, as My music's - per visit only
+    let rehearseQuery = '';
     function renderRehearseList() {
         const ui = document.getElementById('rehearseList');
         if (!ui) return;
-        const pieces = rehearsePlayable();
-        setShown('rehearseEmpty', !pieces.length && rehearseLoaded);
-        if (!pieces.length) { ui.innerHTML = rehearseLoaded ? '' : 'Loading...'; return; }
+        const all = rehearsePlayable();
+        setShown('rehearseEmpty', !all.length && rehearseLoaded);
+        setShown('rehearseSearch', all.length > 0);
+        if (!all.length) { ui.innerHTML = rehearseLoaded ? '' : 'Loading...'; return; }
+        const pieces = all.filter(f => !rehearseQuery || `${f.title} ${f.composer || ''}`.toLowerCase().includes(rehearseQuery));
+        if (!pieces.length) { ui.innerHTML = '<p class="text-muted">No pieces match that search.</p>'; return; }
         ui.innerHTML = pieces.map(f => `
             <button type="button" class="history-item clickable" data-rehearse-id="${f.id}">
                 <span class="grow">
@@ -7280,6 +7297,10 @@
         ui.querySelectorAll('[data-rehearse-id]').forEach(b => b.addEventListener('click', () => openFlow(Number(b.dataset.rehearseId))));
     }
     document.getElementById('rehearseAddBtn')?.addEventListener('click', () => switchView('addPieceView')); // ML-400
+    document.getElementById('rehearseSearch')?.addEventListener('input', (e) => {
+        rehearseQuery = e.target.value.trim().toLowerCase();
+        renderRehearseList();
+    });
 
     // ===== ML-390 (was ML-316's My Levels): a piece's path - Prepare, Practise, Play-through =====
     // Prepare (once): the music, a run-through at a speed you can manage, paint how each bar went, cut
@@ -8093,7 +8114,8 @@
         e.currentTarget.setAttribute('aria-expanded', String(open));
         setShown('levelRateMore', open);
     });
-    const prefersReducedMotion = () => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+    // A declaration, not a const: the toasts (closeToast, ML-594) ask it before this line has run
+    function prefersReducedMotion() { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
     async function rateLevelPractice(level) {
         const s = flowSession;
         if (!s) return;
@@ -10300,6 +10322,7 @@
         renderFlowLibraryFilter();
         setShown('flowBulkDeleteBtn', flowsListCache.some(flowCanDelete));
         renderFlowBulkArchiveBtn(); // ML-570
+        renderMyMusicMenuBtn(); // ML-593
         if (!flowsListCache.length && !flowsArchivedCache.length) { ui.innerHTML = '<p>No pieces yet - tap "Add a piece" to make one.</p>'; return; }
         const visible = flowLibraryVisible();
         if (!visible.length) { ui.innerHTML = '<p class="text-muted">No pieces match.</p>'; return; }
@@ -10411,9 +10434,24 @@
         const restore = flowLibraryFilter === 'archived';
         const btn = document.getElementById('flowBulkArchiveBtn');
         if (!btn) return;
-        btn.textContent = restore ? 'Restore several pieces' : 'Archive several pieces';
+        document.getElementById('flowBulkArchiveText').textContent = restore ? 'Restore several pieces' : 'Archive several pieces';
+        document.getElementById('flowBulkArchiveIcon').textContent = restore ? 'unarchive' : 'archive';
         setShown(btn, restore ? flowsArchivedCache.some(flowCanRestore) : flowsListCache.length > 0);
     }
+    // ML-593: My music's ⋮ menu - there when it has something in it
+    function renderMyMusicMenuBtn() {
+        setShown('myMusicMenuBtn', ['flowBulkArchiveBtn', 'flowBulkDeleteBtn'].some(id => isShown(document.getElementById(id))));
+    }
+    function closeMyMusicMenu() {
+        document.getElementById('myMusicMenu')?.classList.remove('show');
+        document.getElementById('myMusicMenuBtn')?.setAttribute('aria-expanded', 'false');
+    }
+    document.addEventListener('click', closeMyMusicMenu);
+    document.getElementById('myMusicMenuBtn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = document.getElementById('myMusicMenu').classList.toggle('show');
+        e.currentTarget.setAttribute('aria-expanded', String(open));
+    });
     function openFlowBulkArchive() {
         flowBulkArchive.restore = flowLibraryFilter === 'archived';
         flowBulkArchive.filter = 'all';
@@ -16444,6 +16482,31 @@
     }
     let flowMediaSwipeWired = false;
 
+    // ML-600: the slides are in pixels (applyFlowMediaTrackPosition) and the viewport's height is the showing slide's
+    // (updateFlowMediaViewportHeight), so when the screen changes width - a window dragged narrower, the rail folded, a
+    // tablet turned - both are measured again, with no slide, along with the metronome row's width. Before, they kept
+    // the old size until you switched between the metronome and a recording.
+    var flowPlayRowClicks = 0; // var: renderFlowPlaybackRow can run before this line has
+    let flowMediaResizeFrame = 0;
+    if (typeof ResizeObserver !== 'undefined') {
+        const viewport = document.getElementById('flowMediaViewport');
+        let lastWidth = 0;
+        if (viewport) new ResizeObserver(() => {
+            const width = viewport.getBoundingClientRect().width;
+            if (!width || width === lastWidth) return; // hidden, or only its height changed
+            lastWidth = width;
+            cancelAnimationFrame(flowMediaResizeFrame);
+            flowMediaResizeFrame = requestAnimationFrame(() => {
+                const track = document.getElementById('flowMediaTrack');
+                if (track) track.classList.add('no-transition');
+                applyFlowMediaTrackPosition();
+                if (track) { void track.offsetWidth; track.classList.remove('no-transition'); }
+                if (flowPlayRowClicks) metroApplyDisplayWidth('flowPlayRowViewport', 'flowPlayRowContent', flowPlayRowClicks);
+                updateFlowMediaViewportHeight();
+            });
+        }).observe(viewport);
+    }
+
     // Renders the carousel for the flow that's just loaded (buildFlowMediaSlides already ran) -
     // appends fresh audio/video slide markup after the always-present metronome slide, pads either
     // end with a wrap-around preview slide (see flowMediaSlidePreviewHtml), wires the YT players
@@ -16673,7 +16736,8 @@
         const trackLeftPct = metroBlkLeftPctFn(totalBaseClicks + 1);
         const endLeftStyle = metroLeftStyle(trackLeftPct(totalBaseClicks));
         buildMetroDotRow('flowPlayRowDots', totalBaseClicks, subFactor, false, trackLeftPct);
-        metroApplyDisplayWidth('flowPlayRowViewport', 'flowPlayRowContent', totalBaseClicks + 1);
+        flowPlayRowClicks = totalBaseClicks + 1; // ML-600: measured again when the screen changes width
+        metroApplyDisplayWidth('flowPlayRowViewport', 'flowPlayRowContent', flowPlayRowClicks);
         connectMetroBlkDotsWithTrack('flowPlayRowDots', endLeftStyle);
         greyOutSkippedDots('flowPlayRowDots', block, subFactor);
         // ML-130: NOT always the passage's first bar - a sub-beats/play-speed change mid-block

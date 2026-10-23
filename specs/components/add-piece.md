@@ -102,7 +102,7 @@ nothing happened (ML-521). The tile goes back to how it was. `docs/piece-from-ph
 (a default name and one default bar). Leaving the create journey without naming it, changing a bar or adding
 anything deletes it again (`flowCreateLeft`, app.js - what's on screen is checked first, then the server's copy)
 and says "Nothing was added, so the new piece wasn't kept." Done always keeps it; an import is never removed.
-My music's **Delete several pieces** (a `.btn-text` under the list) cleans up older ones: a [pick list](pick-list.md)
+My music's **Delete several pieces** (on the page's ⋮ menu at the top - ML-593) cleans up older ones: a [pick list](pick-list.md)
 of the pieces you can delete (your own, and band pieces you added - ML-411), then one confirm pop-up saying how
 many, which are on a practice list and which are band pieces.
 

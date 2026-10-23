@@ -462,7 +462,7 @@ not be lost in a sea of music you no longer need.
   once something is archived) and the **Current / Archived** pills on the Practice lists tab.
 - **Archive / Restore** are on a piece's ⋮ menu in My music, and a button on the practice list's own screen. A
   piece archived for the whole band is brought back only by someone who can change the band's music.
-- **Several at once (ML-570).** Under My music's list, **Archive several pieces** (or, with Archived showing,
+- **Several at once (ML-570).** On My music's ⋮ menu at the top of the page (ML-593 - under a long list nobody found them), **Archive several pieces** (or, with Archived showing,
   **Restore several pieces**) opens the pick list Add pieces uses - owner filter, search, Select all, the button
   pinned at the bottom. The same rules as the ⋮ menu: everything is archived for the member, and if some ticked
   pieces are band pieces they may change, one "for who?" question covers all of them; bringing back a piece

@@ -24,14 +24,18 @@ A transient message pinned to the bottom centre, auto-dismissing with a shrinkin
 `--surface-inverse`, `--text-on-accent`, `--warning-color`, `--text-on-warning`, `--info-color`,
 `--shadow-info`, `--button-overlay` (button fill), `--radius-sm`, `--radius-xs` (button),
 `--z-toast`, `--space-2`, `--space-3`, `--space-4`, `--space-5`, `--space-7` (bottom offset),
-`--font-base`, `--font-weight-bold`.
+`--font-base`, `--font-weight-bold`, `--toast-above-bottom-bar`, `--duration-base`, `--ease-standard` (the drop, ML-594).
 
 ## 5. Props / API
 - **Show and hide (ML-288):** a toast is hidden until it has `.show` (the `showXToast` functions add it, `closeToast` removes it). The countdown bar shrinks under `.toast-countdown-bar.is-running` over `--countdown-ms`, and `.is-paused` freezes it (at `--frozen-w`) while the toast is hovered or focused.
 Hidden by default (`display: none`). Only the helpers show it. Lifetimes live in `TOAST_DURATIONS_MS` (behaviour, stays in JS).
 
 ## 6. States
-Hidden · Visible (counting down) · Dismissed.
+Hidden · Visible (counting down) · Leaving · Dismissed.
+
+**Leaving (ML-594):** closing, a toast drops straight down off the screen - `.is-leaving` moves it by its own
+height plus `--toast-above-bottom-bar` over `--duration-base`, then `closeToast` takes `.show` off. When the
+device asks for less motion it just goes, with no drop. Showing it again while it drops brings it straight back.
 
 ## 7. Code example
 ```js
