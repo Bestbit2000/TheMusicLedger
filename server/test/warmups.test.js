@@ -143,3 +143,54 @@ describe('warm-ups: slurs and the range (ML-361)', () => {
         }
     });
 });
+
+// ML-586: one music size for every warm-up - lines that fit a width - and the settings saved on the account.
+describe('warm-ups: music size and settings (ML-586)', () => {
+    const width = (r) => Number(/width="([\d.]+)"/.exec(N.staff({ clef: 'treble', items: r.items, spans: r.spans, noteGap: 2 }))[1]);
+    test('fitRows: as many whole bars on a line as fit; every bar once, in order', () => {
+        const e = ex('G4w rw F#4w rw F4w rw E4w');
+        const wide = W.fitRows(e, 'treble', 2000, width);
+        assert.equal(wide.length, 1);
+        const narrow = W.fitRows(e, 'treble', 250, width);
+        assert.ok(narrow.length > 1);
+        narrow.slice(0, -1).forEach(r => assert.ok(width(r) <= 250, 'each line fits'));
+        assert.equal(narrow[0].from, 0);
+        assert.equal(narrow[narrow.length - 1].to, 6);
+        narrow.slice(1).forEach((r, i) => assert.equal(r.from, narrow[i].to + 1, 'no bar lost or repeated'));
+    });
+    test('fitRows: a bar wider than the width still gets a line of its own', () => {
+        const rows = W.fitRows(ex('G4e C5e G4e C5e G4e C5e G4e C5e G4w'), 'treble', 50, width);
+        assert.equal(rows.length, 2);
+    });
+    test('fitRows: a slur carried over a line break is still drawn on both lines', () => {
+        const rows = W.fitRows(ex('C4w^ G4w^ C5w'), 'treble', 150, width);
+        assert.ok(rows.length > 1);
+        assert.ok(rows.every(r => r.spans.length), 'every line has its part of the slur');
+    });
+    test('cleanPrefs: only known settings, only allowed values', () => {
+        assert.deepEqual(plain(W.cleanPrefs({ metronome: true, speed: 90, times: 1, size: 'large', kinds: ['melodic', 'long-tones'], other: 1 })),
+            { metronome: true, speed: 90, times: 1, size: 'large', kinds: ['long-tones', 'melodic'] });
+        assert.deepEqual(plain(W.cleanPrefs({ instrumentId: null, volume: 0, shuffle: false, countIn: 0 })), { shuffle: false, countIn: 0, volume: 0, instrumentId: null });
+        assert.throws(() => W.cleanPrefs({ speed: 75 }), /speed/);
+        assert.throws(() => W.cleanPrefs({ times: 0 }), /times/);
+        assert.throws(() => W.cleanPrefs({ kinds: ['scales'] }), /kinds/);
+        assert.throws(() => W.cleanPrefs({ volume: 101 }), /volume/);
+        assert.throws(() => W.cleanPrefs({ instrumentId: 'x' }), /instrumentId/);
+        assert.throws(() => W.cleanPrefs({ light: 'yes' }), /light/);
+        assert.deepEqual(plain(W.cleanPrefs(null)), {});
+    });
+    test('defaults: own pace, their own speed, twice each, a bar to count in, medium music, the note lit', () => {
+        assert.deepEqual(plain(W.PREF_DEFAULTS), { metronome: false, speed: 100, times: 2, countIn: 1, volume: 80, size: 'medium', shuffle: false, light: true, kinds: plain(W.KIND_IDS), instrumentId: null });
+        assert.deepEqual(plain(W.cleanPrefs(W.PREF_DEFAULTS)), plain(W.PREF_DEFAULTS));
+    });
+});
+
+describe('warm-ups: even lines (ML-586)', () => {
+    const width = (r) => Number(/width="([\d.]+)"/.exec(N.staff({ clef: 'treble', items: r.items, spans: r.spans, noteGap: 1.6 }))[1]);
+    test('seven held notes over two lines are shared out (3 + 4), not 6 + 1', () => {
+        const e = ex('G4w rw F#4w rw F4w rw E4w');
+        const w = width(W.rows(e, 'treble', { groups: [6] })[0]) + 1; // room for six on the first line
+        const rows = W.fitRows(e, 'treble', w, width);
+        assert.deepEqual(plain(rows.map(r => r.to - r.from + 1)), [3, 4]); // the first line has the time signature too
+    });
+});

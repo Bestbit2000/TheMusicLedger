@@ -89,6 +89,9 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
 - **A Warm-up block loops its list** (`sessionWarmupLoop`): one exercise after another with the click on, round
   after round, each round 10% faster (`PracticePlan.warmupRoundBpm`), until the block ends. It's one metronome
   sequence, so the next warm-up comes in on the beat with a single bar-start click (docs/warmups.md, "Playing").
+  ML-586: it's the Warm-ups screen as the tool has it (the bar at the bottom with the count-in, one music size, the
+  line being played kept in view) and follows the member's **speed** and **play each one** settings (twice by
+  default); it starts with the click on whatever the setting, and the switch in Settings turns it off for that block only.
 - **Logging:** a session that ends, or is ended early, is one `sessions` row plus a `session_segments` row per
   block (seconds - the rest counts with the block before it - chunk and tool), so Stats and history see it.
 - **Resume:** the running session is kept on the server (`active_practice_sessions`) whenever it changes,

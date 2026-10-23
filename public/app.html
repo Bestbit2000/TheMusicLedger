@@ -3004,24 +3004,65 @@
         </div>
     </div>
 
-    <!-- ML-361: Warm-ups - the instrument (whose range and clef count), the kinds (the standard pick list),
-         how many are in your list and how many are locked (outside your range for now). -->
+    <!-- ML-586: Warm-ups settings - everything but Previous / Next / Play, under one button, saved on the account:
+         my warm-ups (instrument, clef, topics, music size, shuffle; how many are in the list and how many are
+         locked - outside your range for now), then the metronome (on: it plays each warm-up and carries on to the
+         next - speed, how many times, count-in, volume). Each value box opens its own pop-up below. -->
     <div class="modal" id="warmupsSettingsModal" role="dialog" aria-modal="true" aria-labelledby="warmupsSettingsModalTitle">
         <div class="modal-content modal-content-sticky-footer">
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
             <div class="metroSeg-scroll-area">
-                <h2 id="warmupsSettingsModalTitle">Warm-ups</h2>
-                <div class="form-group" role="group" aria-labelledby="warmupsInstrumentLabel"><label id="warmupsInstrumentLabel">Instrument</label><div id="warmupsInstrument"></div></div>
-                <div class="form-group" role="group" aria-labelledby="warmupsKindsLabel">
-                    <label id="warmupsKindsLabel">Topics</label>
-                    <div class="pick-bar" id="warmupsKindsBar"></div>
-                    <div id="warmupsKindsList"></div>
+                <h2 id="warmupsSettingsModalTitle">Settings</h2>
+                <h3 class="warmups-settings-head">My warm-ups</h3>
+                <div class="metro-transport-grid metro-transport-grid-2 warmups-settings-grid">
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsInstrumentBtn" aria-haspopup="dialog"><strong id="warmupsInstrumentVal">-</strong><span class="metroBlk-ctrl-value-label">instrument</span></button>
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsClefBtn" aria-haspopup="dialog"><strong id="warmupsClefVal">Treble</strong><span class="metroBlk-ctrl-value-label">clef</span></button>
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsTopicsBtn" aria-haspopup="dialog"><strong id="warmupsTopicsVal">All</strong><span class="metroBlk-ctrl-value-label">topics</span></button>
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsSizeBtn" aria-haspopup="dialog"><strong id="warmupsSizeVal">Medium</strong><span class="metroBlk-ctrl-value-label">music size</span></button>
+                </div>
+                <div class="display-toggle-row warmups-settings-row">
+                    <span id="warmupsShuffleLabel">Shuffle<span class="display-toggle-help">Mix up the order</span></span><label class="toggle-switch"><input type="checkbox" id="warmupsShuffleToggle" aria-labelledby="warmupsShuffleLabel"><span class="toggle-slider"></span></label>
                 </div>
                 <div class="scales-pool-line">
                     <p class="scales-pool-count" id="warmupsCount" aria-live="polite"></p>
                     <button type="button" class="scales-range-link" id="warmupsSeeRangeBtn" aria-haspopup="dialog">See your range</button>
                 </div>
                 <p class="text-sm text-muted" id="warmupsLockedNote"></p>
+                <h3 class="warmups-settings-head">Metronome</h3>
+                <div class="display-toggle-row warmups-settings-row">
+                    <span id="warmupsMetronomeLbl">Play with the metronome<span class="display-toggle-help">It plays each warm-up, then carries on to the next</span></span><label class="toggle-switch"><input type="checkbox" id="warmupsMetronomeToggle" aria-labelledby="warmupsMetronomeLbl"><span class="toggle-slider"></span></label>
+                </div>
+                <div class="metro-transport-grid metro-transport-grid-2 warmups-settings-grid" id="warmupsMetronomeSettings">
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsSpeedBtn" aria-haspopup="dialog"><strong id="warmupsSpeedVal">Their own</strong><span class="metroBlk-ctrl-value-label">speed</span></button>
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsRepeatBtn" aria-haspopup="dialog"><strong id="warmupsRepeatVal">Twice</strong><span class="metroBlk-ctrl-value-label">play each one</span></button>
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsCountInBtn" aria-haspopup="dialog"><strong id="warmupsCountInVal">1 bar</strong><span class="metroBlk-ctrl-value-label">count-in</span></button>
+                    <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsVolumeBtn" aria-haspopup="dialog"><strong id="warmupsVolumeVal">80%</strong><span class="metroBlk-ctrl-value-label">volume</span></button>
+                </div>
+                <div class="display-toggle-row warmups-settings-row" id="warmupsLightRow">
+                    <span id="warmupsLightLbl">Light the note being played<span class="display-toggle-help">Off if you just want the music</span></span><label class="toggle-switch"><input type="checkbox" id="warmupsLightToggle" aria-labelledby="warmupsLightLbl"><span class="toggle-slider"></span></label>
+                </div>
+                <p class="text-sm text-muted" id="warmupsSavedNote">Kept on your account - the same on every device.</p>
+            </div>
+            <div class="metroSeg-sticky-footer">
+                <button type="button" class="btn-submit no-margin" data-modal-close>Done</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal" id="warmupsInstrumentModal" role="dialog" aria-modal="true" aria-labelledby="warmupsInstrumentModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="warmupsInstrumentModalTitle">Instrument</h2>
+            <p class="text-muted modal-intro">Its range and clef decide which warm-ups are in your list.</p>
+            <div id="warmupsInstrument"></div>
+        </div>
+    </div>
+    <div class="modal" id="warmupsTopicsModal" role="dialog" aria-modal="true" aria-labelledby="warmupsTopicsModalTitle">
+        <div class="modal-content modal-content-sticky-footer">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <div class="metroSeg-scroll-area">
+                <h2 id="warmupsTopicsModalTitle">Topics</h2>
+                <div class="pick-bar" id="warmupsKindsBar"></div>
+                <div id="warmupsKindsList"></div>
             </div>
             <div class="metroSeg-sticky-footer">
                 <button type="button" class="btn-submit no-margin" data-modal-close>Done</button>
@@ -3035,25 +3076,42 @@
             <div class="flow-tile-grid flow-tile-grid-3 scales-choice-grid" id="warmupsClefGrid"></div>
         </div>
     </div>
-    <!-- ML-361: Choose a warm-up (from Select): the list by kind; the locked ones in place with a lock. -->
+    <div class="modal" id="warmupsSizeModal" role="dialog" aria-modal="true" aria-labelledby="warmupsSizeModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="warmupsSizeModalTitle">Music size</h2>
+            <p class="text-muted modal-intro">The same size for every warm-up.</p>
+            <div class="flow-tile-grid flow-tile-grid-3" id="warmupsSizeGrid"></div>
+        </div>
+    </div>
+    <div class="modal" id="warmupsSpeedModal" role="dialog" aria-modal="true" aria-labelledby="warmupsSpeedModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
+            <h2 id="warmupsSpeedModalTitle">Speed</h2>
+            <p class="text-muted modal-intro">Every warm-up has its own speed. This makes them all a little slower or faster.</p>
+            <div class="flow-tile-grid flow-tile-grid-4" id="warmupsSpeedGrid"></div>
+        </div>
+    </div>
+    <!-- ML-361: Choose a warm-up (the title): the list by kind; the locked ones in place with a lock. -->
     <div class="modal" id="warmupsChooseModal" role="dialog" aria-modal="true" aria-labelledby="warmupsChooseTitle">
         <div class="modal-content modal-content-sticky-footer">
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
             <div class="metroSeg-scroll-area">
-                <h2 id="warmupsChooseTitle">Choose a warm-up</h2>
+                <h2 id="warmupsChooseTitle">My warm-ups</h2>
                 <p class="text-muted modal-intro" id="warmupsChooseIntro"></p>
                 <div id="warmupsChooseList"></div>
             </div>
             <div class="metroSeg-sticky-footer">
-                <button type="button" class="btn-nav btn-cancel no-margin" id="warmupsChooseEditBtn">Change your warm-ups</button>
+                <button type="button" class="btn-nav btn-cancel no-margin" id="warmupsChooseEditBtn">Change my warm-ups</button>
             </div>
         </div>
     </div>
     <div class="modal" id="warmupsRepeatModal" role="dialog" aria-modal="true" aria-labelledby="warmupsRepeatModalTitle">
         <div class="modal-content">
             <button type="button" class="modal-close-x" data-modal-close aria-label="Close">&times;</button>
-            <h2 id="warmupsRepeatModalTitle">Repeat</h2>
-            <div class="flow-tile-grid flow-tile-grid-3" id="warmupsRepeatGrid"></div>
+            <h2 id="warmupsRepeatModalTitle">Play each one</h2>
+            <p class="text-muted modal-intro">Once moves through the list faster.</p>
+            <div class="flow-tile-grid flow-tile-grid-2-centered" id="warmupsRepeatGrid"></div>
         </div>
     </div>
     <div class="modal" id="warmupsCountInModal" role="dialog" aria-modal="true" aria-labelledby="warmupsCountInModalTitle">
@@ -3429,77 +3487,37 @@
     </div>
 
 
-    <!-- ML-294 / ML-361: Warm-ups, in the Scales layout: Warm-ups (instrument and kinds) and Clef along the
-         top; the exercise - title, tip, the stave (slurs drawn), the note to play lighting gold - with
-         Previous / Next / Shuffle / Select under it; then Use metronome. Exercises come from /api/warmups
+    <!-- ML-294 / ML-361 / ML-586: Warm-ups. The title (tap it for the list) and one Settings button; the tip and the
+         stave (every warm-up at the same music size, the note to play lighting gold); then the bar fixed to the
+         bottom of the screen - own pace: Previous and Next warm-up; with the metronome: Previous, Play and Next,
+         carrying on to the next warm-up, and the count-in in place of Play. Exercises come from /api/warmups
          (Admin -> Warm-ups); drawn by public/warmups.js + Notation.staff. See specs/components/warmups.md. -->
     <div id="warmupsView" class="hidden-group">
-        <div class="metro-transport-grid scales-setting-row is-centred">
-            <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="warmupsSettingsBtn" aria-haspopup="dialog" aria-label="Warm-ups - your instrument and the topics"><strong><span class="material-symbols-outlined" aria-hidden="true">playlist_add_check</span></strong><span class="metroBlk-ctrl-value-label">warm-ups</span></button>
-            <button type="button" class="metroBlk-ctrl-value-btn scales-setting-btn" id="warmupsClefBtn" aria-haspopup="dialog" aria-label="Clef - tap to change"><strong id="warmupsClefVal">Treble</strong><span class="metroBlk-ctrl-value-label">clef</span></button>
-        </div>
         <section class="flow-card scales-staff-card" aria-labelledby="warmupsTitle">
-            <div class="scales-staff-head">
-                <div class="scales-staff-heading">
-                    <h2 class="scales-staff-title" id="warmupsTitle">Warm-ups</h2>
-                    <span class="scales-staff-sub" id="warmupsSub"></span>
-                </div>
-                <button type="button" class="metroBlk-row-volume-btn hidden-group" id="warmupsVolumeBtn" aria-label="Volume - tap to change" aria-haspopup="dialog" aria-expanded="false"><span class="material-symbols-outlined" id="warmupsVolumeIcon">volume_up</span></button>
+            <div class="warmups-head">
+                <h2 class="scales-staff-title warmups-heading">
+                    <button type="button" class="warmups-title-btn" id="warmupsChooseBtn" aria-haspopup="dialog">
+                        <span id="warmupsTitle">Warm-ups</span>
+                        <span class="warmups-sub"><span id="warmupsSub"></span><span class="material-symbols-outlined" aria-hidden="true">expand_more</span></span>
+                    </button>
+                </h2>
+                <button type="button" class="metroBlk-ctrl-value-btn warmups-settings-btn" id="warmupsSettingsBtn" aria-haspopup="dialog" aria-label="Settings"><strong><span class="material-symbols-outlined" aria-hidden="true">tune</span></strong><span class="metroBlk-ctrl-value-label">settings</span></button>
             </div>
             <p class="warmups-tip" id="warmupsTip"></p>
-            <div class="scales-staff" id="warmupsStaff"></div>
-            <div class="scales-pick-row">
-                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsPrevBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_previous</span><span class="metroBlk-ctrl-value-label">previous</span></button>
-                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsNextBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_next</span><span class="metroBlk-ctrl-value-label">next</span></button>
-                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsShuffleBtn"><span class="material-symbols-outlined" aria-hidden="true">shuffle</span><span class="metroBlk-ctrl-value-label">shuffle</span></button>
-                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsChooseBtn" aria-haspopup="dialog" aria-label="Select - choose a warm-up from your list"><span class="material-symbols-outlined" aria-hidden="true">format_list_bulleted</span><span class="metroBlk-ctrl-value-label">select</span></button>
-            </div>
+            <div class="warmups-staff" id="warmupsStaff"></div>
         </section>
-        <section class="flow-card scales-staff-card scales-metronome-card" aria-labelledby="warmupsMetronomeLbl">
-            <!-- ML-542: the big count-in, over the controls (never the music) - showCountIn in app.js -->
-            <div class="count-in-cover hidden-group" id="warmupsCountIn" aria-hidden="true"><div class="rest-ring"><svg class="rest-ring-svg" viewBox="0 0 120 120"><circle class="rest-ring-track" cx="60" cy="60" r="52"></circle><circle class="rest-ring-left" cx="60" cy="60" r="52" pathLength="100"></circle></svg><div class="rest-ring-num"><strong>4</strong><span>get ready</span></div></div></div>
-            <div class="scales-staff-head">
-                <h2 class="scales-staff-title" id="warmupsMetronomeLbl">Use metronome</h2>
-                <label class="toggle-switch"><input type="checkbox" id="warmupsMetronomeToggle" aria-labelledby="warmupsMetronomeLbl"><span class="toggle-slider"></span></label>
-            </div>
-            <div id="warmupsMetronomeControls" class="hidden-group">
-        <div class="metro-transport-grid">
-            <button type="button" class="metro-play-grid-btn" id="warmupsPlayBtn" aria-label="Play - press and hold to go back to the start" aria-pressed="false">
-                <span class="material-symbols-outlined" id="warmupsPlayIcon">play_arrow</span>
-                <span class="metroBlk-ctrl-value-label" id="warmupsPlayLbl">play</span>
-            </button>
-            <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="warmupsResetBtn" aria-label="Back to the start">
-                <span class="material-symbols-outlined">restart_alt</span>
-                <span class="metroBlk-ctrl-value-label">reset</span>
-            </button>
-            <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsRepeatBtn" aria-label="Repeat - tap to change" aria-haspopup="dialog">
-                <strong id="warmupsRepeatVal">once</strong>
-                <span class="metroBlk-ctrl-value-label">repeat</span>
-            </button>
-            <button type="button" class="metroBlk-ctrl-value-btn" id="warmupsCountInBtn" aria-label="Count-in - tap to change" aria-haspopup="dialog">
-                <strong id="warmupsCountInVal">1 bar</strong>
-                <span class="metroBlk-ctrl-value-label">count-in</span>
-            </button>
-        </div>
-        <div class="metroBlk-bpm-box mt-3">
-            <div class="metro-speed-row no-margin">
-                <button class="metro-bpm-step" type="button" id="warmupsBpmMinus" aria-label="Decrease beats per minute">&minus;</button>
-                <div class="metro-speed-readout">
-                    <div id="warmupsBpmVal">72</div>
-                    <div class="metro-speed-sub">bpm</div>
-                </div>
-                <button class="metro-bpm-step" type="button" id="warmupsBpmPlus" aria-label="Increase beats per minute">+</button>
-            </div>
-            <div class="slider-wrap no-margin">
-                <div class="slider-track" id="warmupsBpmTrack">
-                    <div class="slider-fill" id="warmupsBpmFill"></div>
-                    <div class="slider-thumb" id="warmupsBpmThumb" tabindex="0" role="slider" aria-label="Beats per minute" aria-valuemin="15" aria-valuemax="200" aria-valuenow="72"></div>
-                </div>
-                <div class="slider-scale"><span>15</span><span>200</span></div>
+        <div class="warmups-dock" id="warmupsDock">
+            <div class="warmups-progress" aria-hidden="true"><div class="warmups-progress-fill" id="warmupsProgress"></div></div>
+            <p class="warmups-status" id="warmupsStatus" aria-live="polite"><span id="warmupsStatusNow"></span><span id="warmupsStatusNext"></span></p>
+            <div class="warmups-dock-row">
+                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset warmups-dock-side" id="warmupsPrevBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_previous</span><span class="metroBlk-ctrl-value-label">previous</span></button>
+                <button type="button" class="metro-play-grid-btn warmups-dock-main" id="warmupsNextMainBtn">Next warm-up<span class="material-symbols-outlined" aria-hidden="true">skip_next</span></button>
+                <button type="button" class="metro-play-grid-btn warmups-dock-main hidden-group" id="warmupsPlayBtn" aria-label="Play - press and hold to go back to the start" aria-pressed="false"><span class="material-symbols-outlined" id="warmupsPlayIcon" aria-hidden="true">play_arrow</span><span id="warmupsPlayLbl">Play</span></button>
+                <!-- The count-in, in place of Play while it counts (ML-586) - always on the screen, however long the warm-up. -->
+                <button type="button" class="warmups-countin hidden-group" id="warmupsCountIn" aria-label="Get ready - tap to stop"><strong id="warmupsCountInNum" aria-hidden="true">4</strong><span class="warmups-countin-words" aria-hidden="true"><span>get ready</span><span class="warmups-countin-dots" id="warmupsCountInDots"></span></span></button>
+                <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset warmups-dock-side hidden-group" id="warmupsNextBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_next</span><span class="metroBlk-ctrl-value-label">next</span></button>
             </div>
         </div>
-            </div>
-        </section>
     </div>
 
     <!-- ML-260 Theory practice: list -> options -> play -> results, one view each so the top bar's

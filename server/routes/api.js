@@ -5,7 +5,7 @@
 // left in this file that needs a Google token at all.
 
 import express from 'express';
-import { assertWarmupsEnabled, listActiveWarmups } from '../services/warmups.js';
+import { assertWarmupsEnabled, listActiveWarmups, getWarmupPrefs, saveWarmupPrefs } from '../services/warmups.js';
 import { bandLevelsSummary } from '../services/bandLevelsSummary.js';
 import { assertPracticeLevelsEnabled, getPieceLevels, getPieceLevelsProgress, replacePieceChunks, setChunkLevel, setSubBeatsBelow, listPracticePieces } from '../services/practiceLevels.js';
 import { getPracticePace } from '../services/levelsProgress.js';
@@ -279,6 +279,21 @@ router.get('/warmups', requireAuth, resolveAccount, async (req, res) => {
   try {
     await assertWarmupsEnabled();
     res.json({ exercises: await listActiveWarmups() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+// ML-586: the Warm-ups tool's settings - saved on the account so they follow you to every device.
+router.get('/account/warmups', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json({ prefs: await getWarmupPrefs(req.accountId) });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.put('/account/warmups', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json({ prefs: await saveWarmupPrefs(req.accountId, req.body?.prefs) });
   } catch (error) {
     sendError(res, error);
   }

@@ -2385,7 +2385,7 @@
         // ML-9: the Scales metronome pauses in place when you leave (no mini bar to keep it going).
         // isShown, not the view stack: goBack pops the stack before calling switchView.
         if (isShown('scalesView') && viewName !== 'scalesView' && scalesPlayer.isPlaying()) scalesPause();
-        if (isShown('warmupsView') && viewName !== 'warmupsView' && warmupsPlayer.isPlaying()) warmupsPause();
+        if (isShown('warmupsView') && viewName !== 'warmupsView') { if (warmupsPlayer.isPlaying()) warmupsPause(); warmupsPlayer.keepAwake(false); } // ML-586
         // ML-298/295/296: leaving a drill mid-round stops its sound (and the mic) - the round isn't saved.
         if (isShown('tapTempoPlayView') && viewName !== 'tapTempoPlayView') tapStop();
         if (isShown('gapTrainerPlayView') && viewName !== 'gapTrainerPlayView') gapStop();
@@ -5814,6 +5814,9 @@
     // is the accented "tick", the first click of every other conductor beat is "tock", and every other
     // click (whether it's a compound-meter note or a practice subdivision) is a quieter "bom". E.g. 6/8
     // conducted in 2 (notesPerBeat 3, subdivision off): tick, bom, bom, tock, bom, bom.
+    // ML-586: every player, so the headphone delay set in Settings reaches all of them at once (it used to reach only
+    // the Metronome, Rehearse and the test loop until the app was opened again).
+    const allMetronomePlayers = [];
     function createMetronomePlayer() {
         let audioCtx = null;
         let masterGain = null;
@@ -6084,7 +6087,11 @@
         // timed to when it's heard (plus the Bluetooth visual delay).
         function deliver(info, fireTime, sync) {
             if (sync) { beatListeners.forEach(cb => cb(info)); return; }
-            const delayMs = Math.max(0, (fireTime - audioCtx.currentTime) * 1000 + visualLatencyMs);
+            // ML-586: with no headphone delay set, the delay the browser itself reports (how long its sound takes to
+            // reach the speaker or headphones - outputLatency, where the browser gives it) - so the light matches
+            // what's heard without anyone setting anything. A delay set by hand already includes it.
+            const reported = visualLatencyMs > 0 ? 0 : Math.min(500, Math.round(((audioCtx.outputLatency || 0) + (audioCtx.baseLatency || 0)) * 1000));
+            const delayMs = Math.max(0, (fireTime - audioCtx.currentTime) * 1000 + visualLatencyMs + reported);
             const gen = sequenceGen;
             setTimeout(() => {
                 if (sequence && gen !== sequenceGen) return; // queued before a jump/Reset/sub-beats change
@@ -6211,7 +6218,32 @@
             schedulerId = setTimeout(scheduler, LOOKAHEAD_MS);
         }
 
-        return {
+        // ML-586: keeping the sound line awake. Bluetooth headphones (and Chrome's own power saving) switch the sound
+        // off when nothing is playing, so the first second or two after Play is lost or held back - and the gold
+        // note runs ahead of what you hear. While a screen asks for it, a signal far too quiet to hear (about
+        // -90 dB, but not silence, which is what switches it off) keeps the line open. Only the Warm-ups screen
+        // with the metronome on asks.
+        let awake = null;
+        function setAwake(on) {
+            if (testClock) return;
+            if (on && !awake) {
+                ensureAudio();
+                const osc = audioCtx.createOscillator();
+                const g = audioCtx.createGain();
+                osc.frequency.value = 40;
+                g.gain.value = 0.00003;
+                osc.connect(g);
+                g.connect(audioCtx.destination); // not through the volume: muting the click keeps the line awake too
+                osc.start();
+                awake = { osc, g };
+            } else if (!on && awake) {
+                try { awake.osc.stop(); awake.osc.disconnect(); awake.g.disconnect(); } catch (e) { /* already gone */ }
+                awake = null;
+            }
+        }
+
+        const player = {
+            keepAwake: setAwake,
             // Creates and resumes the AudioContext ahead of time, without starting playback. The very
             // first AudioContext resume on a page has a real (sometimes 500ms+) hardware/driver
             // cold-start latency that awaiting it in play() can't remove, only schedule around - so
@@ -6361,6 +6393,8 @@
                 return audioCtx;
             }
         };
+        allMetronomePlayers.push(player);
+        return player;
     }
 
     // Headphone-delay compensation is the one setting genuinely shared across every metronome-family
@@ -6726,9 +6760,7 @@
     }
     function setMetroLatencyMs(ms) {
         metroState.latencyMs = Math.min(METRO_LATENCY_MAX, Math.max(0, ms));
-        metroCalibPlayerRef?.setVisualLatencyMs(metroState.latencyMs);
-        qpPlayerRef?.setVisualLatencyMs(metroState.latencyMs);
-        flowPlayerRef?.setVisualLatencyMs(metroState.latencyMs);
+        allMetronomePlayers.forEach(p => p.setVisualLatencyMs(metroState.latencyMs)); // ML-586: every tool's player, not just three
         localStorage.setItem(METRO_LATENCY_KEY, String(metroState.latencyMs));
         renderMetroLatencyReadout();
     }
@@ -9038,7 +9070,7 @@
             switchView('warmupsView');
             sessionWarmupIds = seq.length ? seq : null; // after switchView, which clears it when leaving the tool
             sessionWarmupLoop = seq.length ? { round: 1 } : null; // ML-390: the list plays on a loop until the block ends
-            if (seq.length) { warmups.currentId = seq[0]; warmupsShow(warmupsList()[0]); }
+            if (seq.length) { warmups.currentId = seq[0]; warmupsShow(warmupsList()[0]); warmupsPlayer.keepAwake(true); } // ML-586: with the metronome, the headphones kept awake
             return;
         }
         // ML-418: a Theory block - quizzes, each twice, nothing to play
@@ -25423,45 +25455,76 @@
     })();
 
     // ========================================
-    // WARM-UPS (Jira ML-294)
+    // WARM-UPS (Jira ML-294, ML-586)
     // ========================================
-    // Brass warm-up exercises, one at a time: Previous / Next go through the kinds chosen in My
-    // warm-ups, in order (Admin -> Warm-ups sets the order and the notes). Written for treble-clef
-    // brass; bass clef is the same exercise down a major 9th (Warmups.pitchFor). The gold note follows
-    // each note's own length (Warmups.timeline). Settings are kept on this device (localStorage
-    // 'tml.warmups'). Same layout as Scales (ML-361): Warm-ups (instrument + kinds) and Clef along the
-    // top, the exercise with Previous / Next / Shuffle / Select under it, Use metronome. A warm-up outside
-    // your comfortable range (or beyond the instrument) is locked - left out of the list until your range
-    // grows. See specs/components/warmups.md.
+    // Brass warm-up exercises, one at a time, through the topics chosen in Settings, in order (Admin -> Warm-ups
+    // sets the order and the notes) or shuffled. Written for treble-clef brass; bass clef is the same exercise
+    // down a major 9th (Warmups.pitchFor). ML-586 (owner, 23 Oct 2026): two ways to use it - at your own pace
+    // (Previous / Next warm-up) or with the metronome, which plays each one (twice by default) at its own speed
+    // and carries straight on to the next. Everything else is under one Settings button, saved on the account
+    // (accounts.warmup_prefs - the same on every device; a copy on the device, 'tml.warmups', for offline and
+    // for where you were). Every warm-up is drawn at the same music size, as many bars on a line as fit; the line
+    // being played is kept in view, and the count-in shows in the bar at the bottom of the screen, which never
+    // moves. A warm-up outside your comfortable range (or beyond the instrument) is locked - left out of the
+    // list until your range grows. See specs/components/warmups.md and docs/warmups.md.
     const WARMUPS_STORE = 'tml.warmups';
-    // clef is only used once clefSet (chosen with the Clef button) - until then it's the instrument's own.
-    // metronome starts off (ML-368) so the screen is as simple as it can be on arrival; switching it on is remembered.
-    // metronomeOffOnce: settings saved before ML-368 had it on (the old default) - switched off once, then remembered.
-    const WARMUPS_DEFAULTS = { kinds: Warmups.KIND_IDS.slice(), clef: 'treble', clefSet: false, instrumentId: null, metronome: false, metronomeOffOnce: true, repeat: 1, countIn: 1, volume: 80, currentId: null };
-    const WARMUPS_REPEATS = [[1, 'once', 'once'], [2, 'twice', 'twice'], [0, 'loop', 'until stopped']];
+    // clef is only used once clefSet (chosen in Settings) - until then it's the one you read your instrument in.
     let warmups = (() => {
+        const base = { ...Warmups.PREF_DEFAULTS, kinds: Warmups.PREF_DEFAULTS.kinds.slice(), clef: 'treble', clefSet: false, currentId: null };
         try {
             const saved = JSON.parse(localStorage.getItem(WARMUPS_STORE) || 'null');
-            // ML-528: the clef is the one you read your instrument in (My instruments). The Clef button changes
-            // it for this visit only - a clef chosen on this device before is no longer kept.
-            if (saved) saved.clefSet = false;
-            if (saved && !saved.metronomeOffOnce) { saved.metronome = false; saved.metronomeOffOnce = true; }
-            if (saved) return { ...WARMUPS_DEFAULTS, ...saved, kinds: Array.isArray(saved.kinds) ? saved.kinds : WARMUPS_DEFAULTS.kinds.slice() };
+            if (saved) {
+                // ML-586: the old "repeat" (once by default) isn't carried over - "play each one" starts at twice (owner).
+                let prefs = {};
+                try { prefs = Warmups.cleanPrefs(Object.fromEntries(Object.keys(Warmups.PREF_DEFAULTS).filter(k => k in saved).map(k => [k, saved[k]]))); } catch (e) { /* an old value - defaults */ }
+                // ML-528: the clef is the one you read your instrument in (My instruments); choosing another is for this visit only.
+                return { ...base, ...prefs, currentId: saved.currentId ?? null };
+            }
         } catch (e) { /* unreadable - defaults */ }
-        return { ...WARMUPS_DEFAULTS, kinds: WARMUPS_DEFAULTS.kinds.slice() };
+        return base;
     })();
+    const warmupsPrefsOf = () => Object.fromEntries(Object.keys(Warmups.PREF_DEFAULTS).map(k => [k, warmups[k]]));
     function warmupsSave() {
-        try { localStorage.setItem(WARMUPS_STORE, JSON.stringify(warmups)); } catch (e) { /* private browsing */ }
+        try { localStorage.setItem(WARMUPS_STORE, JSON.stringify({ ...warmupsPrefsOf(), currentId: warmups.currentId })); } catch (e) { /* private browsing */ }
     }
+    // The account's copy - read once a visit; the first time (nothing saved yet) this device's settings are saved to it.
+    let warmupsPrefsRead = false, warmupsPrefsTimer = null;
+    async function warmupsLoadPrefs() {
+        if (warmupsPrefsRead) return;
+        try {
+            const { prefs } = await apiCall('/api/account/warmups');
+            warmupsPrefsRead = true;
+            if (!prefs || !Object.keys(prefs).length) { warmupsSavePrefs(); return; }
+            Object.assign(warmups, Warmups.cleanPrefs(prefs));
+            warmupsPlayer.setVolume(warmups.volume / 100);
+            warmupsSave();
+        } catch (e) { /* offline, or an old value: this device's copy stands */ }
+    }
+    function warmupsSavePrefs() {
+        warmupsSave();
+        clearTimeout(warmupsPrefsTimer);
+        // A moment after the last change (the volume slider sends many)
+        warmupsPrefsTimer = setTimeout(() => { apiCall('/api/account/warmups', 'PUT', { prefs: warmupsPrefsOf() }).catch(() => { /* kept on this device - the next change sends them again */ }); }, 600);
+    }
+    // ML-586: what is changed, counted (anonymous - analytics.js) so the screen can be simplified by what's used.
+    function warmupsTrack(setting, value) {
+        try { window.posthog?.capture?.('warm-ups setting', { setting, value }); } catch (e) { /* counting is never in the way */ }
+    }
+    function warmupsSetPref(key, value) {
+        warmups[key] = value;
+        warmupsSavePrefs();
+        warmupsTrack(key, value);
+    }
+
     let warmupsAll = null;      // every switched-on exercise, from the server (loaded once a visit)
-    let warmupsBpm = 72;        // this exercise's tempo - starts at the exercise's own each time
-    // ML-321: while practising a Warm-ups skill, only that kind (whatever My warm-ups is set to).
+    let warmupsBpm = 72;        // this exercise's speed - its own, at the chosen percentage
+    // ML-321: while practising a Warm-ups skill, only that kind (whatever Settings is set to).
     // ML-343: a session's warm-up list (sessionWarmupIds) - just its exercises, in its order.
     const warmupsChosen = () => (sessionWarmupIds
         ? sessionWarmupIds.map(id => (warmupsAll || []).find(ex => ex.id === id)).filter(Boolean)
         : (warmupsAll || []).filter(ex => (skillWarmupsKind ? ex.kind === skillWarmupsKind : warmups.kinds.includes(ex.kind))));
-    // ML-361: the instrument (Warm-ups pop-up; your main one to start with) and its range. The clef is the
-    // instrument's own until one is chosen with the Clef button (a euphonium can read either).
+    // ML-361: the instrument (Settings; your main one to start with) and its range. The clef is the one you
+    // read it in until another is chosen in Settings (a euphonium can read any).
     const warmupsInstrument = () => (myInstruments || []).find(i => i.id === warmups.instrumentId) || (myInstruments || []).find(i => i.isPrimary) || (myInstruments || [])[0] || null;
     const warmupsOwnClef = (inst) => (inst && ['bass', 'tenor'].includes(inst.theoryClef) ? inst.theoryClef : 'treble');
     const warmupsClef = () => (warmups.clefSet ? warmups.clef : warmupsOwnClef(warmupsInstrument()));
@@ -25489,13 +25552,27 @@
         if (warmupsState(ex, inst) === 'beyond') return `beyond the ${inst.name}`;
         return r.top != null && sp[1] > r.top ? `goes up to ${named(sp[1])} - outside your range` : `goes down to ${named(sp[0])} - outside your range`;
     }
-    // The list Previous / Next / Shuffle go round: the chosen ones you can play.
-    const warmupsList = () => warmupsChosen().filter(ex => warmupsState(ex) === 'ready');
+    // ML-586: Shuffle - one mixed-up order a visit (made again when the list changes), so Previous goes back.
+    // A session's or a skill's list keeps its own order.
+    let warmupsShuffled = null;
+    function warmupsOrdered(list) {
+        if (!warmups.shuffle || sessionWarmupIds || skillWarmupsKind) return list;
+        const key = list.map(ex => ex.id).join();
+        if (!warmupsShuffled || warmupsShuffled.key !== key) {
+            const order = list.map(ex => ex.id);
+            for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+            warmupsShuffled = { key, order };
+        }
+        return warmupsShuffled.order.map(id => list.find(ex => ex.id === id));
+    }
+    // The list Previous / Next go through: the chosen ones you can play.
+    const warmupsList = () => warmupsOrdered(warmupsChosen().filter(ex => warmupsState(ex) === 'ready'));
     function warmupsCurrent() {
         const list = warmupsList();
         return list.find(ex => ex.id === warmups.currentId) || list[0] || null;
     }
     async function warmupsLoad() {
+        await warmupsLoadPrefs();
         if (warmupsAll) return;
         try {
             warmupsAll = (await API.warmups.list()).exercises;
@@ -25505,32 +25582,38 @@
         }
     }
 
+    // --- Own pace or with the metronome ---
+    // In a session's Warm-up block it starts with the metronome (ML-390) whatever the setting; switching it off
+    // there is for that block only. sessionWarmupLoop.metronome holds it.
+    const warmupsMetronomeOn = () => (sessionWarmupLoop ? sessionWarmupLoop.metronome !== false : warmups.metronome === true);
+    // Each warm-up at its own speed, at the chosen percentage (and, in a session, a little faster each round).
+    const warmupsBpmOf = (ex, round = 1) => PracticePlan.warmupRoundBpm(Math.round(ex.bpm * warmups.speed / 100), round);
+
     // --- The exercise ---
     let warmupsTimeline = null;
-    // ML-390: a session's looping warm-up - the next exercise in the list, and a new, slightly faster round
-    // after the last one. It keeps playing until the block ends (the session leaves the tool, which stops it).
-    // The loop is one metronome sequence (the player's ML-193 sequence mode): each exercise is a passage
-    // (its count-in bar, then its notes), and the player asks for the next one on the beat the last one
-    // ends - so it carries straight on in time. Stopping and restarting the player between exercises
-    // sounded the next bar's first click twice (owner, 1 Oct 2026).
-    // sessionWarmupLoop: { round, tag (the passage on screen), queued (the last one handed to the player) }.
-    // ML-538: each warm-up plays twice in a row (a repeat sign at its end), then the next - it used to be once
-    // each, with the second go only after the whole list.
-    const SESSION_WARMUP_TIMES = 2;
+    // With the metronome the list is one metronome sequence (the player's ML-193 sequence mode): each warm-up is
+    // a passage (its count-in bar, then its notes once or twice), and the player asks for the next one on the
+    // beat the last one ends - so it carries straight on in time. Stopping and restarting the player between
+    // exercises sounded the next bar's first click twice (owner, 1 Oct 2026).
+    // ML-390: in a session (sessionWarmupLoop) the list plays on a loop until the block ends, a little faster each
+    // round; ML-586: on the tool's own (warmupsToolLoop) it stops after the last one.
+    // A loop: { round, tag (the passage on screen), queued (the last one handed to the player), metronome (session) }.
+    let warmupsToolLoop = null;
+    const warmupsLoop = () => sessionWarmupLoop || warmupsToolLoop;
     function warmupsPassage(ex, round, tag) {
         const tl = Warmups.timeline(ex);
         const countIn = warmups.countIn ? ex.beatsPerBar * tl.notesPerBeat : 0;
-        return { bpm: PracticePlan.warmupRoundBpm(ex.bpm, round), beatsPerBar: ex.beatsPerBar, notesPerBeat: tl.notesPerBeat, startClick: 0, boundaryClicks: countIn + SESSION_WARMUP_TIMES * tl.totalClicks, tag };
+        return { bpm: warmupsBpmOf(ex, round), beatsPerBar: ex.beatsPerBar, notesPerBeat: tl.notesPerBeat, startClick: 0, boundaryClicks: countIn + warmups.times * tl.totalClicks, tag };
     }
-    // The stave ends with a repeat sign when the warm-up plays more than once in a row: twice in a session, or
-    // the tool set to twice or until stopped.
-    const warmupsRepeats = () => !!sessionWarmupLoop || warmups.repeat !== 1;
+    // The stave ends with a repeat sign when the metronome plays it more than once in a row (ML-538).
+    const warmupsRepeats = () => warmupsMetronomeOn() && warmups.times > 1;
     // The player's boundary call - a little ahead of the beat, while the clicks are being scheduled.
     function warmupsLoopBoundary() {
-        const L = sessionWarmupLoop;
+        const L = warmupsLoop();
         const list = warmupsList();
         if (!L || !L.queued || !list.length) return null;
         const i = list.findIndex(ex => ex.id === L.queued.ex.id);
+        if (L !== sessionWarmupLoop && (i < 0 || i + 1 >= list.length)) return null; // the end of the list
         const round = L.queued.round + (i + 1 >= list.length ? 1 : 0);
         const ex = list[(i + 1) % list.length];
         L.queued = { ex, round, tag: `${ex.id}:${round}:${++L.n}` };
@@ -25538,117 +25621,188 @@
     }
     // The next exercise's first click has sounded: show it (without stopping the player).
     function warmupsLoopArrive() {
-        const L = sessionWarmupLoop, q = L.queued;
+        const L = warmupsLoop(), q = L.queued;
         L.tag = q.tag;
         L.round = q.round;
         warmups.currentId = q.ex.id;
-        warmupsBpm = PracticePlan.warmupRoundBpm(q.ex.bpm, q.round);
+        warmupsBpm = warmupsBpmOf(q.ex, q.round);
         warmupsSave();
         warmupsTick = 0;
         warmupsCountdown = 0;
+        warmupsPass = 0;
         renderWarmups();
         warmupsCountInClicks = warmups.countIn ? q.ex.beatsPerBar * warmupsTimeline.notesPerBeat : 0;
-        warmupsRenderBpm();
     }
+
+    // --- Drawing: one music size for every warm-up (ML-586) ---
+    // Staff units (a stave space is 10) to screen pixels, per music size. Medium fits a bar of eight quavers and a
+    // held note on one line of a phone (the long tones used to be drawn at about 1, quavers at about 0.8); a line holds as many whole bars as fit the width, and all but the last line are spread to
+    // the full width (the notes stay the same size - only the space between them grows).
+    const WARMUPS_SIZE_SCALE = { small: 0.72, medium: 0.85, large: 1.1 };
+    const WARMUPS_SIZE_LABELS = [['small', 'Small'], ['medium', 'Medium'], ['large', 'Large']];
+    const warmupsSvgWidth = (svg) => parseFloat(/width="([\d.]+)"/.exec(svg)[1]);
+    function renderWarmupsStaff(ex) {
+        const staff = document.getElementById('warmupsStaff');
+        const clef = warmupsClef();
+        const stepRange = Warmups.stepRange(ex, clef);
+        const scale = WARMUPS_SIZE_SCALE[warmups.size] || WARMUPS_SIZE_SCALE.medium;
+        const width = (staff.clientWidth || 320) / scale; // in staff units
+        const opts = (r, extra) => ({ clef, items: r.items, spans: r.spans, stepRange, noteGap: 1.6, label: `${ex.title}, notes ${r.from + 1} to ${r.to + 1}`, ...extra });
+        const rows = Warmups.fitRows(ex, clef, width, (r) => warmupsSvgWidth(Notation.staff(opts(r))), { repeat: warmupsRepeats() });
+        staff.innerHTML = rows.map((r, i) => {
+            let svg = Notation.staff(opts(r));
+            // Spread out only when it's over half way across already - a held note alone on a line stays as it is.
+            const natural = warmupsSvgWidth(svg);
+            if (i < rows.length - 1 && natural < width && natural > width * 0.5) svg = Notation.staff(opts(r, { justify: width / 10 }));
+            // Drawn at the music size: the width and height scaled (a line wider than the screen shrinks to fit).
+            svg = svg.replace(/ width="([\d.]+)" height="([\d.]+)"/, (m, w, h) => ` width="${(w * scale).toFixed(1)}" height="${(h * scale).toFixed(1)}"`);
+            return `<div class="warmups-row" data-from="${r.from}" data-to="${r.to}">${svg}</div>`;
+        }).join('');
+        warmupsLitRow = null;
+    }
+    // Redrawn when the width changes (turning the phone, a wider window).
+    let warmupsStaffWidth = 0;
+    if (typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(() => {
+            const w = document.getElementById('warmupsStaff')?.clientWidth || 0;
+            if (!w || w === warmupsStaffWidth) return;
+            warmupsStaffWidth = w;
+            if (isShown('warmupsView') && warmupsCurrent()) { renderWarmupsStaff(warmupsCurrent()); warmupsLight(warmupsLitIndex); }
+        }).observe(document.getElementById('warmupsStaff'));
+    }
+
     function renderWarmups() {
         const ex = warmupsCurrent();
         const list = warmupsList();
         const staff = document.getElementById('warmupsStaff');
-        document.getElementById('warmupsPrevBtn').disabled = list.length < 2;
-        document.getElementById('warmupsNextBtn').disabled = list.length < 2;
-        document.getElementById('warmupsShuffleBtn').disabled = list.length < 2;
-        document.getElementById('warmupsRepeatVal').textContent = (WARMUPS_REPEATS.find(r => r[0] === warmups.repeat) || WARMUPS_REPEATS[0])[1];
-        document.getElementById('warmupsCountInVal').textContent = warmups.countIn ? '1 bar' : 'none';
-        document.getElementById('warmupsClefVal').textContent = (SCALES_CLEFS.find(([v]) => v === warmupsClef()) || SCALES_CLEFS[0])[1];
-        warmupsShowMetronome();
         if (!ex) {
             warmupsTimeline = null;
             const locked = warmupsChosen().length;
             document.getElementById('warmupsTitle').textContent = warmupsAll ? 'No warm-ups to show' : 'Warm-ups';
-            document.getElementById('warmupsSub').textContent = !warmupsAll ? '' : locked ? 'They\'re all outside your range for now - see Warm-ups.' : 'Choose some kinds in Warm-ups.';
+            document.getElementById('warmupsSub').textContent = !warmupsAll ? '' : locked ? 'They\'re all outside your range for now - see Settings.' : 'Choose some topics in Settings.';
             document.getElementById('warmupsTip').textContent = '';
             staff.innerHTML = '';
+            renderWarmupsDock();
             return;
         }
         warmups.currentId = ex.id;
-        const kindList = list.filter(x => x.kind === ex.kind);
         const kindLabel = (Warmups.KINDS.find(k => k.id === ex.kind) || {}).label || ex.kind;
         document.getElementById('warmupsTitle').textContent = ex.title;
-        warmupsShowSub(`${kindLabel} · ${kindList.indexOf(ex) + 1} of ${kindList.length}`);
+        document.getElementById('warmupsSub').textContent = `${kindLabel} · ${list.indexOf(ex) + 1} of ${list.length}`;
         document.getElementById('warmupsTip').textContent = ex.tip || '';
         warmupsTimeline = Warmups.timeline(ex);
-        const clef = warmupsClef();
-        const stepRange = Warmups.stepRange(ex, clef);
-        const rows = Warmups.rows(ex, clef, { repeat: warmupsRepeats() });
-        const naturalWidth = (svg) => parseFloat(/width="([\d.]+)"/.exec(svg)[1]) / 10;
-        const opts = (r, extra) => ({ clef, items: r.items, spans: r.spans, stepRange, noteGap: 2.4, label: `${ex.title}, notes ${r.from + 1} to ${r.to + 1}`, ...extra });
-        const full = Math.max(...rows.filter((r, i) => i < rows.length - 1 || rows.length === 1).map(r => naturalWidth(Notation.staff(opts(r)))));
-        staff.innerHTML = rows.map((r, i) => {
-            if (i < rows.length - 1 || rows.length === 1) return Notation.staff(opts(r, { justify: full }));
-            const svg = Notation.staff(opts(r));
-            return `<div class="scales-staff-row-short" style="--row-frac:${Math.min(1, naturalWidth(svg) / full).toFixed(4)}">${svg}</div>`;
-        }).join('');
+        renderWarmupsStaff(ex);
         warmupsLight(warmupsLitIndex);
+        renderWarmupsDock();
     }
-    let warmupsLitIndex = -1;
+    let warmupsLitIndex = -1, warmupsLitRow = null;
     function warmupsLight(i) {
         warmupsLitIndex = i;
         document.querySelectorAll('#warmupsStaff .is-now').forEach(el => el.classList.remove('is-now'));
-        if (i >= 0) document.querySelectorAll(`#warmupsStaff .warmup-note-${i}`).forEach(el => el.classList.add('is-now'));
-    }
-    let warmupsSubText = '';
-    function warmupsShowSub(text) {
-        if (text !== undefined) warmupsSubText = text;
-        document.getElementById('warmupsSub').textContent = warmupsCountdown > 0 ? `Get ready… ${warmupsCountdown}` : warmupsSubText;
+        if (i < 0) return;
+        if (warmups.light) document.querySelectorAll(`#warmupsStaff .warmup-note-${i}`).forEach(el => el.classList.add('is-now')); // a setting - off for a player who doesn't need it
+        // The line being played stays in view, near the top, with the next line under it (ML-586).
+        const row = [...document.querySelectorAll('#warmupsStaff .warmups-row')].find(r => i >= Number(r.dataset.from) && i <= Number(r.dataset.to));
+        if (!row || row === warmupsLitRow) return;
+        warmupsLitRow = row;
+        const dock = document.getElementById('warmupsDock').getBoundingClientRect();
+        const header = document.querySelector('.top-bar-sticky-group');
+        const top = header ? header.getBoundingClientRect().bottom : 0;
+        const bottom = (row.nextElementSibling || row).getBoundingClientRect().bottom;
+        if (row.getBoundingClientRect().top < top || bottom > dock.top) row.scrollIntoView({ block: 'start', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
     }
 
-    // --- Playing: one click per crotchet (per quaver when there are quavers); a count-in bar at the start ---
+    // --- The bar at the bottom: own pace - Previous, Next warm-up; with the metronome - Previous, Play, Next ---
+    let warmupsPass = 0, warmupsListDone = false;
+    const WARMUPS_TIMES_WORDS = ['', 'once', 'twice'];
+    function renderWarmupsDock() {
+        const list = warmupsList(), ex = warmupsCurrent();
+        const metro = warmupsMetronomeOn();
+        const i = ex ? list.indexOf(ex) : -1;
+        const playing = warmupsPlayer.isPlaying();
+        setShown('warmupsNextMainBtn', !metro);
+        setShown('warmupsNextBtn', metro);
+        setShown('warmupsPlayBtn', metro && !(warmupsCountdown > 0));
+        setShown('warmupsCountIn', metro && warmupsCountdown > 0);
+        ['warmupsPrevBtn', 'warmupsNextBtn', 'warmupsNextMainBtn'].forEach(id => { document.getElementById(id).disabled = list.length < 2; });
+        document.getElementById('warmupsPlayBtn').disabled = !ex;
+        document.getElementById('warmupsProgress').style.setProperty('--pct', `${list.length ? ((i + 1) / list.length) * 100 : 0}%`);
+        const next = list.length > 1 && i >= 0 ? list[(i + 1) % list.length] : null;
+        let now = '', after = '';
+        if (warmupsListDone) now = 'That\'s the whole list - well done!';
+        else if (!ex) now = '';
+        else if (!metro) after = next ? `Next up: ${next.title}` : '';
+        else {
+            const times = warmups.times;
+            const what = warmupsCountdown > 0 ? 'count-in' : !playing ? `play ${WARMUPS_TIMES_WORDS[times]}` : times > 1 ? `${warmupsPass + 1 === 1 ? '1st' : '2nd'} time of ${times}` : '';
+            now = `${warmupsBpm} bpm${what ? ` · ${what}` : ''}`;
+            const last = !sessionWarmupLoop && i === list.length - 1;
+            after = list.length < 2 ? '' : last ? 'The last one' : `Next: ${list[(i + 1) % list.length].title}`;
+        }
+        document.getElementById('warmupsStatusNow').textContent = now;
+        document.getElementById('warmupsStatusNext').textContent = after;
+    }
+    function warmupsShowCountIn(left, total) {
+        const num = document.getElementById('warmupsCountInNum');
+        if (left > 0) {
+            num.textContent = left;
+            const heard = total - left + 1;
+            document.getElementById('warmupsCountInDots').innerHTML = Array.from({ length: total }, (_, k) => `<span class="warmups-countin-dot${k < heard ? ' is-done' : ''}"></span>`).join('');
+            document.getElementById('warmupsCountIn').setAttribute('aria-label', `Get ready - ${left} - tap to stop`);
+        }
+        renderWarmupsDock();
+    }
+
+    // --- Playing: one click per crotchet (per quaver when there are quavers); a count-in bar before each ---
     const warmupsPlayer = createMetronomePlayer();
     warmupsPlayer.setVisualLatencyMs(metroState.latencyMs);
     warmupsPlayer.setVolume((warmups.volume ?? 80) / 100);
     let warmupsTick = 0, warmupsCountInClicks = 0, warmupsCountdown = 0;
     warmupsPlayer.onBeat((info) => {
+        // ML-586: the tool's list has been played to the end
+        if (info && info.ended) { warmupsReset(); warmupsListDone = true; renderWarmupsDock(); return; }
         // ML-541: the block's time ran out during a time through - it's finished when the next one (or the next
         // warm-up) starts
         const finishing = practiceRun && practiceRun.finishingGo;
         if (finishing && finishing.kind === 'warmup' && warmupsTimeline
             && ((info && info.tag && info.tag !== finishing.tag) || Math.floor((warmupsTick - warmupsCountInClicks) / warmupsTimeline.totalClicks) > finishing.pass)) { sessionGoFinished(); return; }
-        if (sessionWarmupLoop && sessionWarmupLoop.tag && info && info.tag && info.tag !== sessionWarmupLoop.tag) warmupsLoopArrive();
+        const L = warmupsLoop();
+        if (L && L.tag && info && info.tag && info.tag !== L.tag) warmupsLoopArrive();
         const tl = warmupsTimeline;
         if (!tl) return;
         const k = warmupsTick++ - warmupsCountInClicks;
         if (k < 0) {
             const remaining = Math.ceil(-k / tl.notesPerBeat);
-            if (remaining !== warmupsCountdown) { warmupsCountdown = remaining; warmupsShowSub(); showCountIn('warmupsCountIn', remaining, Math.round(warmupsCountInClicks / tl.notesPerBeat)); }
+            if (remaining !== warmupsCountdown) { warmupsCountdown = remaining; warmupsShowCountIn(remaining, Math.round(warmupsCountInClicks / tl.notesPerBeat)); }
             warmupsLight(-1);
             return;
         }
-        if (warmupsCountdown) { warmupsCountdown = 0; warmupsShowSub(); showCountIn('warmupsCountIn', 0); }
+        if (warmupsCountdown) { warmupsCountdown = 0; warmupsShowCountIn(0); }
         const pass = Math.floor(k / tl.totalClicks);
-        // (In a session's Warm-up block each exercise plays twice - the sequence moves on by itself.)
-        if (!sessionWarmupLoop && warmups.repeat && pass >= warmups.repeat) { warmupsReset(); return; } // played it the chosen number of times
+        if (pass !== warmupsPass) { warmupsPass = pass; renderWarmupsDock(); }
         warmupsLight(Warmups.noteAt(tl, k % tl.totalClicks));
     });
     function warmupsUpdatePlayUi() {
         const playing = warmupsPlayer.isPlaying();
         document.getElementById('warmupsPlayIcon').textContent = playing ? 'pause' : 'play_arrow';
-        document.getElementById('warmupsPlayLbl').textContent = playing ? 'pause' : 'play';
+        document.getElementById('warmupsPlayLbl').textContent = playing ? 'Pause' : 'Play';
         document.getElementById('warmupsPlayBtn').setAttribute('aria-pressed', String(playing));
+        renderWarmupsDock();
     }
     function warmupsPlay() {
-        if (warmups.metronome !== true && !sessionWarmupLoop) return;
+        if (!warmupsMetronomeOn()) return;
         const ex = warmupsCurrent();
         if (!ex || !warmupsTimeline) return;
+        warmupsListDone = false;
         if (warmupsTick === 0) warmupsCountInClicks = warmups.countIn ? ex.beatsPerBar * warmupsTimeline.notesPerBeat : 0;
-        const L = sessionWarmupLoop;
-        if (L && L.tag) { warmupsPlayer.play(); warmupsUpdatePlayUi(); return; } // carrying on where the loop paused
-        if (L) {
-            // The loop starts from the warm-up on screen, at the tempo showing.
-            L.n = (L.n || 0) + 1;
-            L.tag = `${ex.id}:${L.round}:${L.n}`;
-            L.queued = { ex, round: L.round, tag: L.tag };
-            warmupsPlayer.setSequence({ ...warmupsPassage(ex, L.round, L.tag), bpm: warmupsBpm }, warmupsLoopBoundary);
-        } else warmupsPlayer.clearSequence();
+        let L = warmupsLoop();
+        if (!L) L = warmupsToolLoop = { round: 1 };
+        if (L.tag) { warmupsPlayer.play(); warmupsUpdatePlayUi(); return; } // carrying on where it paused
+        // It starts from the warm-up on screen.
+        L.n = (L.n || 0) + 1;
+        L.tag = `${ex.id}:${L.round}:${L.n}`;
+        L.queued = { ex, round: L.round, tag: L.tag };
+        warmupsPlayer.setSequence({ ...warmupsPassage(ex, L.round, L.tag), bpm: warmupsBpm }, warmupsLoopBoundary);
         warmupsPlayer.setConductorBpm(warmupsBpm);
         warmupsPlayer.setConductorBeatsPerBar(ex.beatsPerBar);
         warmupsPlayer.setNotesPerBeat(warmupsTimeline.notesPerBeat);
@@ -25658,44 +25812,33 @@
     }
     function warmupsPause() {
         warmupsPlayer.pause();
-        showCountIn('warmupsCountIn', 0);
+        if (warmupsCountdown) { warmupsCountdown = 0; warmupsShowCountIn(0); }
         warmupsUpdatePlayUi();
     }
     function warmupsReset() {
         if (warmupsPlayer.isPlaying()) warmupsPlayer.pause();
         warmupsPlayer.resetToBarStart();
-        if (sessionWarmupLoop) sessionWarmupLoop.tag = null; // the next Play starts the loop again from the warm-up on screen
+        warmupsPlayer.clearSequence();
+        const L = warmupsLoop();
+        if (L) L.tag = null; // the next Play starts again from the warm-up on screen
         warmupsTick = 0;
         warmupsCountdown = 0;
-        showCountIn('warmupsCountIn', 0);
+        warmupsPass = 0;
+        warmupsListDone = false;
         warmupsLight(-1);
-        warmupsShowSub();
         warmupsUpdatePlayUi();
     }
-    // Use metronome (ML-361, as Scales): off hides the transport, the tempo and the volume, and stops it.
-    function warmupsShowMetronome() {
-        const on = warmups.metronome === true || !!sessionWarmupLoop; // a session's looping warm-up needs the click
-        document.getElementById('warmupsMetronomeToggle').checked = on;
-        setShown('warmupsMetronomeControls', on);
-        setShown('warmupsVolumeBtn', on);
-    }
-    document.getElementById('warmupsMetronomeToggle')?.addEventListener('change', (e) => {
-        warmups.metronome = e.target.checked;
-        if (!warmups.metronome) { if (warmupsPlayer.isPlaying()) warmupsPause(); warmupsReset(); }
-        warmupsSave();
-        warmupsShowMetronome();
-    });
     setupPlayButtonHoldReset('warmupsPlayBtn', () => { if (warmupsPlayer.isPlaying()) warmupsPause(); else warmupsPlay(); }, warmupsReset);
-    document.getElementById('warmupsResetBtn')?.addEventListener('click', warmupsReset);
-    // Another exercise: back to the start, at its own tempo.
+    document.getElementById('warmupsCountIn')?.addEventListener('click', warmupsPause);
+    // Another exercise: back to the start, at its own speed.
     function warmupsShow(ex) {
         if (!ex) return;
         warmups.currentId = ex.id;
-        warmupsBpm = ex.bpm;
+        const L = warmupsLoop();
+        warmupsBpm = warmupsBpmOf(ex, L ? L.round : 1);
         warmupsSave();
         warmupsReset();
         renderWarmups();
-        warmupsRenderBpm();
     }
     function warmupsStep(dir) {
         const list = warmupsList();
@@ -25703,36 +25846,18 @@
         const i = list.indexOf(warmupsCurrent());
         warmupsShow(list[(i + dir + list.length) % list.length]);
     }
-    document.getElementById('warmupsNextBtn')?.addEventListener('click', () => warmupsStep(1));
-    document.getElementById('warmupsPrevBtn')?.addEventListener('click', () => warmupsStep(-1));
-    // Shuffle: any other exercise of the chosen kinds, at random.
-    document.getElementById('warmupsShuffleBtn')?.addEventListener('click', () => {
-        const others = warmupsList().filter(ex => ex !== warmupsCurrent());
-        if (others.length) warmupsShow(others[Math.floor(Math.random() * others.length)]);
-    });
-
-    // --- Tempo box ---
-    function warmupsRenderBpm() {
-        const pct = ((warmupsBpm - METRO_MIN_BPM) / (SCALES_BPM_MAX - METRO_MIN_BPM)) * 100;
-        document.getElementById('warmupsBpmFill')?.style.setProperty('--pct', `${pct}%`);
-        const thumb = document.getElementById('warmupsBpmThumb');
-        thumb?.style.setProperty('--pct', `${pct}%`);
-        thumb?.setAttribute('aria-valuenow', String(warmupsBpm));
-        const val = document.getElementById('warmupsBpmVal');
-        if (val) val.textContent = warmupsBpm;
+    // Previous goes back to the start of the warm-up you're on first (it took Reset's place), then to the one before;
+    // with the metronome playing, Previous and Next carry on playing.
+    function warmupsGo(dir) {
+        const playing = warmupsPlayer.isPlaying();
+        const tl = warmupsTimeline;
+        if (dir < 0 && warmupsMetronomeOn() && tl && warmupsTick - warmupsCountInClicks > tl.clicksPerBar) warmupsReset();
+        else warmupsStep(dir);
+        if (playing) warmupsPlay();
     }
-    function warmupsSetBpm(v) {
-        warmupsBpm = Math.round(Math.min(SCALES_BPM_MAX, Math.max(METRO_MIN_BPM, v)));
-        warmupsPlayer.setConductorBpm(warmupsBpm);
-        warmupsRenderBpm();
-    }
-    setupHoldStepper('warmupsBpmMinus', -1, (amount) => warmupsSetBpm(warmupsBpm + amount));
-    setupHoldStepper('warmupsBpmPlus', 1, (amount) => warmupsSetBpm(warmupsBpm + amount));
-    setupSliderInteraction(document.getElementById('warmupsBpmTrack'), document.getElementById('warmupsBpmThumb'), {
-        onDragRatio: (ratio) => warmupsSetBpm(METRO_MIN_BPM + ratio * (SCALES_BPM_MAX - METRO_MIN_BPM)),
-        onArrowStep: (dir) => warmupsSetBpm(warmupsBpm + dir),
-    });
-    makeSliderReadoutEditable('warmupsBpmVal', () => warmupsBpm, (v) => warmupsSetBpm(v), { label: 'Beats per minute', min: METRO_MIN_BPM, max: SCALES_BPM_MAX });
+    document.getElementById('warmupsPrevBtn')?.addEventListener('click', () => warmupsGo(-1));
+    document.getElementById('warmupsNextBtn')?.addEventListener('click', () => warmupsGo(1));
+    document.getElementById('warmupsNextMainBtn')?.addEventListener('click', () => warmupsGo(1));
 
     // --- Volume ---
     let warmupsVolumeBeforeMute = warmups.volume || 80;
@@ -25743,9 +25868,9 @@
         thumb?.style.setProperty('--pct', `${v}%`);
         thumb?.setAttribute('aria-valuenow', String(v));
         document.getElementById('warmupsVolumeValue').textContent = `${v}%`;
+        document.getElementById('warmupsVolumeVal').textContent = v === 0 ? 'Off' : `${v}%`;
         const muted = v === 0;
         document.getElementById('warmupsMuteIcon').textContent = muted ? 'volume_off' : 'volume_up';
-        document.getElementById('warmupsVolumeIcon').textContent = muted ? 'volume_off' : 'volume_up';
         document.getElementById('warmupsMuteBtn')?.setAttribute('aria-pressed', String(muted));
         document.getElementById('warmupsVolumeRow')?.classList.toggle('is-muted', muted);
     }
@@ -25754,7 +25879,7 @@
         if (warmups.volume > 0) warmupsVolumeBeforeMute = warmups.volume;
         warmupsPlayer.setVolume(warmups.volume / 100);
         warmupsRenderVolume();
-        warmupsSave();
+        warmupsSavePrefs();
         playVolumeTestClick(warmupsPlayer, force);
     }
     setupSliderInteraction(document.getElementById('warmupsVolumeTrack'), document.getElementById('warmupsVolumeThumb'), {
@@ -25767,78 +25892,141 @@
     makeSliderReadoutEditable('warmupsVolumeValue', () => warmups.volume, (v) => warmupsSetVolume(v, true), { label: 'Volume', min: 0, max: 100 });
     document.getElementById('warmupsMuteBtn')?.addEventListener('click', () => warmupsSetVolume(warmups.volume > 0 ? 0 : warmupsVolumeBeforeMute, true));
     document.getElementById('warmupsVolumeBtn')?.addEventListener('click', () => { warmupsRenderVolume(); showModal('warmupsVolumeModal'); });
+    document.getElementById('warmupsVolumeModal')?.addEventListener('click', (e) => { if (e.target.closest('[data-modal-close]')) warmupsTrack('volume', warmups.volume); });
 
-    // --- Warm-ups (instrument + kinds), Clef, Choose a warm-up, repeat, count-in ---
+    // --- Settings (ML-586): my warm-ups, then the metronome; each value box opens its own pop-up ---
     const warmupsKindLabel = (k) => (Warmups.KINDS.find(x => x.id === k) || {}).label || k;
-    // About how long a list takes, each at its own tempo
-    const warmupsMinutes = (list) => Math.max(1, Math.round(list.reduce((t, ex) => t + (ex.notes || []).reduce((b, n) => b + Warmups.beatsOf(n), 0) / (ex.bpm || 72), 0)));
+    // About how long a list takes, each at its own speed
+    const warmupsMinutes = (list) => Math.max(1, Math.round(list.reduce((t, ex) => t + (ex.notes || []).reduce((b, n) => b + Warmups.beatsOf(n), 0) * warmups.times / warmupsBpmOf(ex), 0)));
+    const warmupsSpeedWord = (p) => (p === 100 ? 'Their own' : `${p}%`);
     function warmupsRenderSettings() {
         const inst = warmupsInstrument();
-        renderInstrumentChoice(document.getElementById('warmupsInstrument'), inst, (id) => {
-            warmups.instrumentId = id;
-            warmups.clefSet = false; // the new instrument's own clef
-            warmupsSave();
-            warmupsReset();
-            warmupsRenderSettings();
-            renderWarmups();
-        });
+        document.getElementById('warmupsInstrumentVal').textContent = inst ? inst.name : 'None';
+        document.getElementById('warmupsClefVal').textContent = (SCALES_CLEFS.find(([v]) => v === warmupsClef()) || SCALES_CLEFS[0])[1];
+        document.getElementById('warmupsTopicsVal').textContent = warmups.kinds.length === Warmups.KIND_IDS.length ? 'All' : `${warmups.kinds.length} of ${Warmups.KIND_IDS.length}`;
+        document.getElementById('warmupsSizeVal').textContent = (WARMUPS_SIZE_LABELS.find(([v]) => v === warmups.size) || WARMUPS_SIZE_LABELS[1])[1];
+        document.getElementById('warmupsShuffleToggle').checked = warmups.shuffle;
+        const metro = warmupsMetronomeOn();
+        document.getElementById('warmupsMetronomeToggle').checked = metro;
+        setShown('warmupsMetronomeSettings', metro);
+        setShown('warmupsLightRow', metro);
+        document.getElementById('warmupsLightToggle').checked = warmups.light;
+        document.getElementById('warmupsSpeedVal').textContent = warmupsSpeedWord(warmups.speed);
+        document.getElementById('warmupsRepeatVal').textContent = warmups.times === 1 ? 'Once' : 'Twice';
+        document.getElementById('warmupsCountInVal').textContent = warmups.countIn ? '1 bar' : 'None';
+        warmupsRenderVolume();
+        // In a session the topics and the order are the session's, and the metronome switch is for this block only.
+        const inSession = !!sessionWarmupLoop;
+        document.getElementById('warmupsTopicsBtn').disabled = inSession || !!skillWarmupsKind;
+        document.getElementById('warmupsShuffleToggle').disabled = inSession || !!skillWarmupsKind;
+        document.querySelector('#warmupsMetronomeLbl .display-toggle-help').textContent = inSession ? 'For this warm-up block - it carries on to the next' : 'It plays each warm-up, then carries on to the next';
         setShown('warmupsSeeRangeBtn', !!inst);
-        const all = warmupsAll || [];
-        const rows = Warmups.KINDS.map(k => {
-            const exs = all.filter(ex => ex.kind === k.id);
-            const locked = exs.filter(ex => warmupsState(ex, inst) !== 'ready').length;
-            return { key: k.id, html: `<strong>${escapeHtml(k.label)}</strong><br><span class="text-sm text-muted">${exs.length} warm-up${exs.length === 1 ? '' : 's'}${locked ? ` · ${locked} locked` : ''}</span>` };
-        });
-        const picked = new Set(warmups.kinds);
-        const summarise = () => {
-            const chosen = warmupsChosen(), mine = warmupsList();
-            document.getElementById('warmupsCount').textContent = !warmupsAll ? ''
-                : `${mine.length} warm-up${mine.length === 1 ? '' : 's'} in your list${chosen.length > mine.length ? ` (of ${chosen.length})` : ''}${mine.length ? `, about ${warmupsMinutes(mine)} minute${warmupsMinutes(mine) === 1 ? '' : 's'}` : ''}`;
-            const locked = chosen.filter(ex => warmupsState(ex) === 'locked').length, beyond = chosen.filter(ex => warmupsState(ex) === 'beyond').length;
-            document.getElementById('warmupsLockedNote').textContent = [locked ? `${locked} ${locked === 1 ? 'is' : 'are'} locked - outside your range for now. They come into your list as your range grows.` : '', beyond && inst ? `${beyond} ${beyond === 1 ? 'is' : 'are'} beyond the ${inst.name}.` : ''].filter(Boolean).join(' ');
-        };
-        renderPickList(document.getElementById('warmupsKindsList'), document.getElementById('warmupsKindsBar'), rows, picked, () => {
-            const kinds = Warmups.KIND_IDS.filter(k => picked.has(k));
-            if (kinds.join() !== warmups.kinds.join()) {
-                warmups.kinds = kinds;
-                warmupsSave();
-                warmupsReset();
-                renderWarmups();
-            }
-            summarise();
-        }, '');
+        const chosen = warmupsChosen(), mine = warmupsList();
+        document.getElementById('warmupsCount').textContent = !warmupsAll ? ''
+            : `${mine.length} warm-up${mine.length === 1 ? '' : 's'} in your list${chosen.length > mine.length ? ` (of ${chosen.length})` : ''}${mine.length ? `, about ${warmupsMinutes(mine)} minute${warmupsMinutes(mine) === 1 ? '' : 's'}` : ''}`;
+        const locked = chosen.filter(ex => warmupsState(ex) === 'locked').length, beyond = chosen.filter(ex => warmupsState(ex) === 'beyond').length;
+        document.getElementById('warmupsLockedNote').textContent = [locked ? `${locked} ${locked === 1 ? 'is' : 'are'} locked - outside your range for now. They come into your list as your range grows.` : '', beyond && inst ? `${beyond} ${beyond === 1 ? 'is' : 'are'} beyond the ${inst.name}.` : ''].filter(Boolean).join(' ');
+    }
+    // A change to what's in the list or how it's drawn: back to the start, redrawn.
+    function warmupsSettingsChanged() {
+        warmupsReset();
+        const ex = warmupsCurrent();
+        if (ex) warmupsBpm = warmupsBpmOf(ex, warmupsLoop() ? warmupsLoop().round : 1);
+        warmupsRenderSettings();
+        renderWarmups();
     }
     document.getElementById('warmupsSettingsBtn')?.addEventListener('click', async () => {
         if (!myInstruments || !myInstruments.length) await loadMyInstruments();
         warmupsRenderSettings();
         showModal('warmupsSettingsModal');
     });
+    document.getElementById('warmupsInstrumentBtn')?.addEventListener('click', () => {
+        const draw = () => renderInstrumentChoice(document.getElementById('warmupsInstrument'), warmupsInstrument(), (id) => {
+            warmups.clefSet = false; // the new instrument's own clef
+            warmupsSetPref('instrumentId', id);
+            hideModal('warmupsInstrumentModal');
+            warmupsSettingsChanged();
+        });
+        draw();
+        showModal('warmupsInstrumentModal');
+    });
+    document.getElementById('warmupsClefBtn')?.addEventListener('click', () => {
+        scalesFillGrid('warmupsClefGrid', SCALES_CLEFS.map(([v, l]) => ({ value: l, caption: 'clef', selected: warmupsClef() === v, v })),
+            (o) => { warmups.clef = o.v; warmups.clefSet = true; warmupsTrack('clef', o.v); hideModal('warmupsClefModal'); warmupsSettingsChanged(); });
+        showModal('warmupsClefModal');
+    });
+    document.getElementById('warmupsTopicsBtn')?.addEventListener('click', () => {
+        const inst = warmupsInstrument(), all = warmupsAll || [];
+        const rows = Warmups.KINDS.map(k => {
+            const exs = all.filter(ex => ex.kind === k.id);
+            const locked = exs.filter(ex => warmupsState(ex, inst) !== 'ready').length;
+            return { key: k.id, html: `<strong>${escapeHtml(k.label)}</strong><br><span class="text-sm text-muted">${exs.length} warm-up${exs.length === 1 ? '' : 's'}${locked ? ` · ${locked} locked` : ''}</span>` };
+        });
+        const picked = new Set(warmups.kinds);
+        renderPickList(document.getElementById('warmupsKindsList'), document.getElementById('warmupsKindsBar'), rows, picked, () => {
+            const kinds = Warmups.KIND_IDS.filter(k => picked.has(k));
+            if (kinds.join() !== warmups.kinds.join()) { warmupsSetPref('kinds', kinds); warmupsSettingsChanged(); }
+        }, '');
+        showModal('warmupsTopicsModal');
+    });
+    document.getElementById('warmupsSizeBtn')?.addEventListener('click', () => {
+        scalesFillGrid('warmupsSizeGrid', WARMUPS_SIZE_LABELS.map(([v, l]) => ({ value: l, caption: '', selected: warmups.size === v, v })),
+            (o) => { warmupsSetPref('size', o.v); hideModal('warmupsSizeModal'); warmupsSettingsChanged(); });
+        showModal('warmupsSizeModal');
+    });
+    document.getElementById('warmupsShuffleToggle')?.addEventListener('change', (e) => {
+        warmupsShuffled = null;
+        warmupsSetPref('shuffle', e.target.checked);
+        warmupsSettingsChanged();
+    });
+    document.getElementById('warmupsMetronomeToggle')?.addEventListener('change', (e) => {
+        if (sessionWarmupLoop) { sessionWarmupLoop.metronome = e.target.checked; warmupsTrack('metronome (session)', e.target.checked); }
+        else warmupsSetPref('metronome', e.target.checked);
+        warmupsPlayer.keepAwake(warmupsMetronomeOn());
+        warmupsSettingsChanged();
+    });
+    document.getElementById('warmupsLightToggle')?.addEventListener('change', (e) => {
+        warmupsSetPref('light', e.target.checked);
+        warmupsLight(warmupsLitIndex); // takes effect on the note playing now - no need to stop
+    });
+    document.getElementById('warmupsSpeedBtn')?.addEventListener('click', () => {
+        scalesFillGrid('warmupsSpeedGrid', Warmups.SPEEDS.map(p => ({ value: `${p}%`, caption: p === 100 ? 'their own' : '', selected: warmups.speed === p, v: p })),
+            (o) => { warmupsSetPref('speed', o.v); hideModal('warmupsSpeedModal'); warmupsSettingsChanged(); });
+        showModal('warmupsSpeedModal');
+    });
+    document.getElementById('warmupsRepeatBtn')?.addEventListener('click', () => {
+        scalesFillGrid('warmupsRepeatGrid', Warmups.TIMES.map(n => ({ value: `${n}×`, caption: n === 1 ? 'once' : 'twice', selected: warmups.times === n, v: n, attrs: `aria-label="Play each one ${n === 1 ? 'once' : 'twice'}"` })),
+            (o) => { warmupsSetPref('times', o.v); hideModal('warmupsRepeatModal'); warmupsSettingsChanged(); });
+        showModal('warmupsRepeatModal');
+    });
+    document.getElementById('warmupsCountInBtn')?.addEventListener('click', () => {
+        scalesFillGrid('warmupsCountInGrid', [[0, 'None'], [1, '1 bar']].map(([n, l]) => ({ value: l, caption: '', selected: warmups.countIn === n, v: n })),
+            (o) => { warmupsSetPref('countIn', o.v); hideModal('warmupsCountInModal'); warmupsSettingsChanged(); });
+        showModal('warmupsCountInModal');
+    });
     document.getElementById('warmupsSeeRangeBtn')?.addEventListener('click', () => {
         const inst = warmupsInstrument();
         renderMyRange({ inst, clef: warmupsOwnClef(inst), ctx: { shift: 0, ...warmupsRangeOf(inst) }, what: 'every warm-up', over: 'warmupsSettingsModal', after: () => { warmupsRenderSettings(); renderWarmups(); } });
     });
-    document.getElementById('warmupsClefBtn')?.addEventListener('click', () => {
-        scalesFillGrid('warmupsClefGrid', SCALES_CLEFS.map(([v, l]) => ({ value: l, caption: 'clef', selected: warmupsClef() === v, v })),
-            (o) => { warmups.clef = o.v; warmups.clefSet = true; warmupsSave(); hideModal('warmupsClefModal'); renderWarmups(); });
-        showModal('warmupsClefModal');
-    });
-    // Choose a warm-up: the chosen kinds, each warm-up a row; the locked ones in place with a lock and why
+    // My warm-ups (the title): the chosen topics, each warm-up a row; the locked ones in place with a lock and why
     // (aria-disabled, so they're still read out).
     function warmupsRenderChoose() {
         const chosen = warmupsChosen(), mine = warmupsList(), cur = warmupsCurrent();
         const locked = chosen.length - mine.length;
-        document.getElementById('warmupsChooseIntro').textContent = !chosen.length ? 'Nothing chosen yet - choose some topics in Warm-ups.'
-            : `The ${mine.length} warm-up${mine.length === 1 ? '' : 's'} in your list. Tap one to play it${locked ? ' - the locked ones are outside your range for now' : ''}.`;
+        document.getElementById('warmupsChooseIntro').textContent = !chosen.length ? 'Nothing chosen yet - choose some topics in Settings.'
+            : `${mine.length} warm-up${mine.length === 1 ? '' : 's'}, about ${warmupsMinutes(mine)} minute${warmupsMinutes(mine) === 1 ? '' : 's'}. Tap one to go to it${locked ? ' - the locked ones are outside your range for now' : ''}.`;
         const list = document.getElementById('warmupsChooseList');
         list.innerHTML = Warmups.KINDS.filter(k => chosen.some(ex => ex.kind === k.id)).map(k => {
             const exs = chosen.filter(ex => ex.kind === k.id), ok = exs.filter(ex => mine.includes(ex)).length;
             return `<div class="scales-choose-group"><h3 class="scales-choose-label">${escapeHtml(k.label)}<span class="scale-grid-sub">${ok === exs.length ? `${exs.length} warm-up${exs.length === 1 ? '' : 's'}` : `${ok} of ${exs.length} in your list`}</span></h3>${exs.map((ex, i) => mine.includes(ex)
-                ? `<button type="button" class="flow-choice-option level-answer warmups-choose-row${cur && ex.id === cur.id ? ' selected' : ''}" data-warmup="${ex.id}" aria-pressed="${!!(cur && ex.id === cur.id)}"><span class="grow">${i + 1}. ${escapeHtml(ex.title)}</span></button>`
+                ? `<button type="button" class="flow-choice-option level-answer warmups-choose-row${cur && ex.id === cur.id ? ' selected' : ''}" data-warmup="${ex.id}" aria-pressed="${!!(cur && ex.id === cur.id)}"><span class="grow">${i + 1}. ${escapeHtml(ex.title)}</span><span class="text-sm text-muted">${warmupsBpmOf(ex)} bpm</span></button>`
                 : `<button type="button" class="flow-choice-option level-answer warmups-choose-row is-locked" aria-disabled="true"><span class="grow">${i + 1}. ${escapeHtml(ex.title)}<br><span class="text-sm text-muted">${escapeHtml(warmupsWhy(ex))}</span></span><span class="material-symbols-outlined" aria-hidden="true">lock</span></button>`).join('')}</div>`;
         }).join('');
         list.querySelectorAll('[data-warmup]').forEach(b => b.addEventListener('click', () => {
             hideModal('warmupsChooseModal');
+            const playing = warmupsPlayer.isPlaying();
             warmupsShow((warmupsAll || []).find(ex => ex.id === Number(b.dataset.warmup)));
+            if (playing) warmupsPlay();
         }));
     }
     document.getElementById('warmupsChooseBtn')?.addEventListener('click', async () => {
@@ -25847,25 +26035,15 @@
         showModal('warmupsChooseModal');
     });
     document.getElementById('warmupsChooseEditBtn')?.addEventListener('click', () => { hideModal('warmupsChooseModal'); document.getElementById('warmupsSettingsBtn')?.click(); });
-    document.getElementById('warmupsRepeatBtn')?.addEventListener('click', () => {
-        scalesFillGrid('warmupsRepeatGrid', WARMUPS_REPEATS.map(([n, l, caption]) => ({ value: n ? n + '×' : '<span class="material-symbols-outlined" aria-hidden="true">repeat</span>', caption, selected: warmups.repeat === n, v: n, attrs: `aria-label="${n ? 'Play it ' + l : 'Loop until stopped'}"` })),
-            (o) => { warmups.repeat = o.v; warmupsSave(); hideModal('warmupsRepeatModal'); renderWarmups(); });
-        showModal('warmupsRepeatModal');
-    });
-    document.getElementById('warmupsCountInBtn')?.addEventListener('click', () => {
-        scalesFillGrid('warmupsCountInGrid', [[0, 'None'], [1, '1 bar']].map(([n, l]) => ({ value: l, caption: '', selected: warmups.countIn === n, v: n })),
-            (o) => { warmups.countIn = o.v; warmupsSave(); hideModal('warmupsCountInModal'); warmupsReset(); renderWarmups(); });
-        showModal('warmupsCountInModal');
-    });
-    ['warmupsSettingsModal', 'warmupsClefModal', 'warmupsChooseModal', 'warmupsRepeatModal', 'warmupsCountInModal', 'warmupsVolumeModal'].forEach(id => {
+    ['warmupsSettingsModal', 'warmupsInstrumentModal', 'warmupsTopicsModal', 'warmupsClefModal', 'warmupsSizeModal', 'warmupsSpeedModal', 'warmupsChooseModal', 'warmupsRepeatModal', 'warmupsCountInModal', 'warmupsVolumeModal'].forEach(id => {
         const modal = document.getElementById(id);
         if (!modal) return;
         modal.querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', () => hideModal(modal)));
-        modal.addEventListener('click', (e) => { if (e.target === e.currentTarget) hideModal(modal); });
     });
 
-    // Opening the screen: load the exercises (once a visit), show the one you were on at its own tempo.
+    // Opening the screen: load the settings and the exercises (once a visit), show the one you were on at its speed.
     async function openWarmupsView() {
+        warmupsListDone = false;
         warmupsRenderVolume();
         warmupsUpdatePlayUi();
         renderWarmups();
@@ -25873,12 +26051,13 @@
         const first = !warmupsAll;
         await warmupsLoad();
         if (!myInstruments || !myInstruments.length) await loadMyInstruments();
+        warmupsPlayer.setVolume(warmups.volume / 100);
+        warmupsPlayer.keepAwake(warmupsMetronomeOn()); // ML-586: the headphones stay awake while it's open
         if (first) {
             const ex = warmupsCurrent();
-            if (ex) warmupsBpm = ex.bpm;
-            renderWarmups();
-            warmupsRenderBpm();
+            if (ex) warmupsBpm = warmupsBpmOf(ex, warmupsLoop() ? warmupsLoop().round : 1);
         }
+        renderWarmups();
     }
 
     // Theory test hook - LOCAL DEVELOPMENT ONLY, same switch as the Flow one above (localhost +
