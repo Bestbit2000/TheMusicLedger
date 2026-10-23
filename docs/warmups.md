@@ -65,8 +65,10 @@ The design was agreed on a Claude Design canvas (linked from the Jira issue).
   the account has none, the device's is saved to it. The old "repeat" (once by default) isn't carried over: **play each
   one starts at twice** (owner); "until stopped" has gone - the list carries on instead. Own pace is where a new
   member starts (as ML-368's "metronome off on arrival").
-- **Speed is a percentage of each warm-up's own** (80%, 90%, their own, 110% - `Warmups.SPEEDS`), not a bpm, because
-  every warm-up has its own speed. The speed pop-up says so.
+- **Speed is a percentage of each warm-up's own**, not a bpm, because every warm-up has its own speed. The speed
+  pop-up says so. The choices are the app's one list of play speeds (Admin → Playback speeds - ML-596, owner 23 Oct
+  2026; it was 80%, 90%, their own and 110% before), so `Warmups.cleanPrefs` keeps any whole percentage up to
+  `Warmups.SPEED_MAX`: a speed later taken off the list still plays.
 - **The bar at the bottom of the screen** (sticky): how far through the list, what's playing and what's next, and the
   buttons - own pace: Previous, Next warm-up; with the metronome: Previous, Play / Pause, Next. Previous goes back to
   the start of the warm-up you're on first (it took Reset's place). **The count-in shows in that bar**, in Play's

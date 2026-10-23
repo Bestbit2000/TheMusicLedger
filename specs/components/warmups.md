@@ -102,7 +102,7 @@ length / octave pills, `.note-keyboard`, `.admin-warmup-tools` (with **Slur to n
   `/:id/move`). Every save is checked with `public/warmups.js` on the server.
 - Settings (ML-586): `accounts.warmup_prefs` (db/migrations/148_warmup_prefs.sql), `GET/PUT /api/account/warmups`
   (merged, so one setting can be saved alone), checked by `Warmups.cleanPrefs` - `metronome`, `speed`
-  (`Warmups.SPEEDS`), `light`, `times` (`Warmups.TIMES`), `countIn`, `volume`, `size` (`Warmups.SIZES`), `shuffle`, `kinds`,
+  (a whole % up to `Warmups.SPEED_MAX`, offered from the one list of play speeds - ML-596), `light`, `times` (`Warmups.TIMES`), `countIn`, `volume`, `size` (`Warmups.SIZES`), `shuffle`, `kinds`,
   `instrumentId`; defaults `Warmups.PREF_DEFAULTS` (own pace, their own speed, twice, a bar's count-in, Medium). A copy
   stays on the device (localStorage `tml.warmups`, with `currentId` - where you were) for offline; the first time the
   account has none, the device's is saved to it. The clef chosen in Settings is for the visit only (ML-528).

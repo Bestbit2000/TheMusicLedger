@@ -1770,6 +1770,9 @@
     }
 
     // ---- Playback speeds ----
+    // ML-596: the app's one list of play speeds. A YouTube video only plays at its own speeds (usually these - each
+    // video says, and offers the ones on this list it can play), so each row says whether YouTube can.
+    const YOUTUBE_SPEEDS = [25, 50, 75, 100, 125, 150, 175, 200];
     let speedsById = new Map();
     function renderSpeedsList(speeds) {
         speedsById = new Map(speeds.map(s => [s.id, s]));
@@ -1780,6 +1783,7 @@
                 <div class="admin-feature-header">
                     <div class="admin-feature-header-text">
                         <h2>${s.percent}%${s.active ? '' : ' (inactive)'}</h2>
+                        <p class="admin-test-case-meta">${YOUTUBE_SPEEDS.includes(s.percent) ? 'The metronome, recordings and YouTube videos' : 'The metronome and recordings - not YouTube, which can\'t play at this speed'}</p>
                     </div>
                     <div class="admin-feature-actions">
                         <button class="btn-icon-edit" data-edit-id="${s.id}" aria-label="Edit ${s.percent}%" type="button"><span class="material-symbols-outlined">edit</span></button>

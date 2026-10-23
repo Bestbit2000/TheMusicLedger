@@ -171,7 +171,11 @@ describe('warm-ups: music size and settings (ML-586)', () => {
         assert.deepEqual(plain(W.cleanPrefs({ metronome: true, speed: 90, times: 1, size: 'large', kinds: ['melodic', 'long-tones'], other: 1 })),
             { metronome: true, speed: 90, times: 1, size: 'large', kinds: ['long-tones', 'melodic'] });
         assert.deepEqual(plain(W.cleanPrefs({ instrumentId: null, volume: 0, shuffle: false, countIn: 0 })), { shuffle: false, countIn: 0, volume: 0, instrumentId: null });
-        assert.throws(() => W.cleanPrefs({ speed: 75 }), /speed/);
+        // ML-596: any whole percentage from the one list of play speeds - not a list of its own
+        assert.deepEqual(plain(W.cleanPrefs({ speed: 75 })), { speed: 75 });
+        assert.throws(() => W.cleanPrefs({ speed: 0 }), /speed/);
+        assert.throws(() => W.cleanPrefs({ speed: 72.5 }), /speed/);
+        assert.throws(() => W.cleanPrefs({ speed: W.SPEED_MAX + 1 }), /speed/);
         assert.throws(() => W.cleanPrefs({ times: 0 }), /times/);
         assert.throws(() => W.cleanPrefs({ kinds: ['scales'] }), /kinds/);
         assert.throws(() => W.cleanPrefs({ volume: 101 }), /volume/);

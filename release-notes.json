@@ -1,4 +1,10 @@
 {
+  "ML-592": "We added a search to Rehearse's list of pieces, so you can find a piece by its title or composer.",
+  "ML-593": "We moved Archive several and Delete several to a menu at the top of My music, where you can find them however long your list is.",
+  "ML-594": "We made a message at the bottom of the screen drop away downwards when it goes, unless your device asks for less movement.",
+  "ML-600": "We fixed the play screen keeping its old size when you made the window wider or narrower.",
+  "ML-596": "We gave every play speed in the app one list, with 75% and 125% added. A YouTube video offers the speeds it can play.",
+  "ML-599": "We made a recording or video play at the metronome's speed, so changing the speed on one changes it on the other.",
   "ML-499": "We can now email you a copy of an urgent or important notice, and you can switch off copies of urgent ones in Settings.",
   "ML-498": "We let the people who run a band send everyone in it a notice in the app, with their name on it - one way, and you can switch them off.",
   "ML-585": "We fixed the time shown for a piece with 6/8, 9/8 or 12/8 in it, which came out too long, and now show how long each movement takes.",

@@ -8038,8 +8038,7 @@
         options.push({ key: 'custom', selected: !!s.custom,
             html: '<span><strong>Custom speed</strong><br><span class="text-sm text-muted">A % of the piece\'s own speed, for this go</span></span>',
             extra: async (box, close) => {
-                let speeds = flowPlaybackSpeeds;
-                if (!speeds.length) { try { speeds = flowPlaybackSpeeds = await API.metronomeBlocks.playbackSpeeds.list(); } catch (e) { speeds = [50, 60, 70, 80, 90, 100]; } }
+                const speeds = await ensurePlaySpeeds(); // ML-596: the one list - offline, the list as seeded
                 const floor = flowSessionCustomFloor();
                 const off = speeds.filter(p => p < floor);
                 const lowest = speeds.find(p => p >= floor);
@@ -15799,9 +15798,7 @@
     // and end (ML-312), and the piece's own speeds and pauses. Nothing listens to the sound.
     // docs/rehearsal-score.md; specs/components/rehearsal-score.md.
     const recScoreOn = () => isFeatureEnabled('rehearsal_score');
-    const REC_SPEEDS = [100, 75, 50];  // percent - YouTube's player has these exact speeds too
     const REC_LOOP_LEAD_MS = 400;      // a repeat starts this much early, so a map a touch out still catches the first note
-    let recSpeed = 100;                // for this visit to the play screen
     let recTicker = null;
     let recTileBlockId = null;         // the block the recording is in now - its tile lights up, as the metronome's does
     const recDroppedTold = new Set();  // ML-531: recordings whose left-out marks have been mentioned this visit
@@ -15830,6 +15827,35 @@
             setSpeed: (pct) => yt.setPlaybackRate(pct / 100)
         };
     }
+    // ML-596/599: a recording plays at the metronome's play speed (flowSpeedPercent) - one speed for the visit, as
+    // repeat is one - from the one list of play speeds. An upload plays at any speed. A YouTube video only plays at its
+    // own speeds (what it says it can - usually YT_RATES), so it offers the list's speeds it can play and plays the
+    // nearest of them: 70% on the metronome is 75% on a video, and the metronome stays at 70%.
+    const YT_RATES = [25, 50, 75, 100, 125, 150, 175, 200];
+    function recSpeedsFor(slide) {
+        const all = playSpeedChoices();
+        if (!slide || slide.type === 'audio') return all;
+        let rates = YT_RATES;
+        try {
+            const yt = flowYtPlayers[slide.data.id];
+            const said = yt && typeof yt.getAvailablePlaybackRates === 'function' ? yt.getAvailablePlaybackRates() : null;
+            if (said && said.length) rates = said.map(r => Math.round(r * 100));
+        } catch (error) { /* not ready yet - YouTube's usual speeds */ }
+        const playable = all.filter(p => rates.includes(p));
+        return playable.length ? playable : [100];
+    }
+    function recSpeedOf(slide) {
+        const speeds = recSpeedsFor(slide);
+        return speeds.reduce((best, p) => (Math.abs(p - flowSpeedPercent) < Math.abs(best - flowSpeedPercent) ? p : best), speeds[0]);
+    }
+    // The showing recording takes the speed now, and every recording's box says what it plays at
+    function recApplySpeed() {
+        if (!recScoreOn()) return;
+        const slide = recActiveSlide();
+        const player = recPlayerOf(slide);
+        if (player) { try { player.setSpeed(recSpeedOf(slide)); } catch (error) { /* not ready yet */ } }
+        renderRecScoreControls();
+    }
     function recScoreControlsHtml(slide) {
         if (!recScoreOn()) return '';
         const key = flowMediaSlideKey(slide);
@@ -15855,8 +15881,9 @@
             setLoopLabel(box.querySelector('[data-rec-loop-lbl]'), loopOn);
             loopBtn.classList.toggle('metroBlk-ctrl-value-btn-on', loopOn);
             loopBtn.setAttribute('aria-label', loopOn ? `Repeat bars - ${flowLoopRangeText()}. Tap to change` : 'Repeat bars - off. Tap to set up');
-            box.querySelector('[data-rec-speed-lbl]').textContent = `${recSpeed}%`;
-            box.querySelector('[data-rec-speed-btn]').setAttribute('aria-label', `Play speed - ${recSpeed}%. Tap to change`);
+            const speed = recSpeedOf(slide);
+            box.querySelector('[data-rec-speed-lbl]').textContent = `${speed}%`;
+            box.querySelector('[data-rec-speed-btn]').setAttribute('aria-label', `Play speed - ${speed}%. Tap to change`);
             const mapLbl = box.querySelector('[data-rec-map-lbl]');
             // ML-531: the marks that still fit the piece - a change to its bars (or making it a piece in movements) can
             // leave some that don't; they are left out, and the member is told once
@@ -15905,8 +15932,9 @@
     }
     function recStartTicker() {
         if (!recScoreOn()) return;
-        const player = recPlayerOf(recActiveSlide());
-        if (player) { try { player.setSpeed(recSpeed); } catch (error) { /* not ready yet */ } }
+        const slide = recActiveSlide();
+        const player = recPlayerOf(slide);
+        if (player) { try { player.setSpeed(recSpeedOf(slide)); } catch (error) { /* not ready yet */ } }
         if (!recTicker) recTicker = setInterval(recTick, 100);
         recTick();
     }
@@ -15937,12 +15965,17 @@
         recStartTicker();
         return true;
     }
-    function openRecSpeedChoice() {
-        openFlowChoiceModal('Play speed', REC_SPEEDS.map(pct => ({ label: pct === 100 ? '100% - as recorded' : `${pct}% - slower, same pitch`, value: pct, selected: pct === recSpeed })), (opt) => {
-            recSpeed = opt.value;
-            const player = recPlayerOf(recActiveSlide());
-            if (player) { try { player.setSpeed(recSpeed); } catch (error) { /* not ready yet */ } }
-            renderRecScoreControls();
+    // Choosing here sets the one play speed - the metronome follows it too (ML-599)
+    async function openRecSpeedChoice() {
+        await ensurePlaySpeeds();
+        const slide = recActiveSlide();
+        const now = recSpeedOf(slide);
+        const word = (pct) => (pct === 100 ? 'as recorded' : pct < 100 ? 'slower, same pitch' : 'faster, same pitch');
+        openFlowChoiceModal('Play speed', recSpeedsFor(slide).map(pct => ({ label: `${pct}% - ${word(pct)}`, value: pct, selected: pct === now })), (opt) => {
+            // in a practice it's a Custom speed for this go, as the Level pop-up's (ML-588)
+            if (flowSession) { flowSession.custom = true; flowSession.customPercent = opt.value; }
+            setFlowSpeedPercent(opt.value);
+            if (flowSession) renderFlowSessionControls();
         });
     }
 
@@ -17237,8 +17270,18 @@
         flowPlayer.setSpeedPercent(flowSpeedPercent);
         renderFlowSpeedLabel(); // the player applies play speed to every click's own tempo - nothing to reconfigure
         renderFlowPlaybackRow();
+        recApplySpeed(); // ML-599: a recording follows the same speed
     }
-    let flowPlaybackSpeeds = []; // ML-588: also a practice's Custom speed choices
+    // ML-596: the app's one list of play speeds (Admin -> Playback speeds) - the metronome, a practice's Custom speed
+    // (ML-588), a recording or video (ML-599) and Warm-ups all offer it. Until it has loaded, or offline, the list as
+    // seeded (migrations 025 and 151) - nothing keeps a list of its own.
+    const DEFAULT_PLAY_SPEEDS = [30, 40, 50, 60, 70, 75, 80, 90, 100, 110, 120, 125, 130, 140, 150];
+    let flowPlaybackSpeeds = [];
+    const playSpeedChoices = () => (flowPlaybackSpeeds.length ? flowPlaybackSpeeds : DEFAULT_PLAY_SPEEDS);
+    async function ensurePlaySpeeds() {
+        if (!flowPlaybackSpeeds.length) { try { flowPlaybackSpeeds = await API.metronomeBlocks.playbackSpeeds.list(); } catch (e) { /* the seeded list stands in */ } }
+        return playSpeedChoices();
+    }
     async function loadFlowPlaybackSpeeds() {
         try {
             const speeds = await API.metronomeBlocks.playbackSpeeds.list();
@@ -26439,9 +26482,12 @@
         warmupsLight(warmupsLitIndex); // takes effect on the note playing now - no need to stop
     });
     document.getElementById('warmupsSpeedBtn')?.addEventListener('click', () => {
-        scalesFillGrid('warmupsSpeedGrid', Warmups.SPEEDS.map(p => ({ value: `${p}%`, caption: p === 100 ? 'their own' : '', selected: warmups.speed === p, v: p })),
+        // ML-596: the one list of play speeds (Admin -> Playback speeds), as the metronome's
+        const fill = () => scalesFillGrid('warmupsSpeedGrid', playSpeedChoices().map(p => ({ value: `${p}%`, caption: p === 100 ? 'their own' : '', selected: warmups.speed === p, v: p })),
             (o) => { warmupsSetPref('speed', o.v); hideModal('warmupsSpeedModal'); warmupsSettingsChanged(); });
+        fill();
         showModal('warmupsSpeedModal');
+        if (!flowPlaybackSpeeds.length) ensurePlaySpeeds().then(fill);
     });
     document.getElementById('warmupsRepeatBtn')?.addEventListener('click', () => {
         scalesFillGrid('warmupsRepeatGrid', Warmups.TIMES.map(n => ({ value: `${n}×`, caption: n === 1 ? 'once' : 'twice', selected: warmups.times === n, v: n, attrs: `aria-label="Play each one ${n === 1 ? 'once' : 'twice'}"` })),

@@ -222,12 +222,14 @@
     // ML-586: the tool's settings, saved on the account (server/services/warmups.js checks them with this; the app
     // reads them back with it). Only these keys and values are kept - anything else is dropped, a bad value refused.
     //   metronome  own pace (false) or with the metronome, carrying on to the next warm-up (true)
-    //   speed      a percentage of each warm-up's own speed      times    plays each warm-up once or twice
+    //   speed      a percentage of each warm-up's own speed - offered from the app's one list of play speeds
+    //              (Admin -> Playback speeds, ML-596), so any whole percentage up to SPEED_MAX is kept
+    //   times      plays each warm-up once or twice
     //   countIn    a bar before each (1) or none (0)              volume   the click, 0-100
     //   size       the music size                                 shuffle  a mixed-up order
     //   kinds      the topics                                     instrumentId  whose range and clef count
     //   light      the note being played lights gold (off for a player who doesn't need it - owner, 23 Oct 2026)
-    const SPEEDS = [80, 90, 100, 110];
+    const SPEED_MAX = 400;
     const TIMES = [1, 2];
     const SIZES = ['small', 'medium', 'large'];
     const PREF_DEFAULTS = { metronome: false, speed: 100, times: 2, countIn: 1, volume: 80, size: 'medium', shuffle: false, light: true, kinds: KIND_IDS.slice(), instrumentId: null };
@@ -237,7 +239,7 @@
         const bad = (key) => { const e = new Error(`Unknown ${key} setting.`); e.status = 400; throw e; };
         const one = (key, allowed) => { if (key in prefs) { if (!allowed.includes(prefs[key])) bad(key); out[key] = prefs[key]; } };
         one('metronome', [true, false]);
-        one('speed', SPEEDS);
+        if ('speed' in prefs) { if (!Number.isInteger(prefs.speed) || prefs.speed < 1 || prefs.speed > SPEED_MAX) bad('speed'); out.speed = prefs.speed; }
         one('times', TIMES);
         one('countIn', [0, 1]);
         one('size', SIZES);
@@ -276,6 +278,6 @@
     // The other way round (tests, and the migration that added the seed exercises' slurs).
     const format = (notes) => notes.map(n => `${n.p === null ? 'r' : n.p}${n.d}${n.dot ? '.' : ''}${n.sl ? '^' : ''}`).join(' ');
 
-    const api = { KINDS, KIND_IDS, LENGTHS, LENGTH_NAMES, RANGE, SAVE_BEATS, beatsOf, midi, check, trimEndRests, toBassClef, pitchFor, timeline, noteAt, rows, fitRows, span, stepRange, parse, format, SPEEDS, TIMES, SIZES, PREF_DEFAULTS, cleanPrefs };
+    const api = { KINDS, KIND_IDS, LENGTHS, LENGTH_NAMES, RANGE, SAVE_BEATS, beatsOf, midi, check, trimEndRests, toBassClef, pitchFor, timeline, noteAt, rows, fitRows, span, stepRange, parse, format, SPEED_MAX, TIMES, SIZES, PREF_DEFAULTS, cleanPrefs };
     root.Warmups = api;
 })(typeof self !== 'undefined' ? self : globalThis);

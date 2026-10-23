@@ -60,7 +60,12 @@ A recording's or video's slide has three value boxes under the player and a line
 
 - **repeat** - the piece's own repeat-bars setting, the one the metronome uses (ML-302). It opens the same
   pop-up. With it on, the recording plays those bars and goes round again.
-- **play speed** - 100%, 75% or 50%, at the same pitch. For this visit to the play screen only.
+- **play speed** - at the same pitch, from the app's one list of play speeds (Admin → Playback speeds, ML-596).
+  **It is the metronome's play speed** (ML-599): one speed for the visit, as repeat is one - change it on either
+  and the other follows. An upload plays at any speed on the list. A YouTube video only plays at its own speeds
+  (what `getAvailablePlaybackRates` says - usually 25% to 200% in 25s), so it offers the list's speeds it can play
+  and plays the nearest of them: 70% on the metronome is 75% on a video, and the metronome stays at 70%
+  (`recSpeedsFor` / `recSpeedOf`). In a practice, choosing a speed here is a Custom speed for that go (ML-588).
 - **bars marked** - how many marks there are; opens "Mark the bars". Only for someone who can change the piece.
 - Tapping a **bar tile** while a recording's slide is showing starts the recording at that bar.
 - **The bar tiles light up** for where the recording is, as they do for the metronome (the owner, 8 Oct
