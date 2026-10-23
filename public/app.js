@@ -2384,7 +2384,7 @@
         // without a visible transport. Leaving the view just pauses it in place.
         // ML-9: the Scales metronome pauses in place when you leave (no mini bar to keep it going).
         // isShown, not the view stack: goBack pops the stack before calling switchView.
-        if (isShown('scalesView') && viewName !== 'scalesView' && scalesPlayer.isPlaying()) scalesPause();
+        if (isShown('scalesView') && viewName !== 'scalesView') { if (scalesPlayer.isPlaying()) scalesPause(); scalesPlayer.keepAwake(false); } // ML-589
         if (isShown('warmupsView') && viewName !== 'warmupsView') { if (warmupsPlayer.isPlaying()) warmupsPause(); warmupsPlayer.keepAwake(false); } // ML-586
         // ML-298/295/296: leaving a drill mid-round stops its sound (and the mic) - the round isn't saved.
         if (isShown('tapTempoPlayView') && viewName !== 'tapTempoPlayView') tapStop();
@@ -2487,7 +2487,7 @@
         if (viewName === 'aboutTermsView') { document.getElementById('topTitle').innerText = 'Terms of use'; renderAboutPolicy('terms'); }
         if (viewName === 'aboutGradesView') document.getElementById('topTitle').innerText = 'Exam grades';
         if (viewName === 'theoryView') { document.getElementById('topTitle').innerText = 'Theory'; renderTheoryList(); }
-        if (viewName === 'scalesView') { document.getElementById('topTitle').innerText = 'Scales'; scalesUseMyClef(); renderScales(); scalesRenderBpm(); scalesRenderVolume(); scalesUpdatePlayUi(); scalesPlayer.prewarm(); }
+        if (viewName === 'scalesView') { document.getElementById('topTitle').innerText = 'Scales'; openScalesView(); } // ML-589
         if (viewName === 'warmupsView') { document.getElementById('topTitle').innerText = 'Warm-ups'; openWarmupsView(); }
         if (viewName === 'tapTempoView') { document.getElementById('topTitle').innerText = 'Tempo'; renderTapTempoSetup(); tapPlayer.prewarm(); }
         if (viewName === 'gapTrainerView') { document.getElementById('topTitle').innerText = 'Pulse'; renderGapTrainerSetup(); gapPlayer.prewarm(); }
@@ -24654,21 +24654,24 @@
     attachSpeedNames();
 
     // ========================================
-    // SCALES PRACTICE (Jira ML-9)
+    // SCALES PRACTICE (Jira ML-9, ML-589)
     // ========================================
     // "My scales" (ML-357) is the list: your instrument, clef, direction and grades - the ABRSM scales those
-    // grades ask for that you can play. Previous / Next go through it in order, Shuffle picks one at random,
-    // and the scale's name opens Choose a scale (the list, tap one). The scale is written on the stave in
-    // rows that fit the screen and played along to a repeating metronome that lights the note to play. Settings
-    // are kept on this device (localStorage 'tml.scales', like Theory's options). Scales are built and
-    // spelled by TheoryEngine.buildScale / writeScale and drawn by Notation.staff. See
-    // specs/components/scales.md.
+    // grades ask for that you can play. ML-589 (owner, 23 Oct 2026) lays it out as Warm-ups (ML-586): the title opens
+    // Choose a scale, one Settings button holds the rest (saved on the account - accounts.scale_prefs, checked by
+    // ScaleGrades.cleanPrefs; a copy on the device, 'tml.scales', with the scale you were on), and the bar at the bottom
+    // of the screen has Previous / Next scale, or with the metronome Previous / Play / Next: each scale plays once or
+    // twice and it carries straight on to the next - or Keep repeating goes round the one scale until you move on.
+    // Every scale is drawn at the music size (shared with Warm-ups), as many notes on a line as fit, and the line
+    // being played is kept in view. Scales are built and spelled by TheoryEngine.buildScale / writeScale and drawn by
+    // Notation.staff. See specs/components/scales.md.
     const SCALES_STORE = 'tml.scales';
-    // ML-357: grades (ticked in My scales) + gradeInstrumentId pick the ABRSM list; pattern and tonicOctave
+    // ML-357: grades (ticked in Grades) + gradeInstrumentId pick the ABRSM list; pattern and tonicOctave
     // (and extended, Grades 7-8's printed top and bottom notes) are how a grade list plays a scale (down to
     // the dominant; which octave it starts in). pool is the old My scales, no longer shown.
-    const SCALES_DEFAULTS = { keyId: 'C major', form: 'major', minorForm: 'harmonic', type: 'scale', octaves: 1, direction: 'both', clef: 'treble', npb: 1, countIn: 1, bpm: 72, detail: 'notes', metronome: true, volume: 80,
-        pattern: null, tonicOctave: null, extended: null, grades: [1], gradeInstrumentId: null,
+    const SCALES_DEFAULTS = { keyId: 'C major', form: 'major', minorForm: 'harmonic', type: 'scale', octaves: 1, clef: 'treble',
+        ...ScaleGrades.PREF_DEFAULTS, grades: ScaleGrades.PREF_DEFAULTS.grades.slice(),
+        pattern: null, tonicOctave: null, extended: null,
         pool: { maxSharps: 3, maxFlats: 3, forms: ['major', 'harmonic'], types: ['scale'] } };
     const SCALES_BEATS_PER_BAR = 4;
     const SCALES_BPM_MAX = 200;
@@ -24682,6 +24685,8 @@
     // Detail (ML-357): how much of the scale to show while you play
     const SCALES_DETAILS = [['notes', 'Notes', 'name, key and notes'], ['key', 'Key', 'just name and key'], ['name', 'Name', 'just the name']];
     const SCALES_CLEFS = [['treble', 'Treble'], ['bass', 'Bass'], ['tenor', 'Tenor']];
+    // ML-589: play each one - once or twice then on to the next scale, or keep repeating this one (owner)
+    const SCALES_TIMES = [[1, 'Once', '1×'], [2, 'Twice', '2×'], [0, 'Keep repeating', '<span class="material-symbols-outlined" aria-hidden="true">repeat</span>']];
     const scalesTypeName = (t) => (SCALES_TYPES.find(([v]) => v === t) || SCALES_TYPES[0])[1];
     const scalesLength = () => ScaleGrades.lengthLabel(scales.octaves, scales.pattern);
     const scalesClone = (o) => ({ ...o, grades: [...(o.grades || [1])], pool: { ...o.pool, forms: [...o.pool.forms], types: [...o.pool.types] } });
@@ -24711,33 +24716,108 @@
         if (scalesLadder) return; // ML-391: a Scales block borrows the settings - yours come back after it
         try { localStorage.setItem(SCALES_STORE, JSON.stringify(scales)); } catch (e) { /* private browsing - still works for this visit */ }
     }
+    // ML-589: the account's copy - read once a visit; the first time (nothing saved yet) this device's settings go to it.
+    const scalesPrefsOf = () => Object.fromEntries(Object.keys(ScaleGrades.PREF_DEFAULTS).map(k => [k, scales[k]]));
+    let scalesPrefsRead = false, scalesPrefsTimer = null;
+    async function scalesLoadPrefs() {
+        if (scalesPrefsRead) return;
+        try {
+            const { prefs } = await apiCall('/api/account/scales');
+            scalesPrefsRead = true;
+            if (!prefs || !Object.keys(prefs).length) { scalesSavePrefs(); return; }
+            // A Scales block that has just started borrows the settings: yours go to what comes back after it
+            if (scalesLadder) { scalesLadder.saved = JSON.stringify({ ...JSON.parse(scalesLadder.saved), ...ScaleGrades.cleanPrefs(prefs) }); return; }
+            Object.assign(scales, ScaleGrades.cleanPrefs(prefs));
+            scalesPlayer.setVolume(scales.volume / 100);
+            scalesSave();
+        } catch (e) { /* offline, or an old value: this device's copy stands */ }
+    }
+    function scalesSavePrefs() {
+        scalesSave();
+        if (scalesLadder) return;
+        clearTimeout(scalesPrefsTimer);
+        try { const clean = ScaleGrades.cleanPrefs(scalesPrefsOf()); scalesPrefsTimer = setTimeout(() => { apiCall('/api/account/scales', 'PUT', { prefs: clean }).catch(() => { /* kept on this device - the next change sends them again */ }); }, 600); }
+        catch (e) { /* an old device value the account won't take - it stays on this device */ }
+    }
+    // What is changed, counted (anonymous - analytics.js), as Warm-ups'
+    function scalesTrack(setting, value) {
+        try { window.posthog?.capture?.('scales setting', { setting, value }); } catch (e) { /* counting is never in the way */ }
+    }
+    function scalesSetPref(key, value) {
+        scales[key] = value;
+        scalesSavePrefs();
+        scalesTrack(key, value);
+    }
     const scalesMode = () => (scales.keyId.endsWith(' minor') ? 'minor' : 'major');
     const scalesTonic = () => scales.keyId.split(' ')[0];
     const scalesName = (tonic) => TheoryEngine.spellName(tonic, theoryNaming());
     let scalesWritten = null; // { scale, notes, barLength } - what's on the stave now
+    // With the metronome, every scale plays in a Scales block (ML-391); on its own it's the switch in Settings.
+    const scalesMetronomeOn = () => !!scalesLadder || scales.metronome !== false;
+    // One scale going round until you move on: Keep repeating, a Scales block (you answer Got it / Not yet), or a
+    // Skills step (it's practising that one scale).
+    const scalesKeepsOne = () => !!scalesLadder || (skillContext && skillContext.tool === 'scales') || scales.times === 0;
 
-    // --- The stave ---
+    // --- The list: your scales in grid order, or shuffled once a visit (ML-589); a Scales block's are its own ---
+    let scalesShuffled = null, scalesPoolCache = null;
+    function scalesList() {
+        const pool = scalesPoolCache || (scalesPoolCache = scalesGradeGrid().pool);
+        if (!scales.shuffle) return pool;
+        const key = pool.map(PracticePlan.scaleKey).join();
+        if (!scalesShuffled || scalesShuffled.key !== key) {
+            const order = pool.slice();
+            for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+            scalesShuffled = { key, order };
+        }
+        return scalesShuffled.order;
+    }
+    const scalesPickSame = (a, b) => !!a && !!b && a.keyId === b.keyId && a.form === b.form && a.type === b.type && a.octaves === b.octaves && (a.pattern || null) === (b.pattern || null);
+    const scalesCurrentPick = () => ({ keyId: scales.keyId, form: scales.form, type: scales.type, octaves: scales.octaves, pattern: scales.pattern, tonicOctave: scales.tonicOctave, extended: scales.extended });
+    // The scale on screen's place in the list (-1: not in it - a Skills step, or the list changed)
+    function scalesListPos() {
+        const list = scalesLadder ? [] : scalesList();
+        return { list, i: list.findIndex(scalesSame) };
+    }
+
+    // --- The stave: every scale at the music size (Warm-ups' setting, shared - ML-589) ---
+    // The notes are cut into lines at the beat groups the old rows used (4 notes, 3 at 3 a beat), as many groups on
+    // a line as fit the width, the lines evened out (as Warmups.fitRows); all but the last are spread to the full
+    // width when they're over half way there. A group too wide on its own shrinks to fit.
+    function scalesFitGroups(units, width, measure) {
+        const pack = (w) => {
+            const groups = [];
+            let done = 0;
+            while (done < units) {
+                let n = 1;
+                while (done + n < units && measure(done, done + n + 1) <= w) n++;
+                groups.push(n);
+                done += n;
+            }
+            return groups;
+        };
+        let best = pack(width);
+        let lo = width / 2, hi = width;
+        for (let k = 0; k < 8 && best.length > 1; k++) {
+            const mid = (lo + hi) / 2, g = pack(mid);
+            if (g.length <= best.length) { best = g; hi = mid; } else lo = mid;
+        }
+        return best;
+    }
     function renderScales() {
         const scale = TheoryEngine.buildScale(scales);
         const barLength = SCALES_BEATS_PER_BAR * scales.npb;
         const notes = TheoryEngine.writeScale(scale, barLength);
         scalesWritten = { scale, notes, barLength };
+        scalesPoolCache = null;
+        // Settings' boxes that a Scales block's Level changes, kept current
+        document.getElementById('scalesNpbVal').textContent = scales.npb;
+        document.getElementById('scalesDetailBtnVal').textContent = (SCALES_DETAILS.find(([v]) => v === scales.detail) || SCALES_DETAILS[0])[1];
 
         const minor = scalesMode() === 'minor';
-        document.getElementById('scalesNpbVal').textContent = scales.npb;
-        document.getElementById('scalesCountInVal').textContent = scales.countIn ? '1 bar' : 'none';
         document.getElementById('scalesTitle').textContent = SCALES_NAMED_WHOLE.includes(scales.type) ? scale.title : scale.title.replace(/^\S+/, scalesName(scalesTonic()));
         scalesShowSub();
-        // The setting row
-        document.getElementById('scalesClefBtnVal').textContent = (SCALES_CLEFS.find(([v]) => v === scales.clef) || SCALES_CLEFS[0])[1];
-        const [dirIcon, dirLabel] = SCALES_DIRECTIONS[scales.direction] || SCALES_DIRECTIONS.both;
-        document.getElementById('scalesDirIcon').textContent = dirIcon;
-        document.getElementById('scalesDirIcon').classList.toggle('scales-dir-flip', scales.direction === 'downUp');
-        document.getElementById('scalesDirBtnLbl').textContent = dirLabel;
-        const detail = SCALES_DETAILS.some(([v]) => v === scales.detail) ? scales.detail : 'notes';
-        document.getElementById('scalesDetailBtnVal').textContent = SCALES_DETAILS.find(([v]) => v === detail)[1];
-        scalesShowMetronome();
         renderScalesLadder(); // ML-391
+        const detail = SCALES_DETAILS.some(([v]) => v === scales.detail) ? scales.detail : 'notes';
         // Detail: Name is the name only ("B♭ minor" / "harmonic · scale · 2 octaves · up & down") in place of
         // the stave; Key is a blank stave with the key signature; Notes is the scale written out.
         setShown('scalesStaff', detail !== 'name');
@@ -24746,15 +24826,18 @@
         // "harmonic · scale · 2 octaves · up & down" - a named-whole kind has its name already; a fixed shape (a dominant 7th, in thirds, down to the dominant, extended range) no direction
         document.getElementById('scalesMemoryDetail').textContent = [minor && scales.type === 'scale' ? scale.form : null, SCALES_NAMED_WHOLE.includes(scales.type) ? null : scalesTypeName(scales.type).toLowerCase(), scalesLength(), scale.pattern || ['dom7', 'thirds'].includes(scales.type) ? null : SCALES_DIRECTIONS[scales.direction][1]].filter(Boolean).join(' · ');
 
+        const staff = document.getElementById('scalesStaff');
+        const sizeScale = WARMUPS_SIZE_SCALE[warmups.size] || WARMUPS_SIZE_SCALE.medium;
+        const width = (staff.clientWidth || 320) / sizeScale; // in staff units
+        const atSize = (svg) => svg.replace(/ width="([\d.]+)" height="([\d.]+)"/, (m, w, h) => ` width="${(w * sizeScale).toFixed(1)}" height="${(h * sizeScale).toFixed(1)}"`);
         if (detail === 'key') {
             // A stave with just the clef and key signature - the name says what to play, you find the notes.
-            document.getElementById('scalesStaff').innerHTML = Notation.staff({ clef: scales.clef, keySignature: scale.keySignature || undefined, items: [], minWidth: 48, label: `${scale.title}: the key signature only` });
+            staff.innerHTML = `<div class="warmups-row">${atSize(Notation.staff({ clef: scales.clef, keySignature: scale.keySignature || undefined, items: [], minWidth: 48, label: `${scale.title}: the key signature only` }))}</div>`;
+            scalesLitRow = null;
             scalesLight(scalesLitIndex);
+            renderScalesDock();
             return;
         }
-        // Rows of 8 notes (6 at 3 a beat, so a bar splits evenly), all the same height, spread to one
-        // width so the notes line up down the page. Stems go down from the middle line up.
-        const perRow = scales.npb === 3 ? 6 : 8;
         const steps = notes.map(n => Notation.staffStep(n.pitch, scales.clef));
         // ML-386: a last bar that isn't full is made up with rests, one per missing note (the notes are drawn
         // as crotchets), so every bar has the right count - in 4/4 a missing 3rd and 4th beat is one minim
@@ -24766,85 +24849,205 @@
             const idx = notes.length + s;
             const beatInBar = idx % barLength;
             const minim = scales.npb === 1 && beatInBar % 2 === 0 && restSlots - s >= 2;
-            const width = minim ? 2 : 1;
+            const w = minim ? 2 : 1;
             rests.push({ type: 'mark', glyph: minim ? 'restHalf' : 'restQuarter', step: 4,
-                cls: `scales-note scales-rest ${Array.from({ length: width }, (_, k) => `scales-note-${idx + k}`).join(' ')}` });
-            s += width;
+                cls: `scales-note scales-rest ${Array.from({ length: w }, (_, k) => `scales-note-${idx + k}`).join(' ')}` });
+            s += w;
         }
         const stepRange = [Math.min(-3, ...steps) - 1, Math.max(10, ...steps) + 1];
-        const rows = [];
-        for (let i = 0; i < notes.length; i += perRow) {
-            const last = i + perRow >= notes.length;
+        // A line of notes from..to-1: 4/4 on the first when it's one note a beat, bar lines every 4 beats, the
+        // rests and a final bar line on the last. Stems go down from the middle line up.
+        const rowOf = (from, to) => {
             const items = [];
-            if (i === 0 && scales.npb === 1) items.push({ type: 'timeSig', top: 4, bottom: 4 });
-            notes.slice(i, i + perRow).forEach((n, j) => {
-                const idx = i + j;
+            if (from === 0 && scales.npb === 1) items.push({ type: 'timeSig', top: 4, bottom: 4 });
+            notes.slice(from, to).forEach((n, j) => {
+                const idx = from + j;
                 items.push({ type: 'note', pitch: n.pitch, accidental: n.accidental, head: steps[idx] >= 4 ? 'noteQuarterDown' : 'noteQuarterUp', cls: `scales-note scales-note-${idx}` });
-                const endOfBar = (idx + 1) % barLength === 0;
                 if (idx === notes.length - 1) items.push(...rests, { type: 'barline', glyph: 'barlineFinal' });
-                else if (endOfBar) items.push({ type: 'barline', glyph: 'barlineSingle' });
+                else if ((idx + 1) % barLength === 0) items.push({ type: 'barline', glyph: 'barlineSingle' });
             });
-            rows.push({ items, last, from: i + 1, to: Math.min(i + perRow, notes.length) });
-        }
-        const opts = (r, extra) => ({ clef: scales.clef, keySignature: scale.keySignature || undefined, items: r.items, stepRange, noteGap: 2.4, label: `${scale.title}, notes ${r.from} to ${r.to}`, ...extra });
-        const naturalWidth = (svg) => parseFloat(/width="([\d.]+)"/.exec(svg)[1]) / 10;
-        const full = Math.max(...rows.filter(r => !r.last || rows.length === 1).map(r => naturalWidth(Notation.staff(opts(r)))));
-        // A short last row keeps the full rows' spacing and stops at its final bar line: drawn at its own
-        // width, and given that share of the card (--row-frac) so it's to the same scale as the rows above.
-        document.getElementById('scalesStaff').innerHTML = rows.map(r => {
-            if (!r.last || rows.length === 1) return Notation.staff(opts(r, { justify: full }));
-            const svg = Notation.staff(opts(r));
-            return `<div class="scales-staff-row-short" style="--row-frac:${Math.min(1, naturalWidth(svg) / full).toFixed(4)}">${svg}</div>`;
+            return { items, from, to, last: to >= notes.length };
+        };
+        const opts = (r, extra) => ({ clef: scales.clef, keySignature: scale.keySignature || undefined, items: r.items, stepRange, noteGap: 2, label: `${scale.title}, notes ${r.from + 1} to ${r.to}`, ...extra });
+        const naturalWidth = (svg) => parseFloat(/width="([\d.]+)"/.exec(svg)[1]);
+        const unit = scales.npb === 3 ? 3 : 4;
+        const units = Math.ceil(notes.length / unit);
+        const groups = scalesFitGroups(units, width, (a, b) => naturalWidth(Notation.staff(opts(rowOf(a * unit, Math.min(b * unit, notes.length))))));
+        let at = 0;
+        staff.innerHTML = groups.map((g, i) => {
+            const r = rowOf(at * unit, Math.min((at + g) * unit, notes.length));
+            at += g;
+            let svg = Notation.staff(opts(r));
+            const natural = naturalWidth(svg);
+            if (i < groups.length - 1 && natural < width && natural > width * 0.5) svg = Notation.staff(opts(r, { justify: width / 10 }));
+            return `<div class="warmups-row" data-from="${r.from}" data-to="${r.last ? notes.length + restSlots - 1 : r.to - 1}">${atSize(svg)}</div>`;
         }).join('');
+        scalesLitRow = null;
         scalesLight(scalesLitIndex);
+        renderScalesDock();
     }
-    let scalesLitIndex = -1;
+    // Redrawn when the width changes (turning the phone, a wider window).
+    let scalesStaffWidth = 0;
+    if (typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(() => {
+            const w = document.getElementById('scalesStaff')?.clientWidth || 0;
+            if (!w || w === scalesStaffWidth) return;
+            scalesStaffWidth = w;
+            if (isShown('scalesView')) renderScales();
+        }).observe(document.getElementById('scalesStaff'));
+    }
+    let scalesLitIndex = -1, scalesLitRow = null;
     function scalesLight(i) {
         scalesLitIndex = i;
         document.querySelectorAll('#scalesStaff .is-now').forEach(el => el.classList.remove('is-now'));
-        if (i >= 0) document.querySelectorAll(`#scalesStaff .scales-note-${i}`).forEach(el => el.classList.add('is-now'));
         const progress = document.getElementById('scalesMemoryProgress');
         if (progress) progress.textContent = i >= 0 && scalesWritten ? (i < scalesWritten.notes.length ? `Note ${i + 1} of ${scalesWritten.notes.length}` : 'Rest') : '';
+        if (i < 0) return;
+        if (scales.light !== false) document.querySelectorAll(`#scalesStaff .scales-note-${i}`).forEach(el => el.classList.add('is-now')); // ML-589: a setting, as Warm-ups'
+        // The line being played stays in view, near the top, with the next line under it (as Warm-ups).
+        const row = [...document.querySelectorAll('#scalesStaff .warmups-row[data-from]')].find(r => i >= Number(r.dataset.from) && i <= Number(r.dataset.to));
+        if (!row || row === scalesLitRow) return;
+        scalesLitRow = row;
+        const dock = document.getElementById('scalesDock').getBoundingClientRect();
+        const header = document.querySelector('.top-bar-sticky-group');
+        const top = header ? header.getBoundingClientRect().bottom : 0;
+        const bottom = (row.nextElementSibling || row).getBoundingClientRect().bottom;
+        if (row.getBoundingClientRect().top < top || bottom > dock.top) row.scrollIntoView({ block: 'start', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
     }
-    let scalesCountdown = 0;
+    // "1 octave · treble · 3 of 18" - in a Scales block, how this Level is played instead of the place in the list
     function scalesShowSub() {
         const sub = document.getElementById('scalesSub');
         if (!sub) return;
-        const level = scaleSubText(); // ML-391: in a Scales block, how this Level is played
-        sub.textContent = scalesCountdown > 0 ? `Get ready… ${scalesCountdown}`
-            : `${scalesLength()} · ${scales.clef}${level ? ` · ${level}` : ''}`;
+        const level = scaleSubText(); // ML-391
+        let place = '';
+        if (!level) { const { list, i } = scalesListPos(); if (i >= 0) place = `${i + 1} of ${list.length}`; }
+        sub.textContent = [scalesLength(), scales.clef, level || place].filter(Boolean).join(' · ');
     }
 
-    // --- Playing: one click per note (notes / beat clicks each beat); a count-in bar at the start only ---
+    // --- The bar at the bottom (ML-589, as Warm-ups): own pace - Previous, Next scale; with the metronome -
+    // Previous, Play, Next; in a Scales block - Not yet, Play, Got it ---
+    let scalesPass = 0, scalesListDone = false, scalesCountdown = 0;
+    const SCALES_TIMES_WORDS = { 0: 'keep repeating', 1: 'play once', 2: 'play twice' };
+    function renderScalesDock() {
+        const L = scalesLadder;
+        const metro = scalesMetronomeOn();
+        const playing = scalesPlayer.isPlaying();
+        const { list, i } = scalesListPos();
+        setShown('scalesPrevBtn', !L);
+        setShown('scalesNextMainBtn', !L && !metro);
+        setShown('scalesNextBtn', !L && metro);
+        setShown('scalesNotYetBtn', !!L);
+        setShown('scalesGotItBtn', !!L);
+        setShown('scalesPlayBtn', metro && !(scalesCountdown > 0));
+        setShown('scalesCountIn', metro && scalesCountdown > 0);
+        ['scalesPrevBtn', 'scalesNextBtn', 'scalesNextMainBtn'].forEach(id => { document.getElementById(id).disabled = list.length < 2 && !(list.length === 1 && i < 0); });
+        const blockOf = L ? Math.max(PracticePlan.SCALES_PER_BLOCK, L.count) : 0;
+        document.getElementById('scalesProgress').style.setProperty('--pct', `${L ? (L.count / blockOf) * 100 : list.length && i >= 0 ? ((i + 1) / list.length) * 100 : 0}%`);
+        const next = list.length > 1 ? list[i < 0 ? 0 : (i + 1) % list.length] : null;
+        let now = '', after = '';
+        if (scalesListDone) now = 'That\'s the whole list - well done!';
+        else if (L) {
+            now = `${scales.bpm} bpm · ${scalesCountdown > 0 ? 'count-in' : 'set by the Level'}`;
+            after = `Scale ${L.count} of ${blockOf}`;
+        } else if (!metro) after = next ? `Next up: ${scaleTitleFor(next)}` : '';
+        else {
+            const t = scales.times;
+            const what = scalesCountdown > 0 ? 'count-in' : !playing ? SCALES_TIMES_WORDS[t] : t === 2 ? `${scalesPass + 1 === 1 ? '1st' : '2nd'} time of 2` : t === 0 ? 'keep repeating' : '';
+            now = `${scales.bpm} bpm${what ? ` · ${what}` : ''}`;
+            after = scalesKeepsOne() || !next ? '' : i === list.length - 1 ? 'The last one' : `Next: ${scaleTitleFor(next)}`;
+        }
+        document.getElementById('scalesStatusNow').textContent = now;
+        document.getElementById('scalesStatusNext').textContent = after;
+    }
+    function scalesShowCountIn(left, total) {
+        if (left > 0) {
+            document.getElementById('scalesCountInNum').textContent = left;
+            const heard = total - left + 1;
+            document.getElementById('scalesCountInDots').innerHTML = Array.from({ length: total }, (_, k) => `<span class="warmups-countin-dot${k < heard ? ' is-done' : ''}"></span>`).join('');
+            document.getElementById('scalesCountIn').setAttribute('aria-label', `Get ready - ${left} - tap to stop`);
+        }
+        renderScalesDock();
+    }
+
+    // --- Playing: one click per note (notes / beat clicks each beat); a count-in bar before each scale ---
+    // With the metronome the list is one metronome sequence (the player's ML-193 sequence mode, as Warm-ups): each
+    // scale is a passage (its count-in bar, then its notes once or twice), and the player asks for the next one on the
+    // beat the last ends - so it carries straight on in time - and stops after the last. Keep repeating, a Scales
+    // block and a Skills step go round the one scale (no sequence): the count-in only at the start.
     const scalesPlayer = createMetronomePlayer();
     scalesPlayer.setVisualLatencyMs(metroState.latencyMs);
-    let scalesTick = 0, scalesCountInClicks = 0;
-    scalesPlayer.onBeat(() => {
+    let scalesTick = 0, scalesCountInClicks = 0, scalesToolLoop = null;
+    const scalesPassClicks = (notesCount, barLength) => Math.ceil(notesCount / barLength) * barLength;
+    function scalesPassageFor(pick, tag) {
+        const barLength = SCALES_BEATS_PER_BAR * scales.npb;
+        const n = TheoryEngine.writeScale(TheoryEngine.buildScale({ ...scales, ...scalesPickFields(pick) }), barLength).length;
+        const countIn = scales.countIn ? SCALES_BEATS_PER_BAR * scales.npb : 0;
+        return { bpm: scales.bpm, beatsPerBar: SCALES_BEATS_PER_BAR, notesPerBeat: scales.npb, startClick: 0, boundaryClicks: countIn + scales.times * scalesPassClicks(n, barLength), tag };
+    }
+    // The player's boundary call - a little ahead of the beat, while the clicks are being scheduled.
+    function scalesLoopBoundary() {
+        const L = scalesToolLoop;
+        if (!L || !L.queued) return null;
+        const list = scalesList();
+        const i = list.findIndex(p => scalesPickSame(p, L.queued.pick));
+        if (i < 0 || i + 1 >= list.length) return null; // the end of the list
+        const pick = list[i + 1];
+        L.queued = { pick, tag: `s:${++L.n}` };
+        return scalesPassageFor(pick, L.queued.tag);
+    }
+    // The next scale's first click has sounded: show it (without stopping the player).
+    function scalesLoopArrive() {
+        const L = scalesToolLoop, q = L.queued;
+        L.tag = q.tag;
+        Object.assign(scales, scalesPickFields(q.pick));
+        if (q.pick.form !== 'major') scales.minorForm = q.pick.form;
+        scalesSave();
+        scalesTick = 0;
+        scalesCountdown = 0;
+        scalesPass = 0;
+        renderScales();
+        scalesCountInClicks = scales.countIn ? SCALES_BEATS_PER_BAR * scales.npb : 0;
+    }
+    scalesPlayer.onBeat((info) => {
+        // ML-589: the list has been played to the end
+        if (info && info.ended) { scalesStop(); scalesListDone = true; renderScalesDock(); return; }
+        const L = scalesToolLoop;
+        if (L && L.tag && info && info.tag && info.tag !== L.tag) scalesLoopArrive();
         const w = scalesWritten;
         if (!w) return;
         const k = scalesTick++ - scalesCountInClicks;
         if (k < 0) {
             const remaining = Math.ceil(-k / scales.npb);
-            if (remaining !== scalesCountdown) { scalesCountdown = remaining; scalesShowSub(); showCountIn('scalesCountIn', remaining, Math.round(scalesCountInClicks / scales.npb)); }
+            if (remaining !== scalesCountdown) { scalesCountdown = remaining; scalesShowCountIn(remaining, Math.round(scalesCountInClicks / scales.npb)); }
             scalesLight(-1);
             return;
         }
-        if (scalesCountdown) { scalesCountdown = 0; scalesShowSub(); showCountIn('scalesCountIn', 0); }
-        // The last bar is made up with rests (ML-386) - they light up in turn - then round again from the first.
-        const pass = Math.ceil(w.notes.length / w.barLength) * w.barLength;
-        const pos = k % pass;
-        scalesLight(pos);
+        if (scalesCountdown) { scalesCountdown = 0; scalesShowCountIn(0); }
+        // The last bar is made up with rests (ML-386) - they light up in turn - then round again (or on to the next).
+        const pass = scalesPassClicks(w.notes.length, w.barLength);
+        const p = Math.floor(k / pass);
+        if (p !== scalesPass) { scalesPass = p; renderScalesDock(); }
+        scalesLight(k % pass);
     });
     function scalesUpdatePlayUi() {
         const playing = scalesPlayer.isPlaying();
         document.getElementById('scalesPlayIcon').textContent = playing ? 'pause' : 'play_arrow';
-        document.getElementById('scalesPlayLbl').textContent = playing ? 'pause' : 'play';
+        document.getElementById('scalesPlayLbl').textContent = playing ? 'Pause' : 'Play';
         document.getElementById('scalesPlayBtn').setAttribute('aria-pressed', String(playing));
+        renderScalesDock();
     }
     function scalesPlay() {
-        if (scales.metronome === false) return;
+        if (!scalesMetronomeOn()) return;
         if (!scalesWritten) renderScales();
+        scalesListDone = false;
         if (scalesTick === 0) scalesCountInClicks = scales.countIn ? SCALES_BEATS_PER_BAR * scales.npb : 0;
+        if (!scalesKeepsOne()) {
+            const L = scalesToolLoop || (scalesToolLoop = { n: 0 });
+            if (L.tag) { scalesPlayer.play(); scalesUpdatePlayUi(); return; } // carrying on where it paused
+            L.tag = `s:${++L.n}`;
+            L.queued = { pick: scalesCurrentPick(), tag: L.tag };
+            scalesPlayer.setSequence(scalesPassageFor(L.queued.pick, L.tag), scalesLoopBoundary);
+        } else scalesPlayer.clearSequence();
         scalesPlayer.setConductorBpm(scales.bpm);
         scalesPlayer.setConductorBeatsPerBar(SCALES_BEATS_PER_BAR);
         scalesPlayer.setNotesPerBeat(scales.npb);
@@ -24854,36 +25057,31 @@
     }
     function scalesPause() {
         scalesPlayer.pause();
-        showCountIn('scalesCountIn', 0);
+        if (scalesCountdown) { scalesCountdown = 0; scalesShowCountIn(0); }
         scalesUpdatePlayUi();
     }
-    // Back to the start: the next Play counts in again (if the count-in is on).
-    function scalesReset() {
-        const wasPlaying = scalesPlayer.isPlaying();
-        if (wasPlaying) scalesPlayer.pause();
+    // Back to the start, stopped: the next Play counts in again (if the count-in is on).
+    function scalesStop() {
+        if (scalesPlayer.isPlaying()) scalesPlayer.pause();
         scalesPlayer.resetToBarStart();
+        scalesPlayer.clearSequence();
+        if (scalesToolLoop) scalesToolLoop.tag = null;
         scalesTick = 0;
         scalesCountdown = 0;
-        showCountIn('scalesCountIn', 0);
+        scalesPass = 0;
+        scalesListDone = false;
         scalesLight(-1);
         scalesShowSub();
-        if (wasPlaying) scalesPlay(); else scalesUpdatePlayUi();
+        scalesUpdatePlayUi();
     }
-    setupPlayButtonHoldReset('scalesPlayBtn', () => { if (scalesPlayer.isPlaying()) scalesPause(); else scalesPlay(); }, scalesReset);
-    document.getElementById('scalesResetBtn')?.addEventListener('click', scalesReset);
-    // Use metronome (ML-357): off hides the transport, the tempo and the volume; switching it off stops it.
-    function scalesShowMetronome() {
-        const on = scales.metronome !== false;
-        document.getElementById('scalesMetronomeToggle').checked = on;
-        setShown('scalesMetronomeControls', on);
-        setShown('scalesVolumeBtn', on);
+    // Back to the start - and carrying on playing if it was.
+    function scalesReset() {
+        const wasPlaying = scalesPlayer.isPlaying();
+        scalesStop();
+        if (wasPlaying) scalesPlay();
     }
-    document.getElementById('scalesMetronomeToggle')?.addEventListener('change', (e) => {
-        scales.metronome = e.target.checked;
-        if (!scales.metronome) { if (scalesPlayer.isPlaying()) scalesPause(); scalesReset(); }
-        scalesSave();
-        scalesShowMetronome();
-    });
+    setupPlayButtonHoldReset('scalesPlayBtn', () => { if (scalesPlayer.isPlaying()) scalesPause(); else scalesPlay(); }, scalesStop);
+    document.getElementById('scalesCountIn')?.addEventListener('click', scalesPause);
     // A different scale (or rhythm) starts again from the top.
     function scalesChanged() {
         scalesSave();
@@ -24891,7 +25089,7 @@
         scalesReset();
     }
 
-    // --- Tempo box (the same pieces as the Metronome's) ---
+    // --- Speed (its own pop-up now - ML-589; the same pieces as the Metronome's) ---
     function scalesRenderBpm() {
         const pct = ((scales.bpm - METRO_MIN_BPM) / (SCALES_BPM_MAX - METRO_MIN_BPM)) * 100;
         document.getElementById('scalesBpmFill')?.style.setProperty('--pct', `${pct}%`);
@@ -24900,12 +25098,14 @@
         thumb?.setAttribute('aria-valuenow', String(scales.bpm));
         const val = document.getElementById('scalesBpmVal');
         if (val) val.textContent = scales.bpm;
+        document.getElementById('scalesSpeedVal').textContent = `${scales.bpm} bpm`;
+        renderScalesDock();
     }
     function scalesSetBpm(v) {
         scales.bpm = Math.round(Math.min(SCALES_BPM_MAX, Math.max(METRO_MIN_BPM, v)));
         scalesPlayer.setConductorBpm(scales.bpm);
         scalesRenderBpm();
-        scalesSave();
+        scalesSavePrefs();
     }
     setupHoldStepper('scalesBpmMinus', -1, (amount) => scalesSetBpm(scales.bpm + amount));
     setupHoldStepper('scalesBpmPlus', 1, (amount) => scalesSetBpm(scales.bpm + amount));
@@ -24914,6 +25114,8 @@
         onArrowStep: (dir) => scalesSetBpm(scales.bpm + dir),
     });
     makeSliderReadoutEditable('scalesBpmVal', () => scales.bpm, (v) => scalesSetBpm(v), { label: 'Beats per minute', min: METRO_MIN_BPM, max: SCALES_BPM_MAX });
+    document.getElementById('scalesSpeedBtn')?.addEventListener('click', () => { scalesRenderBpm(); showModal('scalesSpeedModal'); });
+    document.getElementById('scalesSpeedModal')?.addEventListener('click', (e) => { if (e.target.closest('[data-modal-close]')) scalesTrack('bpm', scales.bpm); });
 
     // --- Volume (the Metronome tool's pop-up: -/+, slider, mute; a test click while stopped) ---
     let scalesVolumeBeforeMute = scales.volume || 80;
@@ -24925,9 +25127,9 @@
         thumb?.setAttribute('aria-valuenow', String(v));
         const val = document.getElementById('scalesVolumeValue');
         if (val) val.textContent = `${v}%`;
+        document.getElementById('scalesVolumeVal').textContent = v === 0 ? 'Off' : `${v}%`;
         const muted = v === 0;
         document.getElementById('scalesMuteIcon').textContent = muted ? 'volume_off' : 'volume_up';
-        document.getElementById('scalesVolumeIcon').textContent = muted ? 'volume_off' : 'volume_up';
         document.getElementById('scalesMuteBtn')?.setAttribute('aria-pressed', String(muted));
         document.getElementById('scalesVolumeRow')?.classList.toggle('is-muted', muted);
     }
@@ -24936,7 +25138,7 @@
         if (scales.volume > 0) scalesVolumeBeforeMute = scales.volume;
         scalesPlayer.setVolume(scales.volume / 100);
         scalesRenderVolume();
-        scalesSave();
+        scalesSavePrefs();
         playVolumeTestClick(scalesPlayer, force);
     }
     scalesPlayer.setVolume((scales.volume ?? 80) / 100);
@@ -24951,7 +25153,7 @@
     document.getElementById('scalesMuteBtn')?.addEventListener('click', () => scalesSetVolume(scales.volume > 0 ? 0 : scalesVolumeBeforeMute, true));
     document.getElementById('scalesVolumeBtn')?.addEventListener('click', () => { scalesRenderVolume(); showModal('scalesVolumeModal'); });
 
-    // --- Pickers (notes / beat, count-in): tap a tile to choose ---
+    // --- Pickers: tap a tile to choose ---
     const scalesTile = (value, caption, selected, attrs = '') =>
         `<button type="button" class="flow-picker-tile${selected ? ' selected' : ''}" aria-pressed="${selected}" ${attrs}><span class="flow-picker-tile-icon-row">${value}</span>${caption ? `<span class="flow-picker-tile-label">${escapeHtml(caption)}</span>` : ''}</button>`;
     function scalesFillGrid(gridId, options, onPick) {
@@ -24960,32 +25162,116 @@
         grid.innerHTML = options.map(o => scalesTile(o.value, o.caption, o.selected, o.attrs || '')).join('');
         grid.querySelectorAll('.flow-picker-tile').forEach((btn, i) => btn.addEventListener('click', () => onPick(options[i])));
     }
-    // The setting row (ML-357): clef, direction, detail - tap one to choose, it closes.
+
+    // --- Settings (ML-589): my scales, how they're shown, the metronome; each value box opens its own pop-up ---
+    function scalesRenderSettings() {
+        const inst = scalesGradeInstrument();
+        const L = scalesLadder;
+        document.getElementById('scalesInstrumentVal').textContent = inst ? inst.name : 'None';
+        document.getElementById('scalesClefBtnVal').textContent = (SCALES_CLEFS.find(([v]) => v === scales.clef) || SCALES_CLEFS[0])[1];
+        document.getElementById('scalesGradesVal').textContent = scales.grades.length ? scalesGradesText(scales.grades).replace('everything else', 'all else') : 'None';
+        document.getElementById('scalesSizeVal').textContent = (WARMUPS_SIZE_LABELS.find(([v]) => v === warmups.size) || WARMUPS_SIZE_LABELS[1])[1];
+        document.getElementById('scalesShuffleToggle').checked = !!scales.shuffle;
+        const [, dirLabel] = SCALES_DIRECTIONS[scales.direction] || SCALES_DIRECTIONS.both;
+        document.getElementById('scalesDirBtnVal').textContent = dirLabel.charAt(0).toUpperCase() + dirLabel.slice(1);
+        document.getElementById('scalesDetailBtnVal').textContent = (SCALES_DETAILS.find(([v]) => v === scales.detail) || SCALES_DETAILS[0])[1];
+        const metro = scalesMetronomeOn();
+        document.getElementById('scalesMetronomeToggle').checked = metro;
+        setShown('scalesMetronomeSettings', metro);
+        setShown('scalesLightRow', metro);
+        document.getElementById('scalesLightToggle').checked = scales.light !== false;
+        document.getElementById('scalesSpeedVal').textContent = `${scales.bpm} bpm`;
+        document.getElementById('scalesNpbVal').textContent = scales.npb;
+        document.getElementById('scalesRepeatVal').textContent = (SCALES_TIMES.find(([n]) => n === scales.times) || SCALES_TIMES[1])[1];
+        document.getElementById('scalesCountInVal').textContent = scales.countIn ? '1 bar' : 'None';
+        scalesRenderVolume();
+        // In a Scales block (ML-391) the Level sets what's shown and the speed, and the block has its own scales.
+        ['scalesInstrumentBtn', 'scalesPoolBtn', 'scalesShuffleToggle', 'scalesDetailBtn', 'scalesMetronomeToggle', 'scalesSpeedBtn', 'scalesNpbBtn', 'scalesRepeatBtn'].forEach(id => { document.getElementById(id).disabled = !!L; });
+        document.querySelector('#scalesMetronomeLbl .display-toggle-help').textContent = L ? 'In a Scales block the Level sets the speed' : 'It plays each scale, then carries on to the next';
+        setShown('scalesSettingsRangeBtn', !!inst);
+        const { grid, pool } = scalesGradeGrid();
+        document.getElementById('scalesSettingsCount').textContent = grid && scales.grades.length ? `${pool.length} scale${pool.length === 1 ? '' : 's'} in your list${grid.needed > pool.length ? ` (of ${grid.needed} needed)` : ''}` : '';
+    }
+    // A change to what's in the list or how it's drawn: back to the start, redrawn.
+    function scalesSettingsChanged() {
+        scalesPoolCache = null;
+        scalesRenderSettings();
+        scalesChanged();
+    }
+    document.getElementById('scalesSettingsBtn')?.addEventListener('click', async () => {
+        if (!myInstruments || !myInstruments.length) await loadMyInstruments();
+        scalesRenderSettings();
+        showModal('scalesSettingsModal');
+    });
+    document.getElementById('scalesInstrumentBtn')?.addEventListener('click', () => {
+        renderInstrumentChoice(document.getElementById('scalesGradeInstrument'), scalesGradeInstrument(), (id) => {
+            scalesClefPicked = false; // the new instrument, in the clef you read it in
+            scalesSetPref('gradeInstrumentId', id);
+            scalesUseMyClef();
+            hideModal('scalesInstrumentModal');
+            if (scaleLevelsOn()) loadScaleLevels().then(renderScalesLadder); // ML-391: this instrument's Levels
+            scalesSettingsChanged();
+        });
+        showModal('scalesInstrumentModal');
+    });
+    document.getElementById('scalesSizeBtn')?.addEventListener('click', () => {
+        scalesFillGrid('scalesSizeGrid', WARMUPS_SIZE_LABELS.map(([v, l]) => ({ value: l, caption: '', selected: warmups.size === v, v })),
+            (o) => { warmupsSetPref('size', o.v); scalesTrack('size', o.v); hideModal('scalesSizeModal'); scalesRenderSettings(); renderScales(); }); // shared with Warm-ups
+        showModal('scalesSizeModal');
+    });
+    document.getElementById('scalesShuffleToggle')?.addEventListener('change', (e) => { scalesShuffled = null; scalesSetPref('shuffle', e.target.checked); scalesSettingsChanged(); });
+    document.getElementById('scalesMetronomeToggle')?.addEventListener('change', (e) => { scalesSetPref('metronome', e.target.checked); if (!e.target.checked) scalesStop(); scalesSettingsChanged(); });
+    document.getElementById('scalesLightToggle')?.addEventListener('change', (e) => { scalesSetPref('light', e.target.checked); scalesLight(scalesLitIndex); });
+    document.getElementById('scalesSettingsRangeBtn')?.addEventListener('click', () => {
+        const inst = scalesGradeInstrument();
+        renderMyRange({ inst, clef: scales.clef, ctx: scalesGradeContext(inst), what: 'every scale the grades need', over: 'scalesSettingsModal', after: scalesRenderSettings });
+    });
     document.getElementById('scalesClefBtn')?.addEventListener('click', () => {
         scalesFillGrid('scalesClefGrid', SCALES_CLEFS.map(([v, l]) => ({ value: l, caption: 'clef', selected: scales.clef === v, v })),
-            (o) => { scales.clef = o.v; scales.tonicOctave = null; scalesClefPicked = true; hideModal('scalesClefModal'); scalesChanged(); });
+            (o) => { scales.clef = o.v; scales.tonicOctave = null; scalesClefPicked = true; scalesTrack('clef', o.v); hideModal('scalesClefModal'); scalesSettingsChanged(); });
         showModal('scalesClefModal');
     });
     document.getElementById('scalesDirBtn')?.addEventListener('click', () => {
         scalesFillGrid('scalesDirGrid', Object.entries(SCALES_DIRECTIONS).map(([v, [, l]]) => ({ value: scalesDirIconHtml(v), caption: l, selected: scales.direction === v, v, attrs: `aria-label="${l}"` })),
-            (o) => { scales.direction = o.v; hideModal('scalesDirModal'); scalesChanged(); });
+            (o) => { scalesSetPref('direction', o.v); hideModal('scalesDirModal'); scalesSettingsChanged(); });
         showModal('scalesDirModal');
     });
     document.getElementById('scalesDetailBtn')?.addEventListener('click', () => {
         scalesFillGrid('scalesDetailGrid', SCALES_DETAILS.map(([v, l, cap]) => ({ value: l, caption: cap, selected: scales.detail === v, v })),
-            (o) => { scales.detail = o.v; hideModal('scalesDetailModal'); scalesSave(); renderScales(); });
+            (o) => { scalesSetPref('detail', o.v); hideModal('scalesDetailModal'); scalesRenderSettings(); renderScales(); });
         showModal('scalesDetailModal');
     });
     document.getElementById('scalesNpbBtn')?.addEventListener('click', () => {
         scalesFillGrid('scalesNpbGrid', SCALES_NPB.map(([n, l]) => ({ value: n, caption: l, selected: scales.npb === n, v: n })),
-            (o) => { scales.npb = o.v; hideModal('scalesNpbModal'); scalesChanged(); });
+            (o) => { scalesSetPref('npb', o.v); hideModal('scalesNpbModal'); scalesSettingsChanged(); });
         showModal('scalesNpbModal');
+    });
+    document.getElementById('scalesRepeatBtn')?.addEventListener('click', () => {
+        scalesFillGrid('scalesRepeatGrid', SCALES_TIMES.map(([n, l, v]) => ({ value: v, caption: l.toLowerCase(), selected: scales.times === n, v: n, attrs: `aria-label="Play each one: ${l.toLowerCase()}"` })),
+            (o) => { scalesSetPref('times', o.v); hideModal('scalesRepeatModal'); scalesSettingsChanged(); });
+        showModal('scalesRepeatModal');
     });
     document.getElementById('scalesCountInBtn')?.addEventListener('click', () => {
         scalesFillGrid('scalesCountInGrid', [[0, 'None'], [1, '1 bar']].map(([n, l]) => ({ value: l, caption: '', selected: scales.countIn === n, v: n })),
-            (o) => { scales.countIn = o.v; hideModal('scalesCountInModal'); scalesChanged(); });
+            (o) => { scalesSetPref('countIn', o.v); hideModal('scalesCountInModal'); scalesSettingsChanged(); });
         showModal('scalesCountInModal');
     });
+
+    // Opening the screen: the account's settings (once a visit), your clef, the scale you were on.
+    async function openScalesView() {
+        scalesListDone = false;
+        scalesUseMyClef();
+        renderScales();
+        scalesRenderBpm();
+        scalesRenderVolume();
+        scalesUpdatePlayUi();
+        scalesPlayer.prewarm();
+        const first = !scalesPrefsRead;
+        await Promise.all([scalesLoadPrefs(), warmupsLoadPrefs()]); // the music size is Warm-ups'
+        if (!myInstruments || !myInstruments.length) await loadMyInstruments();
+        scalesPlayer.keepAwake(scalesMetronomeOn()); // ML-586: the headphones stay awake while it's open
+        if (first && isShown('scalesView')) { scalesUseMyClef(); renderScales(); scalesRenderBpm(); scalesRenderVolume(); }
+    }
 
     // --- My scales (ML-357): the ABRSM grade lists, and Previous / Next / Shuffle ---
     // Tick the grades and choose the instrument; ScaleGrades works out which scales those grades ask for
@@ -25030,15 +25316,7 @@
         const levelCell = (c) => { const rec = scaleLevelOf(cellKey(c)); return `<span class="scale-grid-cell is-level lv-${rec.level}" aria-hidden="true">${rec.learnt ? '<span class="material-symbols-outlined">star</span>' : rec.level}</span>`; };
         document.querySelectorAll('input[name="scalesGrade"]').forEach(el => { el.checked = scales.grades.includes(el.value === ScaleGrades.EVERYTHING ? el.value : Number(el.value)); });
         document.getElementById('scalesGradesSummary').textContent = scales.grades.length ? `· ${scalesGradesText(scales.grades)}` : '';
-        const inst = scalesGradeInstrument();
-        renderInstrumentChoice(document.getElementById('scalesGradeInstrument'), inst, (id) => {
-            scales.gradeInstrumentId = id;
-            scalesClefPicked = false; // the new instrument, in the clef you read it in
-            scalesUseMyClef();
-            scalesSave();
-            scalesRenderPool();
-            if (scaleLevelsOn()) loadScaleLevels().then(scalesRenderPool); // ML-391: this instrument's Levels
-        });
+        const inst = scalesGradeInstrument(); // ML-589: chosen in Settings now
         const { group, grid, pool } = scalesGradeGrid();
         const name = document.getElementById('scalesGradeListName');
         const box = document.getElementById('scalesGradeGrid');
@@ -25076,8 +25354,12 @@
         scales.grades = [...document.querySelectorAll('input[name="scalesGrade"]:checked')].map(x => (x.value === ScaleGrades.EVERYTHING ? x.value : Number(x.value)));
         // (kept in grade order, Everything else last)
         scales.grades.sort((a, b) => (a === ScaleGrades.EVERYTHING) - (b === ScaleGrades.EVERYTHING) || a - b);
-        scalesSave();
+        scalesSavePrefs();
+        scalesTrack('grades', scales.grades.join(','));
         scalesRenderPool();
+        scalesPoolCache = null;
+        scalesRenderSettings(); // ML-589: Grades opens from Settings
+        renderScales();
     }));
     document.getElementById('scalesPoolBtn')?.addEventListener('click', async () => {
         if (!myInstruments || !myInstruments.length) await loadMyInstruments();
@@ -25142,7 +25424,7 @@
         const list = document.getElementById('scalesChooseList');
         document.getElementById('scalesChooseIntro').textContent = pool.length
             ? `The ${pool.length} scale${pool.length === 1 ? '' : 's'} in your list. Tap one to play it.`
-            : 'Nothing in your list yet - choose your grades in My scales.';
+            : 'Nothing in your list yet - choose your grades in Settings.';
         if (!grid || !pool.length) { list.innerHTML = ''; return; }
         const picks = [];
         const group = (section, title) => grid.sections[section].map(r => {
@@ -25163,7 +25445,7 @@
             scalesGo(picks[Number(btn.dataset.pick)]);
         }));
     }
-    document.getElementById('scalesChooseBtn')?.addEventListener('click', async () => { await scalesRenderChoose(); showModal('scalesChooseModal'); });
+    document.getElementById('scalesChooseBtn')?.addEventListener('click', async () => { if (scalesLadder) return; await scalesRenderChoose(); showModal('scalesChooseModal'); });
     document.getElementById('scalesChooseEditBtn')?.addEventListener('click', () => { hideModal('scalesChooseModal'); document.getElementById('scalesPoolBtn')?.click(); });
 
 
@@ -25263,17 +25545,15 @@
     }
     // What the screen shows for a block (two boxes and Not yet / Got it) or, outside one, the scale's Level link
     function renderScalesLadder() {
+        // ML-589: the Level box beside Settings; Not yet / Play / Got it and "Scale 2 of 3" are in the bar at the bottom
         const L = scalesLadder;
-        setShown('scalesSettingRow', !L);
-        setShown('scalesLadderRow', !!L);
-        setShown('scalesPickRow', !L);
-        setShown('scalesLadderAnswers', !!L);
-        setShown('scalesMetronomeSwitch', !L);
-        document.getElementById('scalesMetronomeLbl').textContent = L ? 'Metronome · set by the Level' : 'Use metronome';
+        setShown('scalesLadderLevelBtn', !!(L && L.current));
+        // In a block the title is just its name - the block picks its three scales, so there's no list to open
+        setShown('scalesSubIcon', !L);
+        document.getElementById('scalesChooseBtn').setAttribute('aria-disabled', String(!!L));
         const link = document.getElementById('scalesLevelLink');
         if (L && L.current) {
             const rec = scaleLevelOf(L.current.key);
-            document.getElementById('scalesLadderCountVal').textContent = `${L.count} of ${Math.max(PracticePlan.SCALES_PER_BLOCK, L.count)}`;
             const chip = document.getElementById('scalesLadderLevelChip');
             chip.className = `level-chip lv-${rec.level}`;
             chip.innerHTML = rec.learnt ? '<span class="material-symbols-outlined" aria-hidden="true">star</span>' : String(rec.level);
@@ -25403,19 +25683,17 @@
         if (mine) openScaleLevelPicker(mine, family, renderScalesLadder);
     });
 
-    // Previous / Next go through your list in order, wrapping round; Shuffle picks any other one at
-    // random. The same three as Warm-ups.
-    const scalesSame = (p) => p.keyId === scales.keyId && p.form === scales.form && p.type === scales.type && p.octaves === scales.octaves && (p.pattern || null) === (scales.pattern || null);
+    // Previous / Next go through your list in order (or shuffled - Settings), wrapping round. Previous goes back to the
+    // start of the scale you're on first when it's under way (it took Reset's place, ML-589), as Warm-ups.
+    const scalesSame = (p) => scalesPickSame(p, scales);
+    function scalesPickFields(p) {
+        return { keyId: p.keyId, form: p.form, type: p.type, octaves: p.octaves, pattern: p.pattern || null,
+            tonicOctave: Number.isInteger(p.tonicOctave) ? p.tonicOctave : null, extended: p.extended || null }; // extended: Grades 7-8's printed top and bottom notes
+    }
     function scalesGo(pick) {
-        if (!pick) { showWarningToast('Nothing in your list yet - open My scales to tick your grades.'); return; }
-        scales.keyId = pick.keyId;
-        scales.form = pick.form;
+        if (!pick) { showWarningToast('Nothing in your list yet - choose your grades in Settings.'); return; }
+        Object.assign(scales, scalesPickFields(pick));
         if (pick.form !== 'major') scales.minorForm = pick.form;
-        scales.type = pick.type;
-        scales.octaves = pick.octaves;
-        scales.pattern = pick.pattern || null;
-        scales.tonicOctave = Number.isInteger(pick.tonicOctave) ? pick.tonicOctave : null;
-        scales.extended = pick.extended || null; // Grades 7-8: the printed top and bottom notes
         scalesChanged();
     }
     // The instruments load at sign-in; if that hasn't finished (or failed offline), wait for it here.
@@ -25424,26 +25702,26 @@
         return scalesGradeGrid().pool;
     }
     async function scalesStep(dir) {
-        const pool = await scalesGradePool();
-        const i = pool.findIndex(scalesSame);
+        await scalesGradePool();
+        scalesPoolCache = null;
+        const list = scalesList();
+        const i = list.findIndex(scalesSame);
         // Not in your list (a Skills step, or the list changed): Next starts at the first, Previous at the last
-        scalesGo(pool[i < 0 ? (dir > 0 ? 0 : pool.length - 1) : (i + dir + pool.length) % pool.length]);
+        scalesGo(list[i < 0 ? (dir > 0 ? 0 : list.length - 1) : (i + dir + list.length) % list.length]);
     }
-    document.getElementById('scalesNextBtn')?.addEventListener('click', () => scalesStep(1));
-    document.getElementById('scalesPrevBtn')?.addEventListener('click', () => scalesStep(-1));
-    document.getElementById('scalesShuffleBtn')?.addEventListener('click', async () => {
-        const pool = await scalesGradePool();
-        const others = pool.filter(p => !scalesSame(p));
-        const choices = others.length ? others : pool;
-        scalesGo(choices[Math.floor(Math.random() * choices.length)]);
-    });
+    function scalesGoDir(dir) {
+        if (dir < 0 && scalesMetronomeOn() && scalesTick - scalesCountInClicks > SCALES_BEATS_PER_BAR * scales.npb) { scalesReset(); return; }
+        scalesStep(dir);
+    }
+    document.getElementById('scalesNextBtn')?.addEventListener('click', () => scalesGoDir(1));
+    document.getElementById('scalesNextMainBtn')?.addEventListener('click', () => scalesGoDir(1));
+    document.getElementById('scalesPrevBtn')?.addEventListener('click', () => scalesGoDir(-1));
 
-    // Every Scales pop-up closes on its × / Done, or a tap on the backdrop.
-    ['scalesClefModal', 'scalesDirModal', 'scalesDetailModal', 'scalesNpbModal', 'scalesCountInModal', 'scalesPoolModal', 'scalesChooseModal', 'scalesMyRangeModal', 'scalesVolumeModal'].forEach(id => {
+    // Every Scales pop-up closes on its × / Done (the backdrop and Escape are a11y.js's).
+    ['scalesSettingsModal', 'scalesInstrumentModal', 'scalesSizeModal', 'scalesSpeedModal', 'scalesRepeatModal', 'scalesClefModal', 'scalesDirModal', 'scalesDetailModal', 'scalesNpbModal', 'scalesCountInModal', 'scalesPoolModal', 'scalesChooseModal', 'scalesMyRangeModal', 'scalesVolumeModal'].forEach(id => {
         const modal = document.getElementById(id);
         if (!modal) return;
         modal.querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', () => hideModal(modal)));
-        modal.addEventListener('click', (e) => { if (e.target === e.currentTarget) hideModal(modal); });
     });
 
     // Home tile icon: three rising crotchets on a scrap of staff, drawn in Bravura like Theory's clef.

@@ -73,7 +73,7 @@ The design was agreed on a Claude Design canvas (linked from the Jira issue).
   place - it used to cover the metronome card, which sat off the bottom of the screen on a long warm-up.
 - **One music size for every warm-up** (Small, Medium, Large; `Warmups.fitRows`): as many whole bars on a line as fit
   the width. Each warm-up used to be stretched to fill the card, so one with few notes was drawn big and one with many
-  small (the owner's report). The owner would like the same for Scales later.
+  small (the owner's report). Scales has the same since ML-589, and the size is one setting for both (owner).
 - **The line being played stays in view**: the page scrolls it up under the top bar when it or the next line would be
   hidden.
 - **With the metronome, after the last warm-up** it stops: "That's the whole list - well done!". At your own pace the

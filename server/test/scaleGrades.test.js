@@ -282,3 +282,21 @@ describe('Everything else (ML-357)', () => {
         assert.ok(SG.grid(null, [1, SG.EVERYTHING], baritone()).pool.length > 100);
     });
 });
+
+// ML-589: the Scales tool's settings, as the account keeps them (server/services/scalePrefs.js uses this too).
+describe('Scales settings (ML-589)', () => {
+    test('cleanPrefs keeps only known settings and refuses a bad value', () => {
+        assert.deepEqual(clone(SG.cleanPrefs({ times: 0, bpm: 80, npb: 2, grades: [2, SG.EVERYTHING, 1, 1], light: false, other: 'x' })),
+            { bpm: 80, npb: 2, times: 0, light: false, grades: [1, 2, SG.EVERYTHING] });
+        assert.deepEqual(clone(SG.cleanPrefs({ gradeInstrumentId: null, metronome: false, direction: 'downUp', detail: 'key' })),
+            { metronome: false, detail: 'key', direction: 'downUp', gradeInstrumentId: null });
+        for (const bad of [{ times: 3 }, { bpm: 10 }, { bpm: 72.5 }, { npb: 5 }, { detail: 'all' }, { direction: 'sideways' }, { grades: [9] }, { grades: 'all' }, { gradeInstrumentId: 0 }, { volume: -1 }]) {
+            assert.throws(() => SG.cleanPrefs(bad), /Unknown/, JSON.stringify(bad));
+        }
+        assert.deepEqual(clone(SG.cleanPrefs(null)), {});
+    });
+    test('the defaults: with the metronome, 72 bpm, twice each, a bar to count in, the note lit, Grade 1', () => {
+        assert.deepEqual(clone(SG.PREF_DEFAULTS), { metronome: true, bpm: 72, npb: 1, times: 2, countIn: 1, volume: 80, detail: 'notes', direction: 'both', shuffle: false, light: true, grades: [1], gradeInstrumentId: null });
+        assert.deepEqual(clone(SG.cleanPrefs(SG.PREF_DEFAULTS)), clone(SG.PREF_DEFAULTS));
+    });
+});

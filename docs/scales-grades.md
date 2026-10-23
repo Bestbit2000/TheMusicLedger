@@ -1,13 +1,14 @@
 # Scales: the ABRSM grade lists and the grade grid (ML-357)
 
 The Scales tool's list is the scales ABRSM asks for at the grades you tick, on the instrument you play,
-plus Everything else if you tick it. Previous, Next and Shuffle go round it, and Select picks one. The
-grid in the **Scales** pop-up (the first button of the setting row) shows the whole list at a glance:
+plus Everything else if you tick it. Previous and Next go round it (in order, or shuffled - Settings), and the
+scale's title opens Choose a scale. The grid in the **Grades** pop-up (Settings → Grades, ML-589) shows the whole
+list at a glance:
 what's in it, what needs another octave, what's outside your range for now, what the instrument can't
 play at all, and what isn't needed at those grades.
 
 Code: [`public/scaleGrades.js`](../public/scaleGrades.js) (data and rules, no DOM) and the Scales section
-of `public/app.js` (the screen, the pop-ups, Previous / Next / Shuffle / Select). Scale shapes are
+of `public/app.js` (the screen, the pop-ups, Previous / Next, the list's order). Scale shapes are
 `TheoryEngine.buildScale` ([theory-practice.md](theory-practice.md)). The screen is
 [`specs/components/scales.md`](../specs/components/scales.md). Tests: `server/test/scaleGrades.test.js`
 and back-test #20 (`tests/generated/tc_20.spec.ts`).
