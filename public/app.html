@@ -2174,13 +2174,13 @@
                             <strong id="flowLoopLbl">off</strong>
                             <span class="metroBlk-ctrl-value-label">repeat</span>
                         </button>
-                        <!-- ML-317: in a Levels practice (flowSession, app.js) Level and Finish replace repeat and
-                             play speed - the Level sets the speed and the loop, so you just play. ML-537: the Level is
-                             a button (pick a faster or slower Level while you play). ML-588: its pop-up also has a
-                             Custom speed (bpm, for this go), and sub beats is Rehearse's own button (off / auto / fixed). -->
-                        <button type="button" class="metroBlk-ctrl-value-btn hidden-group" id="flowSessionLevelBtn" aria-haspopup="dialog" aria-label="Level 1 - tap to change">
-                            <strong id="flowSessionLevelLbl">1</strong>
-                            <span class="metroBlk-ctrl-value-label" id="flowSessionLevelSub">level</span>
+                        <!-- ML-317: in a Levels practice (flowSession, app.js) Playback and Finish replace repeat, sub beats
+                             and play speed - the Level sets the speed and the loop, so you just play. ML-587: Playback is
+                             one button for the Level (or a Custom speed, ML-588), sub beats and the count-in, so a practice
+                             has 4 buttons here, not 5 (openFlowPlaybackModal). -->
+                        <button type="button" class="metroBlk-ctrl-value-btn hidden-group" id="flowPlaybackBtn" aria-haspopup="dialog" aria-label="Playback - Level 1 - tap to change">
+                            <strong id="flowPlaybackLbl">1</strong>
+                            <span class="metroBlk-ctrl-value-label" id="flowPlaybackSub">level</span>
                         </button>
                         <button class="metro-play-grid-btn" id="flowPlayBtn" aria-label="Play - press and hold to reset to the start">
                             <span class="material-symbols-outlined" id="flowPlayIcon">play_arrow</span>

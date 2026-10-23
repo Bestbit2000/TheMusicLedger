@@ -67,6 +67,7 @@
         // ML-488: the rehearsal score
         'rec-loop': () => openFlowLoopModal(),
         'rec-speed': () => openRecSpeedChoice(),
+        'rec-play': () => recPlayInPractice(), // ML-587
         'rec-map': (el) => openBarMapModal(actArg(el)),
         'barmap-close': () => closeBarMapModal(),
         'barmap-step': (el) => barMapStep(Number(actArg(el))),
@@ -7986,16 +7987,19 @@
     function renderFlowSessionControls() {
         const s = flowSession;
         renderFlowMovementButton(); // ML-530: a practice has its own bars - no Movement box
-        // ML-588: sub beats is the same button as Rehearse's (off / auto / fixed), in a practice too
-        ['flowLoopBtn', 'flowSpeedBtn'].forEach(id => setShown(id, !s));
-        ['flowSessionLevelBtn', 'flowSessionFinishBtn'].forEach(id => setShown(id, !!s));
+        // ML-587: in a practice, Playback (Level or speed, sub beats, count-in) takes the place of repeat, sub beats and
+        // play speed - 4 buttons, on the plain 4-across grid
+        ['flowLoopBtn', 'flowSpeedBtn', 'flowSubdivideBtn'].forEach(id => setShown(id, !s));
+        ['flowPlaybackBtn', 'flowSessionFinishBtn'].forEach(id => setShown(id, !!s));
+        document.getElementById('flowPlayBtn')?.parentElement.classList.toggle('metro-transport-grid-5', !s);
         renderFlowSubdivideLabel();
         if (!s) return;
         const word = levelWord(s.level).toLowerCase();
         // ML-588: a custom speed shows its % in place of the Level (a Level never shows one, ML-535)
-        document.getElementById('flowSessionLevelLbl').textContent = s.custom ? `${s.customPercent}%` : s.level;
-        document.getElementById('flowSessionLevelSub').textContent = s.custom ? 'speed' : 'level'; // ML-560: the word didn't fit - it's in the button's name
-        document.getElementById('flowSessionLevelBtn').setAttribute('aria-label', s.custom ? `Your own speed, ${s.customPercent}% - tap to change` : `Level ${s.level}, ${word} - tap to change`);
+        document.getElementById('flowPlaybackLbl').textContent = s.custom ? `${s.customPercent}%` : s.level;
+        document.getElementById('flowPlaybackSub').textContent = 'playback';
+        const v = flowPlaybackValues();
+        document.getElementById('flowPlaybackBtn').setAttribute('aria-label', `Playback - ${s.custom ? `your own speed, ${s.customPercent}%` : `Level ${s.level}, ${word}`}, sub beats ${v.sub.toLowerCase()}, count-in ${v.countIn.toLowerCase()} - tap to change`);
         document.getElementById('flowSessionFinishLbl').textContent = s.mode === 'runthrough' ? 'done' : 'finish';
         document.getElementById('flowSessionFinishBtn').setAttribute('aria-label', s.mode === 'runthrough' ? 'Done - set the level for each bar' : 'Finish - say how it went');
     }
@@ -8026,36 +8030,116 @@
     }
     // The speed actually being played, as a Level change or a rating records it (the server keeps 1-100).
     const flowSessionPercentPlayed = () => { const s = flowSession; return s.custom ? Math.min(100, Math.max(1, Math.round(flowSpeedPercent))) : s.percents[s.level - 1]; };
-    // ML-537 (was Level up): pick any Level while you play - faster or slower. In a practice block the change is
-    // saved as it happens (source 'during'); a run-through's Level is only the speed you play it at.
-    // ML-588: or a Custom speed - chosen inside the option's box, for this go only (the Level isn't changed by it;
-    // picking a Level goes back to that Level's speed).
-    document.getElementById('flowSessionLevelBtn')?.addEventListener('click', () => {
+    // ===== ML-587 (owner, 23 Oct 2026): a practice's playback settings, one button =====
+    // In a practice the play screen has 4 buttons under the metronome - reset, playback, play, finish - not 5: the
+    // Level (or a Custom speed), sub beats and the count-in are one "playback" button. Its pop-up opens each one's
+    // choices under its row, one at a time, and stays open (as the Tuner settings, ML-591); a choice takes effect at once.
+    // ML-537: any Level while you play - faster or slower; in a practice block the change is saved as it happens (source
+    // 'during'), in a run-through it's only the speed you play at. ML-588: or a Custom speed, for this go only (picking a
+    // Level goes back to that Level's speed).
+    // The count-in: off, before the first go only (then the usual one gap bar between goes), or before every go. How many
+    // bars is the player's own setting (Settings, and Prepare's count-in box - practiceCountInBars).
+    const COUNT_IN_WHEN_KEY = 'tml.practice.countInWhen';
+    const COUNT_IN_WHEN = { off: 'Off', first: 'First time only', every: 'Every time round' };
+    function practiceCountInWhen() {
+        if (!practiceCountInBars()) return 'off';
+        let v = null;
+        try { v = localStorage.getItem(COUNT_IN_WHEN_KEY); } catch (e) { v = null; }
+        return v === 'every' ? 'every' : 'first';
+    }
+    function setPracticeCountInWhen(when) {
+        if (when === 'off') { setPracticeCountInBars(0); return; }
+        if (!practiceCountInBars()) setPracticeCountInBars(1);
+        try { localStorage.setItem(COUNT_IN_WHEN_KEY, when); } catch (e) { /* this visit only */ }
+    }
+    // The gap between goes: one bar, or the whole count-in again when it comes every time round
+    const practiceGapBars = () => (practiceCountInWhen() === 'every' ? practiceCountInBars() : 1);
+    function flowCountInEveryGo() { return !!flowSession && flowSession.mode !== 'runthrough' && practiceCountInWhen() === 'every'; }
+    let flowPlaybackOpen = null; // the row whose choices are showing: 'level', 'sub' or 'countIn'
+    function flowPlaybackValues() {
         const s = flowSession;
-        if (!s) return;
-        const options = [1, 2, 3, 4, 5].map(n => ({ key: String(n), selected: !s.custom && n === s.level,
-            html: `<span class="flex-row items-center gap-sm"><span class="level-chip lv-${n}">${n}</span><strong>${levelWord(n)}</strong></span>` }));
-        options.push({ key: 'custom', selected: !!s.custom,
-            html: '<span><strong>Custom speed</strong><br><span class="text-sm text-muted">A % of the piece\'s own speed, for this go</span></span>',
-            extra: async (box, close) => {
-                const speeds = await ensurePlaySpeeds(); // ML-596: the one list - offline, the list as seeded
-                const floor = flowSessionCustomFloor();
-                const off = speeds.filter(p => p < floor);
-                const lowest = speeds.find(p => p >= floor);
-                const note = off.length && lowest ? `<p class="text-sm text-muted mt-2">It goes down to ${lowest}% here, so the slowest bar stays at ${FLOW_CUSTOM_MIN_BPM} bpm or more.</p>` : '';
-                box.innerHTML = `<div class="metroBlk-speed-options mt-3">${speeds.filter(p => p >= floor).map(p => `<button type="button" class="metroBlk-timesig-opt${s.custom && p === s.customPercent ? ' selected' : ''}" data-value="${p}">${p}%</button>`).join('')}</div>${note}`;
-                box.querySelectorAll('.metroBlk-timesig-opt').forEach(btn => btn.addEventListener('click', () => {
-                    const pct = Number(btn.dataset.value);
-                    s.custom = true;
-                    s.customPercent = pct;
-                    setFlowSpeedPercent(pct);
-                    flowSessionRestartHere();
-                    showSuccessToast(`Your own speed - ${pct}%`);
-                    close();
-                }));
-            } });
-        openFlowChoiceModal('Level', options, (opt) => flowSessionSetLevel(Number(opt.key)));
-    });
+        const subOn = flowSubBeatsMode === 'session' ? flowSessionSubBeatsOn() : flowSubBeatsMode !== 'off';
+        const when = practiceCountInWhen();
+        return {
+            level: s.custom ? `Your own speed, ${s.customPercent}%` : `Level ${s.level} · ${levelWord(s.level).toLowerCase()}`,
+            sub: !subOn ? 'Off' : flowSubBeatsMode === 'fixed' ? `${flowSubdivideOverride} a beat` : 'Auto',
+            countIn: when === 'off' ? 'Off' : `${COUNT_IN_WHEN[when]} · ${countInText(practiceCountInBars())}`
+        };
+    }
+    async function renderFlowPlaybackModal() {
+        const s = flowSession;
+        if (!s) { hideModal('flowChoiceModal'); return; }
+        const v = flowPlaybackValues();
+        const row = (key, name) => `
+            <button type="button" class="flow-choice-option${flowPlaybackOpen === key ? ' selected' : ''}" data-pb-row="${key}" aria-expanded="${flowPlaybackOpen === key}">
+                <span><strong>${name}</strong><br><span class="text-sm text-muted">${escapeHtml(v[key])}</span></span>
+                <span class="material-symbols-outlined" aria-hidden="true">${flowPlaybackOpen === key ? 'expand_less' : 'expand_more'}</span>
+            </button>`;
+        const tile = (attrs, label, on) => `<button type="button" class="metroBlk-timesig-opt${on ? ' selected' : ''}" ${attrs} aria-pressed="${!!on}">${label}</button>`;
+        let panel = '';
+        if (flowPlaybackOpen === 'level') {
+            const speeds = await ensurePlaySpeeds(); // ML-596: the one list
+            const floor = flowSessionCustomFloor();
+            const lowest = speeds.find(p => p >= floor);
+            const note = speeds.some(p => p < floor) && lowest ? `<p class="text-sm text-muted mt-2">It goes down to ${lowest}% here, so the slowest bar stays at ${FLOW_CUSTOM_MIN_BPM} bpm or more.</p>` : '';
+            panel = [1, 2, 3, 4, 5].map(n => `<button type="button" class="flow-choice-option${!s.custom && n === s.level ? ' selected' : ''}" data-pb-level="${n}" aria-pressed="${!s.custom && n === s.level}"><span class="flex-row items-center gap-sm"><span class="level-chip lv-${n}">${n}</span><strong>${levelWord(n)}</strong></span></button>`).join('')
+                + `<p class="text-sm text-muted mt-3">Or your own speed - a % of the piece's own, for this go</p><div class="metroBlk-speed-options mt-2">${speeds.filter(p => p >= floor).map(p => tile(`data-pb-speed="${p}"`, `${p}%`, s.custom && p === s.customPercent)).join('')}</div>${note}`;
+        } else if (flowPlaybackOpen === 'sub') {
+            const fixed = flowSubBeatsMode === 'fixed' ? flowSubdivideOverride : null;
+            const on = v.sub !== 'Off';
+            panel = `<div class="metroBlk-speed-options">${tile('data-pb-sub="off"', 'Off', !on)}${tile('data-pb-sub="auto"', 'Auto', on && !fixed)}</div>
+                <p class="text-sm text-muted mt-3">Auto fits the time signature. Or set how many a beat:</p>
+                <div class="metroBlk-speed-options mt-2">${Array.from({ length: FLOW_SUBDIVIDE_MAX - FLOW_SUBDIVIDE_MIN + 1 }, (_, i) => FLOW_SUBDIVIDE_MIN + i).map(n => tile(`data-pb-sub="${n}"`, String(n), fixed === n)).join('')}</div>`;
+        } else if (flowPlaybackOpen === 'countIn') {
+            const when = practiceCountInWhen();
+            const sub = { off: 'It starts as soon as you press play', first: 'Before the first go, then one bar between goes', every: 'Before every go' };
+            panel = Object.keys(COUNT_IN_WHEN).map(k => `<button type="button" class="flow-choice-option${when === k ? ' selected' : ''}" data-pb-count="${k}" aria-pressed="${when === k}"><span><strong>${COUNT_IN_WHEN[k]}</strong><br><span class="text-sm text-muted">${sub[k]}</span></span></button>`).join('')
+                + `<p class="text-sm text-muted mt-2">How many bars it counts: ${countInText(practiceCountInBars() || 1)} - change it in Settings.</p>`;
+        }
+        const box = document.getElementById('flowChoiceOptions');
+        box.innerHTML = [['level', s.custom ? 'Speed' : 'Level'], ['sub', 'Sub beats'], ['countIn', 'Count-in']].map(([k, name]) =>
+            row(k, name) + (flowPlaybackOpen === k ? `<div class="mb-4" role="group" aria-label="${name}">${panel}</div>` : '')).join('');
+        box.querySelectorAll('[data-pb-row]').forEach(b => b.addEventListener('click', () => {
+            flowPlaybackOpen = flowPlaybackOpen === b.dataset.pbRow ? null : b.dataset.pbRow;
+            renderFlowPlaybackModal();
+        }));
+        const done = () => { flowPlaybackOpen = null; renderFlowPlaybackModal(); };
+        box.querySelectorAll('[data-pb-level]').forEach(b => b.addEventListener('click', () => { flowSessionSetLevel(Number(b.dataset.pbLevel)).then(done); }));
+        box.querySelectorAll('[data-pb-speed]').forEach(b => b.addEventListener('click', () => {
+            const pct = Number(b.dataset.pbSpeed);
+            s.custom = true;
+            s.customPercent = pct;
+            setFlowSpeedPercent(pct);
+            flowSessionRestartHere();
+            done();
+        }));
+        box.querySelectorAll('[data-pb-sub]').forEach(b => b.addEventListener('click', () => {
+            const val = b.dataset.pbSub;
+            flowSubBeatsMode = val === 'off' || val === 'auto' ? val : 'fixed';
+            flowSubdivideOverride = flowSubBeatsMode === 'fixed' ? Number(val) : null;
+            flowSessionRestartHere(); // sub beats change the clicks in a bar - the go restarts from the bar it's on
+            renderFlowSubdivideLabel();
+            done();
+        }));
+        box.querySelectorAll('[data-pb-count]').forEach(b => b.addEventListener('click', () => {
+            setPracticeCountInWhen(b.dataset.pbCount);
+            // the goes still to come take the new gap; the count-in before the first is used from the next start
+            if (flowLoop && s.mode !== 'runthrough') { flowLoop.restBars = practiceGapBars(); flowComputeLoopPlan(); }
+            renderFlowSessionControls();
+            done();
+        }));
+    }
+    function openFlowPlaybackModal() {
+        if (!flowSession) return;
+        flowPlaybackOpen = null;
+        document.getElementById('flowChoiceTitle').innerText = 'Playback';
+        const inlineExtra = document.getElementById('flowChoiceInlineExtra');
+        inlineExtra.classList.add('hidden-group');
+        inlineExtra.innerHTML = '';
+        renderFlowPlaybackModal();
+        showModal('flowChoiceModal');
+    }
+    document.getElementById('flowPlaybackBtn')?.addEventListener('click', openFlowPlaybackModal);
     async function flowSessionSetLevel(level) {
         const s = flowSession;
         if (!s || (level === s.level && !s.custom)) return;
@@ -15545,8 +15629,9 @@
         // ML-302: "Repeat 3 · ..." while repeating; rest bars count in before the first pass.
         const loopPrefix = flowLoopPlan ? `Repeat ${p.loopPass} · ` : '';
         if (p.kind === 'rest') {
-            // The first pass's clicking bars are the count-in (in a practice or run-through, the number you chose)
-            const first = p.loopPass === 1 || !flowLoopPlan;
+            // The first pass's clicking bars are the count-in (in a practice or run-through, the number you chose);
+            // ML-587: every pass's, when the count-in comes every time round
+            const first = p.loopPass === 1 || !flowLoopPlan || flowCountInEveryGo();
             const restBars = first && flowSession ? practiceCountInBars() : flowLoop ? flowLoop.restBars : 1;
             return `${loopPrefix}${first ? 'Count-in' : 'Rest'} ${p.restIndex + 1} of ${restBars} · ${timeSig} · ${bpm} bpm`;
         }
@@ -15592,9 +15677,10 @@
         if (!pos) return;
         const block = flowPassageBlock(pos.p);
         const subFactor = flowPassageSubFactor(pos.p, block);
-        // ML-542: the count-in (the rest bars before the first go - not the gap bars between goes) counts down big
+        // ML-542: the count-in (the rest bars before the first go - not the gap bars between goes) counts down big.
+        // ML-587: in a practice with the count-in every time round, the bars between goes are a count-in too.
         const cp = pos.p;
-        if (cp.kind === 'rest' && (cp.loopPass === 1 || !flowLoopPlan)) {
+        if (cp.kind === 'rest' && (cp.loopPass === 1 || !flowLoopPlan || flowCountInEveryGo())) {
             if (beatInfo.isConductorBeat) {
                 const bpb = beatInfo.conductorBeatsPerBar;
                 const total = flowPlayQueue.filter(q => q.kind === 'rest' && q.loopPass === cp.loopPass).length * bpb;
@@ -15694,6 +15780,7 @@
             const r = slide.data;
             return `
                 <div class="flow-media-slide" data-slide-key="${flowMediaSlideKey(slide)}">
+                    ${recCountInCoverHtml(slide)}
                     <div class="metroBlk-row">
                         <div class="flow-media-slide-header">
                             <span class="flow-media-icon type-audio"><span class="material-symbols-outlined icon-md">music_note</span></span>
@@ -15710,6 +15797,7 @@
             const origin = encodeURIComponent(location.origin);
             return `
                 <div class="flow-media-slide" data-slide-key="${flowMediaSlideKey(slide)}">
+                    ${recCountInCoverHtml(slide)}
                     <div class="metroBlk-row">
                         <!-- No icon, title or "YouTube video" line above it (the owner, 12 Oct 2026): the video shows its own title, and the room is for the bars -->
                         <div class="flow-media-player-video"><iframe id="flowYtFrame-${r.id}" src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(r.youtubeVideoId)}?enablejsapi=1&amp;origin=${origin}${youTubeClipQuery(recordingClip(r), "&amp;")}" title="${escapeHtml(r.title)}" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
@@ -15775,6 +15863,7 @@
     // entirely (see switchView's own flowPlayView leave-check, pauseAllFlowMedia below).
     function pauseFlowMediaSlide(slide) {
         if (!slide) return;
+        if (slide.type !== 'metronome' && recCounting && recCounting.slideKey === flowMediaSlideKey(slide)) recCountInStop(); // ML-587
         if (slide.type === 'metronome') {
             if (flowPlayer.isPlaying()) pauseFlow();
         } else if (slide.type === 'audio') {
@@ -15862,9 +15951,12 @@
         const mapBtn = currentFlowDetail && currentFlowDetail.canEdit
             ? `<button type="button" class="metroBlk-ctrl-value-btn" data-act="rec-map" data-arg="${escapeHtml(slide.data.id)}" data-rec-map-btn aria-haspopup="dialog"><strong data-rec-map-lbl></strong><span class="metroBlk-ctrl-value-label">bars marked</span></button>`
             : '';
+        // ML-587: in a practice, a Play of its own - it counts you in (the practice's count-in), then plays the bars
+        // being practised; the repeat is the practice's bars, shown but not changed here
         return `
             <div class="metro-transport-grid" data-rec-controls="${key}">
                 <button type="button" class="metroBlk-ctrl-value-btn" data-act="rec-loop" data-rec-loop-btn aria-haspopup="dialog"><strong data-rec-loop-lbl>off</strong><span class="metroBlk-ctrl-value-label">repeat</span></button>
+                <button type="button" class="metro-play-grid-btn hidden-group" data-act="rec-play" data-rec-play-btn aria-label="Count in, then play"><span class="material-symbols-outlined" data-rec-play-icon>play_arrow</span><span class="metroBlk-ctrl-value-label">play</span></button>
                 <button type="button" class="metroBlk-ctrl-value-btn" data-act="rec-speed" data-rec-speed-btn aria-haspopup="dialog"><strong data-rec-speed-lbl>100%</strong><span class="metroBlk-ctrl-value-label">play speed</span></button>
                 ${mapBtn}
             </div>
@@ -15880,7 +15972,18 @@
             const loopBtn = box.querySelector('[data-rec-loop-btn]');
             setLoopLabel(box.querySelector('[data-rec-loop-lbl]'), loopOn);
             loopBtn.classList.toggle('metroBlk-ctrl-value-btn-on', loopOn);
-            loopBtn.setAttribute('aria-label', loopOn ? `Repeat bars - ${flowLoopRangeText()}. Tap to change` : 'Repeat bars - off. Tap to set up');
+            // ML-587: in a practice the repeat is the practice's own bars - shown, not changed here (nor on the metronome)
+            const practice = recInPractice();
+            loopBtn.disabled = practice;
+            loopBtn.setAttribute('aria-label', practice ? `Repeating the bars being practised - ${flowLoopRangeText()}` : loopOn ? `Repeat bars - ${flowLoopRangeText()}. Tap to change` : 'Repeat bars - off. Tap to set up');
+            const playBtn = box.querySelector('[data-rec-play-btn]');
+            if (playBtn) {
+                setShown(playBtn, practice);
+                let going = !!(recCounting && recCounting.slideKey === box.dataset.recControls);
+                if (!going && slide === recActiveSlide()) { try { going = !!recPlayerOf(slide)?.playing(); } catch (error) { going = false; } }
+                playBtn.querySelector('[data-rec-play-icon]').textContent = going ? 'pause' : 'play_arrow';
+                playBtn.setAttribute('aria-label', going ? 'Pause' : practiceCountInWhen() === 'off' ? 'Play the bars being practised' : 'Count in, then play the bars being practised');
+            }
             const speed = recSpeedOf(slide);
             box.querySelector('[data-rec-speed-lbl]').textContent = `${speed}%`;
             box.querySelector('[data-rec-speed-btn]').setAttribute('aria-label', `Play speed - ${speed}%. Tap to change`);
@@ -15913,6 +16016,14 @@
         const map = recMapFor(slide.data);
         if (map && playing && flowLoopPlan) {
             const loop = FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, REC_LOOP_LEAD_MS);
+            if (loop.ok && at >= loop.endMs && flowCountInEveryGo()) {
+                // ML-587: the count-in every time round - stop at the end of the go, count in, go again
+                pauseFlowMediaSlide(slide);
+                player.seek(loop.startMs);
+                recCountInThen(slide, () => { try { player.seek(loop.startMs); player.play(); } catch (error) { /* not ready yet */ } recStartTicker(); renderRecScoreControls(); });
+                renderRecScoreControls();
+                return;
+            }
             if (loop.ok && (at >= loop.endMs || at < loop.startMs - 300)) { player.seek(loop.startMs); at = loop.startMs; }
         }
         const line = document.querySelector(`#flowMediaTrack [data-rec-bar-line="${flowMediaSlideKey(slide)}"]`);
@@ -15928,8 +16039,10 @@
             const text = place === -1 ? '' : mv ? `${FlowJourney.placeLabel(map.places, place)} · ${FlowJourney.movementLabel(mv, false)}, bars ${mv.startBar}-${mv.endBar}` : `${FlowJourney.placeLabel(map.places, place)} of ${FlowJourney.totalBars(currentFlowBlocks)}`;
             if (line.textContent !== text) line.textContent = text;
         }
+        if (playing !== recWasPlaying) { recWasPlaying = playing; if (recInPractice()) renderRecScoreControls(); } // ML-587: Play / Pause
         if (!playing && recTicker) { clearInterval(recTicker); recTicker = null; }
     }
+    let recWasPlaying = false;
     function recStartTicker() {
         if (!recScoreOn()) return;
         const slide = recActiveSlide();
@@ -15965,6 +16078,72 @@
         recStartTicker();
         return true;
     }
+    // ===== ML-587: a practice's count-in before a recording or video =====
+    // In a practice a recording's slide has a Play of its own: the practice's count-in (off / first time only / every
+    // time round, and how many bars) clicks on the metronome's sound at the speed of the bar it starts on, at the play
+    // speed, with the big count-down over the slide - then the recording plays from the bars being practised. With the
+    // count-in every time round, the recording stops at the end of each go and counts in again.
+    const recCountPlayer = createMetronomePlayer();
+    recCountPlayer.setVisualLatencyMs(metroState.latencyMs);
+    let recCounting = null; // { slideKey, totalClicks, then }
+    const recCountInCoverHtml = (slide) => `<div class="count-in-cover hidden-group" id="recCountIn-${flowMediaSlideKey(slide)}" aria-hidden="true"><div class="rest-ring"><svg class="rest-ring-svg" viewBox="0 0 120 120"><circle class="rest-ring-track" cx="60" cy="60" r="52"></circle><circle class="rest-ring-left" cx="60" cy="60" r="52" pathLength="100"></circle></svg><div class="rest-ring-num"><strong>4</strong><span>get ready</span></div></div></div>`;
+    const recInPractice = () => !!flowSession && flowSession.mode !== 'runthrough';
+    // Where the practised bars start on the recording, and that bar's block
+    function recPracticeStart(slide) {
+        const map = recMapFor(slide.data);
+        const loop = map && flowLoopPlan ? FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, REC_LOOP_LEAD_MS) : null;
+        if (!loop || !loop.ok) return { startMs: null, block: currentFlowBlocks.find(b => b.barCount > 0) };
+        return { startMs: loop.startMs, block: currentFlowBlocks.find(b => b.id === map.places[loop.fromPlace].blockId) };
+    }
+    function recCountInStop() {
+        if (!recCounting) return;
+        if (recCountPlayer.isPlaying()) recCountPlayer.pause();
+        recCountPlayer.setClickFilter(null);
+        showCountIn(`recCountIn-${recCounting.slideKey}`, 0);
+        recCounting = null;
+    }
+    // Counts the practice's count-in, then runs then() - straight away when the count-in is off
+    function recCountInThen(slide, then) {
+        recCountInStop();
+        const bars = practiceCountInWhen() === 'off' ? 0 : practiceCountInBars();
+        const { block } = recPracticeStart(slide);
+        if (!bars || !block) { then(); return; }
+        const beats = metroBlkBeatsPerBarFor(block);
+        recCounting = { slideKey: flowMediaSlideKey(slide), totalClicks: bars * beats, then };
+        recCountPlayer.setConductorBpm(block.bpm * recSpeedOf(slide) / 100);
+        recCountPlayer.setConductorBeatsPerBar(beats);
+        recCountPlayer.setNotesPerBeat(1);
+        recCountPlayer.setSubdivisionFactor(1);
+        recCountPlayer.setVolume(flowVolume / 100);
+        recCountPlayer.setClickFilter((ci) => ci < recCounting.totalClicks); // nothing sounds once the music starts
+        recCountPlayer.resetToBarStart();
+        recCountPlayer.play();
+    }
+    recCountPlayer.onBeat((info) => {
+        const c = recCounting;
+        if (!c || !info || info.ended) return;
+        const left = c.totalClicks - info.clickIndex;
+        if (left > 0) { showCountIn(`recCountIn-${c.slideKey}`, left, c.totalClicks); return; }
+        const then = c.then;
+        recCountInStop();
+        then();
+    });
+    function recPlayInPractice() {
+        const slide = recActiveSlide();
+        const player = recPlayerOf(slide);
+        if (!slide || !player) return;
+        if (recCounting || player.playing()) { recCountInStop(); pauseFlowMediaSlide(slide); renderRecScoreControls(); return; }
+        if (flowPlayer.isPlaying()) pauseFlow();
+        const { startMs } = recPracticeStart(slide);
+        if (startMs !== null) { try { player.seek(startMs); } catch (error) { /* not ready yet */ } }
+        recCountInThen(slide, () => {
+            try { if (startMs !== null) player.seek(startMs); player.play(); } catch (error) { /* not ready yet */ }
+            recStartTicker();
+            renderRecScoreControls();
+        });
+        renderRecScoreControls();
+    }
+
     // Choosing here sets the one play speed - the metronome follows it too (ML-599)
     async function openRecSpeedChoice() {
         await ensurePlaySpeeds();
@@ -17066,9 +17245,10 @@
         const saved = flowLoopSavedAll()[flowLoopPieceKey()];
         flowLoop = saved && saved.on ? { startBar: saved.startBar, endBar: saved.endBar, restBars: saved.restBars || 0 } : null;
         // ML-317: a practice loops its chunk with one gap bar between runs (what the chunk length rule
-        // assumes) - never saved over the piece's own repeat setting.
+        // assumes) - never saved over the piece's own repeat setting. ML-587: or the count-in again, when it comes
+        // every time round.
         // ML-390: a run-through plays the whole piece once - no loop.
-        if (flowSession && flowSession.flowId === Number(flowLoopPieceKey())) flowLoop = flowSession.mode === 'runthrough' ? null : { startBar: flowSession.chunk.startBar, endBar: flowSession.chunk.endBar, restBars: 1 };
+        if (flowSession && flowSession.flowId === Number(flowLoopPieceKey())) flowLoop = flowSession.mode === 'runthrough' ? null : { startBar: flowSession.chunk.startBar, endBar: flowSession.chunk.endBar, restBars: practiceGapBars() };
         flowComputeLoopPlan();
     }
     function flowPassagesFor(steps, loopPass) {
