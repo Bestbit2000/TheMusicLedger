@@ -7844,7 +7844,7 @@
         };
         // A Prepare run-through starts with no sub-beats (owner, 4 Oct 2026): it's a first go at the whole piece,
         // and the extra clicks got in the way. Practice blocks start with the session's sub-beats at slow Levels.
-        // ML-537: either way the sub beats switch turns them on or off for the rest of the go.
+        // ML-537 / ML-588: either way the sub beats button (off / auto / fixed) changes them for the rest of the go.
         flowSubBeatsMode = flowSession.mode === 'runthrough' ? 'off' : 'session';
         flowSubdivideOverride = null;
         setFlowSpeedPercent(flowSession.percents[chunk.level - 1]);
@@ -7865,22 +7865,21 @@
     function renderFlowSessionControls() {
         const s = flowSession;
         renderFlowMovementButton(); // ML-530: a practice has its own bars - no Movement box
-        ['flowLoopBtn', 'flowSubdivideBtn', 'flowSpeedBtn'].forEach(id => setShown(id, !s));
-        ['flowSessionLevelBtn', 'flowSessionSubBtn', 'flowSessionFinishBtn'].forEach(id => setShown(id, !!s));
+        // ML-588: sub beats is the same button as Rehearse's (off / auto / fixed), in a practice too
+        ['flowLoopBtn', 'flowSpeedBtn'].forEach(id => setShown(id, !s));
+        ['flowSessionLevelBtn', 'flowSessionFinishBtn'].forEach(id => setShown(id, !!s));
+        renderFlowSubdivideLabel();
         if (!s) return;
         const word = levelWord(s.level).toLowerCase();
-        document.getElementById('flowSessionLevelLbl').textContent = s.level;
-        document.getElementById('flowSessionLevelSub').textContent = 'level'; // ML-560: the word didn't fit - it's in the button's name
-        document.getElementById('flowSessionLevelBtn').setAttribute('aria-label', `Level ${s.level}, ${word} - tap to change`);
-        const subOn = flowSessionSubBeatsOn();
-        const sub = document.getElementById('flowSessionSubBtn');
-        sub.setAttribute('aria-pressed', String(subOn));
-        document.getElementById('flowSessionSubLbl').textContent = subOn ? 'on' : 'off';
+        // ML-588: a custom speed shows its % in place of the Level (a Level never shows one, ML-535)
+        document.getElementById('flowSessionLevelLbl').textContent = s.custom ? `${s.customPercent}%` : s.level;
+        document.getElementById('flowSessionLevelSub').textContent = s.custom ? 'speed' : 'level'; // ML-560: the word didn't fit - it's in the button's name
+        document.getElementById('flowSessionLevelBtn').setAttribute('aria-label', s.custom ? `Your own speed, ${s.customPercent}% - tap to change` : `Level ${s.level}, ${word} - tap to change`);
         document.getElementById('flowSessionFinishLbl').textContent = s.mode === 'runthrough' ? 'done' : 'finish';
         document.getElementById('flowSessionFinishBtn').setAttribute('aria-label', s.mode === 'runthrough' ? 'Done - set the level for each bar' : 'Finish - say how it went');
     }
-    // ML-537: sub-beats are on when the switch says so; until it's touched, a practice block follows the Level
-    // ('session' - on when any bar's beat is slow at this speed).
+    // ML-537: until the sub beats button is touched, a practice block follows the Level ('session' - on when any bar's
+    // beat is slow at this speed); ML-588: the button's pop-up (off / auto / fixed) opens on whichever matches.
     function flowSessionSubBeatsOn() {
         if (flowSubBeatsMode !== 'session') return flowSubBeatsMode !== 'off';
         const s = flowSession;
@@ -7893,28 +7892,61 @@
         renderFlowPlaybackRow();
         renderFlowSessionControls();
     }
-    document.getElementById('flowSessionSubBtn')?.addEventListener('click', () => {
-        if (!flowSession) return;
-        flowSubBeatsMode = flowSessionSubBeatsOn() ? 'off' : 'auto';
-        flowSessionRestartHere();
-    });
+    // ML-588 (owner, 23 Oct 2026): a custom speed is a % of the piece's own speed, not a bpm - a piece's speed can
+    // change, and the bars practised can go from a slow bit to a fast one, so every bar keeps its own shape. The
+    // choices are Rehearse's play speeds (playback_speed_options, Admin - 10% steps), tapped to play straight away.
+    // It's the one place a % is shown (ML-535 keeps it off the Levels). A speed that would take the slowest bar
+    // practised below FLOW_CUSTOM_MIN_BPM is left out, with a line saying so (below the Levels' own 40 floor, so there's room under Level 1).
+    const FLOW_CUSTOM_MIN_BPM = 30;
+    function flowSessionCustomFloor() {
+        const s = flowSession;
+        const slow = s ? FlowJourney.slowestTempo(levels.blocks, s.chunk.startBar, s.chunk.endBar) : null;
+        return Number.isFinite(slow) && slow > 0 ? Math.min(100, (FLOW_CUSTOM_MIN_BPM / slow) * 100) : 0;
+    }
+    // The speed actually being played, as a Level change or a rating records it (the server keeps 1-100).
+    const flowSessionPercentPlayed = () => { const s = flowSession; return s.custom ? Math.min(100, Math.max(1, Math.round(flowSpeedPercent))) : s.percents[s.level - 1]; };
     // ML-537 (was Level up): pick any Level while you play - faster or slower. In a practice block the change is
     // saved as it happens (source 'during'); a run-through's Level is only the speed you play it at.
+    // ML-588: or a Custom speed - chosen inside the option's box, for this go only (the Level isn't changed by it;
+    // picking a Level goes back to that Level's speed).
     document.getElementById('flowSessionLevelBtn')?.addEventListener('click', () => {
         const s = flowSession;
         if (!s) return;
-        openFlowChoiceModal('Level', [1, 2, 3, 4, 5].map(n => ({ key: String(n), selected: n === s.level,
-            html: `<span class="flex-row items-center gap-sm"><span class="level-chip lv-${n}">${n}</span><strong>${levelWord(n)}</strong></span>` })), (opt) => flowSessionSetLevel(Number(opt.key)));
+        const options = [1, 2, 3, 4, 5].map(n => ({ key: String(n), selected: !s.custom && n === s.level,
+            html: `<span class="flex-row items-center gap-sm"><span class="level-chip lv-${n}">${n}</span><strong>${levelWord(n)}</strong></span>` }));
+        options.push({ key: 'custom', selected: !!s.custom,
+            html: '<span><strong>Custom speed</strong><br><span class="text-sm text-muted">A % of the piece\'s own speed, for this go</span></span>',
+            extra: async (box, close) => {
+                let speeds = flowPlaybackSpeeds;
+                if (!speeds.length) { try { speeds = flowPlaybackSpeeds = await API.metronomeBlocks.playbackSpeeds.list(); } catch (e) { speeds = [50, 60, 70, 80, 90, 100]; } }
+                const floor = flowSessionCustomFloor();
+                const off = speeds.filter(p => p < floor);
+                const lowest = speeds.find(p => p >= floor);
+                const note = off.length && lowest ? `<p class="text-sm text-muted mt-2">It goes down to ${lowest}% here, so the slowest bar stays at ${FLOW_CUSTOM_MIN_BPM} bpm or more.</p>` : '';
+                box.innerHTML = `<div class="metroBlk-speed-options mt-3">${speeds.filter(p => p >= floor).map(p => `<button type="button" class="metroBlk-timesig-opt${s.custom && p === s.customPercent ? ' selected' : ''}" data-value="${p}">${p}%</button>`).join('')}</div>${note}`;
+                box.querySelectorAll('.metroBlk-timesig-opt').forEach(btn => btn.addEventListener('click', () => {
+                    const pct = Number(btn.dataset.value);
+                    s.custom = true;
+                    s.customPercent = pct;
+                    setFlowSpeedPercent(pct);
+                    flowSessionRestartHere();
+                    showSuccessToast(`Your own speed - ${pct}%`);
+                    close();
+                }));
+            } });
+        openFlowChoiceModal('Level', options, (opt) => flowSessionSetLevel(Number(opt.key)));
     });
     async function flowSessionSetLevel(level) {
         const s = flowSession;
-        if (!s || level === s.level) return;
-        const played = s.percents[s.level - 1];
+        if (!s || (level === s.level && !s.custom)) return;
+        const changed = level !== s.level;
+        const played = flowSessionPercentPlayed();
         s.level = level;
+        s.custom = false;
         setFlowSpeedPercent(s.percents[s.level - 1]);
         flowSessionRestartHere();
         showSuccessToast(`Level ${s.level} - ${levelWord(s.level).toLowerCase()}`);
-        if (!s.chunk.id || s.mode === 'runthrough') return;
+        if (!changed || !s.chunk.id || s.mode === 'runthrough') return;
         try { await API.levels.setChunk(s.chunk.id, { level: s.level, source: 'during', percentPlayed: played }); }
         catch (e) { showWarningToast('Level not saved: ' + e.message); }
     }
@@ -7931,7 +7963,7 @@
         const name = FlowJourney.movementPrefix(FlowJourney.movements(currentFlowBlocks), s.chunk.startBar) + (s.chunk.label && !through ? s.chunk.label : levelsRange(s.chunk.startBar, s.chunk.endBar).replace(/^Bar/, 'bar')); // ML-530
         document.getElementById('levelRateTitle').textContent = 'How did you get on?';
         const what = name.charAt(0).toUpperCase() + name.slice(1);
-        document.getElementById('levelRateSub').textContent = `${what}${through ? ', all the way through' : ''} - played at Level ${n} (${levelWord(n).toLowerCase()}).`;
+        document.getElementById('levelRateSub').textContent = `${what}${through ? ', all the way through' : ''} - played at ${s.custom ? `your own speed (${s.customPercent}%)` :`Level ${n} (${levelWord(n).toLowerCase()})`}.`;
         const main = n < 5
             ? [[n + 1, `Good - increase level to ${n + 1}`, 'btn-submit'], [n, `Needs a bit more, keep it at level ${n}`, 'btn-nav']]
             : [[5, 'Good - keep it at level 5', 'btn-submit'], [4, 'Needs a bit more, back to level 4', 'btn-nav']];
@@ -7974,7 +8006,7 @@
         document.getElementById('flowSessionFinishBtn').setAttribute('aria-expanded', 'false');
         if (s.chunk.id) {
             try {
-                const out = await API.levels.setChunk(s.chunk.id, { level, source: 'rating', percentPlayed: s.percents[s.level - 1] });
+                const out = await API.levels.setChunk(s.chunk.id, { level, source: 'rating', percentPlayed: flowSessionPercentPlayed() }); // ML-588: a custom speed is what was played
                 // ML-220: offline, the Level waits to sync - show it on the bars already on the screen
                 if (out.queued) { const mine = [...levels.chunks, ...levels.groups].find(c => c.id === s.chunk.id); if (mine) mine.level = level; }
                 else applyPieceLevels(out);
@@ -16711,8 +16743,10 @@
     makeSliderReadoutEditable('flowSubdividePopupValue', () => flowSubdividePopupValue, (v) => setFlowSubdividePopupValue(v), { label: 'Sub beats', min: FLOW_SUBDIVIDE_MIN, max: FLOW_SUBDIVIDE_MAX });
 
     document.getElementById('flowSubdivideBtn')?.addEventListener('click', () => {
-        document.getElementById('flowSubdivideOff').checked = flowSubBeatsMode === 'off';
-        document.getElementById('flowSubdivideAuto').checked = flowSubBeatsMode === 'auto';
+        // ML-588: in a practice that still follows the Level ('session'), it opens on what's playing - Auto or Off
+        const sessionOn = flowSubBeatsMode === 'session' && flowSessionSubBeatsOn();
+        document.getElementById('flowSubdivideOff').checked = flowSubBeatsMode === 'off' || (flowSubBeatsMode === 'session' && !sessionOn);
+        document.getElementById('flowSubdivideAuto').checked = flowSubBeatsMode === 'auto' || sessionOn;
         document.getElementById('flowSubdivideFixed').checked = flowSubBeatsMode === 'fixed';
         document.getElementById('flowSubdivideBpmBox').classList.toggle('hidden-group', flowSubBeatsMode !== 'fixed');
         setFlowSubdividePopupValue(flowSubdivideOverride || FLOW_SUBDIVIDE_MIN);
@@ -16735,6 +16769,7 @@
         const pos = flowScreenPosition();
         if (pos) flowStartSequenceAt(flowPlayIndex, pos.bar - pos.p.fromBar);
         renderFlowPlaybackRow();
+        renderFlowSubdivideLabel();
     });
 
     // --- Repeat bars (ML-302) ---
@@ -17038,9 +17073,11 @@
         renderFlowSpeedLabel(); // the player applies play speed to every click's own tempo - nothing to reconfigure
         renderFlowPlaybackRow();
     }
+    let flowPlaybackSpeeds = []; // ML-588: also a practice's Custom speed choices
     async function loadFlowPlaybackSpeeds() {
         try {
             const speeds = await API.metronomeBlocks.playbackSpeeds.list();
+            flowPlaybackSpeeds = speeds;
             const container = document.getElementById('flowSpeedOptions');
             if (container) container.innerHTML = speeds.map(p => `<button type="button" class="metroBlk-timesig-opt" data-value="${p}">${p}%</button>`).join('');
             document.querySelectorAll('#flowSpeedOptions .metroBlk-timesig-opt').forEach(btn => {

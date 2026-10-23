@@ -92,5 +92,6 @@
   "ML-487": "We fixed a YouTube video that carried on playing after you saved a piece.",
   "ML-456": "We now accept MuseScore files as a piece's score or part.",
   "ML-312": "We added a start and an end to a recording or video on a piece, so it plays only the part you want.",
-  "ML-278": "We now ask you to confirm, once, that you have the right to upload music before your first upload."
+  "ML-278": "We now ask you to confirm, once, that you have the right to upload music before your first upload.",
+  "ML-588": "We let you change the sub-beats (off, auto or a set number) and set your own speed, as a percentage of the piece's speed, while you practise a piece in a session."
 }

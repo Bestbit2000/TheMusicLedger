@@ -182,7 +182,7 @@ opened from a practice list, Play Flow's menu (My Levels) and a session's Prepar
      long the whole piece takes (`FlowJourney.pieceRunSeconds`). Too fast, and the **Level** button on the play
      screen picks a slower Level while it plays (a Level is its number and its word - Very slow ... Full speed -
      never its %, ML-535). It plays once (no loop), and starts **without sub-beats** (owner, 4 Oct 2026); the
-     **sub beats** switch on the play screen turns them on. At the end (or Done), setting the levels, starting from
+     **sub beats** button on the play screen (Off / Auto / Fixed, ML-588) turns them on. At the end (or Done), setting the levels, starting from
      the Level it was played at.
      **Count-in** (owner, 4 Oct 2026): a box under the speed, "1 bar · count-in before it starts" - None or 1-4
      clicking bars before it starts, to get from the play button back to the instrument. It is the player's own
