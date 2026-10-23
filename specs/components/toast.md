@@ -1,7 +1,7 @@
 # Toast
 
 ## 1. Metadata
-- **Name:** Toast (`.toast.success`, `.toast.warning`, `.toast.info`, `.toast.undo`, `.toast-countdown-bar`)
+- **Name:** Toast (`.toast.success`, `.toast.warning`, `.toast.info`, `.toast.undo`, `.toast-countdown-bar`, `.toast.is-leaving` - ML-594)
 - **Category:** Feedback
 - **Status:** Stable
 

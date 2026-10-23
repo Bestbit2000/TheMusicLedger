@@ -1,7 +1,7 @@
 # Two panes
 
 ## 1. Metadata
-- **Name:** Two panes (`style.css`: `.two-pane` on the page's `.container`, `.two-pane-demo` for the Admin → Design examples, `.pane-list`, `.has-detail`, `.pane-selected`, `.home-main`, `.home-tools`, `.play-side`, `.play-main`)
+- **Name:** Two panes (`style.css`: `.two-pane` on the page's `.container`, `.two-pane-demo` for the Admin → Design examples, `.pane-list`, `.has-detail`, `.pane-selected`, `.home-main`, `.home-tools`, `.play-side`, `.play-main`, `.play-wide` - ML-601)
 - **Category:** Layout
 - **Status:** New (ML-239)
 
@@ -25,7 +25,7 @@ list whose rows open a pop-up.
 - With nothing opened yet the second column shows a hint in muted text (`data-pane-hint` on the card, drawn
   by `::after`): "Pick a piece to play."
 - `.history-item.pane-selected` - the row that was tapped, marked with the primary tint and edge.
-- `.container.play-wide` (ML-601) - Rehearse's list **folded away** while a piece plays: not two panes; the play
+- `.play-wide` on `.container` (ML-601) - Rehearse's list **folded away** while a piece plays: not two panes; the play
   screen's controls keep about one column (`minmax(--play-col-min, 1fr)`) and the tiles get two (`2fr`), fitting as
   many across as they can (`--play-tile-min` small tiles, `--play-tile-detail-min` detail tiles; the full layout
   two across when there is room). Back brings the list back beside the piece (`rehearseListOpen`); picking a piece
