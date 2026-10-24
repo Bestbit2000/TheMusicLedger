@@ -1959,9 +1959,14 @@
        and the ✕ gets extra space so it isn't hit instead of ›. */
     .flow-bar-popup { padding: var(--space-4); }
     .flow-bar-popup-header { display: flex; align-items: center; gap: var(--space-2); padding-bottom: var(--space-3); margin-bottom: var(--space-3); border-bottom: 1px solid var(--input-border); }
-    .flow-bar-popup-title { flex: 1 0 auto; display: flex; flex-direction: column; min-width: 0; }
+    /* ML-606: with big bar numbers ("Bars 473–487" and a mark of 473) the header ran out of room on a phone - the title never
+       shrank, so the mark was squeezed to "4…" and the next arrow and the X were pushed off the edge. The mark keeps its whole
+       width; the title shrinks and, if it must, wraps ("Bars" over "473–487"). */
+    .flow-bar-popup-title { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+    .flow-bar-popup-title .flow-block-name { white-space: normal; overflow-wrap: anywhere; line-height: var(--line-height-tight); } /* anywhere: only a range too long even on its own line (4-digit bars) breaks inside it */
+    .flow-bar-popup-header .flow-block-mark-box { flex-shrink: 0; }
     .flow-bar-popup-pos { font-size: var(--font-xs); color: var(--label-color); }
-    .flow-bar-popup-close { margin-left: var(--space-4); }
+    .flow-bar-popup-close { margin-left: var(--space-2); } /* ML-606: was --space-4; with the gap it is still --space-4 clear of the next arrow */
     /* Move earlier / Duplicate / Move later: one 4-column tile wide each, centred (.flow-tile-grid-3-centered).
        Deliberately shorter than the setting tiles, text only and on the smaller button radius, so they
        read as actions rather than three more settings. */

@@ -3566,8 +3566,9 @@
             <div class="warmups-staff" id="warmupsStaff"></div>
         </section>
         <div class="warmups-dock" id="warmupsDock">
-            <div class="warmups-progress" aria-hidden="true"><div class="warmups-progress-fill" id="warmupsProgress"></div></div>
-            <p class="warmups-status" id="warmupsStatus" aria-live="polite"><span id="warmupsStatusNow"></span><span id="warmupsStatusNext"></span></p>
+            <!-- ML-607 (owner, 24 Oct 2026): no bar of how far through the list and no "Next" - you only ever play some of
+                 them, so "5 of 65" meant nothing. What is playing (speed, which time through) is all that is said here. -->
+            <p class="warmups-status hidden-group" id="warmupsStatus" aria-live="polite"><span id="warmupsStatusNow"></span></p>
             <div class="warmups-dock-row">
                 <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset warmups-dock-side" id="warmupsPrevBtn"><span class="material-symbols-outlined" aria-hidden="true">skip_previous</span><span class="metroBlk-ctrl-value-label">previous</span></button>
                 <button type="button" class="metro-play-grid-btn warmups-dock-main" id="warmupsNextMainBtn">Next warm-up<span class="material-symbols-outlined" aria-hidden="true">skip_next</span></button>

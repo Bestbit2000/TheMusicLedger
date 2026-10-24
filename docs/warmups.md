@@ -69,7 +69,8 @@ The design was agreed on a Claude Design canvas (linked from the Jira issue).
   pop-up says so. The choices are the app's one list of play speeds (Admin → Playback speeds - ML-596, owner 23 Oct
   2026; it was 80%, 90%, their own and 110% before), so `Warmups.cleanPrefs` keeps any whole percentage up to
   `Warmups.SPEED_MAX`: a speed later taken off the list still plays.
-- **The bar at the bottom of the screen** (sticky): how far through the list, what's playing and what's next, and the
+- **The bar at the bottom of the screen** (sticky): what's playing (with the metronome on - ML-607 took away the bar of how
+  far through the list and the "Next" line, 24 Oct 2026), and the
   buttons - own pace: Previous, Next warm-up; with the metronome: Previous, Play / Pause, Next. Previous goes back to
   the start of the warm-up you're on first (it took Reset's place). **The count-in shows in that bar**, in Play's
   place - it used to cover the metronome card, which sat off the bottom of the screen on a long warm-up.

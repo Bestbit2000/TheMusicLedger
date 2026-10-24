@@ -28,11 +28,12 @@ under **one Settings button**, saved on the account so it's the same on every de
      While it plays, **the line being played is kept in view** - when it or the line after it would be hidden, the
      page scrolls it up under the top bar (`scroll-margin-top` from `--header-h`).
 2. **The bar at the bottom** (`.warmups-dock`, sticky at the bottom of the screen - on a short warm-up it sits under
-   the music): a thin bar of how far through the list (`.warmups-progress`, its fill width the run-time `--pct`), a
-   status line (`.warmups-status`: what's playing on the left, what's next on the right), then the buttons
-   (`.warmups-dock-row`):
+   the music): the status line (`.warmups-status`: what's playing - the speed and which time through - shown only
+   with the metronome on), then the buttons (`.warmups-dock-row`). ML-607 (owner, 24 Oct 2026): no bar of how far through
+   the list and nothing about what comes next - you only ever play some of the list, so "5 of 65" meant nothing; the title's
+   line says the kind only. (Scales still has its `.warmups-progress` and "Next", which in a Scales block counts its three.)
    - **At your own pace**: **Previous** (`.warmups-dock-side`, grey) and **Next warm-up** (`.warmups-dock-main`,
-     gold). "Next up: Long tones up from G". The list goes round.
+     gold). The list goes round.
    - **With the metronome**: **Previous**, **Play / Pause** (gold; hold to go back to the start), **Next**.
      "66 bpm · 1st time of 2 · Next: Harmonic ladder". It carries on to the next warm-up in time, at that warm-up's
      own speed, with a count-in bar before each; after the last one: "That's the whole list - well done!". Previous
@@ -78,7 +79,7 @@ there are none. The stave can be previewed in bass or tenor clef.
 ## 3. Anatomy
 Tool: `#warmupsView` › `section.flow-card.scales-staff-card` (`.warmups-head` › `h2.warmups-heading` › `#warmupsChooseBtn.warmups-title-btn`
 · `#warmupsSettingsBtn.warmups-settings-btn`; `.warmups-tip`; `#warmupsStaff.warmups-staff` › `.warmups-row`s) · `#warmupsDock.warmups-dock`
-(`.warmups-progress` › `.warmups-progress-fill`; `#warmupsStatus.warmups-status`; `.warmups-dock-row` › `#warmupsPrevBtn`, `#warmupsNextMainBtn`,
+(`#warmupsStatus.warmups-status`, metronome only; `.warmups-dock-row` › `#warmupsPrevBtn`, `#warmupsNextMainBtn`,
 `#warmupsPlayBtn`, `#warmupsCountIn.warmups-countin`, `#warmupsNextBtn`). Pop-ups: `#warmupsSettingsModal` (`.warmups-settings-head`,
 `.warmups-settings-grid` value boxes, `.warmups-settings-row` switches, `.scales-pool-line`), then - after it, so they open over it -
 `#warmupsInstrumentModal`, `#warmupsTopicsModal` (`.pick-bar` + `.pick-row`s), `#warmupsClefModal`, `#warmupsSizeModal`,

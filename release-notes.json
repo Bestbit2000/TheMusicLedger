@@ -1,4 +1,6 @@
 {
+  "ML-606": "We fixed the bar pop-up on a phone: with big bar numbers the rehearsal mark now shows in full and the close button stays on the screen.",
+  "ML-607": "We took the bar of how far through the list and the \"Next\" line off Warm-ups, so the screen just shows what you are playing.",
   "ML-608": "We made every block on a practice session's \"What goes in\" step look the same and tucked the details into each block's pop-up, and a Levels bar now shows how many bars are at each Level.",
   "ML-603": "We added Reduce motion to Settings, Display and reading: with it on, things appear and go instead of sliding or fading, and countdowns move a step a second.",
   "ML-605": "We put the Tuner's Transposition and Tuning reference back in pop-ups over its settings, and closing one now leaves the settings open.",

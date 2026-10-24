@@ -13300,7 +13300,7 @@
                 <button type="button" class="flow-bar-popup-icon-btn" data-bar-popup="prev" aria-label="Previous bar"${first ? ' disabled' : ''}>${icon('chevron_left')}</button>
                 ${flowBlockMarkBoxHtml(b)}
                 <div class="flow-bar-popup-title">
-                    <span class="flow-block-name" id="flowBarPopupTitle">${flowBarPopupRangeLabel(idx)}</span>
+                    <span class="flow-block-name" id="flowBarPopupTitle">${flowBarPopupRangeLabel(idx).replace('–', '⁠–⁠') /* ML-606: wraps as "Bars" over "473–487", never after the dash */}</span>
                     <span class="flow-bar-popup-pos">${idx + 1} of ${currentFlowBlocks.length}</span>
                 </div>
                 <button type="button" class="flow-bar-popup-icon-btn" data-bar-popup="next" aria-label="Next bar"${last ? ' disabled' : ''}>${icon('chevron_right')}</button>
@@ -26701,7 +26701,7 @@
         warmups.currentId = ex.id;
         const kindLabel = (Warmups.KINDS.find(k => k.id === ex.kind) || {}).label || ex.kind;
         document.getElementById('warmupsTitle').textContent = ex.title;
-        document.getElementById('warmupsSub').textContent = `${kindLabel} · ${list.indexOf(ex) + 1} of ${list.length}`;
+        document.getElementById('warmupsSub').textContent = kindLabel; // ML-607: not "5 of 65" - you only play some of them
         document.getElementById('warmupsTip').textContent = ex.tip || '';
         warmupsTimeline = Warmups.timeline(ex);
         renderWarmupsStaff(ex);
@@ -26731,7 +26731,6 @@
     function renderWarmupsDock() {
         const list = warmupsList(), ex = warmupsCurrent();
         const metro = warmupsMetronomeOn();
-        const i = ex ? list.indexOf(ex) : -1;
         const playing = warmupsPlayer.isPlaying();
         setShown('warmupsNextMainBtn', !metro);
         setShown('warmupsNextBtn', metro);
@@ -26739,21 +26738,16 @@
         setShown('warmupsCountIn', metro && warmupsCountdown > 0);
         ['warmupsPrevBtn', 'warmupsNextBtn', 'warmupsNextMainBtn'].forEach(id => { document.getElementById(id).disabled = list.length < 2; });
         document.getElementById('warmupsPlayBtn').disabled = !ex;
-        document.getElementById('warmupsProgress').style.setProperty('--pct', `${list.length ? ((i + 1) / list.length) * 100 : 0}%`);
-        const next = list.length > 1 && i >= 0 ? list[(i + 1) % list.length] : null;
-        let now = '', after = '';
+        // ML-607: what is playing only - no bar of how far through the list and nothing about what comes next
+        let now = '';
         if (warmupsListDone) now = 'That\'s the whole list - well done!';
-        else if (!ex) now = '';
-        else if (!metro) after = next ? `Next up: ${next.title}` : '';
-        else {
+        else if (ex && metro) {
             const times = warmups.times;
             const what = warmupsCountdown > 0 ? 'count-in' : !playing ? `play ${WARMUPS_TIMES_WORDS[times]}` : times > 1 ? `${warmupsPass + 1 === 1 ? '1st' : '2nd'} time of ${times}` : '';
             now = `${warmupsBpm} bpm${what ? ` · ${what}` : ''}`;
-            const last = !sessionWarmupLoop && i === list.length - 1;
-            after = list.length < 2 ? '' : last ? 'The last one' : `Next: ${list[(i + 1) % list.length].title}`;
         }
         document.getElementById('warmupsStatusNow').textContent = now;
-        document.getElementById('warmupsStatusNext').textContent = after;
+        setShown('warmupsStatus', !!now);
     }
     function warmupsShowCountIn(left, total) {
         const num = document.getElementById('warmupsCountInNum');

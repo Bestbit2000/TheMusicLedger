@@ -19,7 +19,7 @@ Bars tab (ML-206, ML-208): `.flow-bars-toolbar` (summary › `.flow-layout-toggl
 - 2 columns: `#flowBlocksList.flow-bar-grid-2` › `button.flow-bar-grid-tile.flow-bar-detail-tile` × n › `.flow-bar-detail-head` / `.flow-bar-detail-mid` / `.flow-bar-detail-strip`.
 - 4 columns: `#flowBlocksList.metroBlk-tile-strip` › `button.metroBlk-tile.flow-bar-grid-tile` × n.
 
-In either grid, tapping a tile opens `#flowBarPopupModal`: `.flow-bar-popup-header` (‹ · rehearsal mark · `.flow-bar-popup-title` with `.flow-bar-popup-pos` · › · ✕) › the card's 12 setting tiles › `.flow-bar-popup-actions` (3 × `.flow-bar-popup-action`) › `.flow-bar-popup-delete`.
+In either grid, tapping a tile opens `#flowBarPopupModal`: `.flow-bar-popup-header` (‹ · rehearsal mark · `.flow-bar-popup-title` with `.flow-bar-popup-pos` · › · ✕) - ML-606: the mark always shows whole (it never shrinks); the title shrinks and wraps to "Bars" over "473–487" (never after the dash) so big bar numbers never push › and ✕ off a phone's screen › the card's 12 setting tiles › `.flow-bar-popup-actions` (3 × `.flow-bar-popup-action`) › `.flow-bar-popup-delete`.
 
 ## 4. Tokens used
 All of: `--container-bg`, `--input-bg`, `--input-border`, `--primary-action`, `--primary-action-tint`,
