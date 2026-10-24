@@ -1439,6 +1439,9 @@
        needing a new scoped rule added per modal. */
     .modal-close-x { padding: 0; position: absolute; top: var(--space-3); right: var(--space-3); width: 48px; height: 48px; border-radius: var(--radius-circle); border: none; background: var(--input-bg); color: var(--text-color); font-size: var(--font-lg); line-height: var(--line-height-tight); cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .modal-content:has(.modal-close-x) { position: relative; }
+    /* ML-602: a pop-up's title never runs under its X - a long one ("My range - B♭ Euphonium (4 valves)") wraps before it.
+       The X is 48px wide, --space-3 in from the edge, over the --space-5/6 padding: --space-9 keeps the title clear of it. */
+    .modal-close-x + h2 { padding-right: var(--space-9); }
 
     /* Opt-in modifier (ML-103, the block editor modal only - not applied to .modal-content
        generally, which every other modal in the app still uses as a single scrolling box) - splits

@@ -189,6 +189,11 @@ describe('which list an instrument uses (ML-357)', () => {
         assert.equal(g('E♭ Tuba', 'bass'), 'tuba-eb-bass-clef');
         assert.equal(g('B♭ Tuba', 'treble'), 'tuba-treble');
         assert.equal(g('Piccolo Trumpet', 'treble'), 'trumpet-cornet-flugel');
+        // ML-602: the 3- and 4-valve versions find the same lists (ML-609 will move this off the names)
+        assert.equal(g('B♭ Euphonium (3 valves)', 'bass'), 'baritone-euphonium-bass');
+        assert.equal(g('B♭ Baritone Horn (4 valves)', 'treble'), 'baritone-euphonium-treble');
+        assert.equal(g('E♭ Tuba (EE♭ Bass, 3 valves)', 'bass'), 'tuba-eb-bass-clef');
+        assert.equal(g('B♭ Tuba (BB♭ Bass, 4 valves)', 'bass'), 'tuba-bb-bass-clef');
     });
     test('woodwind has one list whatever the clef; no list for strings or percussion', () => {
         assert.equal(g('Flute', 'bass'), 'flute');
