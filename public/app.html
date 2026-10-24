@@ -2767,9 +2767,8 @@
          just "which note sounds like concert C when this instrument reads its own C" - any of the 12
          is a real instrument (D trumpet, A clarinet...), and a player already using a common one still
          just taps that same note letter, same recognition speed as a dedicated "B flat instrument"
-         button gave them. ML-591 (owner, 23 Oct 2026): Transposition and Tuning reference open their choices
-         underneath their rows, inside this popup (show / hide - each row a button with aria-expanded), rather than
-         in popups of their own - closing one of those used to close this one too. Closes
+         button gave them. Transposition and Tuning reference open pop-ups of their own on top of this one, which stays open
+         (owner, 24 Oct 2026; ML-591 had them in place under arrow rows for a while). Closes
          on its own X or a tap on the dark backdrop outside .modal-content - the only popup in the app
          that does that, since nothing here needs an explicit Cancel/Save. Every value here also has a
          matching control on the Settings screen (#settingsView) to come back to next time the app's
@@ -2793,38 +2792,17 @@
                 <div class="tuner-settings-group-label">Note names</div>
                 <div class="flow-tile-grid flow-tile-grid-4" id="tunerNoteStyleOptions"></div>
             </div>
-            <!-- ML-591: Transposition (12 options) and Tuning reference (a slider) show their choices underneath their
-                 row when it's tapped, and hide them on a second tap - one open at a time (toggleTunerSettingsPanel). -->
-            <button type="button" class="tuner-settings-row-btn" id="tunerTranspositionBtn" aria-expanded="false" aria-controls="tunerTranspositionPanel">
+            <!-- Transposition (12 options) and Tuning reference (a slider) each open a pop-up of their own ON TOP of this one
+                 (owner, 24 Oct 2026 - ML-591 had put them in place under arrow rows; he prefers the pop-ups, as long as closing
+                 one leaves Settings open). One button, one pop-up: the row shows the answer. -->
+            <button type="button" class="tuner-settings-row-btn" id="tunerTranspositionBtn" aria-haspopup="dialog">
                 <span>Transposition</span>
-                <span class="flex-row items-center gap-sm"><span id="tunerTranspositionRowValue">C</span><span class="material-symbols-outlined" aria-hidden="true" id="tunerTranspositionChevron">expand_more</span></span>
+                <span id="tunerTranspositionRowValue">C</span>
             </button>
-            <div class="hidden-group mb-5" id="tunerTranspositionPanel" role="group" aria-labelledby="tunerTranspositionBtn">
-                <p class="tuner-settings-group-sublabel">Written note that sounds as concert C</p>
-                <div class="flow-tile-grid flow-tile-grid-4" id="tunerTranspositionOptions"></div>
-            </div>
-            <button type="button" class="tuner-settings-row-btn" id="tunerA4Btn" aria-expanded="false" aria-controls="tunerA4Panel">
+            <button type="button" class="tuner-settings-row-btn" id="tunerA4Btn" aria-haspopup="dialog">
                 <span>Tuning reference (A4)</span>
-                <span class="flex-row items-center gap-sm"><span id="tunerA4RowValue">440Hz</span><span class="material-symbols-outlined" aria-hidden="true" id="tunerA4Chevron">expand_more</span></span>
+                <span id="tunerA4RowValue">440Hz</span>
             </button>
-            <div class="hidden-group mb-5" id="tunerA4Panel" role="group" aria-labelledby="tunerA4Btn">
-                <div class="metro-speed-row no-margin">
-                    <button class="metro-bpm-step" id="tunerA4Minus" type="button" aria-label="Decrease A4 reference">&minus;</button>
-                    <div class="metro-speed-readout">
-                        <div id="tunerA4PopupValue">440</div>
-                        <div class="metro-speed-sub">Hz</div>
-                    </div>
-                    <button class="metro-bpm-step" id="tunerA4Plus" type="button" aria-label="Increase A4 reference">+</button>
-                </div>
-                <div class="slider-wrap no-margin">
-                    <div class="slider-track" id="tunerA4SliderTrack">
-                        <div class="slider-fill" id="tunerA4SliderFill"></div>
-                        <div class="slider-thumb" id="tunerA4SliderThumb" tabindex="0" role="slider" aria-label="A4 tuning reference" aria-valuemin="415" aria-valuemax="466" aria-valuenow="440"></div>
-                    </div>
-                    <div class="slider-scale"><span>415</span><span>466</span></div>
-                </div>
-                <button type="button" class="btn-nav" id="tunerA4ResetBtn">Reset to 440Hz</button>
-            </div>
 
             <div class="tuner-settings-section-label">Display</div>
             <div class="tuner-display-toggle-row">
@@ -2836,6 +2814,44 @@
             <div class="tuner-display-toggle-row">
                 <span id="tunerShowOctaveToggleLabel">Show octave</span><label class="toggle-switch"><input type="checkbox" id="tunerShowOctaveToggle" aria-labelledby="tunerShowOctaveToggleLabel"><span class="toggle-slider"></span></label>
             </div>
+        </div>
+    </div>
+
+    <!-- Transposition (tunerTransposition, app.js) - all 12 semitone offsets, tap a tile to choose (it closes). Opens on
+         top of Tuner settings, which stays open underneath (owner, 24 Oct 2026) - it comes after it here so it is drawn
+         over it. -->
+    <div class="modal" id="tunerTranspositionModal" role="dialog" aria-modal="true" aria-labelledby="tunerTranspositionModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" id="tunerTranspositionCloseBtn" aria-label="Close">&times;</button>
+            <h2 id="tunerTranspositionModalTitle">Transposition</h2>
+            <p class="tuner-settings-group-sublabel">Written note that sounds as concert C</p>
+            <div class="flow-tile-grid flow-tile-grid-4" id="tunerTranspositionOptions"></div>
+        </div>
+    </div>
+
+    <!-- A4 tuning reference (tunerA4Freq, app.js) - minus/plus, a typeable readout, the slider and Reset. 415-466Hz (a
+         semitone either side of 440). Feeds tunerFreqToMidi - it changes what every note reading resolves to. On top of
+         Tuner settings, which stays open underneath. -->
+    <div class="modal" id="tunerA4Modal" role="dialog" aria-modal="true" aria-labelledby="tunerA4ModalTitle">
+        <div class="modal-content">
+            <button type="button" class="modal-close-x" id="tunerA4CloseBtn" aria-label="Close">&times;</button>
+            <h2 id="tunerA4ModalTitle">Tuning reference (A4)</h2>
+            <div class="metro-speed-row no-margin">
+                <button class="metro-bpm-step" id="tunerA4Minus" type="button" aria-label="Decrease A4 reference">&minus;</button>
+                <div class="metro-speed-readout">
+                    <div id="tunerA4PopupValue">440</div>
+                    <div class="metro-speed-sub">Hz</div>
+                </div>
+                <button class="metro-bpm-step" id="tunerA4Plus" type="button" aria-label="Increase A4 reference">+</button>
+            </div>
+            <div class="slider-wrap no-margin">
+                <div class="slider-track" id="tunerA4SliderTrack">
+                    <div class="slider-fill" id="tunerA4SliderFill"></div>
+                    <div class="slider-thumb" id="tunerA4SliderThumb" tabindex="0" role="slider" aria-label="A4 tuning reference" aria-valuemin="415" aria-valuemax="466" aria-valuenow="440"></div>
+                </div>
+                <div class="slider-scale"><span>415</span><span>466</span></div>
+            </div>
+            <button type="button" class="btn-nav" id="tunerA4ResetBtn">Reset to 440Hz</button>
         </div>
     </div>
 
