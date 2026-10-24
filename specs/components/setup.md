@@ -8,7 +8,7 @@
 ## 2. Overview
 Three short steps the first time a new member signs in, so the app suits them from the start: **What I
 play** (the instrument, the clef they read where there is a choice - ML-528 - and their first name if the
-account has none), **How it looks** (light or dark, text size, font, background tint, more spacing) and
+account has none), **How it looks** (light or dark, text size, font, background tint, more spacing, reduce motion) and
 **Who I play with** (bands on their own, private, list). "Set up again" in Settings goes through it whenever
 they like. Feature `member_setup`. How it behaves is in `docs/home-greeting.md` ("Set-up for new members").
 
@@ -40,7 +40,8 @@ The owner's rules it follows (12 Oct 2026, and "No pressure" in `specs/README.md
   for anyone who plays more than one.
 - **How it looks:** a line › `.outline-pair` of four value boxes (light or dark, text size, font,
   background tint), each opening the choice pop-up › a `.display-toggle-row` with a `.toggle-switch`
-  ("More space between lines and letters" over "And no italics"). Each choice shows straight away.
+  ("More space between lines and letters" over "And no italics") › a second one, "Reduce motion" (ML-603), over the
+  same help line as in Settings. Each choice shows straight away.
 - **Who I play with:** a line saying the list is private › a `.history-item` per band already on the list
   (its name and a tick) › `.outline-add` "+ Add a band" / "+ Add another band".
 - **The searchable choice list** (`#flowChoiceModal`): the question › `input[type="search"].mb-4` › the

@@ -27,7 +27,7 @@ A transient message pinned to the bottom centre, auto-dismissing with a shrinkin
 `--font-base`, `--font-weight-bold`, `--toast-above-bottom-bar`, `--duration-base`, `--ease-standard` (the drop, ML-594).
 
 ## 5. Props / API
-- **Show and hide (ML-288):** a toast is hidden until it has `.show` (the `showXToast` functions add it, `closeToast` removes it). The countdown bar shrinks under `.toast-countdown-bar.is-running` over `--countdown-ms`, and `.is-paused` freezes it (at `--frozen-w`) while the toast is hovered or focused.
+- **Show and hide (ML-288):** a toast is hidden until it has `.show` (the `showXToast` functions add it, `closeToast` removes it). The countdown bar shrinks under `.toast-countdown-bar.is-running` over `--countdown-ms`, and `.is-paused` freezes it (at `--frozen-w`) while the toast is hovered or focused. With reduced motion (ML-603) it steps down once a second instead - `steps(--countdown-steps)`, set with `--countdown-ms` by `setToastCountdown`.
 Hidden by default (`display: none`). Only the helpers show it. Lifetimes live in `TOAST_DURATIONS_MS` (behaviour, stays in JS).
 
 ## 6. States

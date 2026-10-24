@@ -3310,7 +3310,7 @@
     // ========================================
     window.scrollArea = function(btn, amount) {
         let container = btn.parentElement.querySelector('.chart-scroll-area, .heatmap-wrapper');
-        if(container) container.scrollBy({ left: amount, behavior: 'smooth' });
+        if(container) container.scrollBy({ left: amount, behavior: scrollMotion() });
     }
 
     function scrollStatsToRight() {
@@ -5675,6 +5675,11 @@
     // ML-210: every running countdown, by toast id, so hovering/focusing a toast can pause it (WCAG
     // 2.2.1 - enough time to reach its Undo button) and leaving resumes it with the time it had left.
     const toastCountdowns = {};
+    // How long the bar takes, and in how many one-second steps it goes with reduced motion (ML-603 - style.css)
+    function setToastCountdown(bar, ms) {
+        bar.style.setProperty('--countdown-ms', `${ms}ms`);
+        bar.style.setProperty('--countdown-steps', String(Math.max(1, Math.ceil(ms / 1000))));
+    }
     function startToastCountdownBar(barId, durationMs, onComplete) {
         const toastId = barId.replace(/Bar$/, '');
         toastCountdowns[toastId] = { barId, onComplete, deadline: Date.now() + durationMs, paused: null };
@@ -5683,7 +5688,7 @@
             // .is-running shrinks it to nothing over --countdown-ms (style.css). Back to full first.
             bar.classList.remove('is-running', 'is-paused');
             void bar.offsetWidth; // force the 100% state to actually commit before animating away from it
-            bar.style.setProperty('--countdown-ms', `${durationMs}ms`);
+            setToastCountdown(bar, durationMs);
             bar.classList.add('is-running');
         }
         return setTimeout(onComplete, durationMs);
@@ -5805,7 +5810,7 @@
         c.paused = null;
         c.deadline = Date.now() + remaining;
         const bar = document.getElementById(c.barId);
-        if (bar) { void bar.offsetWidth; bar.style.setProperty('--countdown-ms', `${remaining}ms`); bar.classList.remove('is-paused'); }
+        if (bar) { void bar.offsetWidth; setToastCountdown(bar, remaining); bar.classList.remove('is-paused'); }
         toastDismissTimers[id] = setTimeout(c.onComplete, remaining);
     }
     ['toastSuccess', 'toastWarning', 'toastInfo', 'toastUndo'].forEach(id => {
@@ -8191,13 +8196,17 @@
         e.currentTarget.setAttribute('aria-expanded', String(open));
         setShown('levelRateMore', open);
     });
-    // A declaration, not a const: the toasts (closeToast, ML-594) ask it before this line has run
-    function prefersReducedMotion() { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
+    // Declarations, not consts: the toasts (closeToast, ML-594) ask before these lines have run.
+    // ML-603: less motion when the member's Reduce motion switch is on or the device asks for it -
+    // display-prefs.js puts both into html[data-motion="reduce"], which style.css follows too.
+    function deviceReducesMotion() { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
+    function prefersReducedMotion() { return document.documentElement.getAttribute('data-motion') === 'reduce' || deviceReducesMotion(); }
+    function scrollMotion() { return prefersReducedMotion() ? 'auto' : 'smooth'; }
     async function rateLevelPractice(level) {
         const s = flowSession;
         if (!s) return;
-        // A Level up gets a short star celebration first (none with reduced motion).
-        if (level > s.level && !prefersReducedMotion()) {
+        // A Level up gets a short star celebration first (with reduced motion the stars just show, without the pop).
+        if (level > s.level) {
             document.getElementById('levelRateUp').classList.add('is-celebrating');
             await new Promise(r => setTimeout(r, 700));
         }
@@ -13668,6 +13677,9 @@
             <div class="outline-pair">${['theme', 'textSize', 'font', 'background'].map(id => setupValueBox(`look:${id}`, setupLookValue(id), SETUP_LOOK[id].label)).join('')}</div>
             <div class="display-toggle-row">
                 <span id="setupSpacingLabel">More space between lines and letters<span class="display-toggle-help">And no italics</span></span><label class="toggle-switch"><input type="checkbox" id="setupSpacing" aria-labelledby="setupSpacingLabel"${displayPrefs.dyslexia ? ' checked' : ''}><span class="toggle-slider"></span></label>
+            </div>
+            <div class="display-toggle-row">
+                <span id="setupMotionLabel">Reduce motion<span class="display-toggle-help">${escapeHtml(motionHelpText())}</span></span><label class="toggle-switch"><input type="checkbox" id="setupMotion" aria-labelledby="setupMotionLabel"${displayPrefs.reduceMotion ? ' checked' : ''}><span class="toggle-slider"></span></label>
             </div>`;
     }
     function setupBandsHtml() {
@@ -13808,8 +13820,9 @@
         }
     });
     document.getElementById('setupView')?.addEventListener('change', async (e) => {
-        if (e.target.id !== 'setupSpacing' || !setup) return;
-        await saveDisplayPrefs({ dyslexia: e.target.checked });
+        if (!setup) return;
+        if (e.target.id === 'setupSpacing') await saveDisplayPrefs({ dyslexia: e.target.checked });
+        if (e.target.id === 'setupMotion') { await saveDisplayPrefs({ reduceMotion: e.target.checked }); setupRedraw(); document.getElementById('setupMotion')?.focus(); }
     });
     document.getElementById('settingsSetupLink')?.addEventListener('click', () => openSetup(false));
 
@@ -15403,7 +15416,7 @@
     // After adding a bar, bring it and "+ Add bar" into view (as Quick Play does) - the button is the
     // last thing on the page, so scrolling to the bottom shows both above the pinned Cancel/Save bar.
     function scrollFlowBarsToEnd() {
-        requestAnimationFrame(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' }));
+        requestAnimationFrame(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: scrollMotion() }));
     }
     document.getElementById('flowAddBlockBtn')?.addEventListener('click', async () => {
         if (!currentFlowId) return;
@@ -17150,7 +17163,7 @@
         const el = document.querySelector('#flowPlayTiles .metroBlk-tile-active, #flowPlayTiles [aria-current="true"]');
         if (!el) return;
         flowSetPinHeight();
-        el.scrollIntoView({ block: 'start', inline: 'nearest', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+        el.scrollIntoView({ block: 'start', inline: 'nearest', behavior: scrollMotion() });
     }
     function renderFlowPlaybackTiles() {
         renderFlowPlaybackTileList();
@@ -18935,7 +18948,7 @@
         // ML-154 follow-up: scrolls to the "+ Add bar" button itself, not just the new bar box above
         // it - scrolling only the box left the button that landed it there just out of view below the
         // fold, defeating the point if you wanted to add another straight after.
-        document.getElementById('qpAddBlockBtn')?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        document.getElementById('qpAddBlockBtn')?.scrollIntoView({ behavior: scrollMotion(), block: 'end' });
         qpMarkUnsaved();
         qpSyncAfterBlocksChanged();
     });
@@ -21646,7 +21659,8 @@
     // Saved on the account so they follow you to every device; a copy stays on the device
     // (tml.display) so display-prefs.js can apply them before the page draws next time.
     // dyslexia is the "Increased spacing" switch (more line, letter and word spacing, no italics) - ML-359.
-    const DISPLAY_DEFAULTS = { darkMode: false, dyslexia: false, font: 'standard', background: 'standard', textSize: 'standard' };
+    // reduceMotion is ML-603's switch: on = reduce motion everywhere, off = do what the device says (display-prefs.js).
+    const DISPLAY_DEFAULTS = { darkMode: false, dyslexia: false, font: 'standard', background: 'standard', textSize: 'standard', reduceMotion: false };
     let displayPrefs = { ...DISPLAY_DEFAULTS };
     try { displayPrefs = { ...DISPLAY_DEFAULTS, ...JSON.parse(localStorage.getItem('tml.display') || '{}') }; } catch (e) { /* defaults */ }
     if (localStorage.getItem('tml.display') === null && localStorage.getItem('darkMode') === 'true') displayPrefs.darkMode = true;
@@ -21677,6 +21691,7 @@
         if (displayPrefs.dyslexia) bits.push('more spacing');
         if (displayPrefs.font !== 'standard') bits.push(displayPrefs.font === 'lexend' ? 'Lexend' : 'OpenDyslexic');
         if (displayPrefs.textSize !== 'standard') bits.push(displayPrefs.textSize === 'larger' ? 'extra large text' : 'large text');
+        if (displayPrefs.reduceMotion) bits.push('reduced motion');
         return bits.join(', ');
     }
     // The preview is pinned under the top bar, whose height changes with text size and a wrapping title:
@@ -21705,6 +21720,8 @@
         light.checked = !displayPrefs.darkMode;
         document.getElementById('displayTheme-dark').checked = displayPrefs.darkMode;
         document.getElementById('readingSpacingToggle').checked = displayPrefs.dyslexia;
+        document.getElementById('displayMotionToggle').checked = displayPrefs.reduceMotion;
+        document.getElementById('displayMotionHelp').textContent = motionHelpText();
         [['readingFont', 'font'], ['readingBackground', 'background'], ['readingTextSize', 'textSize']].forEach(([name, key]) => {
             const r = document.getElementById(`${name}-${displayPrefs[key]}`);
             if (r) r.checked = true;
@@ -21717,6 +21734,14 @@
     }
     document.querySelectorAll('input[name="displayTheme"]').forEach(r => r.addEventListener('change', () => { if (r.checked) saveDisplayPrefs({ darkMode: r.value === 'dark' }); }));
     document.getElementById('readingSpacingToggle')?.addEventListener('change', (e) => saveDisplayPrefs({ dyslexia: e.target.checked }));
+    document.getElementById('displayMotionToggle')?.addEventListener('change', (e) => saveDisplayPrefs({ reduceMotion: e.target.checked }));
+    // With the switch off, a device that already asks for less motion still gets it - the help line says so.
+    function motionHelpText() {
+        return !displayPrefs.reduceMotion && deviceReducesMotion()
+            ? 'Already on, because this device asks for less motion'
+            : 'Things appear and go instead of sliding or fading';
+    }
+    try { window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', renderDisplaySettings); } catch (e) { /* an old browser: the line catches up next time */ }
     // Reset to standard: the reading choices (background, font, text size, spacing) back to standard, with
     // an Undo. Light / Dark is left alone - it's a theme, not a reading aid. Always at the bottom; disabled
     // while they're all standard already.
@@ -22232,7 +22257,8 @@
             const secs = Math.ceil(left / 1000);
             clock.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
             const fill = document.getElementById('theoryCountdownFill');
-            fill.style.setProperty('--remaining', left / (r.seconds * 1000));
+            // ML-603: with reduced motion the bar steps down once a second, with the clock, instead of gliding
+            fill.style.setProperty('--remaining', prefersReducedMotion() ? secs / r.seconds : left / (r.seconds * 1000));
             document.getElementById('theoryCountdown').setAttribute('aria-valuenow', String(Math.round(100 * left / (r.seconds * 1000))));
             if (left <= 0) theoryBlockDone();
         } else {
@@ -25621,7 +25647,7 @@
         const header = document.querySelector('.top-bar-sticky-group');
         const top = header ? header.getBoundingClientRect().bottom : 0;
         const bottom = (row.nextElementSibling || row).getBoundingClientRect().bottom;
-        if (row.getBoundingClientRect().top < top || bottom > dock.top) row.scrollIntoView({ block: 'start', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+        if (row.getBoundingClientRect().top < top || bottom > dock.top) row.scrollIntoView({ block: 'start', behavior: scrollMotion() });
     }
     // "1 octave · treble · 3 of 18" - in a Scales block, how this Level is played instead of the place in the list
     function scalesShowSub() {
@@ -26696,7 +26722,7 @@
         const header = document.querySelector('.top-bar-sticky-group');
         const top = header ? header.getBoundingClientRect().bottom : 0;
         const bottom = (row.nextElementSibling || row).getBoundingClientRect().bottom;
-        if (row.getBoundingClientRect().top < top || bottom > dock.top) row.scrollIntoView({ block: 'start', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+        if (row.getBoundingClientRect().top < top || bottom > dock.top) row.scrollIntoView({ block: 'start', behavior: scrollMotion() });
     }
 
     // --- The bar at the bottom: own pace - Previous, Next warm-up; with the metronome - Previous, Play, Next ---

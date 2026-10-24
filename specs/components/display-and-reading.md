@@ -1,7 +1,7 @@
 # Display and reading
 
 ## 1. Metadata
-- **Name:** Display and reading (`.font-preview-standard`, `.font-preview-lexend`, `.font-preview-opendyslexic`, `.text-size-preview-large`, `.text-size-preview-larger`, `.display-preview`, `.display-preview-label`, `.display-preview-staff`, `.display-preview-text`, `.display-card`, `.display-card-title`, `.display-toggle-row`, `.display-toggle-help`, `.bg-tile-tick`, `.bg-tile-name`, `.bg-swatch`, `.bg-swatch-standard`, `.bg-swatch-yellow`, `.bg-swatch-peach`, `.bg-swatch-cream`, `.bg-swatch-blue`, `.bg-swatch-green`) and the page-wide reading preferences (`html[data-font]`, `html[data-bg]`, `html[data-text]`, `html[data-reading]`)
+- **Name:** Display and reading (`.font-preview-standard`, `.font-preview-lexend`, `.font-preview-opendyslexic`, `.text-size-preview-large`, `.text-size-preview-larger`, `.display-preview`, `.display-preview-label`, `.display-preview-staff`, `.display-preview-text`, `.display-card`, `.display-card-title`, `.display-toggle-row`, `.display-toggle-help`, `.bg-tile-tick`, `.bg-tile-name`, `.bg-swatch`, `.bg-swatch-standard`, `.bg-swatch-yellow`, `.bg-swatch-peach`, `.bg-swatch-cream`, `.bg-swatch-blue`, `.bg-swatch-green`) and the page-wide reading preferences (`html[data-font]`, `html[data-bg]`, `html[data-text]`, `html[data-reading]`, `html[data-motion]`)
 - **Category:** Settings / foundations
 - **Status:** Stable (ML-356; screen redesigned ML-359)
 
@@ -25,7 +25,9 @@ Settings screen (ML-359), top to bottom:
    Theme as a `.radio-group.is-segmented` (Light / Dark with icons), then Background tint as a
    `.radio-group.is-tiles` - six tiles, three to a row, each filled with its colour (a `.bg-swatch` +
    `.bg-swatch-*` behind the `.bg-tile-name`), the chosen one with the strong outline and a
-   `.bg-tile-tick`. The tiles show the dark shades while Dark is on.
+   `.bg-tile-tick`. The tiles show the dark shades while Dark is on. Last, a `.display-toggle-row`: **Reduce
+   motion** (ML-603) over a `.display-toggle-help` line - "Things appear and go instead of sliding or fading", or
+   "Already on, because this device asks for less motion" while the switch is off and the device asks for it.
 4. **Reading & typography** - a second `.display-card`: Font (`.radio-group.compact.is-fit.is-centred`, each label
    in its own font - `.font-preview-*`; OpenDyslexic is wide, so it takes its own row), Text size
    (`.radio-group.compact.is-centred`, Large and Extra large drawn at their size - `.text-size-preview-*`)
@@ -53,7 +55,8 @@ device copy, saves to the account), `loadDisplayPrefs()` at startup. Server: `GE
 `DISPLAY_PREF_CHOICES` (server/services/accounts.js).
 
 ## 6. States
-Each preference's value. Reset to standard is disabled while all four reading choices are standard.
+Each preference's value. Reset to standard is disabled while all four reading choices are standard. Reset
+leaves Reduce motion alone, as it does Light / Dark: it isn't a reading choice.
 
 ## 7. Code example
 ```html

@@ -265,7 +265,8 @@ export const DISPLAY_PREF_CHOICES = {
   dyslexia: [true, false],                       // 'Increased spacing': more line / letter / word spacing, no italics
   font: ['standard', 'lexend', 'opendyslexic'],
   background: ['standard', 'cream', 'blue', 'green', 'yellow', 'peach'], // ML-359: + soft yellow, peach
-  textSize: ['standard', 'large', 'larger']
+  textSize: ['standard', 'large', 'larger'],
+  reduceMotion: [true, false]                    // ML-603: on = things appear and go instead of moving; off = as the device says
 };
 export async function getDisplayPrefs(accountId) {
   const { rows } = await pool.query('SELECT display_prefs FROM accounts WHERE id = $1', [accountId]);

@@ -6,11 +6,12 @@ the screen is, top to bottom:
 1. **Preview** - pinned under the top bar, compact, so it stays in view as you scroll the choices: a line of music (a C major scale, drawn by `Notation`) and a sentence, so you see
    the tint, font, size and spacing on both music and words as you choose. Every choice applies at
    once (to the whole app, not just the preview).
-2. **Display & theme** card - Theme (Light / Dark) and Background tint.
+2. **Display & theme** card - Theme (Light / Dark), Background tint and Reduce motion (ML-603).
 3. **Reading & typography** card - Font, Text size and Increased spacing.
 4. **Reset to standard** - always at the bottom, disabled while every reading choice is already
    standard. Puts background, font, text size and spacing back to Standard (every one of them has a
-   "Standard" option, so it's one word throughout) with an **Undo** toast; Light / Dark is left as it is.
+   "Standard" option, so it's one word throughout) with an **Undo** toast; Light / Dark and Reduce motion
+   are left as they are.
 
 **No one-tap dyslexia preset (removed 2026-09-30).** ML-359 had an "Apply dyslexia-friendly preset"
 button (Lexend, Cream, Large text and Increased spacing at once, with Undo). It was taken out on the
@@ -24,6 +25,7 @@ harder to adjust than one change at a time with the live preview. So each is cho
 | Background tint | Standard · Cream · Pale blue · Pale green · Soft yellow · Peach | Page, cards and fields, with a dark version of each for dark mode (ML-359: stronger, so a colour shows in the dark too). Soft yellow and peach/rose are the overlays most often asked for for visual stress - which colour helps differs from person to person. Each choice is a tile filled with its colour |
 | Font | Standard (Inter) · Lexend · OpenDyslexic | The font for all UI text (buttons too). Music notation always stays in Bravura |
 | Text size | Standard · Large (112.5%) · Extra large (125%) | The root font size - everything sized in rem grows. Stored as `standard` / `large` / `larger` |
+| Reduce motion | on / off | Stored as `reduceMotion` (ML-603). On: things appear and go instead of sliding, fading, popping or pulsing - see "Reduce motion" below. Off: as the device says |
 | Increased spacing | on / off | Stored as `dyslexia` (`html[data-reading="on"]`). Line spacing 1.7 (1.85 for long text), a little more letter (0.035em) and word (0.12em) spacing, no italics - the British Dyslexia Association style guide |
 
 Before ML-359 "Dyslexia-friendly reading" was an on/off switch that also picked Lexend and cream (and a
@@ -38,8 +40,19 @@ to every device. A copy is kept on the device (`localStorage tml.display`) so
 fixed dark mode's flash of light mode on startup). The first time an account has none saved, the
 device's own dark mode is kept and saved.
 
+**Reduce motion (ML-603).** For some people a lot of movement on screen is off-putting. The app always
+followed the device's own "reduce motion" setting; the switch lets someone choose it in the app, without
+finding the setting on their phone, and keeps it on their account across devices. Off means "as the device
+says", so someone who set it on their phone isn't asked again (the help line then says it is already on).
+`display-prefs.js` puts either one into `html[data-motion="reduce"]` - and follows the device if its
+setting changes - so `style.css` and `prefersReducedMotion()` in app.js have one thing to look at. The owner's
+rules (24 Oct 2026): countdowns still count down a step a second (timer ring, rest ring, Theory bar, the
+toast's bar); what shows the music keeps moving without extra bounce (the beat dots light without the pulse,
+the follow-the-beat pan keeps its glide); the Level-up stars show without the pop. Every rule is in
+`specs/foundations/motion.md`. It is also on step 2 of set-up for new members.
+
 **How it's built:** each preference is a data attribute on `<html>` (`data-font`, `data-bg`,
-`data-text`, `data-reading`) and `public/tokens.css` switches Layer 2 aliases on them, exactly like dark
+`data-text`, `data-reading`, `data-motion`) and `public/tokens.css` switches Layer 2 aliases on them, exactly like dark
 mode - no component needs to know. `style.css` only reads the new aliases (`--text-scale`,
 `--reading-letter-spacing`, ...). Adding another background or font is a few token lines plus a choice
 in `DISPLAY_PREF_CHOICES` and the settings screen. Spec: `specs/components/display-and-reading.md`.

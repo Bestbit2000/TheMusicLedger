@@ -17,7 +17,7 @@ backed by an axe-core scan and a manual checklist at release time (see
 | A4 | Every control has an accessible name | Visible `<label for>`, or `aria-label` on icon/glyph-only buttons ("Increase tempo", "Beat note: crotchet") | markup lint |
 | A5 | Visible keyboard focus | One global `:focus-visible` ring (`--focus-ring`), never `outline: none` without it | CSS lint |
 | A6 | 44px targets | Small visible controls get an invisible `::before` hit area sized `var(--touch-target)` (see the A6 block at the end of style.css) | CSS lint + axe |
-| A7 | Reduced motion | `@media (prefers-reduced-motion: reduce)` kills slides/pulses/scale; beat dots keep colour only | CSS lint |
+| A7 | Reduced motion | `:root[data-motion="reduce"]` (the device setting or the in-app Reduce motion switch, ML-603) - and `@media (prefers-reduced-motion: reduce)` for pages without `display-prefs.js` - kills slides/pulses/scale; beat dots keep colour only; countdowns step a second (`specs/foundations/motion.md`) | CSS lint |
 | A8 | Every swipe/drag has a single-tap alternative | ⋮ menus (Delete, Move up/down); ☰ handle opens Move up/down | `specs/accessibility/gestures.json` |
 | S1 | Popup triggers declare it | `aria-haspopup="menu"` / `"dialog"` + `aria-expanded` (kept in sync by `a11y.js`) | markup lint |
 | S2 | Modals are dialogs | `role="dialog" aria-modal="true"` + a label. `a11y.js`: focus moves in, Tab is trapped, Esc closes, focus returns | markup lint |
