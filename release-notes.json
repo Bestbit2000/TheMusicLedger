@@ -1,4 +1,5 @@
 {
+  "ML-605": "We put the Tuner's Transposition and Tuning reference back in pop-ups over its settings, and closing one now leaves the settings open.",
   "ML-595": "We gave every list one Filter button: it says how many filters are on, shows each as a chip you can take off, and lets you filter several ways at once.",
   "ML-601": "We fold Rehearse's list of pieces away on a wide screen while a piece plays, so its bars get the room - Back brings the list back.",
   "ML-597": "We moved marking a recording's start, bars and end to the piece's Media tab, in one pop-up, and keep the speeds from before matching so you can put them back.",
