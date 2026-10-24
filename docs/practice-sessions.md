@@ -47,12 +47,15 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
      (`practice_templates.blocks`); past its end it repeats from its first Skills or Pieces block
      (`PracticePlan.stretch`), so a warm-up isn't repeated. Plans saved before ML-390 (opening blocks + a focus)
      still work.
-3. **What goes in?** (`#sessionContentView`) One row per kind of block in the plan: **Warm-up** (which warm-up
+3. **What goes in?** (`#sessionContentView`) One row per kind of block in the plan, every row the same (ML-608, 24 Oct 2026: its
+   colour down the edge and on its name, one line of what goes in, an arrow when a tap changes something - the details are in
+   the block's pop-up, so the page is a short list): **Warm-up** (which warm-up
    list - it plays on a loop), **Scales** (your grade's scales in the Scales tool - or, with Scales Levels on, a card: see "Scales Levels"), **Skills** (which skills
    list). **Pieces** come from a **practice list**, **pieces you choose** (one or several, the Add pieces pick
    list) or **all your pieces** with Levels. A piece picked last time that has since been archived, deleted or emptied is dropped from "pieces you choose" (ML-583); if none are left it goes back to all your pieces. **Auto** - on screen **"Smart choose bars?"** (ML-584) - (on by default; its switch on its own row with its line, ML-546) picks
-   the bars; off, you pick each Pieces block's bars on Ready. The card shows each prepared piece's Level bar (how many bars
-   at each Level, the key under the list - the empty "Not known" box only when a bar has bars with no level, ML-548; a
+   the bars; off, you pick each Pieces block's bars on Ready. The Pieces row says where they come from, how many and whether
+   the app picks the bars; tapping it opens the **Pieces pop-up**, which holds where they come from, Smart choose and each
+   prepared piece's Level bar (how many bars at each Level - the number in each part is the count, ML-608, the key under the list - the empty "Not known" box only when a bar has bars with no level, ML-548; a
    piece not prepared has no bar, just its line) and where it is on its path. No "Next goal: every 1 up to 2" line any more
    (ML-547) - only "First: prepare the new pieces" or "Next: play them through" when that is what comes next.
 4. **Ready** (`#sessionPlanView`) - the blocks as a list (ML-561: no strip of icons above it); "Select a block to change what you play" (owner's words, 21 Oct 2026); **Start**. A Pieces block
@@ -276,8 +279,8 @@ stops being "open the Scales tool". It gives **three scales, each at its own Lev
 - **Messages:** a small one per answer ("D major: up to Level 2"). The stars (`#scaleUpModal`, the same as a
   piece's Level up, no sound) are kept for the big moments: the last scale leaving a Level ("Every scale is at
   Level 2!") and a scale being learnt.
-- **Where it shows:** step 3's **Scales card** (grades, the next goal, the three scales the block starts with,
-  every scale as one Level bar, "See all my scales"), the Ready screen's row, and the **grade grid** in the Scales
+- **Where it shows:** step 3's **Scales row** (the three scales the block starts with; tapping it opens the Scales pop-up -
+  grades, the next goal, every scale as one Level bar with the key, "See all my scales"; ML-608), the Ready screen's row, and the **grade grid** in the Scales
   pop-up - each box of your list holds its Level (a star once learnt) in the Level colours.
 - **Skills lists:** while it's on, Add skills doesn't offer the Scales skills (scales belong to the Scales
   block); ones already on a list keep working.

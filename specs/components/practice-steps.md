@@ -6,7 +6,8 @@
   `.plan-card-head`, `.plan-row` with `.has-menu`, `.kind-strip`, `.kind-strip-compact`, `.kind-strip-more`, `.kind-key`, `.kind-block`, `.kind-block-label`, `.kind-block-icon`,
   `.is-empty`, `.kind-warmup`, `.kind-scales`, `.kind-skills`, `.kind-pieces`, `.kind-theory`, `.build-slots`, `.build-slot`,
   `.build-slot-time`, `.build-palette`, `.build-add`, `.session-goal`, `.session-goal-card`, `.session-piece`,
-  `.session-piece-head`, `.levelup`, `.levelup-stars`, `.levelup-pair`, `.is-celebrating`)
+  `.session-piece-head`, `.levelup`, `.levelup-stars`, `.levelup-pair`, `.is-celebrating`, `.kind-edge-warmup`, `.kind-edge-scales`,
+  `.kind-edge-skills`, `.kind-edge-pieces`, `.kind-edge-theory`)
 - **Category:** Flow / input
 - **Status:** New (ML-390)
 
@@ -49,10 +50,20 @@ the Pick a plan pop-up; the plan's blocks in colour underneath), **What's in it*
 - Build: `.build-slots` › `button.kind-block.build-slot` (`.build-slot-time` - in the kind's `-text` colour on a filled
   slot, `--label-color` on an empty one - icon, `.kind-block-label`) ›
   `.build-palette` › `button.kind-block.build-add` × 4.
-- Step 3: `.history-item.settings-link` rows with a `.kind-block` in the icon slot; the Pieces `.flow-card` › its heading ›
-  where the pieces come from as a value box (`.metroBlk-ctrl-value-btn.w-full`: "Cobham concert" over "where the pieces come
-  from", ML-562) › `.session-goal` (only "First: prepare the new pieces" / "Next: play them through" - ML-547) ›
-  `.session-piece` rows with a `.level-bar` › the Auto row at the bottom ("Smart choose bars?" on screen, ML-584; label and line, then the `.toggle-switch`,
+- Step 3 (ML-608, owner 24 Oct 2026 - Option A of the Claude Design canvas): "Tap a block to change it." (`.metro-help-text`) › one
+  row per kind of block in the plan, every one the same: `.history-item.settings-link` + `.kind-edge-<kind>` (the kind's colour
+  down the left edge, `--kind-<kind>`, and on its name, `--kind-<kind>-text`) › a `.kind-block` in the icon slot › the name ›
+  one line of what goes in (`.settings-link-sub`, wrapping - it is the only place it is said on the page) › an arrow when a tap
+  changes something. Warm-up and Skills open the choice pop-up (`#sessionBlockModal`); **Pieces** opens `#sessPiecesBlockModal`
+  and, with Scales Levels on, **Scales** opens `#sessScalesBlockModal`; Theory (and Scales without Scales Levels) has nothing to
+  choose, so it is the same row as a `div`, with no arrow. Nothing else is on the page, so it is short and the same all the way down.
+  The Pieces pop-up: its kind block and "Pieces" › where the pieces come from as a value box (`.metroBlk-ctrl-value-btn.w-full`:
+  "Cobham concert" over "where the pieces come from", ML-562 - opens the source pop-up on top) › `.session-goal` (only "First:
+  prepare the new pieces" / "Next: play them through" - ML-547) › `.session-piece` rows with a `.level-bar` › the key › the Auto
+  row › Done. The Scales pop-up: grades and instrument under its title › "In this block" (the three scales) › `.session-goal`
+  (the next goal) › "All my scales" with one `.level-bar` › the key › "See all my scales" › Done. Before ML-608 Scales and
+  Pieces were big cards on the page with no coloured edge, while Warm-up and Skills were rows - two looks for one kind of thing.
+  In the Pieces pop-up: the Auto row at the bottom ("Smart choose bars?" on screen, ML-584; label and line, then the `.toggle-switch`,
   ML-546) - its line says what happens either way: on, the app picks the bars; off, "on the next step you'll choose what you want to
   play" (ML-562; owner's words).
 - Ready: block rows (`.history-item` › `.level-row-body` › `.session-block-time` + `.kind-block`). No `.kind-strip` above

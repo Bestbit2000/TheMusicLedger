@@ -7422,11 +7422,13 @@
     // 1 to 5, then the ones not painted - each part as wide as its share. A square a bar turned a long piece
     // (Teddy Bears Picnic, 243 bars) into a row of lines. map: FlowJourney.barLevels. With label: false the
     // bar is hidden from screen readers (its row's button already says it). sizeLevelBars sets the widths.
+    // ML-608: each part shows HOW MANY bars (or scales) are at its Level - the colour says which Level, as the key under
+    // it does - and leaves the number off when the part is too narrow for it (data-digits, style.css).
     function levelBarHtml(map, { label = true, cls = '', noun = 'bar' } = {}) { // noun: what's counted - bars, or scales (ML-391)
         const parts = [1, 2, 3, 4, 5, 0].map(l => [l, map.filter(v => (v || 0) === l).length]).filter(([, n]) => n);
         const words = parts.map(([l, n]) => `${n} ${noun}${n === 1 ? '' : 's'} ${l ? `at Level ${l}` : 'not known yet'}`).join(', ');
         return `<span class="level-bar${cls ? ' ' + cls : ''}" ${label ? `role="img" aria-label="Levels: ${words}"` : 'aria-hidden="true"'}>${parts.map(([l, n]) =>
-            `<span class="level-bar-part lv-${l}" data-bars="${n}">${l ? `<span class="level-bar-num">${l}</span>` : ''}</span>`).join('')}</span>`;
+            `<span class="level-bar-part lv-${l}" data-bars="${n}"><span class="level-bar-num" data-digits="${String(n).length}">${n}</span></span>`).join('')}</span>`;
     }
     function sizeLevelBars(root) {
         root.querySelectorAll('.level-bar-part[data-bars]').forEach(p => p.style.setProperty('--bars', p.dataset.bars));
@@ -7434,8 +7436,10 @@
     // The key under Level bars - as under a piece's map on its path, but an unset bar is "Not known" here (owner,
     // 1 Oct 2026); "Not set" on the path and in Prepare, where you set them (ML-536). ML-548: the empty box is only in
     // the key when a bar above it has bars with no level - a prepared piece has none, and one not prepared shows no bar.
-    // maps: the Level maps the key is under.
-    const levelLegendHtml = (maps, unset = 'Not known') => `<div class="level-legend mt-3" aria-hidden="true">
+    // maps: the Level maps the key is under. noun (ML-608): under a .level-bar, whose numbers are counts, the key starts
+    // "Bars at each Level:" (or "Scales ...") so a number isn't read as a Level.
+    const levelLegendHtml = (maps, unset = 'Not known', noun = '') => `<div class="level-legend mt-3" aria-hidden="true">
+        ${noun ? `<span class="fw-bold">${noun === 'scale' ? 'Scales' : 'Bars'} at each Level:</span>` : ''}
         ${maps.some(m => m.some(v => !v)) ? `<span><span class="level-cell lv-0"></span>${unset}</span>` : ''}
         <span><span class="level-cell lv-1">1</span><span class="level-cell lv-2">2</span>Silver</span>
         <span><span class="level-cell lv-3">3</span><span class="level-cell lv-4">4</span>Gold</span>
@@ -7456,7 +7460,7 @@
             // ML-557: how many bars are at each Level, as one bar chart - the bar-by-bar detail is a tap away
             const scoped = map.slice(levelsFrom() - 1, levelsTo());
             const bar = document.getElementById('pathSummaryBar');
-            bar.innerHTML = levelBarHtml(scoped) + levelLegendHtml([scoped], 'Not set');
+            bar.innerHTML = levelBarHtml(scoped) + levelLegendHtml([scoped], 'Not set', 'bar');
             sizeLevelBars(bar);
             fillPathCame();
         }
@@ -7465,7 +7469,7 @@
         if (only && anySet) {
             const bar = document.getElementById('pathLevelBar');
             const scoped = map.slice(levelsFrom() - 1, levelsTo());
-            bar.innerHTML = levelBarHtml(scoped) + levelLegendHtml([scoped], 'Not set');
+            bar.innerHTML = levelBarHtml(scoped) + levelLegendHtml([scoped], 'Not set', 'bar');
             sizeLevelBars(bar);
         }
         setShown('piecePath', !only);
@@ -8646,57 +8650,83 @@
         if ((groups.length && groups.every(g => g.level === 5)) || (!groups.length && set.every(c => c.level >= 5))) return 'Ready - every bar at full speed';
         return 'Ready for a play-through';
     }
-    // ML-391: step 3's Scales card - your grades, the next goal, the three scales the block starts with,
-    // and every scale's Level as one bar.
-    function scalesContentCardHtml(items) {
+    // ML-391 / ML-608: the Scales pop-up - the three scales the block starts with, the next goal, and every scale's
+    // Level as one bar with the key; your grades and instrument under its title.
+    function renderSessScales(items) {
         const inst = scalesGradeInstrument();
         const p = PracticePlan.scaleProgress(items, scaleLevels.records);
         const first = PracticePlan.scalePool(items, scaleLevels.records, Date.now()).slice(0, PracticePlan.SCALES_PER_BLOCK);
         const grades = scalesGradesText(scales.grades);
-        const where = [grades ? `Grade${/^\d+$/.test(grades) ? '' : 's'} ${grades}` : '', inst ? inst.name : '', `${items.length} scale${items.length === 1 ? '' : 's'}`].filter(Boolean).join(' · ');
+        document.getElementById('sessScalesWhere').textContent = [grades ? `Grade${/^\d+$/.test(grades) ? '' : 's'} ${grades}` : '', inst ? inst.name : '', `${items.length} scale${items.length === 1 ? '' : 's'}`].filter(Boolean).join(' · ');
         const status = [p.learnt ? `${p.learnt} learnt` : '', p.low != null ? `${p.toGo} at Level ${p.low}` : ''].filter(Boolean).join(' · ');
-        return `<section class="flow-card" aria-label="Scales">
-            <div class="flex-row gap-sm items-center">${kindBlockHtml({ kind: 'scales' }).replace('kind-block ', 'kind-block kind-block-icon ')}<span class="grow"><strong>Scales</strong><br><span class="text-sm text-muted">${escapeHtml(where)}</span></span></div>
-            <p class="session-goal">${scaleGoalHtml(p)}</p>
-            ${first.length ? `<div class="session-piece"><span class="session-piece-head"><strong>In this block</strong><span class="text-sm text-muted">${first.length} scale${first.length === 1 ? '' : 's'}, about 1½ minutes each</span></span><span class="text-sm">${first.map(x => escapeHtml(scaleShortName(x))).join(' · ')}</span></div>` : ''}
-            <div class="session-piece"><span class="session-piece-head"><strong>All my scales</strong><span class="text-sm text-muted">${escapeHtml(status)}</span></span>${levelBarHtml(scaleLevelMap(items), { noun: 'scale' })}</div>
-            <button type="button" class="btn-text" data-scales-all aria-haspopup="dialog">See all my scales</button>
-        </section>`;
+        const map = scaleLevelMap(items);
+        const body = document.getElementById('sessScalesBody');
+        body.innerHTML = `${first.length ? `<div class="session-piece"><span class="session-piece-head"><strong>In this block</strong><span class="text-sm text-muted">about 1½ minutes each</span></span><span>${first.map(x => escapeHtml(scaleShortName(x))).join(' · ')}</span></div>` : ''}
+            <p class="session-goal mt-3">${scaleGoalHtml(p)}</p>
+            <div class="session-piece"><span class="session-piece-head"><strong>All my scales</strong><span class="text-sm text-muted">${escapeHtml(status)}</span></span>${levelBarHtml(map, { noun: 'scale' })}</div>
+            ${levelLegendHtml([map], undefined, 'scale')}
+            <button type="button" class="btn-text" data-scales-all aria-haspopup="dialog">See all my scales</button>`;
+        sizeLevelBars(body);
+        body.querySelector('[data-scales-all]').addEventListener('click', () => document.getElementById('scalesPoolBtn')?.click());
+        return first;
+    }
+    // ML-608: every block on step 3 is the same row - its colour down the edge and on its name, one line of what goes in,
+    // and an arrow when a tap changes something (in its pop-up). A block with nothing to choose is the row without the arrow.
+    function sessContentRowHtml(kind, title, sub, act) {
+        const inner = `${kindBlockHtml({ kind })}<span class="settings-link-text"><span class="settings-link-title">${escapeHtml(title)}</span><span class="settings-link-sub">${escapeHtml(sub)}</span></span>`;
+        const edge = `kind-edge-${kind === 'rehearsal' ? 'pieces' : kind}`;
+        return act
+            ? `<button type="button" class="history-item settings-link ${edge}" data-content="${act}" aria-haspopup="dialog">${inner}<span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>`
+            : `<div class="history-item settings-link ${edge}">${inner}</div>`;
+    }
+    // Where the pieces come from, in a few words
+    function sessPiecesSourceName() {
+        const src = sessPlan.source || { type: 'all' };
+        const n = (src.scoreIds || []).length;
+        return src.type === 'list' ? (src.listName || 'My practice list') : src.type === 'pieces' ? `${n} piece${n === 1 ? '' : 's'} I picked` : 'All my pieces with Levels';
     }
     function renderSessContent() {
         const kinds = sessKinds();
-        const order = [...new Set(kinds)];
-        const rows = [];
-        order.forEach(k => {
+        const rows = [...new Set(kinds)].map(k => {
             if (k === 'warmup') {
                 const wl = currentWarmupList();
-                rows.push(`<button type="button" class="history-item settings-link" data-content="warmup" aria-haspopup="dialog">${kindBlockHtml({ kind: 'warmup' })}<span class="settings-link-text"><span class="settings-link-title">Warm-up</span><span class="settings-link-sub">${escapeHtml(wl ? (wl.external ? 'Your own warm-up - just the timer' : `${wl.name} · on a loop for 4½ minutes`) : 'The Warm-ups tool')}</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>`);
+                return sessContentRowHtml('warmup', 'Warm-up', wl ? (wl.external ? 'Your own warm-up - just the timer' : `${wl.name} · on a loop for 4½ minutes`) : 'The Warm-ups tool', 'warmup');
             }
             if (k === 'scales') {
                 const mine = scaleLevelsOn() && scaleLevels.instrumentId ? scaleLevelItems().items : [];
-                if (mine.length) rows.push(scalesContentCardHtml(mine)); // ML-391: Scales Levels
-                else rows.push(`<div class="history-item settings-link">${kindBlockHtml({ kind: 'scales' })}<span class="settings-link-text"><span class="settings-link-title">Scales</span><span class="settings-link-sub">Your grade's scales in the Scales tool</span></span></div>`);
+                if (!mine.length) return sessContentRowHtml('scales', 'Scales', 'Your grade\'s scales in the Scales tool');
+                const first = renderSessScales(mine); // ML-391: Scales Levels - the details are in its pop-up
+                return sessContentRowHtml('scales', 'Scales', first.length ? first.map(x => scaleShortName(x)).join(' · ') : `${mine.length} scale${mine.length === 1 ? '' : 's'}`, 'scales');
             }
             if (k === 'theory') { // ML-418: nothing to choose - it picks the quizzes
-                rows.push(`<div class="history-item settings-link">${kindBlockHtml({ kind: 'theory' })}<span class="settings-link-text"><span class="settings-link-title">Theory</span><span class="settings-link-sub">${isFeatureEnabled('theory_smart_learn') ? 'Your lowest Levels first' : 'Quiz by quiz, in order'} · nothing to play</span></span></div>`);
+                return sessContentRowHtml('theory', 'Theory', `${isFeatureEnabled('theory_smart_learn') ? 'Your lowest Levels first' : 'Quiz by quiz, in order'} · nothing to play`);
             }
             if (k === 'skills') {
                 const sl = currentSkillList();
                 const next = skillsData.filter(s => !s.done).sort((a, b) => (a.lastPractised ? Date.parse(a.lastPractised) : 0) - (b.lastPractised ? Date.parse(b.lastPractised) : 0))[0];
-                rows.push(`<button type="button" class="history-item settings-link" data-content="skills" aria-haspopup="dialog">${kindBlockHtml({ kind: 'skills' })}<span class="settings-link-text"><span class="settings-link-title">Skills</span><span class="settings-link-sub">${escapeHtml(sl ? `${sl.name}${next ? ` · ${next.def.label} next` : ''}` : 'Tempo, Pulse, Pitch - one after another')}</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>`);
+                return sessContentRowHtml('skills', 'Skills', sl ? `${sl.name}${next ? ` · ${next.def.label} next` : ''}` : 'Tempo, Pulse, Pitch - one after another', 'skills');
             }
+            if (k === 'rehearsal') {
+                const src = sessPlan.source || { type: 'all' };
+                const n = sessPlan.pieces.length;
+                const count = src.type === 'pieces' ? '' : n ? `${n} piece${n === 1 ? '' : 's'}` : 'none with Levels yet';
+                return sessContentRowHtml('rehearsal', 'Pieces', [src.type === 'all' ? 'All my pieces' : sessPiecesSourceName(), count, sessPlan.auto ? 'the app picks the bars' : 'you choose the bars'].filter(Boolean).join(' · '), 'pieces');
+            }
+            return '';
         });
         const box = document.getElementById('sessContentRows');
         box.innerHTML = rows.join('');
-        box.querySelectorAll('[data-content]').forEach(b => b.addEventListener('click', () => openContentChooser(b.dataset.content)));
-        sizeLevelBars(box);
-        box.querySelector('[data-scales-all]')?.addEventListener('click', () => document.getElementById('scalesPoolBtn')?.click());
-        const hasPieces = kinds.includes('rehearsal');
-        setShown('sessPiecesCard', hasPieces);
-        if (!hasPieces) return;
+        box.querySelectorAll('[data-content]').forEach(b => b.addEventListener('click', () => {
+            const what = b.dataset.content;
+            if (what === 'pieces') showModal('sessPiecesBlockModal');
+            else if (what === 'scales') showModal('sessScalesBlockModal');
+            else openContentChooser(what);
+        }));
+        if (!kinds.includes('rehearsal')) return;
+        // The Pieces pop-up: where they come from, the pieces with their Levels, Smart choose
         const src = sessPlan.source || { type: 'all' };
-        document.getElementById('sessPiecesSource').textContent = src.type === 'list' ? (src.listName || 'My practice list') : src.type === 'pieces' ? `${(src.scoreIds || []).length} piece${(src.scoreIds || []).length === 1 ? '' : 's'} I picked` : 'All my pieces with Levels';
-        document.getElementById('sessPiecesSourceBtn').setAttribute('aria-label', `Where the pieces come from: ${document.getElementById('sessPiecesSource').textContent} - tap to change`);
+        document.getElementById('sessPiecesSource').textContent = sessPiecesSourceName();
+        document.getElementById('sessPiecesSourceBtn').setAttribute('aria-label', `Where the pieces come from: ${sessPiecesSourceName()} - tap to change`);
         document.getElementById('sessAutoToggle').checked = sessPlan.auto;
         // ML-562: what happens either way, whichever it is
         document.getElementById('sessAutoNote').textContent = sessPlan.auto
@@ -8715,9 +8745,10 @@
         const maps = sessPlan.pieces.map(p => (p.chunks || []).some(c => c.level != null) ? FlowJourney.barLevels(p.totalBars, p.chunks) : null);
         list.innerHTML = sessPlan.pieces.length ? sessPlan.pieces.map((p, i) => {
             return `<div class="session-piece"><span class="session-piece-head"><strong>${escapeHtml(p.title)}</strong><span class="text-sm text-muted">${escapeHtml(pieceStatus(p))}</span></span>${maps[i] ? levelBarHtml(maps[i]) : ''}</div>`;
-        }).join('') + (maps.some(Boolean) ? levelLegendHtml(maps.filter(Boolean)) : '') : `<p class="text-sm text-muted">${src.type === 'all' ? 'No pieces have Levels yet. Choose a practice list or some pieces and each gets a Prepare block first.' : 'No pieces here yet.'}</p>`;
+        }).join('') + (maps.some(Boolean) ? levelLegendHtml(maps.filter(Boolean), undefined, 'bar') : '') : `<p class="text-sm text-muted">${src.type === 'all' ? 'No pieces have Levels yet. Choose a practice list or some pieces and each gets a Prepare block first.' : 'No pieces here yet.'}</p>`;
         sizeLevelBars(list);
     }
+    ['sessPiecesBlockModal', 'sessScalesBlockModal'].forEach(id => document.querySelector(`#${id} [data-modal-close]`)?.addEventListener('click', () => hideModal(id)));
     document.getElementById('sessAutoToggle')?.addEventListener('change', (e) => { sessPlan.auto = e.target.checked; renderSessContent(); });
     // One pop-up for step 3's choices (the warm-up list, the skills list, where the pieces come from).
     function openChooser(title, options, onPick, extra) {
@@ -9738,7 +9769,7 @@
                 </button>
                 <button type="button" class="list-item-menu-btn" data-piece-menu="${p.scoreId}" aria-label="Options for ${escapeHtml(p.title)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined" aria-hidden="true">more_vert</span></button>
             </div>`;
-        }).join('') + (shownMaps.length ? levelLegendHtml(shownMaps) : '') : '<p class="text-sm text-muted">No pieces yet.</p>';
+        }).join('') + (shownMaps.length ? levelLegendHtml(shownMaps, undefined, 'bar') : '') : '<p class="text-sm text-muted">No pieces yet.</p>';
         sizeLevelBars(box);
         box.querySelectorAll('[data-piece]').forEach(b => b.addEventListener('click', () => { const id = Number(b.dataset.piece); openPiecePath(id, { movement: (l.pieces.find(p => p.scoreId === id) || {}).movement }); }));
         box.querySelectorAll('[data-piece-menu]').forEach(b => b.addEventListener('click', (e) => {

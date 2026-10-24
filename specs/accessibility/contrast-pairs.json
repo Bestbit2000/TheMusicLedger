@@ -761,6 +761,66 @@
       "fg": "--link-color",
       "bg": "--bg-color",
       "use": "Public pages: a card heading and Read more on a tinted card"
+    },
+    {
+      "kind": "text",
+      "fg": "--kind-warmup-text",
+      "bg": "--input-bg",
+      "use": "ML-608: a warmup block's name on step 3's row (a tappable row)"
+    },
+    {
+      "kind": "text",
+      "fg": "--kind-warmup-text",
+      "bg": "--container-bg",
+      "use": "ML-608: a warmup block's name on step 3's row (a row with nothing to choose)"
+    },
+    {
+      "kind": "text",
+      "fg": "--kind-scales-text",
+      "bg": "--input-bg",
+      "use": "ML-608: a scales block's name on step 3's row (a tappable row)"
+    },
+    {
+      "kind": "text",
+      "fg": "--kind-scales-text",
+      "bg": "--container-bg",
+      "use": "ML-608: a scales block's name on step 3's row (a row with nothing to choose)"
+    },
+    {
+      "kind": "text",
+      "fg": "--kind-skills-text",
+      "bg": "--input-bg",
+      "use": "ML-608: a skills block's name on step 3's row (a tappable row)"
+    },
+    {
+      "kind": "text",
+      "fg": "--kind-skills-text",
+      "bg": "--container-bg",
+      "use": "ML-608: a skills block's name on step 3's row (a row with nothing to choose)"
+    },
+    {
+      "kind": "text",
+      "fg": "--kind-pieces-text",
+      "bg": "--input-bg",
+      "use": "ML-608: a pieces block's name on step 3's row (a tappable row)"
+    },
+    {
+      "kind": "text",
+      "fg": "--kind-pieces-text",
+      "bg": "--container-bg",
+      "use": "ML-608: a pieces block's name on step 3's row (a row with nothing to choose)"
+    },
+    {
+      "kind": "text",
+      "fg": "--kind-theory-text",
+      "bg": "--input-bg",
+      "use": "ML-608: a theory block's name on step 3's row (a tappable row)"
+    },
+    {
+      "kind": "text",
+      "fg": "--kind-theory-text",
+      "bg": "--container-bg",
+      "use": "ML-608: a theory block's name on step 3's row (a row with nothing to choose)"
     }
   ]
 }

@@ -22,13 +22,17 @@ the same colours on bigger squares ([piece-path](piece-path.md)).
   is too narrow (a container query at 300px) `.level-map-bars-to` hides and it reads just "1", "11".
   The Level number is inside each square, and an unset bar is empty with a dashed outline.
   - `.is-marked` rings the bars being edited: the hard passage being added, or the chunk selected.
-- **Level bar (list rows):** `.level-bar` › `.level-bar-part.lv-N` (› `.level-bar-num`) - one bar chart of the
+- **Level bar (list rows):** `.level-bar` › `.level-bar-part.lv-N` (› `.level-bar-num`, with `data-digits`) - one bar chart of the
   piece: how many of its bars are at each Level, 1 to 5 left to right, then the bars not known yet (`lv-0`, dashed - the key
   says "Not known" under a Level bar, "Not painted" on a piece's path where you paint them; owner, 1 Oct 2026).
   At most six parts, so a 243-bar piece reads as easily as a 16-bar one (a square a bar turned a long piece
   into a row of lines - owner, 1 Oct 2026). Each part's width is its share of the bars (`--bars`, set by
-  `sizeLevelBars`), never less than `--space-1`; the Level number shows inside when the part is at least 14px
-  wide (a container query on the part). **The key** (`.level-legend`) goes under it - once under a list of pieces.
+  `sizeLevelBars`), never less than `--space-1`. **ML-608 (owner, 24 Oct 2026): the number inside a part is how many bars
+  (or scales) are at that Level** - the colour says which Level and the key says what the colours mean, so the bar no longer
+  repeats the key. The number shows when the part is wide enough for it (a container query on the part, by its `data-digits`:
+  one digit from 14px, two from 22px, three or four from 30px) and is left off otherwise. **The key** (`.level-legend`) goes
+  under it - once under a list of pieces - and starts "Bars at each Level:" ("Scales at each Level:" under scales;
+  `levelLegendHtml(maps, unset, noun)`), so a count isn't read as a Level.
   Used on a session's step 3, a practice list's pieces and the next-goal card in "Did you nail it?".
 - **Strip:** `.level-strip` › `.level-cell.lv-N` × items. One thin row with no numbers - now only the Range
   tool's notes past your range. In a strip an unset item is a plain `--level-unset-border` fill, not a dashed

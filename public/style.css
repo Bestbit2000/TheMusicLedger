@@ -2746,6 +2746,9 @@
     .level-bar { display: flex; gap: var(--space-0-5); height: var(--level-bar-height); }
     .level-bar-part { flex: var(--bars, 1) 1 0; min-width: var(--space-1); border-radius: var(--radius-2xs); display: grid; place-items: center; font-size: var(--font-xs); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); box-sizing: border-box; overflow: hidden; container-type: inline-size; }
     @container (max-width: 14px) { .level-bar-num { display: none; } }
+    /* ML-608: the number is how many bars (or scales) - two or three digits need a wider part before they show */
+    @container (max-width: 22px) { .level-bar-num[data-digits="2"] { display: none; } }
+    @container (max-width: 30px) { .level-bar-num:is([data-digits="3"], [data-digits="4"]) { display: none; } }
     .flow-card .level-legend:last-child { margin-bottom: 0; } /* ending a card: the card's own padding is the space. Ending a list (a practice list's pieces) it keeps its margin, so the next button isn't on top of it */
     .lv-0 { background: transparent; border: 1px dashed var(--level-unset-border); color: var(--label-color); }
     .lv-1 { background: var(--level-1); color: var(--level-1-text); }
@@ -2944,6 +2947,21 @@
     .kind-theory { border-color: var(--kind-theory); background: var(--kind-theory-tint); } /* ML-418 */
     .kind-theory .material-symbols-outlined, .kind-theory .kind-block-label, .kind-theory .build-slot-time { color: var(--kind-theory-text); }
     .kind-block-icon { flex-shrink: 0; width: var(--touch-target); height: var(--touch-target); padding: 0; }
+    /* ML-608: step 3 (What goes in each block?) - every block the same .history-item.settings-link row, its kind's colour
+       down the edge and on its name (the -text colour: 4.5:1 on the row). .history-item.: a button row's own border colour
+       (button.history-item) would win otherwise. specs/components/practice-steps.md. */
+    .history-item.kind-edge-warmup { border-left-color: var(--kind-warmup); }
+    .kind-edge-warmup .settings-link-title { color: var(--kind-warmup-text); }
+    .history-item.kind-edge-scales { border-left-color: var(--kind-scales); }
+    .kind-edge-scales .settings-link-title { color: var(--kind-scales-text); }
+    .history-item.kind-edge-skills { border-left-color: var(--kind-skills); }
+    .kind-edge-skills .settings-link-title { color: var(--kind-skills-text); }
+    .history-item.kind-edge-pieces { border-left-color: var(--kind-pieces); }
+    .kind-edge-pieces .settings-link-title { color: var(--kind-pieces-text); }
+    .history-item.kind-edge-theory { border-left-color: var(--kind-theory); }
+    .kind-edge-theory .settings-link-title { color: var(--kind-theory-text); }
+    /* the line of what goes in wraps rather than being cut off - it is the only place it is said on the page */
+    :is(.kind-edge-warmup, .kind-edge-scales, .kind-edge-skills, .kind-edge-pieces, .kind-edge-theory) .settings-link-sub { white-space: normal; }
     .history-item .kind-block, .level-row-body .kind-block { flex-shrink: 0; width: var(--icon-xl); height: var(--icon-xl); padding: 0; }
     .build-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); margin-bottom: var(--space-4); }
     .build-slot { position: relative; min-height: calc(var(--touch-target) + var(--space-5)); cursor: pointer; }

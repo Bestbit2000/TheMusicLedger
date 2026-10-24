@@ -1322,26 +1322,11 @@
             <li class="steps-progress-step is-now" aria-current="step">What's in it</li>
         </ol>
         <h2 class="step-question">What goes in each block?</h2>
+        <!-- ML-608 (owner, 24 Oct 2026, Option A of the Claude Design canvas): every block is the same row - its colour down
+             the edge, its name in that colour, one line of what goes in, and an arrow when there is something to change, which
+             opens its own pop-up. Pieces and Scales keep their details (the bars, the Levels, Smart choose) in their pop-ups. -->
+        <p class="metro-help-text">Tap a block to change it.</p>
         <div id="sessContentRows"></div>
-        <section class="flow-card hidden-group" id="sessPiecesCard" aria-labelledby="sessPiecesTitle">
-            <div class="flex-row gap-sm items-center">
-                <span class="kind-block kind-pieces kind-block-icon" aria-hidden="true"><span class="material-symbols-outlined">music_note</span></span>
-                <strong class="grow" id="sessPiecesTitle">Pieces</strong>
-            </div>
-            <!-- ML-562 (owner, 21 Oct 2026): where the pieces come from (one button, one pop-up), the pieces it gives right
-                 under it, then Auto at the bottom - its line says what happens either way. -->
-            <button type="button" class="metroBlk-ctrl-value-btn w-full mt-3" id="sessPiecesSourceBtn" aria-haspopup="dialog">
-                <strong id="sessPiecesSource">All my pieces with Levels</strong>
-                <span class="metroBlk-ctrl-value-label">where the pieces come from</span>
-            </button>
-            <p class="session-goal hidden-group" id="sessGoal"></p>
-            <div class="mt-3" id="sessPiecesList"></div>
-            <!-- ML-546: Auto, its line and its switch on one row. ML-584 (owner, 22 Oct 2026): on screen it is "Smart choose bars?" -->
-            <div class="flex-row gap-sm items-center mt-3">
-                <span class="grow"><strong id="sessAutoLbl">Smart choose bars?</strong><br><span class="text-sm text-muted" id="sessAutoNote"></span></span>
-                <label class="toggle-switch"><input type="checkbox" id="sessAutoToggle" checked aria-labelledby="sessAutoLbl" aria-describedby="sessAutoNote"><span class="toggle-slider"></span></label>
-            </div>
-        </section>
         <button type="button" class="btn-submit" id="sessToReadyBtn">Ready! See my session</button>
     </div>
 
@@ -4211,6 +4196,43 @@
 </div>
 
 <!-- ML-320: change a planned block - what kind, and for Skills / Rehearsal which tool or which bars. -->
+<!-- ML-608: step 3's Pieces pop-up - where the pieces come from (one button, one pop-up on top), the pieces it gives with
+     their Levels bars and the key, then Smart choose (ML-546/562/584). Everything here is saved as it is changed; Done closes. -->
+<div class="modal" id="sessPiecesBlockModal" role="dialog" aria-modal="true" aria-labelledby="sessPiecesTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <div class="flex-row gap-sm items-center mb-3">
+            <span class="kind-block kind-pieces kind-block-icon" aria-hidden="true"><span class="material-symbols-outlined">music_note</span></span>
+            <h2 class="no-margin" id="sessPiecesTitle">Pieces</h2>
+        </div>
+        <button type="button" class="metroBlk-ctrl-value-btn w-full" id="sessPiecesSourceBtn" aria-haspopup="dialog">
+            <strong id="sessPiecesSource">All my pieces with Levels</strong>
+            <span class="metroBlk-ctrl-value-label">where the pieces come from</span>
+        </button>
+        <p class="session-goal mt-3 hidden-group" id="sessGoal"></p>
+        <div class="mt-3" id="sessPiecesList"></div>
+        <div class="flex-row gap-sm items-center mt-3">
+            <span class="grow"><strong id="sessAutoLbl">Smart choose bars?</strong><br><span class="text-sm text-muted" id="sessAutoNote"></span></span>
+            <label class="toggle-switch"><input type="checkbox" id="sessAutoToggle" checked aria-labelledby="sessAutoLbl" aria-describedby="sessAutoNote"><span class="toggle-slider"></span></label>
+        </div>
+        <button type="button" class="btn-submit mt-4" data-modal-close id="sessPiecesBlockDoneBtn">Done</button>
+    </div>
+</div>
+
+<!-- ML-608: step 3's Scales pop-up (with Scales Levels on, ML-391) - the three scales this block starts with, your grades,
+     the next goal and every scale's Level as one bar with the key. Nothing to choose here, so only Done. -->
+<div class="modal" id="sessScalesBlockModal" role="dialog" aria-modal="true" aria-labelledby="sessScalesTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <div class="flex-row gap-sm items-center mb-3">
+            <span class="kind-block kind-scales kind-block-icon" aria-hidden="true"><span class="material-symbols-outlined">stairs</span></span>
+            <span class="grow"><h2 class="no-margin" id="sessScalesTitle">Scales</h2><span class="text-sm text-muted" id="sessScalesWhere"></span></span>
+        </div>
+        <div id="sessScalesBody"></div>
+        <button type="button" class="btn-submit mt-4" data-modal-close id="sessScalesBlockDoneBtn">Done</button>
+    </div>
+</div>
+
 <div class="modal" id="sessionBlockModal" role="dialog" aria-modal="true" aria-labelledby="sessionBlockTitle">
     <div class="modal-content">
         <button type="button" class="modal-close-x" id="sessionBlockCloseBtn" aria-label="Close">&times;</button>
