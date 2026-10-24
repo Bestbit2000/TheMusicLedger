@@ -1,5 +1,71 @@
 [
   {
+    "version": "0.70.0",
+    "date": "2026-10-24",
+    "changes": [
+      {
+        "key": "ML-605",
+        "type": "Fixes",
+        "summary": "We put the Tuner's Transposition and Tuning reference back in pop-ups over its settings, and closing one now leaves the settings open."
+      },
+      {
+        "key": "ML-601",
+        "type": "New",
+        "summary": "We fold Rehearse's list of pieces away on a wide screen while a piece plays, so its bars get the room - Back brings the list back."
+      },
+      {
+        "key": "ML-600",
+        "type": "Fixes",
+        "summary": "We fixed the play screen keeping its old size when you made the window wider or narrower."
+      },
+      {
+        "key": "ML-599",
+        "type": "New",
+        "summary": "We made a recording or video play at the metronome's speed, so changing the speed on one changes it on the other."
+      },
+      {
+        "key": "ML-598",
+        "type": "New",
+        "summary": "We show how long each stretch of a recording takes against the same bars at the piece's own speeds, on the Media tab and while it plays."
+      },
+      {
+        "key": "ML-597",
+        "type": "New",
+        "summary": "We moved marking a recording's start, bars and end to the piece's Media tab, in one pop-up, and keep the speeds from before matching so you can put them back."
+      },
+      {
+        "key": "ML-596",
+        "type": "New",
+        "summary": "We gave every play speed in the app one list, with 75% and 125% added. A YouTube video offers the speeds it can play."
+      },
+      {
+        "key": "ML-595",
+        "type": "New",
+        "summary": "We gave every list one Filter button: it says how many filters are on, shows each as a chip you can take off, and lets you filter several ways at once."
+      },
+      {
+        "key": "ML-594",
+        "type": "New",
+        "summary": "We made a message at the bottom of the screen drop away downwards when it goes, unless your device asks for less movement."
+      },
+      {
+        "key": "ML-593",
+        "type": "New",
+        "summary": "We moved Archive several and Delete several to a menu at the top of My music, where you can find them however long your list is."
+      },
+      {
+        "key": "ML-592",
+        "type": "New",
+        "summary": "We added a search to Rehearse's list of pieces, so you can find a piece by its title or composer."
+      },
+      {
+        "key": "ML-587",
+        "type": "Fixes",
+        "summary": "We put a practice's Level, sub beats and count-in under one Playback button, and you can now count in before every go, or not at all - on a video too."
+      }
+    ]
+  },
+  {
     "version": "0.69.0",
     "date": "2026-10-23",
     "changes": [
