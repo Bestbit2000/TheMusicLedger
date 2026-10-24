@@ -4170,7 +4170,7 @@
     }
     // ML-370: the instrument's outer limit - hard bottom, and on brass and woodwind a top a 4th above the
     // usual one (PlayRange.outerLimit, the same rule the Range tool and the server use). null = no range.
-    const instrumentOuter = (inst) => (inst ? PlayRange.outerLimit(inst.rangeLow, inst.rangeHigh, inst.family) : null);
+    const instrumentOuter = (inst) => (inst ? PlayRange.outerLimit(inst.rangeLow, inst.rangeHigh, inst.familyKey) : null);
     // ML-369: your instruments as a choice list (one ticked), not a plain <select> - the Scales and
     // Warm-ups pop-ups. Tapping one calls onPick(id); with none yet, a line pointing to My account.
     function renderInstrumentChoice(box, current, onPick) {
@@ -20939,7 +20939,7 @@
     // instrument, G on an E flat one); strings and anything else to concert A. In the octave nearest the
     // middle of the stave that the instrument can play.
     function forkUsualNote(inst) {
-        const concertPc = inst && ['Brass', 'Woodwind'].includes(inst.family) ? 10 : 9;
+        const concertPc = inst && ['brass', 'woodwind'].includes(inst.familyKey) ? 10 : 9;
         const shift = forkShift(inst), outer = forkOuter(inst);
         const lo = PlayRange.midiOf(outer.low), hi = PlayRange.midiOf(outer.high), middle = FORK_CLEF_MIDDLE[forkClef(inst)];
         let best = null;
@@ -26017,7 +26017,7 @@
     // band), the ABRSM list is at concert pitch - so the instrument's and your written range move by its
     // transposition to be compared with it.
     function scalesGradeContext(inst) {
-        const shift = inst && inst.family === 'Brass' && inst.theoryClef === 'treble' && scales.clef !== 'treble' ? Number(inst.writtenToConcert) || 0 : 0;
+        const shift = inst && inst.familyKey === 'brass' && inst.theoryClef === 'treble' && scales.clef !== 'treble' ? Number(inst.writtenToConcert) || 0 : 0;
         const at = (pitch) => { const m = pitch ? ScaleGrades.midiOf(pitch) : null; return m == null ? null : m + shift; };
         // high: the outer limit, a 4th above the usual top on brass and woodwind (ML-370) - once your range
         // is set; until then (when every scale the instrument plays counts as in your list) the usual top.
@@ -26027,7 +26027,7 @@
     // No ABRSM list for the instrument (or no instrument): Everything else is still every scale.
     function scalesGradeGrid() {
         const inst = scalesGradeInstrument();
-        const group = inst ? ScaleGrades.groupFor(inst.name, scales.clef) : null;
+        const group = inst ? ScaleGrades.groupFor(inst.scaleLists, scales.clef) : null; // ML-609: by its key, not its name
         if (!group && !scales.grades.includes(ScaleGrades.EVERYTHING)) return { inst, group, grid: null, pool: [] };
         const grid = ScaleGrades.grid(group ? group.id : null, scales.grades, scalesGradeContext(inst));
         return { inst, group, grid, pool: grid.pool };
@@ -26059,7 +26059,7 @@
         const everything = scales.grades.includes(ScaleGrades.EVERYTHING);
         setShown('scalesGradeDisclaimer', !!group); // ML-313: with an ABRSM list, say whose requirements they are
         if (group) {
-            const pitchNote = group.clef === 'bass' && inst.theoryClef === 'treble' && inst.family === 'Brass' ? ', concert pitch' : '';
+            const pitchNote = group.clef === 'bass' && inst.theoryClef === 'treble' && inst.familyKey === 'brass' ? ', concert pitch' : '';
             name.textContent = `ABRSM list: ${group.name}${pitchNote}.`;
         } else {
             name.textContent = (inst ? `There's no ABRSM brass or woodwind list for ${inst.name} in the ${scales.clef} clef` : 'Add the instrument you play in ☰ → My instruments for its grade lists')
@@ -26208,7 +26208,7 @@
     function scaleLevelItems() {
         const { inst, group, pool } = scalesGradeGrid();
         const data = group ? ScaleGrades.DATA[group.id] : null;
-        const family = PracticePlan.scaleSpeedFamily(group && group.id, data ? data.family : (inst && /wood/i.test(inst.family || '') ? 'woodwind' : 'brass'));
+        const family = PracticePlan.scaleSpeedFamily(group && group.id, data ? data.family : (inst && inst.familyKey === 'woodwind' ? 'woodwind' : 'brass'));
         return { family, items: pool.map(p => ({ ...p, key: PracticePlan.scaleKey(p) })) };
     }
     function scaleLevelOf(key) { return PracticePlan.scaleRecord((scaleLevels || {}).records, key); }

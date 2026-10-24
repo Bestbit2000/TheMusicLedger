@@ -83,9 +83,15 @@ soprano cornet's melodic minor "down to the dominant" ending (drawn like the sta
 
 ### Which list an instrument uses
 
-`ScaleGrades.groupFor(instrumentName, clef)` matches the instrument's catalogue name (`RULES`, checked
-top to bottom). The **clef** button on the Scales screen picks between an instrument's treble and bass
-lists:
+`ScaleGrades.groupFor(scaleLists, clef)` reads the instrument's own key, **`instruments.scale_lists`** (`scaleLists`
+on every instrument the server sends): `{"treble": id, "bass": id, "tenor": id}`, or `{"any": id}` for a woodwind
+list that is the same in every clef, or `{}` for none. **Never the instrument's name** (ML-609, 24 Oct 2026): until
+then a list of patterns on the name (`RULES`) picked it, so a rename or a translation could quietly change it - and
+it had already given the contra-alto and contrabass clarinets and the contrabass saxophone the tuba lists ("EE♭" /
+"BB♭" in their names) and the soprillo saxophone the flute list ("piccolo"); migration 154 set every instrument's
+lists from those rules, with those four put right. A new instrument gets its lists in the migration that adds it.
+`server/test/lookupKeys.test.js` fails a release that looks an instrument up by its name again. The **clef** button
+on the Scales screen picks between an instrument's treble and bass lists:
 
 - **Trombone.** Treble uses the treble list. Bass or tenor uses the bass list. **Bass trombone**, bass or
   tenor: its own list (Grades 1-5 the tenor trombone's).

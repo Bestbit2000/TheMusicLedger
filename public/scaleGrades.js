@@ -229,33 +229,13 @@
         } }
     };
 
-    // Which ABRSM list an instrument (by its name in the instruments catalogue) uses, by the clef it's
-    // read in. Checked top to bottom - trumpets before piccolo, horns before tubas (Wagner tuba).
-    const RULES = [
-        [/soprano cornet/i, { treble: 'eb-soprano-cornet' }],
-        [/cornet|trumpet|flugel/i, { treble: 'trumpet-cornet-flugel' }],
-        [/tenor horn|alto horn/i, { treble: 'eb-tenor-horn' }],
-        [/french horn|mellophone|wagner/i, { treble: 'horn-f' }],
-        // Bass trombone: its own lists (its Grades 1-5 are the tenor trombone's - owner's call - and 6-8 its own)
-        [/bass trombone/i, { treble: 'trombone-treble-clef', bass: 'bass-trombone', tenor: 'bass-trombone' }],
-        [/trombone/i, { treble: 'trombone-treble-clef', bass: 'trombone-bass-clef', tenor: 'trombone-bass-clef' }],
-        [/baritone horn|euphonium/i, { treble: 'baritone-euphonium-treble', bass: 'baritone-euphonium-bass', tenor: 'baritone-euphonium-bass' }],
-        [/e♭ tuba|eb tuba|ee♭/i, { treble: 'tuba-treble', bass: 'tuba-eb-bass-clef' }],
-        [/b♭ tuba|bb tuba|bb♭|sousaphone|helicon/i, { treble: 'tuba-treble', bass: 'tuba-bb-bass-clef' }],
-        [/\bc tuba/i, { treble: 'tuba-treble', bass: 'tuba-c-bass-clef' }],
-        [/\bf tuba/i, { treble: 'tuba-treble', bass: 'tuba-f-bass-clef' }],
-        [/flute|piccolo(?! (trumpet|clarinet))/i, { any: 'flute' }],
-        [/oboe|english horn|cor anglais|heckelphone/i, { any: 'oboe' }],
-        [/clarinet|basset/i, { any: 'clarinet' }],
-        [/bassoon/i, { any: 'bassoon' }],
-        [/saxophone/i, { any: 'saxophone' }],
-    ];
-    // The ABRSM list for an instrument read in a clef, or null (no list - strings, keyboards, percussion).
-    function groupFor(instrumentName, clef) {
-        const rule = RULES.find(([re]) => re.test(String(instrumentName || '')));
-        if (!rule) return null;
-        const id = rule[1].any || rule[1][clef] || null;
-        return id ? { id, name: DATA[id].name, clef: DATA[id].clef } : null;
+    // The ABRSM list for an instrument read in a clef, or null (no list - strings, keyboards, percussion). ML-609: the
+    // list comes from the instrument's own key, instruments.scale_lists (scaleLists on the instrument the server sends:
+    // {"treble": id, "bass": id, ...} or {"any": id}) - never from its name, which can be renamed or translated.
+    function groupFor(scaleLists, clef) {
+        const lists = scaleLists && typeof scaleLists === 'object' ? scaleLists : {};
+        const id = lists.any || lists[clef] || null;
+        return id && DATA[id] ? { id, name: DATA[id].name, clef: DATA[id].clef } : null;
     }
 
     // The 15 columns, in chromatic order: every major key, and every minor key (enharmonic pairs both kept).
@@ -433,5 +413,5 @@
         return out;
     }
 
-    return { SOURCES, DATA, RULES, MAJOR_COLUMNS, MINOR_COLUMNS, EVERYTHING, groupFor, requirements, everythingElse, grid, placement, midiOf, lengthLabel, PREF_TIMES, PREF_DEFAULTS, cleanPrefs };
+    return { SOURCES, DATA, MAJOR_COLUMNS, MINOR_COLUMNS, EVERYTHING, groupFor, requirements, everythingElse, grid, placement, midiOf, lengthLabel, PREF_TIMES, PREF_DEFAULTS, cleanPrefs };
 });

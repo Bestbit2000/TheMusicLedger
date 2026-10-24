@@ -67,10 +67,10 @@
     // experienced player goes higher (altissimo on woodwind) - so the limit is a 4th above it there.
     // { low, high, usualHigh }, or null when the range doesn't apply.
     const STRETCH_ABOVE = 5;
-    const STRETCH_FAMILIES = ['Brass', 'Woodwind'];
-    function outerLimit(low, high, family) {
+    const STRETCH_FAMILIES = ['brass', 'woodwind']; // instruments.family_key (ML-609)
+    function outerLimit(low, high, familyKey) {
         if (!low || !high) return null;
-        const stretch = STRETCH_FAMILIES.includes(family) ? STRETCH_ABOVE : 0;
+        const stretch = STRETCH_FAMILIES.includes(familyKey) ? STRETCH_ABOVE : 0;
         return { low, high: stretch ? pitchOf(midiOf(high) + stretch, 'usual') : high, usualHigh: high };
     }
     // Is this a usable range? Both notes set, bottom below top, both inside the outer limit.

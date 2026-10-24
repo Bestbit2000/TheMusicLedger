@@ -24,7 +24,7 @@ export async function assertRangeEnabled() {
 }
 
 // ML-370: a 4th above the usual top on brass and woodwind (PlayRange.outerLimit).
-const outerOf = (r) => plain(PlayRange.outerLimit(r.range_low, r.range_high, r.family));
+const outerOf = (r) => plain(PlayRange.outerLimit(r.range_low, r.range_high, r.family_key));
 // ML-528: everything stored is written in the instrument's own clef; a player who reads another one is
 // sent - and sends - the same notes written for theirs (instrumentClef.js).
 const viewOf = (r) => clefView(r, r.my_clef);
@@ -32,7 +32,7 @@ const outerMine = (r) => { const o = outerOf(r), v = viewOf(r); return o && { lo
 
 async function accountInstrument(accountId, instrumentId, client = pool) {
   const { rows } = await client.query(
-    `SELECT ai.bottom_note, ai.top_note, ai.clef AS my_clef, i.id, i.name, i.theory_clef, i.other_clefs, i.written_to_concert, i.range_low, i.range_high, i.family
+    `SELECT ai.bottom_note, ai.top_note, ai.clef AS my_clef, i.id, i.name, i.theory_clef, i.other_clefs, i.written_to_concert, i.range_low, i.range_high, i.family_key
      FROM account_instruments ai JOIN instruments i ON i.id = ai.instrument_id
      WHERE ai.account_id = $1 AND ai.instrument_id = $2`,
     [accountId, instrumentId]
@@ -44,7 +44,7 @@ async function accountInstrument(accountId, instrumentId, client = pool) {
 // My instruments with their range, and the Level of every note beyond it that you've tried.
 export async function getRange(accountId) {
   const { rows } = await pool.query(
-    `SELECT ai.bottom_note, ai.top_note, ai.is_primary, ai.clef AS my_clef, i.id, i.name, i.theory_clef, i.other_clefs, i.written_to_concert, i.range_low, i.range_high, i.family
+    `SELECT ai.bottom_note, ai.top_note, ai.is_primary, ai.clef AS my_clef, i.id, i.name, i.theory_clef, i.other_clefs, i.written_to_concert, i.range_low, i.range_high, i.family_key
      FROM account_instruments ai JOIN instruments i ON i.id = ai.instrument_id
      WHERE ai.account_id = $1 ORDER BY ai.is_primary DESC, ai.created_at, i.name`,
     [accountId]

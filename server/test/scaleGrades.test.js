@@ -173,37 +173,52 @@ describe('ABRSM grade lists (ML-357)', () => {
     });
 });
 
-describe('which list an instrument uses (ML-357)', () => {
-    const g = (name, clef) => (SG.groupFor(name, clef) || {}).id || null;
+describe('which list an instrument uses (ML-357, ML-609: by its scale_lists key, never its name)', () => {
+    // Each instrument's lists as migration 154 sets them (instruments.scale_lists), by code
+    const sql = fs.readFileSync(new URL('../../db/migrations/154_instrument_keys.sql', import.meta.url), 'utf8');
+    const LISTS = Object.fromEntries([...sql.matchAll(/\('([a-z0-9_]+)', '(\{[^']*\})', (true|false)\)/g)].map(m => [m[1], JSON.parse(m[2])]));
+    const g = (code, clef) => (SG.groupFor(LISTS[code], clef) || {}).id || null;
     test('brass by the clef it\'s read in; bass trombone and E flat soprano cornet have their own', () => {
-        assert.equal(g('B♭ Cornet', 'treble'), 'trumpet-cornet-flugel');
-        assert.equal(g('Flugelhorn', 'treble'), 'trumpet-cornet-flugel');
-        assert.equal(g('E♭ Tenor Horn', 'treble'), 'eb-tenor-horn');
-        assert.equal(g('French Horn', 'treble'), 'horn-f');
-        assert.equal(g('Tenor Trombone', 'treble'), 'trombone-treble-clef');
-        assert.equal(g('Tenor Trombone', 'bass'), 'trombone-bass-clef');
-        assert.equal(g('Bass Trombone', 'bass'), 'bass-trombone');
-        assert.equal(g('E♭ Soprano Cornet', 'treble'), 'eb-soprano-cornet');
-        assert.equal(g('B♭ Baritone Horn', 'treble'), 'baritone-euphonium-treble');
-        assert.equal(g('B♭ Euphonium', 'bass'), 'baritone-euphonium-bass');
-        assert.equal(g('E♭ Tuba', 'bass'), 'tuba-eb-bass-clef');
-        assert.equal(g('B♭ Tuba', 'treble'), 'tuba-treble');
-        assert.equal(g('Piccolo Trumpet', 'treble'), 'trumpet-cornet-flugel');
-        // ML-602: the 3- and 4-valve versions find the same lists (ML-609 will move this off the names)
-        assert.equal(g('B♭ Euphonium (3 valves)', 'bass'), 'baritone-euphonium-bass');
-        assert.equal(g('B♭ Baritone Horn (4 valves)', 'treble'), 'baritone-euphonium-treble');
-        assert.equal(g('E♭ Tuba (EE♭ Bass, 3 valves)', 'bass'), 'tuba-eb-bass-clef');
-        assert.equal(g('B♭ Tuba (BB♭ Bass, 4 valves)', 'bass'), 'tuba-bb-bass-clef');
+        assert.equal(g('bb_cornet', 'treble'), 'trumpet-cornet-flugel');
+        assert.equal(g('bb_flugelhorn', 'treble'), 'trumpet-cornet-flugel');
+        assert.equal(g('eb_tenor_horn', 'treble'), 'eb-tenor-horn');
+        assert.equal(g('french_horn', 'treble'), 'horn-f');
+        assert.equal(g('tenor_trombone', 'treble'), 'trombone-treble-clef');
+        assert.equal(g('tenor_trombone', 'bass'), 'trombone-bass-clef');
+        assert.equal(g('bass_trombone', 'bass'), 'bass-trombone');
+        assert.equal(g('eb_soprano_cornet', 'treble'), 'eb-soprano-cornet');
+        assert.equal(g('bb_baritone_horn', 'treble'), 'baritone-euphonium-treble');
+        assert.equal(g('bb_euphonium', 'bass'), 'baritone-euphonium-bass');
+        assert.equal(g('eb_tuba', 'bass'), 'tuba-eb-bass-clef');
+        assert.equal(g('bb_tuba', 'treble'), 'tuba-treble');
+        assert.equal(g('piccolo_trumpet', 'treble'), 'trumpet-cornet-flugel');
+        // ML-602: the 3- and 4-valve versions have the same lists as each other
+        assert.equal(g('bb_euphonium_3v', 'bass'), 'baritone-euphonium-bass');
+        assert.equal(g('bb_baritone_horn_4v', 'treble'), 'baritone-euphonium-treble');
+        assert.equal(g('eb_tuba_3v', 'bass'), 'tuba-eb-bass-clef');
+        assert.equal(g('bb_tuba_3v', 'bass'), 'tuba-bb-bass-clef');
     });
-    test('woodwind has one list whatever the clef; no list for strings or percussion', () => {
-        assert.equal(g('Flute', 'bass'), 'flute');
-        assert.equal(g('Piccolo', 'treble'), 'flute');
-        assert.equal(g('B♭ Clarinet', 'treble'), 'clarinet');
-        assert.equal(g('Alto Saxophone', 'treble'), 'saxophone');
-        assert.equal(g('Bassoon', 'bass'), 'bassoon');
-        assert.equal(g('Violin', 'treble'), null);
-        assert.equal(g('Snare Drum', 'treble'), null);
-        assert.equal(g('French Horn', 'bass'), null); // the horn list is treble clef only
+    test('woodwind has one list whatever the clef; no list for strings, keyboards or percussion', () => {
+        assert.equal(g('concert_flute', 'bass'), 'flute');
+        assert.equal(g('piccolo_c', 'treble'), 'flute');
+        assert.equal(g('bb_soprano_clarinet', 'treble'), 'clarinet');
+        assert.equal(g('eb_alto_saxophone', 'treble'), 'saxophone');
+        assert.equal(g('bassoon', 'bass'), 'bassoon');
+        assert.equal(SG.groupFor({}, 'treble'), null); // violin, snare drum, piano: scale_lists is {}
+        assert.equal(SG.groupFor(undefined, 'treble'), null);
+        assert.equal(g('french_horn', 'bass'), null); // the horn list is treble clef only
+    });
+    test('the four the old name rules got wrong now have their own lists', () => {
+        assert.equal(g('eb_contra_alto_clarinet', 'treble'), 'clarinet'); // was the tuba list ("EE♭" in its name)
+        assert.equal(g('bb_contrabass_clarinet', 'treble'), 'clarinet');  // was the tuba list ("BB♭")
+        assert.equal(g('eb_contrabass_saxophone', 'treble'), 'saxophone'); // was the tuba list ("EE♭")
+        assert.equal(g('soprillo_saxophone', 'treble'), 'saxophone');     // was the flute list ("piccolo")
+    });
+    test('every list named is a real ABRSM list, and a rename changes nothing', () => {
+        for (const [code, lists] of Object.entries(LISTS)) for (const id of Object.values(lists)) assert.ok(SG.DATA[id], `${code}: unknown list ${id}`);
+        // the same lists whatever the instrument is called - groupFor never sees a name
+        assert.equal(SG.groupFor.length, 2);
+        assert.equal(SG.RULES, undefined, 'no name rules left');
     });
 });
 

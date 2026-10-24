@@ -29,13 +29,13 @@ function toMessage(r) {
 // here are in a band).
 async function audiencesFor(accountId, client = pool) {
   const { rows } = await client.query(
-    `SELECT DISTINCT i.family FROM account_instruments ai JOIN instruments i ON i.id = ai.instrument_id WHERE ai.account_id = $1`,
+    `SELECT DISTINCT i.family_key FROM account_instruments ai JOIN instruments i ON i.id = ai.instrument_id WHERE ai.account_id = $1`,
     [accountId]);
   if (!rows.length) return REST_AUDIENCES;
-  const fam = new Set(rows.map(r => r.family));
+  const fam = new Set(rows.map(r => r.family_key)); // ML-609: by key
   const out = ['all'];
-  if (fam.has('Brass')) out.push('brass');
-  if (fam.has('Brass') || fam.has('Woodwind')) out.push('wind');
+  if (fam.has('brass')) out.push('brass');
+  if (fam.has('brass') || fam.has('woodwind')) out.push('wind');
   return out;
 }
 

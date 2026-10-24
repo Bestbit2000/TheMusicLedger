@@ -16,6 +16,10 @@ before changing a rule. Owner decisions: 2026-09-28 (this release's chat).
   - **Measure it with the tuner:** play slowly down to your lowest comfortable note and up to your
     highest. Each note held steady for **1 second** counts; the lowest and highest go into the picker
     (still to save). Notes outside the instrument's limit are ignored.
+- **The family is a key (ML-609).** Everything that depends on the family - the soft top below, the tuner's concert
+  pitch, Scales' bass-clef shift, rest messages for brass and wind players, the order of the instrument list - reads
+  `instruments.family_key` ('brass', 'woodwind', 'percussion', 'keyboard', 'strings'; `familyKey` in the app).
+  `family` ("Brass") is only the words shown. `server/test/lookupKeys.test.js` fails a release that compares the words.
 - **The instrument's typical range** (`instruments.range_low` / `range_high`, written, generous) is only the
   **outer limit**: the picker and the Range tool never go past it. It's never a player's starting point.
 - **3 and 4 valves (ML-602, owner 24 Oct 2026).** A 3-valve brass instrument can't play the five written notes
@@ -26,7 +30,7 @@ before changing a rule. Owner decisions: 2026-09-28 (this release's chat).
   (compensating) one keeps its pedal notes. Migration 153; the catalogue file
   `band_instruments_master_catalog.json` is not kept in step - the `instruments` table is the list now.
   Players kept the row they had (euphonium and basses: 4 valves; baritone: 3 valves) and their own range.
-  The scale lists still find these by name (`scaleGrades.js`), which ML-609 moves to keys.
+  Their scale lists come from `instruments.scale_lists` (ML-609 - never the name).
 - **The usual top is soft on brass and woodwind (ML-370).** `range_high` there is the *usual* top: an
   experienced player goes higher (altissimo on woodwind), so the outer limit is **a 4th (5 semitones)
   above it** - `PlayRange.outerLimit(low, high, family)` gives `{ low, high, usualHigh }`, and the server

@@ -30,7 +30,7 @@
     // instrument's range or your notes.
     function html(inst, ctx, { slim = false } = {}) {
         if (!inst || ctx.low == null || ctx.usualHigh == null || ctx.bottom == null || ctx.top == null) return { html: '', text: '' };
-        const stretch = ctx.stretch != null ? ctx.stretch : (PlayRange.STRETCH_FAMILIES.includes(inst.family) ? PlayRange.STRETCH_ABOVE : 0);
+        const stretch = ctx.stretch != null ? ctx.stretch : (PlayRange.STRETCH_FAMILIES.includes(inst.familyKey) ? PlayRange.STRETCH_ABOVE : 0);
         const lo = Math.min(ctx.low, ctx.bottom), usual = ctx.usualHigh, end = Math.max(usual + stretch, ctx.top);
         const pct = (m) => `${Math.round(((m - lo) / (end - lo)) * 1000) / 10}%`;
         // --rb-from / --rb-to / --rb-at: run-time positions, read by the .range-bar-* classes (ML-288)

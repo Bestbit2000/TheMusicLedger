@@ -6,8 +6,9 @@ import pool from '../config/db.js';
 import { withStatus } from './flows.js';
 import { clefChoices, clefView, toMine } from './instrumentClef.js';
 
-// Family order for pickers: brass first (most of the app's users play in brass bands), then the rest.
-const FAMILY_ORDER = ['Brass', 'Woodwind', 'Percussion', 'Keyboard', 'Strings'];
+// Family order for pickers: brass first (most of the app's users play in brass bands), then the rest. By
+// instruments.family_key (ML-609) - `family` is only the words shown.
+const FAMILY_ORDER = ['brass', 'woodwind', 'percussion', 'keyboard', 'strings'];
 
 function toInstrumentDto(r) {
   return {
@@ -19,6 +20,9 @@ function toInstrumentDto(r) {
     clef: r.clef,
     theoryClef: r.theory_clef,
     family: r.family,
+    // ML-609: what the app decides things by - never the words above
+    familyKey: r.family_key,
+    scaleLists: r.scale_lists || {},
     subfamily: r.subfamily,
     ensembles: r.ensembles || [],
     // ML-322: the instrument's typical written range (the Range tool's outer limit; null = doesn't apply)
@@ -60,8 +64,8 @@ export function instrumentSortName(name) {
 }
 export function compareInstruments(a, b) {
   const fam = (f) => { const i = FAMILY_ORDER.indexOf(f); return i === -1 ? FAMILY_ORDER.length : i; };
-  return fam(a.family) - fam(b.family)
-    || String(a.family || '').localeCompare(String(b.family || ''))
+  return fam(a.familyKey) - fam(b.familyKey)
+    || String(a.familyKey || '').localeCompare(String(b.familyKey || ''))
     || instrumentSortName(a.name).localeCompare(instrumentSortName(b.name), 'en', { sensitivity: 'base' })
     || String(a.name).localeCompare(String(b.name), 'en');
 }

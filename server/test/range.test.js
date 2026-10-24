@@ -48,13 +48,13 @@ describe('your range', () => {
     });
     // ML-370: the top is only the usual top on brass and woodwind - the limit is a 4th above it.
     test('the outer limit: a 4th above the usual top on brass and woodwind, the bottom stays put', () => {
-        assert.deepEqual(plain(R.outerLimit('F#3', 'C6', 'Brass')), { low: 'F#3', high: 'F6', usualHigh: 'C6' });
-        assert.deepEqual(plain(R.outerLimit('D3', 'F6', 'Woodwind')), { low: 'D3', high: 'Bb6', usualHigh: 'F6' });
-        assert.deepEqual(plain(R.outerLimit('G3', 'E6', 'Strings')), { low: 'G3', high: 'E6', usualHigh: 'E6' });
-        assert.equal(R.outerLimit(null, 'C6', 'Brass'), null, 'no range, no limit');
+        assert.deepEqual(plain(R.outerLimit('F#3', 'C6', 'brass')), { low: 'F#3', high: 'F6', usualHigh: 'C6' });
+        assert.deepEqual(plain(R.outerLimit('D3', 'F6', 'woodwind')), { low: 'D3', high: 'Bb6', usualHigh: 'F6' });
+        assert.deepEqual(plain(R.outerLimit('G3', 'E6', 'strings')), { low: 'G3', high: 'E6', usualHigh: 'E6' });
+        assert.equal(R.outerLimit(null, 'C6', 'brass'), null, 'no range, no limit');
     });
     test('past the usual top: a range, the note to work on and the picker reach it, no further', () => {
-        const bari = R.outerLimit('F#3', 'C6', 'Brass');
+        const bari = R.outerLimit('F#3', 'C6', 'brass');
         assert.equal(R.checkRange({ bottom: 'Bb3', top: 'E6' }, bari), null);
         assert.match(R.checkRange({ bottom: 'Bb3', top: 'F#6' }, bari), /F♯3 to C6 \(up to F6 with experience\)/);
         assert.equal(R.target({ bottom: 'Bb3', top: 'C6' }, bari, 'up').pitch, 'C#6');

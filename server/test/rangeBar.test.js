@@ -12,7 +12,7 @@ for (const f of ['notation.js', 'range.js', 'rangeBar.js']) vm.runInNewContext(f
 const RangeBar = sandbox.self.RangeBar;
 
 // A euphonium-like instrument, written pitch: C2 to F6 usual, brass (so a 4th past the top).
-const euph = { family: 'Brass', rangeLow: 'C2', rangeHigh: 'F6' };
+const euph = { familyKey: 'brass', rangeLow: 'C2', rangeHigh: 'F6' };
 
 describe('range bar (ML-384)', () => {
   test('ctxOf turns written pitches into MIDI numbers', () => {
@@ -34,7 +34,7 @@ describe('range bar (ML-384)', () => {
     assert.equal(text, '');
   });
   test('ctx.stretch overrides the family rule (the picker knows the outer limit)', () => {
-    const { html } = RangeBar.html({ family: 'Strings' }, { ...RangeBar.ctxOf(euph, 'F3', 'G5'), stretch: 5 });
+    const { html } = RangeBar.html({ familyKey: 'strings' }, { ...RangeBar.ctxOf(euph, 'F3', 'G5'), stretch: 5 });
     assert.match(html, /range-bar-stretch/);
     const none = RangeBar.html(euph, { ...RangeBar.ctxOf(euph, 'F3', 'G5'), stretch: 0 });
     assert.doesNotMatch(none.html, /range-bar-stretch/);
@@ -45,7 +45,7 @@ describe('range bar (ML-384)', () => {
   });
   test('nothing without the instrument\'s range or your notes', () => {
     assert.equal(RangeBar.html(euph, RangeBar.ctxOf(euph, null, null)).html, '');
-    assert.equal(RangeBar.html({ family: 'Brass' }, RangeBar.ctxOf({}, 'F3', 'G5')).html, '');
+    assert.equal(RangeBar.html({ familyKey: 'brass' }, RangeBar.ctxOf({}, 'F3', 'G5')).html, '');
   });
   test('the label is escaped', () => {
     const { html } = RangeBar.html(euph, RangeBar.ctxOf(euph, 'F3', 'G5'));

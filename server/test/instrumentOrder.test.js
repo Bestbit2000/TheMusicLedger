@@ -26,12 +26,12 @@ describe('instrumentSortName', () => {
 describe('compareInstruments', () => {
   test('Brass first, then A-Z inside the family', () => {
     const list = [
-      { family: 'Woodwind', name: 'Oboe' },
-      { family: 'Brass', name: 'E♭ Soprano Cornet' },
-      { family: 'Brass', name: 'B♭ Cornet' },
-      { family: 'Brass', name: 'B♭ Baritone Horn' },
-      { family: 'Woodwind', name: 'Alto Flute' },
-      { family: 'Brass', name: 'Alto Trombone' }
+      { familyKey: 'woodwind', name: 'Oboe' },
+      { familyKey: 'brass', name: 'E♭ Soprano Cornet' },
+      { familyKey: 'brass', name: 'B♭ Cornet' },
+      { familyKey: 'brass', name: 'B♭ Baritone Horn' },
+      { familyKey: 'woodwind', name: 'Alto Flute' },
+      { familyKey: 'brass', name: 'Alto Trombone' }
     ].sort(compareInstruments);
     assert.deepEqual(list.map(i => i.name), ['Alto Trombone', 'B♭ Baritone Horn', 'B♭ Cornet', 'E♭ Soprano Cornet', 'Alto Flute', 'Oboe']);
   });

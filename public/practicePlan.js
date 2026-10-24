@@ -433,7 +433,9 @@
         return kind === 'arpeggio' ? 'arpeggio' : 'scale';
     }
     // The speed family of an ABRSM list (ScaleGrades.DATA id + its family): trombones are slower.
-    const scaleSpeedFamily = (listId, family) => (/trombone/.test(String(listId || '')) ? 'trombone' : family === 'woodwind' ? 'woodwind' : 'brass');
+    // ML-609: the trombone lists by their ids, not by finding a word in one
+    const TROMBONE_LISTS = ['trombone-treble-clef', 'trombone-bass-clef', 'bass-trombone'];
+    const scaleSpeedFamily = (listId, family) => (TROMBONE_LISTS.includes(listId) ? 'trombone' : family === 'woodwind' ? 'woodwind' : 'brass');
     // The grade a scale's speed comes from: the highest ticked grade that asks for it; a scale no ticked
     // grade asks for (Everything else) takes the highest ticked grade, or Grade 1.
     function scaleGrade(item, tickedGrades) {
