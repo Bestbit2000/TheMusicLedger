@@ -2,7 +2,9 @@
 
 A small, checked "who to ask" list for band players - repairers, shops and hire near their bands - in place
 of the "anyone know a...?" question on the band's WhatsApp. Not a general directory. Feature
-`instrument_support`; Super admin only until it is switched on for account types on Admin → Feature access.
+`instrument_support`: switched on for every account type from release 0.71.0 (owner, 25 Oct 2026), by migration
+157 so every environment is the same; it is free to use and on the pricing page. It can be switched off on
+Admin → Feature access.
 
 ## The owner's decisions (24-25 Oct 2026)
 
@@ -85,7 +87,15 @@ policy wording and the design on 25 Oct 2026. The third-party register has postc
 the data it serves (UK postcode and place data, Open Government Licence - credited at the foot of the
 screen) as two entries.
 
-## Release
+## Young players, Online Safety and GDPR (checked 25 Oct 2026, before switching on)
 
-- Online Safety: no member-to-member contact - no change; confirm in the run-through.
-- Notice: yes, when it is switched on for members (it is new).
+- **Children's Code:** checked standard by standard in
+  `compliance-documents/2026-10-25 Children's Code check - Instrument support.md` (the owner's folder, not in git).
+  Answered: the screen and the policy's "Young players" part say to ask a parent or carer before getting in touch
+  with a business. Paid extras for businesses, if they come, need standards 5 and 13 checked again first.
+- **Online Safety:** version 6 of `docs/online-safety-assessment.md` - no contact between members, risk unchanged.
+  Businesses managing their own listing, or members reviewing businesses, would need it run again.
+- **GDPR:** a sole trader's details taken from their website must be told it is listed (Article 14) - an email to
+  each listed business, within a month of listing (the first list by 25 November 2026). Drafts for the record of
+  processing, the legitimate interests assessment and the impact assessment are in the same compliance file.
+- **Notice:** an Important one with the privacy policy link, as it was switched on (release 0.71.0).

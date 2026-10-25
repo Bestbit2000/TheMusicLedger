@@ -113,6 +113,17 @@ the three databases. The fuller history of each gap is in the version 2 register
 - The monthly site security review is next due about 6 November 2026; re-running it will record ML-474 and
   ML-475 as closed.
 
+### New processing since version 3: Instrument support (ML-610, 25 October 2026)
+
+Not a review - a note so the next one picks it up. Instrument support lists music businesses; for a sole trader
+that is personal data (name, phone, email from their own website, or given by them). Nothing new is held about
+members: looks are counted by what and where, with no account. postcodes.io (open government data) finds where a
+place is; it receives place names and postcodes only. The policy names both. Drafts for documents 1, 2 and 5, the
+Children's Code check and an **Article 14 email** (a business whose details came from its website must be told it is
+listed, within a month - by 25 November 2026 for the first list) are in
+`compliance-documents/2026-10-25 Children's Code check - Instrument support.md`. **For the next review:** check that
+every listed business was emailed, and that removals on request were done.
+
 ---
 
 ## Where it stood at version 2

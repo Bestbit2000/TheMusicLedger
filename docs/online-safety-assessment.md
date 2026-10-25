@@ -285,10 +285,38 @@ Children's Code self-assessment - standards 5 (detrimental use), 11 (parental co
 and approves the privacy policy lines (approved as drafted, 23 October 2026); a notice tells members, since it changes what one member can show another.
 **Replies, or a notice to one member, would need this run again.**
 
+## Version 6: Instrument support (ML-610, 25 October 2026)
+
+**Why again:** the owner asked for it to be switched on for everyone. It is the first thing in the app that points a
+member at people outside it, so it was checked against the questions above even though it adds no contact between
+members.
+
+**What it is** (docs/instrument-support.md): a list of music repairers, shops and hire near the towns of a member's
+bands, then UK-wide ones. Each shows the business's name, town, what it offers, and buttons for its own website or
+Facebook page, phone and email. Only the owner adds businesses - found on their own website, or known to him and
+agreeing. Members add nothing and see nothing about each other.
+
+**Against the questions above:**
+- **Is it user-to-user content?** No. Nothing a member writes or uploads is shown to anyone; the listings are the
+  owner's, like the band directory. Looks are counted without an account.
+- **Contact and grooming:** no contact between members. Contact with a business happens outside the app, by the
+  business's own published routes. A business can't see who looked, can't write to a member through the app, and
+  can't add itself.
+- **Harmful content:** only real businesses, checked by the owner, with the page and date each was checked. "Something
+  wrong or missing? Tell us" is on the screen; a business can ask to be changed or removed.
+- **Children's risk assessment (section 5):** a young player could contact an adult outside the app, or follow a
+  link to Facebook (13+). Answered by the owner's checking, contact only by the business's own published routes, and
+  a line on the screen and in the policy's "Young players" part: ask a parent or carer before getting in touch. The
+  Children's Code check is `compliance-documents/2026-10-25 Children's Code check - Instrument support.md`.
+
+**Result:** the service's risk levels are unchanged (low), and no new action. **A business adding or editing its own
+listing, or members reviewing or recommending businesses, would need this run again.**
+
 ## What would change the answer
 
 Run this again **before** building any of these: messages or comments between members (a band's notice, one way to
 the whole band, is version 5 - replies to it, or a notice to one member, are not covered); a member profile
 others can open; any way to find or search for members or bands' content from outside a band; photo or
 video upload beyond a band's logo (version 2); live audio or video; sign-up without an invitation; letting members make a piece public;
-a band directory that shows members.
+a band directory that shows members; businesses managing their own Instrument support listing, or members reviewing
+businesses (version 6).

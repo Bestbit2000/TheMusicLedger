@@ -12,7 +12,7 @@ export const PRICING_FEATURES = [
   'flow_create', 'flow_manage', 'rehearse', 'piece_files', 'flow_import_musicxml', 'flow_import_musescore', 'piece_from_photo',
   'flow_export_musicxml', 'metronome_save_to_flow', 'rehearsal_recordings', 'practice_levels', 'warmups',
   'scales_practice', 'scales_levels', 'theory_practice', 'metronome', 'metronome_history', 'tuner',
-  'tuner_rewind', 'timer', 'session_logging'
+  'tuner_rewind', 'timer', 'session_logging', 'instrument_support'
 ];
 export const PRICING_LIMITS = ['metronome_history_shown', 'home_tools', 'home_stats'];
 
