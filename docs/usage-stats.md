@@ -1,6 +1,6 @@
 # Usage statistics: what counts as a use (ML-22)
 
-**Status: a draft for the owner to check (25 Oct 2026). Nothing here is built yet.**
+**Status: checked by the owner (25 Oct 2026) - his answers are at the end. Nothing here is built yet.**
 
 ML-22 asks how much each feature is used, so the owner can see what is used a lot and what is barely
 used. This page says, tool by tool, what one use is. Every count built later follows this page, so a
@@ -112,13 +112,35 @@ say nothing about value: `google_login`, `password_login`, `change_email`, `navi
 `auto_notices`, `notice_emails`, `flow_authoring_stats`, `flow_consistency_check`, `flow_transfer` (admin
 only), `manage_lists`, `manage_tutor`, `waiting_list` (requests are already on Admin → Waiting list).
 
-## Questions for the owner
+## Every button (owner, 25 Oct 2026)
 
-1. **The time limits.** Is 30 seconds right for a metronome or a recording to count as finished, 5 seconds
-   for the Tuning fork, and 1 minute for a piece in Rehearse?
-2. **The Tuner.** Is "a note was heard" the right finish, or should it be a note held in tune?
-3. **Scales on its own.** Count a finish when the scale has been played to its end, even with Levels off?
-4. **Anything missing** that you want to see used: a button, a setting (for example the Scales or Warm-ups
-   settings PostHog already counts), or a screen?
-5. **The two earlier calls:** no split by account type for now; and whether "how many members used it"
-   (from the rows that already record practice, only ever as a number) goes on the page.
+As well as the uses above, **every button that can be pressed is counted**, so a button nobody uses shows
+up - Back on Scales, a setting in a pop-up, a ⋮ menu item. The full list, grouped by tool, is
+[usage-buttons.md](usage-buttons.md), made by `node scripts/usage-buttons.mjs` (885 buttons when it was
+first run, 10 without a name yet).
+
+- **A tap is counted by where it was pressed and the button's own name** - its `id`, its `data-act` (with a
+  fixed `data-arg`), or another `data-*` attribute - **never by its words**, which can hold a piece's title
+  or someone's name. A number in a name (`data-setup="inst:44"`) is left off, so every instrument row counts
+  as one button.
+- **Where it was pressed** is the screen or pop-up the button is on. A button every screen shares - the top
+  bar's Back, the timer pill, a ⋮ menu, the choice pop-up - is counted with the screen it was pressed on, so
+  "Back on Scales" and "Back on Warm-ups" are two numbers.
+- **In a practice session or on its own**, as for the uses above.
+- **A button with no name can't be counted.** The script lists them as "needs a name"; each gets an `id` or
+  `data-count="..."` before the counting goes live, and a unit test then fails a release that adds a button
+  without one.
+- **Close (X) and Done** are told apart where it matters by giving one of them `data-count`.
+
+## The owner's answers (25 Oct 2026)
+
+1. **The time limits:** yes - 30 seconds for a metronome or a recording, 5 seconds for the Tuning fork, 1
+   minute for a piece in Rehearse.
+2. **The Tuner** finishes when a note is heard.
+3. **Scales on its own** finishes when the scale has been played to its end, with Levels on or off.
+4. **Every button** is counted, grouped by tool (above).
+5. **No split by account type** for now. **How many members used it** goes on the page, as a number only:
+   from the rows that already record practice, and - for what is newly counted - from a second number per
+   item per day: the app on the device says when it is the first time today that this member used the item,
+   and the server adds one. No account is kept on it. Someone on two devices in a day counts twice, so it is
+   "about how many members".
