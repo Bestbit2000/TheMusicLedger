@@ -1,5 +1,46 @@
 [
   {
+    "version": "0.71.0",
+    "date": "2026-10-25",
+    "changes": [
+      {
+        "key": "ML-610",
+        "type": "New",
+        "summary": "We added Instrument support to the menu: repairers, shops and hire near your bands, nearest first, then ones anywhere in the UK. Settings is now My app settings."
+      },
+      {
+        "key": "ML-609",
+        "type": "New",
+        "summary": "We gave the contra-alto and contrabass clarinets and the contrabass and soprillo saxophones their own scale lists - they had been given the tuba or flute lists."
+      },
+      {
+        "key": "ML-608",
+        "type": "New",
+        "summary": "We made every block on a session's \"What goes in\" step look the same, with its details in its pop-up, and a Levels bar now shows how many bars are at each Level."
+      },
+      {
+        "key": "ML-607",
+        "type": "New",
+        "summary": "We took the bar of how far through the list and the \"Next\" line off Warm-ups, so the screen just shows what you are playing."
+      },
+      {
+        "key": "ML-606",
+        "type": "Fixes",
+        "summary": "We fixed the bar pop-up on a phone: with big bar numbers the rehearsal mark now shows in full and the close button stays on the screen."
+      },
+      {
+        "key": "ML-603",
+        "type": "New",
+        "summary": "We added Reduce motion to My app settings, Display and reading: with it on, things appear and go instead of sliding or fading, and countdowns move a step a second."
+      },
+      {
+        "key": "ML-602",
+        "type": "New",
+        "summary": "We added 3- and 4-valve euphoniums, baritones and basses, and a 3-valve instrument's range now stops at its lowest real note, not the pedal notes below the gap."
+      }
+    ]
+  },
+  {
     "version": "0.70.0",
     "date": "2026-10-24",
     "changes": [
