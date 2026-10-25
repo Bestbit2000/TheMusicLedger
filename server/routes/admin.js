@@ -32,6 +32,7 @@ import { listTimeSignatureOptionsForAdmin, createTimeSignatureOption, updateTime
 import { listPlaybackSpeedsForAdmin, createPlaybackSpeedOption, updatePlaybackSpeedOption, deletePlaybackSpeedOption } from '../services/playbackSpeeds.js';
 import { getConfigValue, setConfigValue } from '../services/appConfig.js';
 import { getFlowAuthoringStats, setFlowAuthoringSessionExcluded, currentAppVersion } from '../services/flowAuthoringStats.js';
+import { heatmapReport, toolReport, quietReport } from '../services/usageReport.js';
 import { listFeedbackForAdmin, updateFeedbackAdmin } from '../services/feedback.js';
 import { listFlowsForAdmin, exportFlows, previewImport, previewSummary, commitImport, MAX_IMPORT_BYTES } from '../services/flowTransfer.js';
 import { listNotificationsForAdmin, notificationAudienceForAdmin, listNoticeBands, createNotification, updateNotification, setNotificationWithdrawn, deleteNotification } from '../services/notifications.js';
@@ -672,6 +673,30 @@ router.put('/feedback/:id', requireAuth, resolveAccount, requireSuperAdmin, requ
 // Flow authoring time (ML-199) - the baseline for how long building a Flow by hand actually takes.
 // Super-admin-only like everything in this file, which is also what the ticket asked for: these
 // rows are per-user timings, not aggregate product analytics.
+// ML-22: the heat map (kind use / tap / view, place, who, weeks), one tool's buttons, and Quiet corners -
+// read-only, counted never who (server/services/usageReport.js, docs/usage-stats.md)
+router.get('/usage/heatmap', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    res.json(await heatmapReport(req.query));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.get('/usage/tool', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    res.json(await toolReport(String(req.query.name || ''), req.query));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.get('/usage/quiet', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    res.json(await quietReport(req.query));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 router.get('/usage/flow-authoring', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await getFlowAuthoringStats());

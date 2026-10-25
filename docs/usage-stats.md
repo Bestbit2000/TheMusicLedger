@@ -1,7 +1,29 @@
 # Usage statistics: what counts as a use (ML-22)
 
 **Status: checked by the owner (25 Oct 2026) - his answers are at the end. The counting is built (step 2,
-"How it is counted" below); the page that shows it, Admin → Usage → Heat map, is step 3 and not built yet.**
+"How it is counted" below), and so is the page that shows it (step 3, "The page" below).**
+
+## The page (step 3)
+
+**Admin → Usage** opens on two new tabs (spec `specs/components/usage-heatmap.md`; the owner chose Option A
+on the design canvas, https://claude.ai/artifact/ETWwd6GqEuXgP3tbDHtdEd, 25 Oct 2026):
+
+- **Heat map** - Showing (tools started / buttons pressed, a row per tool / screens opened), Where, When (4, 12
+  or 26 weeks) and Who (members only / my own use too / test accounts too). A square per week on the Stats
+  page's gold ramp with its number in it; Started, Finished and Members. Theory, Pitch, Tempo, Pulse, Rhythm and
+  Range come from the rounds they already keep, so they go back to launch (only with "on its own and in a
+  session" - where a round was played isn't kept). A tool's name opens **its buttons**: every button pressed,
+  most first, its words from `server/usage/buttons.json`, how much was in a session, members; then the buttons
+  never pressed.
+- **Quiet corners** - features switched on for at least one account type other than Super admin but used fewer
+  than N times (what counts as a feature's use is `Usage.FEATURES` in `public/usage.js`), buttons never pressed
+  by tool, screens never opened.
+- **Members** on the page is the most in one day, never a sum: the counts never say who, so one person on two
+  days can't be told apart. The rounds kept with an account give a true count per day.
+- The sums are `server/services/usageReportRules.js` (tested by `server/test/usageReport.test.js`), the
+  database side `usageReport.js`, the routes `GET /api/admin/usage/heatmap`, `/usage/tool`, `/usage/quiet`.
+- `server/usage/buttons.json` (every button and screen, with its tool and words) is written by
+  `node scripts/usage-buttons.mjs` with `docs/usage-buttons.md`; a test fails when it is out of date.
 
 ML-22 asks how much each feature is used, so the owner can see what is used a lot and what is barely
 used. This page says, tool by tool, what one use is. Every count built later follows this page, so a

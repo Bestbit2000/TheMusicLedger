@@ -34,6 +34,63 @@
         prepare: {},                           // a piece's path opened / a step done
         setup: {}                              // set-up begun / finished rather than left
     };
+    // Admin → Usage → Heat map: each use's row - its name and which group of tools it sits in
+    const USE_ROWS = {
+        metronome: ['Metronome', 'Everyday'], tuner: ['Tuner', 'Everyday'], 'tuning-fork': ['Tuning fork', 'Everyday'], timer: ['Timer', 'Everyday'],
+        session: ['A practice session', 'Practice sessions'], 'block:warmup': ['Block: Warm-ups', 'Practice sessions'], 'block:scales': ['Block: Scales', 'Practice sessions'],
+        'block:skills': ['Block: Skills', 'Practice sessions'], 'block:rehearsal': ['Block: Pieces', 'Practice sessions'], 'block:prepare': ['Block: Prepare', 'Practice sessions'],
+        'block:theory': ['Block: Theory', 'Practice sessions'], 'session-rest': ['The 30-second rest', 'Practice sessions'],
+        'plan:standard': ['Plan: Standard', 'Practice sessions'], 'plan:concert': ['Plan: Concert', 'Practice sessions'], 'plan:own': ['Plan: my own', 'Practice sessions'],
+        warmups: ['Warm-ups', 'Practise and learn'], scales: ['Scales', 'Practise and learn'],
+        rehearse: ['Rehearse: play a piece', 'Pieces'], recording: ['A recording with the bars', 'Pieces'], prepare: ['Prepare: a piece\'s path', 'Pieces'],
+        setup: ['Set-up for new members', 'The rest']
+    };
+    const ROW_GROUPS = ['Everyday', 'Practice sessions', 'Practise and learn', 'Pieces', 'The rest'];
+    // Which tool a screen, pop-up (or the function that builds a button) belongs to - first match wins.
+    // Shared by the heat map's button rows and scripts/usage-buttons.mjs.
+    const GROUPS = [
+        ['Practice session', /^(session|sess|plan|pl[A-Z]|skillRate|scaleUp|paintType|cutType|levels|prepare|piecePath|block)/i],
+        ['Metronome (Quick Play)', /^(quickPlay|qp)/i],
+        ['Tuner', /^tuner/i],
+        ['Tuning fork', /^tuningFork|^fork/i],
+        ['Timer', /^timer/i],
+        ['Warm-ups', /^warmup/i],
+        ['Scales', /^scale/i],
+        ['Theory', /^(theory|smartLearn)/i],
+        ['Skills: Tempo, Pulse, Pitch, Rhythm', /^(skills|tapTempo|gapTrainer|ear|rhythm|drill|toolResults)/i],
+        ['Range', /^range/i],
+        ['Pieces: Rehearse, play, edit', /^(rehearse|flow|metroBlk|metroSeg|metroBuilder|barMap|clip|outline|pieceOutline|listItem)/i],
+        ['Add a piece', /^(addPiece|flowFromFile)/i],
+        ['Recordings', /^recording/i],
+        ['Practice lists', /^practiceList/i],
+        ['Home and All tools', /^(main|tools|home)/i],
+        ['Stats', /^(stats|history|streak)/i],
+        ['Instrument support', /^support|^instrumentSupport/i],
+        ['Set-up', /^setup/i],
+        ['My bands', /^(accountBand|band|tidyBands)/i],
+        ['My account, instruments, settings', /^(account|settings|avatar|security)/i],
+        ['Signing in', /^(login|password|forgot|setPassword|twoStep|emailChange)/i],
+        ['Menu, notices and the rest', /./]
+    ];
+    // A tap's place ("scalesView", "scalesView>flowChoiceModal") belongs to the tool of the screen it was on
+    const groupOf = (where) => { const w = String(where || '').split('>')[0]; return (GROUPS.find(([, re]) => re.test(w)) || GROUPS[GROUPS.length - 1])[0]; };
+    // Quiet corners: what each feature switch's use is counted by - its uses and its screens
+    const FEATURES = {
+        metronome: { uses: ['metronome'], views: ['quickPlayView'] }, tuner: { uses: ['tuner'], views: ['tunerView'] },
+        tuning_fork: { uses: ['tuning-fork'], views: ['tuningForkView'] }, timer: { uses: ['timer'], views: ['timerView'] },
+        warmups: { uses: ['warmups'], views: ['warmupsView'] }, scales_practice: { uses: ['scales'], views: ['scalesView'] },
+        theory_practice: { views: ['theoryView'] }, ear_training: { views: ['earView'] }, tap_tempo: { views: ['tapTempoView'] },
+        gap_trainer: { views: ['gapTrainerView'] }, rhythm_trainer: { views: ['rhythmView'] }, range_trainer: { views: ['rangeView'] },
+        rehearse: { uses: ['rehearse'], views: ['rehearseView'] }, practice_levels: { uses: ['session', 'prepare'], views: ['sessionLengthView', 'prepareListView'] },
+        flow_create: { views: ['addPieceView'] }, piece_quick_entry: { views: ['pieceOutlineView'] }, flow_manage: { views: ['metroBuilderView'] },
+        rehearsal_recordings: { views: ['recordingsView'] }, rehearsal_score: { uses: ['recording'] }, statistics: { views: ['statsHomeView'] },
+        instrument_support: { views: ['instrumentSupportView'] }, member_setup: { uses: ['setup'], views: ['setupView'] },
+        invite_members: { views: ['inviteView'] }, notifications: { views: ['notificationsView'] },
+        band_levels_summary: { views: ['bandSummaryView'] }, band_welcome: { views: ['bandWelcomeView'] }
+    };
+    // A screen's id as words: "sessionLengthView" -> "Session length"
+    const viewLabel = (id) => { const w = String(id).replace(/View$/, '').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase(); return w.charAt(0).toUpperCase() + w.slice(1); };
+
     const SAME_USE_MS = 60000; // Play, Stop, Play again within a minute is one use
     const KINDS = ['use', 'tap', 'view'];
     const PLACES = ['own', 'session'];
@@ -169,5 +226,5 @@
     }
     function forget() { try { localStorage.removeItem('tml.usageSeen'); } catch (e) { /* nothing kept */ } counts.clear(); live.clear(); }
 
-    return { USES, KINDS, PLACES, ITEM, SHARED, buttonName, optionKey, start, begin, end, finish, mark, view, flush, forget };
+    return { USES, USE_ROWS, ROW_GROUPS, GROUPS, groupOf, FEATURES, viewLabel, KINDS, PLACES, ITEM, SHARED, buttonName, optionKey, start, begin, end, finish, mark, view, flush, forget };
 }));

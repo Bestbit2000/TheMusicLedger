@@ -1294,6 +1294,124 @@
     }
 
     // ML-309: practice by instrument.
+    // ---- ML-22: Heat map - how often each tool, button and screen is used, week by week, counted never who
+    // (server/services/usageReport.js, specs/components/usage-heatmap.md, docs/usage-stats.md). A tool's name
+    // opens its own buttons in the same place; Back comes back to the grid as it was.
+    const usageHeat = { kind: 'use', place: 'all', who: 'members', weeks: 12, days: 30, tool: null };
+    const usageQuiet = { days: 30, below: 5, who: 'members' };
+    const heatStep = (n) => (!n ? 0 : n < 5 ? 1 : n < 15 ? 2 : n < 40 ? 3 : 4);
+    const heatCell = (n) => `<span class="usage-heat-cell usage-heat-${heatStep(n)}">${n || ''}</span>`;
+    const usageSelect = (id, label, value, options) => `<label for="${id}">${escapeHtml(label)}<select id="${id}">${options.map(([v, l]) => `<option value="${v}"${String(v) === String(value) ? ' selected' : ''}>${escapeHtml(l)}</option>`).join('')}</select></label>`;
+    const USAGE_WHO = [['members', 'Members only'], ['everyone', 'My own use too'], ['all', 'Test accounts too']];
+    const weekLabel = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    const countedFrom = (first) => (first ? `Counting began on ${fmtDay(first)}; nothing before that was counted.` : 'Nothing has been counted here yet.');
+    async function reloadUsageHeatmap() {
+        const el = document.getElementById('usageHeatmap');
+        if (!el) return;
+        try {
+            const h = usageHeat;
+            el.innerHTML = h.tool
+                ? renderUsageTool(await apiCall(`/api/admin/usage/tool?name=${encodeURIComponent(h.tool)}&who=${h.who}&days=${h.days}`))
+                : renderUsageHeatmap(await apiCall(`/api/admin/usage/heatmap?kind=${h.kind}&place=${h.place}&who=${h.who}&weeks=${h.weeks}`));
+        } catch (error) {
+            el.innerHTML = `<p>Couldn't load the heat map: ${escapeHtml(error.message)}</p>`;
+        }
+    }
+    function renderUsageHeatmap(d) {
+        const tap = d.kind === 'tap';
+        const finishes = d.kind === 'use';
+        const controls = `<div class="usage-heat-controls">
+            ${usageSelect('usageHeatKind', 'Showing', d.kind, [['use', 'Tools started'], ['tap', 'Buttons pressed'], ['view', 'Screens opened']])}
+            ${usageSelect('usageHeatPlace', 'Where', d.place, [['all', 'On its own and in a session'], ['own', 'On its own'], ['session', 'In a practice session']])}
+            ${usageSelect('usageHeatWeeks', 'When', d.weeksShown, [[4, 'Last 4 weeks'], [12, 'Last 12 weeks'], [26, 'Last 26 weeks']])}
+            ${usageSelect('usageHeatWho', 'Who', d.who, USAGE_WHO)}
+            <span class="usage-heat-legend" aria-hidden="true">None ${[0, 1, 5, 15, 40].map((n) => `<span class="usage-heat-cell usage-heat-${heatStep(n)}"></span>`).join('')} More</span>
+        </div>`;
+        const head = `<tr><th class="usage-heat-name" scope="col">${tap ? 'Tool' : d.kind === 'view' ? 'Screen' : 'Tool'}</th>${d.weeks.map((w) => `<th scope="col">${weekLabel(w)}</th>`).join('')}<th scope="col">${tap ? 'Pressed' : d.kind === 'view' ? 'Opened' : 'Started'}</th>${finishes ? '<th scope="col">Finished</th>' : ''}<th scope="col">Members</th></tr>`;
+        const span = d.weeks.length + (finishes ? 4 : 3);
+        const body = d.groups.map((g) => `<tr class="usage-heat-group"><th colspan="${span}" scope="colgroup">${escapeHtml(g.name)}</th></tr>${g.rows.map((r) => `
+            <tr>
+                <td class="usage-heat-name">${r.tool ? `<button type="button" class="usage-heat-link" data-usage-tool="${escapeHtml(r.tool)}">${escapeHtml(r.label)}</button>` : escapeHtml(r.label)}${r.history ? ' <span class="admin-stat-tile-sub">rounds kept since launch</span>' : ''}</td>
+                ${r.cells.map(heatCell).map((c) => `<td>${c}</td>`).join('')}
+                <td class="usage-heat-total"><strong>${r.started}</strong></td>
+                ${finishes ? `<td class="usage-heat-total">${r.finished === null ? '–' : `${r.finished}%`}</td>` : ''}
+                <td class="usage-heat-total">${r.members}</td>
+            </tr>`).join('')}`).join('');
+        return `<p class="admin-intro">How often each ${tap ? 'tool\'s buttons are' : d.kind === 'view' ? 'screen is' : 'tool is'} used, week by week - counted, never who. Darker is more; each square says how many times. <strong>Members</strong> is the most in any one day: the counts never say who, so one person on two days can't be told apart. Open a tool to see every one of its buttons. ${escapeHtml(countedFrom(d.firstCounted))}</p>
+            ${controls}
+            <div class="admin-stat-table-wrap"><table class="usage-heat-table"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+    }
+    function renderUsageTool(t) {
+        const rows = t.rows.length ? t.rows.map((r) => `<tr><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.whereLabel)}</td><td>${r.pressed}<span class="usage-press-bar" aria-hidden="true" style="--bar-w:${Math.round((r.pressed / t.rows[0].pressed) * 100)}%"></span></td><td>${r.inSession}%</td><td>${r.members}</td></tr>`).join('')
+            : `<tr><td colspan="5" class="admin-stat-empty">No button on ${escapeHtml(t.tool)} pressed in the last ${t.days} days.</td></tr>`;
+        return `<button type="button" class="usage-heat-link" data-usage-back>← Heat map</button>
+            <h2 class="admin-stat-section-title">${escapeHtml(t.tool)}</h2>
+            <div class="usage-heat-controls">
+                ${usageSelect('usageToolDays', 'When', t.days, [[7, 'Last 7 days'], [30, 'Last 30 days'], [90, 'Last 90 days']])}
+                ${usageSelect('usageToolWho', 'Who', t.who, USAGE_WHO)}
+            </div>
+            <div class="admin-stat-tiles">
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Its screens opened</div><div class="admin-stat-tile-value">${t.opened}</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">In a practice session</div><div class="admin-stat-tile-value">${t.openedInSession}%</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Members</div><div class="admin-stat-tile-value">${t.members}</div><div class="admin-stat-tile-sub">the most in one day</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Buttons never pressed</div><div class="admin-stat-tile-value">${t.never.length}</div><div class="admin-stat-tile-sub">of ${t.buttons}</div></div>
+            </div>
+            <div class="admin-stat-table-wrap"><table class="admin-stat-table">
+                <thead><tr><th>Button</th><th>Where</th><th>Pressed</th><th>In a session</th><th>Members</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table></div>
+            <h2 class="admin-stat-section-title">Not pressed in the last ${t.days} days</h2>
+            ${t.never.length ? `<ul class="usage-chip-list">${t.never.map((b) => `<li class="usage-chip">${escapeHtml(b.whereLabel)} → ${escapeHtml(b.label)}</li>`).join('')}</ul>` : '<p class="admin-intro">Every button has been pressed.</p>'}
+            <p class="admin-intro">A button is counted by where it is and its own name, never by anything typed. The full list is <code>docs/usage-buttons.md</code>.</p>`;
+    }
+    async function reloadUsageQuiet() {
+        const el = document.getElementById('usageQuiet');
+        if (!el) return;
+        try {
+            const q = usageQuiet;
+            const d = await apiCall(`/api/admin/usage/quiet?days=${q.days}&below=${q.below}&who=${q.who}`);
+            const features = d.features.length ? d.features.map((f) => `<tr><td>${escapeHtml(f.name)}</td><td><code>${escapeHtml(f.key)}</code></td><td>${f.uses}</td><td>${escapeHtml(f.levels.join(', '))}</td></tr>`).join('')
+                : '<tr><td colspan="4" class="admin-stat-empty">Every feature switched on was used often enough.</td></tr>';
+            el.innerHTML = `<p class="admin-intro">What is switched on but hardly used, and the buttons and screens nobody has used - counted, never who. Only features switched on for members are listed: one still Super admin only isn't quiet, it's waiting. ${escapeHtml(countedFrom(d.firstCounted))}</p>
+                <div class="usage-heat-controls">
+                    ${usageSelect('usageQuietDays', 'When', d.days, [[7, 'Last 7 days'], [30, 'Last 30 days'], [90, 'Last 90 days']])}
+                    ${usageSelect('usageQuietBelow', 'Counts as quiet', d.below, [[1, 'Not used at all'], [5, 'Fewer than 5 uses'], [10, 'Fewer than 10 uses']])}
+                    ${usageSelect('usageQuietWho', 'Who', d.who, USAGE_WHO)}
+                </div>
+                <h2 class="admin-stat-section-title">Switched on, hardly used</h2>
+                <div class="admin-stat-table-wrap"><table class="admin-stat-table">
+                    <thead><tr><th>Feature</th><th>Switch</th><th>Uses</th><th>Switched on for</th></tr></thead>
+                    <tbody>${features}</tbody>
+                </table></div>
+                <h2 class="admin-stat-section-title">Buttons never pressed: ${d.neverPressed} of ${d.buttons}</h2>
+                ${d.tools.map((t) => `<details class="admin-security-details"><summary>${escapeHtml(t.tool)} - ${t.never} of ${t.of}</summary><ul class="usage-chip-list">${t.labels.map((l) => `<li class="usage-chip">${escapeHtml(l)}</li>`).join('')}</ul></details>`).join('')}
+                <h2 class="admin-stat-section-title">Screens never opened: ${d.screens.length} of ${d.viewCount}</h2>
+                ${d.screens.length ? `<ul class="usage-chip-list">${d.screens.map((s) => `<li class="usage-chip">${escapeHtml(s)}</li>`).join('')}</ul>` : '<p class="admin-intro">Every screen has been opened.</p>'}`;
+        } catch (error) {
+            el.innerHTML = `<p>Couldn't load Quiet corners: ${escapeHtml(error.message)}</p>`;
+        }
+    }
+    function initUsageHeatmap() {
+        const heat = document.getElementById('usageHeatmap');
+        heat?.addEventListener('change', (e) => {
+            const set = { usageHeatKind: 'kind', usageHeatPlace: 'place', usageHeatWeeks: 'weeks', usageHeatWho: 'who', usageToolDays: 'days', usageToolWho: 'who' }[e.target.id];
+            if (!set) return;
+            usageHeat[set] = e.target.value;
+            reloadUsageHeatmap().then(() => document.getElementById(e.target.id)?.focus());
+        });
+        heat?.addEventListener('click', (e) => {
+            const tool = e.target.closest('[data-usage-tool]');
+            if (tool) { usageHeat.tool = tool.dataset.usageTool; reloadUsageHeatmap().then(() => heat.querySelector('[data-usage-back]')?.focus()); return; }
+            if (e.target.closest('[data-usage-back]')) { const was = usageHeat.tool; usageHeat.tool = null; reloadUsageHeatmap().then(() => heat.querySelector(`[data-usage-tool="${CSS.escape(was)}"]`)?.focus()); }
+        });
+        document.getElementById('usageQuiet')?.addEventListener('change', (e) => {
+            const set = { usageQuietDays: 'days', usageQuietBelow: 'below', usageQuietWho: 'who' }[e.target.id];
+            if (!set) return;
+            usageQuiet[set] = e.target.value;
+            reloadUsageQuiet().then(() => document.getElementById(e.target.id)?.focus());
+        });
+    }
+
     async function reloadInstrumentUsage() {
         const el = document.getElementById('usageInstruments');
         try {
@@ -3977,6 +4095,7 @@
         initConfirmModal();
         initBandForm();
         initAdminSubtabs();
+        initUsageHeatmap(); // ML-22
         initDurationForm();
         initTimeSigForm();
         initSpeedForm();
@@ -3996,7 +4115,7 @@
             renderSummary(backtest);
             renderFeatures(backtest);
             await Promise.all([
-                reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadInstrumentUsage(), Promise.resolve(renderTheoryGrades()), reloadFlowAuthoring(), reloadFeedback(), reloadFlows(), reloadNotificationsAdmin(), reloadRestMessagesAdmin(), reloadWarmupsAdmin(), reloadPosthogLink(),
+                reloadAccounts(), reloadBands(), reloadDurations(), reloadTimeSigs(), reloadNoteValues(), reloadSpeeds(), reloadDurationUsage(), reloadInstrumentUsage(), reloadUsageHeatmap(), reloadUsageQuiet(), Promise.resolve(renderTheoryGrades()), reloadFlowAuthoring(), reloadFeedback(), reloadFlows(), reloadNotificationsAdmin(), reloadRestMessagesAdmin(), reloadWarmupsAdmin(), reloadPosthogLink(),
                 reloadSecurityReview().catch((error) => { document.getElementById('securityReview').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`; }),
                 reloadThirdParties().catch((error) => { document.getElementById('thirdParties').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`; }),
                 reloadAdminRecordings().catch((error) => { document.getElementById('adminRecordings').innerHTML = `<p>Error loading data: ${escapeHtml(error.message)}</p>`; }),

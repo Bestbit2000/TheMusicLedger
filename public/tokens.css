@@ -335,6 +335,11 @@
     --heat-time-2: var(--ds-heat-gold-2, #e2c355);               /* intensity step 2 */
     --heat-time-3: var(--ds-heat-gold-3, #c9a22c);               /* intensity step 3 */
     --heat-time-4: var(--ds-heat-gold-4, #8f7114);               /* intensity step 4 (max) */
+    --heat-text-0: var(--ds-neutral-750, #333333);               /* a number written on heat step 0-4 (Admin -> Usage heat map, ML-22) */
+    --heat-text-1: var(--ds-neutral-750, #333333);               /* on step 1 */
+    --heat-text-2: var(--ds-neutral-750, #333333);               /* on step 2 */
+    --heat-text-3: var(--ds-neutral-750, #333333);               /* on step 3 */
+    --heat-text-4: var(--ds-neutral-0, #ffffff);                 /* on step 4 - the darkest gold */
     --heat-sess-0: var(--ds-neutral-75, #ebedf0);                /* session-count heatmap, empty day (0-4 = intensity ramp) */
     --heat-sess-1: var(--ds-heat-gold-1, #f3e3a8);               /* intensity step 1 - same gold ramp as time (ML-235) */
     --heat-sess-2: var(--ds-heat-gold-2, #e2c355);               /* intensity step 2 */
@@ -551,6 +556,11 @@ body.dark-mode {
     --heat-time-2: var(--ds-heat-gold-dark-2, #7d6415);
     --heat-time-3: var(--ds-heat-gold-dark-3, #b8952b);
     --heat-time-4: var(--ds-heat-gold-dark-4, #f5d78e);
+    --heat-text-0: var(--ds-neutral-0, #ffffff);   /* dark mode's ramp gets lighter towards the top, so the text turns dark */
+    --heat-text-1: var(--ds-neutral-0, #ffffff);
+    --heat-text-2: var(--ds-neutral-0, #ffffff);
+    --heat-text-3: var(--ds-neutral-900, #121212);
+    --heat-text-4: var(--ds-neutral-900, #121212);
     --heat-sess-0: var(--ds-neutral-775, #2d333b);
     --heat-sess-1: var(--ds-heat-gold-dark-1, #4a3b0b);
     --heat-sess-2: var(--ds-heat-gold-dark-2, #7d6415);

@@ -17,41 +17,20 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(root, 'public/app.html'), 'utf8');
 const js = fs.readFileSync(path.join(root, 'public/app.js'), 'utf8');
 
-// Which tool a screen, pop-up or builder function belongs to - first match wins
-const GROUPS = [
-  ['Practice session', /^(session|sess|plan|pl[A-Z]|skillRate|scaleUp|paintType|cutType|levels|prepare|piecePath|block)/i],
-  ['Metronome (Quick Play)', /^(quickPlay|qp)/i],
-  ['Tuner', /^tuner/i],
-  ['Tuning fork', /^tuningFork|^fork/i],
-  ['Timer', /^timer/i],
-  ['Warm-ups', /^warmup/i],
-  ['Scales', /^scale/i],
-  ['Theory', /^(theory|smartLearn)/i],
-  ['Skills: Tempo, Pulse, Pitch, Rhythm', /^(skills|tapTempo|gapTrainer|ear|rhythm|drill|toolResults)/i],
-  ['Range', /^range/i],
-  ['Pieces: Rehearse, play, edit', /^(rehearse|flow|metroBlk|metroSeg|metroBuilder|barMap|clip|outline|pieceOutline|listItem)/i],
-  ['Add a piece', /^(addPiece|flowFromFile)/i],
-  ['Recordings', /^recording/i],
-  ['Practice lists', /^practiceList/i],
-  ['Home and All tools', /^(main|tools|home)/i],
-  ['Stats', /^(stats|history|streak)/i],
-  ['Instrument support', /^support|^instrumentSupport/i],
-  ['Set-up', /^setup/i],
-  ['My bands', /^(accountBand|band|tidyBands)/i],
-  ['My account, instruments, settings', /^(account|settings|avatar|security)/i],
-  ['Signing in', /^(login|password|forgot|setPassword|twoStep|emailChange)/i],
-  ['Menu, notices and the rest', /./]
-];
-const groupOf = (where) => (GROUPS.find(([, re]) => re.test(where)) || GROUPS[GROUPS.length - 1])[0];
-
-const attr = (tag, name) => { const m = tag.match(new RegExp(`\\s${name}="([^"]*)"`)); return m ? m[1] : null; };
-const words = (s) => s.replace(/<[^>]*>/g, ' ').replace(/\$\{[^}]*\}/g, '…').replace(/&[a-z]+;/g, ' ').replace(/material-symbols-outlined/g, '').replace(/\s+/g, ' ').trim();
-// The name a tap is counted by - or null. The app's own rule (Usage.buttonName in public/usage.js, loaded
-// with vm), given the button's attributes in order. An id made as the app runs (id="tile-${n}") is left
-// for the app to fill in, so the list shows the button's next name.
+// The app's own rules (public/usage.js, loaded with vm): which tool a screen, pop-up or builder function
+// belongs to (Usage.GROUPS - the heat map groups taps the same way) and the naming rule for buttons.
 const sandbox = { self: {} };
 vm.runInNewContext(fs.readFileSync(path.join(root, 'public/usage.js'), 'utf8'), sandbox);
 const Usage = sandbox.self.Usage;
+const GROUPS = Usage.GROUPS;
+const groupOf = Usage.groupOf;
+
+const attr = (tag, name) => { const m = tag.match(new RegExp(`\\s${name}="([^"]*)"`)); return m ? m[1] : null; };
+// (an icon's name - "tune", "chevron_right" - is the text of its span, not words on the button)
+const words = (s) => s.replace(/<span[^>]*material-symbols-outlined[^>]*>[^<]*<\/span>/g, ' ').replace(/<[^>]*>/g, ' ').replace(/\$\{[^}]*\}/g, '…').replace(/&[a-z]+;/g, ' ').replace(/material-symbols-outlined/g, '').replace(/\s+/g, ' ').trim();
+// The name a tap is counted by - or null. The app's own rule (Usage.buttonName in public/usage.js, loaded
+// with vm), given the button's attributes in order. An id made as the app runs (id="tile-${n}") is left
+// for the app to fill in, so the list shows the button's next name.
 function countName(tag) {
   const attrs = [...tag.slice(7).matchAll(/\s([a-zA-Z][a-zA-Z0-9:-]*)(?:="([^"]*)")?/g)].map(([, n, v]) => [n, v || '']).filter(([n, v]) => !(n === 'id' && v.includes('${')));
   return Usage.buttonName(attrs, /class="[^"]*modal-close-x/.test(tag));
@@ -88,10 +67,21 @@ for (const m of js.matchAll(/<button\b[^>]*>/g)) {
   const where = fn ? fn.name : 'app.js';
   const after = js.slice(m.index + m[0].length, m.index + m[0].length + 200).split('</button>')[0];
   const fixed = TOOL_OF_FN.find(([re]) => re.test(where));
-  items.push({ group: fixed ? fixed[1] : groupOf(where.replace(PREFIX, '')), where: `${where}()`, name: countName(m[0]), label: words(after).slice(0, 60) || attr(m[0], 'aria-label') || '' });
+  // words that are mostly code (`${...}`, a quote mark) say nothing - the page names the button by its name instead
+  const said = words(after).slice(0, 60);
+  const plain = /[`'"{}]|^[…\s.]*$/.test(said) ? '' : said;
+  const aria = attr(m[0], 'aria-label') || '';
+  items.push({ group: fixed ? fixed[1] : groupOf(where.replace(PREFIX, '')), where: `${where}()`, name: countName(m[0]), label: plain || (aria.includes('${') ? '' : aria) });
 }
 
-// The list, for server/test/usageButtons.test.js (every button has a name)
+// The screens in app.html, for "screens never opened"
+const views = [...new Set([...html.matchAll(/<div\b[^>]*\bid="([a-zA-Z0-9]+View)"/g)].map((m) => m[1]))].sort();
+// What server/usage/buttons.json holds: each button's tool, where it is, its name and its words (to find it
+// by); html - it is on a screen in app.html, so a tap names that screen (a built one names the function)
+export function buttonsFile() {
+  return { views, buttons: items.filter((it) => it.name).map((it) => ({ group: it.group, where: it.where, name: it.name, label: it.label.slice(0, 80), html: !it.where.endsWith('()') })) };
+}
+// The list, for server/test/usageCounts.test.js (every button has a name)
 export { items };
 
 // 3. Write it out - only when run, not when the test imports the list
@@ -122,6 +112,9 @@ for (const g of order) {
   out += list.map((it) => `| ${esc(it.where)} | ${it.name ? `\`${esc(it.name)}\`` : '**needs a name**'} | ${esc(it.label.slice(0, 70))} |`).join('\n') + '\n';
 }
 fs.writeFileSync(path.join(root, 'docs/usage-buttons.md'), out);
+  // Admin -> Usage reads this for the buttons and screens never used (server/services/usageReport.js); the
+  // test fails when it is out of date
+  fs.writeFileSync(path.join(root, 'server/usage/buttons.json'), `${JSON.stringify(buttonsFile(), null, 1)}\n`);
 console.log(`${items.length} buttons, ${unnamed.length} need a name - written to docs/usage-buttons.md`);
 for (const g of order) { const l = byGroup.get(g); if (l.length) console.log(`  ${g}: ${l.length} (${l.filter((it) => !it.name).length} need a name)`); }
 }

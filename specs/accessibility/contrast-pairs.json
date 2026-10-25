@@ -821,6 +821,42 @@
       "fg": "--kind-theory-text",
       "bg": "--container-bg",
       "use": "ML-608: a theory block's name on step 3's row (a row with nothing to choose)"
+    },
+    {
+      "kind": "text",
+      "fg": "--heat-text-0",
+      "bg": "--heat-time-0",
+      "use": "a number in a heat map square, step 0 (Admin -> Usage heat map, ML-22)"
+    },
+    {
+      "kind": "text",
+      "fg": "--heat-text-1",
+      "bg": "--heat-time-1",
+      "use": "a number in a heat map square, step 1 (Admin -> Usage heat map, ML-22)"
+    },
+    {
+      "kind": "text",
+      "fg": "--heat-text-2",
+      "bg": "--heat-time-2",
+      "use": "a number in a heat map square, step 2 (Admin -> Usage heat map, ML-22)"
+    },
+    {
+      "kind": "text",
+      "fg": "--heat-text-3",
+      "bg": "--heat-time-3",
+      "use": "a number in a heat map square, step 3 (Admin -> Usage heat map, ML-22)"
+    },
+    {
+      "kind": "text",
+      "fg": "--heat-text-4",
+      "bg": "--heat-time-4",
+      "use": "a number in a heat map square, step 4 (Admin -> Usage heat map, ML-22)"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--heat-time-4",
+      "bg": "--container-bg",
+      "use": "a tool's press bar on Admin -> Usage (ML-22)"
     }
   ]
 }

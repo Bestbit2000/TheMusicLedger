@@ -38,19 +38,19 @@ its words.
 | Where | Counted as | Words on it |
 |---|---|---|
 | top bar | `#sessionBar` | Block 1 of 1 5:00 |
-| sessionLengthView | `#sessSameBtn` | replay Same as last time chevron_right |
+| sessionLengthView | `#sessSameBtn` | Same as last time |
 | sessionLengthView | `#sessLenMinus` | 5 minutes less |
 | sessionLengthView | `#sessLenPlus` | + |
 | sessionLengthView | `#sessToPlanBtn` | Next: what kind of practice |
-| sessionPickView | `data-step-back=sessionLengthView` | check How long |
+| sessionPickView | `data-step-back=sessionLengthView` | How long |
 | sessionPickView | `#sessPlanBtn` | Standard plan |
 | sessionPickView | `#sessToContentBtn` | Next: what's in it |
 | sessionBuildView | `#sessBuildSurpriseBtn` | Surprise me |
 | sessionBuildView | `#sessBuildClearBtn` | Clear |
 | sessionBuildView | `#sessBuildSaveBtn` | Save my plan and use it |
 | sessionBuildView | `#sessBuildDeleteBtn` | Delete this plan |
-| sessionContentView | `data-step-back=sessionLengthView` | check How long |
-| sessionContentView | `data-step-back=sessionPickView` | check What kind |
+| sessionContentView | `data-step-back=sessionLengthView` | How long |
+| sessionContentView | `data-step-back=sessionPickView` | What kind |
 | sessionContentView | `#sessToReadyBtn` | Ready! See my session |
 | sessionPlanView | `#sessStartBtn` | Start |
 | sessionRunView | `#sessRunGoBtn` | Start this block |
@@ -64,15 +64,15 @@ its words.
 | piecePathView | `#pathPaintBtn` | Set the levels again |
 | piecePathView | `#pathCutBtn` | Focus sections |
 | prepareRunView | `#prepCountInBtn` | 1 bar count-in before it starts |
-| prepareRunView | `#prepPlayBtn` | play_arrow Play it through |
+| prepareRunView | `#prepPlayBtn` | Play it through |
 | prepareRunView | `#prepSkipBtn` | Skip play through and set the level directly |
 | levelsPaintView | `#paintTypeBtn` | Type bars instead |
-| levelsPaintView | `data-paint-tool=brush` | touch_app Fill bar |
-| levelsPaintView | `data-paint-tool=section` | format_color_fill Fill section |
-| levelsPaintView | `data-paint-tool=all` | auto_awesome Fill all |
-| levelsPaintView | `data-paint-tool=range` | arrow_range Range |
-| levelsPaintView | `data-paint-tool=rubber` | ink_eraser Remove level |
-| levelsPaintView | `#paintUndoBtn` | undo Undo |
+| levelsPaintView | `data-paint-tool=brush` | Fill bar |
+| levelsPaintView | `data-paint-tool=section` | Fill section |
+| levelsPaintView | `data-paint-tool=all` | Fill all |
+| levelsPaintView | `data-paint-tool=range` | Range |
+| levelsPaintView | `data-paint-tool=rubber` | Remove level |
+| levelsPaintView | `#paintUndoBtn` | Undo |
 | levelsPaintView | `#paintNextBtn` | Next: split into focus sections |
 | levelsCutView | `#cutTypeBtn` | Type bars instead |
 | levelsCutView | `#cutDoneBtn` | Done preparing |
@@ -83,8 +83,8 @@ its words.
 | sessPlanModal | `close (X)` | Close |
 | sessPlanModal | `#sessPlanNewBtn` | + New plan |
 | sessPlanModal | `#sessPlanUseBtn` | Use this plan |
-| sessPlanModal | `#sessPlanMenuChange` | edit Change |
-| sessPlanModal | `#sessPlanMenuDelete` | delete Delete |
+| sessPlanModal | `#sessPlanMenuChange` | Change |
+| sessPlanModal | `#sessPlanMenuDelete` | Delete |
 | skillRateModal | `#skillRateCloseBtn` | Close without saying |
 | skillRateModal | `#skillRateYesBtn` | Got it - next step |
 | skillRateModal | `#skillRateNoBtn` | Not yet Same step next time |
@@ -107,40 +107,40 @@ its words.
 | sessScalesBlockModal | `close (X)` | Close |
 | sessScalesBlockModal | `#sessScalesBlockDoneBtn` | Done |
 | sessionBlockModal | `#sessionBlockCloseBtn` | Close |
-| top bar | `#sessionHistoryItemEdit` | edit Edit |
-| top bar | `#sessionHistoryItemDelete` | delete Delete |
-| renderPrepareList() | `data-prepare-id` | … … bar${f.totalBars === 1 ? '' : ' |
-| renderPathThrough() | `data-through` | … … |
-| paintBarHtml() | `data-bar` | … … |
-| renderPaint() | `data-pot` | … |
-| renderPaintTypePicker() | `data-level` | … |
+| top bar | `#sessionHistoryItemEdit` | Edit |
+| top bar | `#sessionHistoryItemDelete` | Delete |
+| renderPrepareList() | `data-prepare-id` |  |
+| renderPathThrough() | `data-through` |  |
+| paintBarHtml() | `data-bar` |  |
+| renderPaint() | `data-pot` |  |
+| renderPaintTypePicker() | `data-level` |  |
 | renderCut() | `data-split` | Split it for me |
-| openLevelRating() | `data-rate` | … |
+| openLevelRating() | `data-rate` |  |
 | openLevelRating() | `data-rate` | Too fast? Back to Level … |
-| openLevelRating() | `data-rate` | … |
-| renderPlanPick() | `data-plan` | … … |
-| renderPlanPick() | `data-plan-menu` | more_vert |
+| openLevelRating() | `data-rate` |  |
+| renderPlanPick() | `data-plan` |  |
+| renderPlanPick() | `data-plan-menu` |  |
 | renderSessScales() | `data-scales-all` | See all my scales |
-| sessContentRowHtml() | `data-content` | … chevron_right |
-| renderSessionPlan() | `data-block` | … … ${escapeHtml(blockT |
-| openSessionBlockModal() | `data-opt` | … … ` : ''} |
+| sessContentRowHtml() | `data-content` |  |
+| renderSessionPlan() | `data-block` |  |
+| openSessionBlockModal() | `data-opt` |  |
 
 ## Metronome (Quick Play)
 
 | Where | Counted as | Words on it |
 |---|---|---|
-| quickPlayView | `#qpVolumeBtn` | volume_mute |
-| quickPlayView | `#qpPlayBtn` | play_arrow play |
-| quickPlayView | `#qpResetBtn` | restart_alt reset |
+| quickPlayView | `#qpVolumeBtn` | Volume - tap to change |
+| quickPlayView | `#qpPlayBtn` | play |
+| quickPlayView | `#qpResetBtn` | reset |
 | quickPlayView | `#qpSubdivideBtn` | 1 sub beats |
 | quickPlayView | `#qpSpeedBtn` | 100% play speed |
-| quickPlayView | `#qpLoadedHistoryUndoBtn` | undo |
+| quickPlayView | `#qpLoadedHistoryUndoBtn` | Revert to the loaded version |
 | quickPlayView | `#qpLoadedHistoryClearBtn` | Clear loaded history and reset |
 | quickPlayView | `#qpAddBlockBtn` | + Add bar |
-| quickPlayView | `#qpBarMenuMoveUp` | arrow_upward Move up |
-| quickPlayView | `#qpBarMenuMoveDown` | arrow_downward Move down |
-| quickPlayView | `#qpBarMenuDuplicate` | content_copy Duplicate |
-| quickPlayView | `#qpBarMenuDelete` | delete Delete |
+| quickPlayView | `#qpBarMenuMoveUp` | Move up |
+| quickPlayView | `#qpBarMenuMoveDown` | Move down |
+| quickPlayView | `#qpBarMenuDuplicate` | Duplicate |
+| quickPlayView | `#qpBarMenuDelete` | Delete |
 | quickPlayView | `#qpBarMenuResetAll` | Delete all and reset |
 | qpSubdivideModal | `hide-modal(qpSubdivideModal)` | Close |
 | qpSubdivideModal | `#qpSubdivideMinus` | Decrease sub beats |
@@ -151,38 +151,38 @@ its words.
 | qpVolumeModal | `#qpVolumeCloseBtn` | Close |
 | qpVolumeModal | `#qpVolumeMinus` | Decrease volume |
 | qpVolumeModal | `#qpVolumePlus` | + |
-| qpVolumeModal | `#qpMuteBtn` | volume_up |
+| qpVolumeModal | `#qpMuteBtn` | Mute |
 | qpHistoryModal | `close (X)` | Close |
 | qpHistoryModal | `#qpHistoryCloseBtn` | Close |
 | qpHistoryModal | `#qpHistoryLoadBtn` | Load |
 | qpMergeBarsModal | `close (X)` | Close |
 | qpMergeBarsModal | `#qpMergeBarsCancelBtn` | Cancel |
 | qpMergeBarsModal | `#qpMergeBarsSaveBtn` | Save to flow |
-| top bar | `#qpHistoryItemRename` | drive_file_rename_outline Rename |
-| top bar | `#qpHistoryItemDuplicate` | content_copy Duplicate |
-| top bar | `#qpHistoryItemFavoriteToggle` | star Set as favourite |
-| top bar | `#qpHistoryItemDelete` | delete Delete |
-| qpBlockBoxHtml() | `data-qp-grab-handle` | drag_indicator |
-| qpBlockBoxHtml() | `data-qp-menu-btn` | more_vert |
+| top bar | `#qpHistoryItemRename` | Rename |
+| top bar | `#qpHistoryItemDuplicate` | Duplicate |
+| top bar | `#qpHistoryItemFavoriteToggle` | Set as favourite |
+| top bar | `#qpHistoryItemDelete` | Delete |
+| qpBlockBoxHtml() | `data-qp-grab-handle` |  |
+| qpBlockBoxHtml() | `data-qp-menu-btn` |  |
 | qpBlockBoxHtml() | `data-qp-timesig-btn` | … time |
 | qpBlockBoxHtml() | `data-qp-note-btn` | … beat note |
 | qpBlockBoxHtml() | `data-qp-bpm-minus` | Decrease beats per minute |
 | qpBlockBoxHtml() | `data-qp-bpm-plus` | + |
-| qpOpenNotePicker() | `data-note` | … |
-| renderQpMergeGroupHtml() | `data-qp-merge-split` | link |
-| renderQpMergeGroupHtml() | `data-qp-merge-toggle-menu` | call_split |
+| qpOpenNotePicker() | `data-note` |  |
+| renderQpMergeGroupHtml() | `data-qp-merge-split` |  |
+| renderQpMergeGroupHtml() | `data-qp-merge-toggle-menu` |  |
 | renderQpMergeGroupHtml() | `data-qp-merge-into` | Merge above |
 | renderQpMergeGroupHtml() | `data-qp-merge-into` | Merge below |
-| renderQpHistoryList() | `data-qp-history-menu-btn` | more_vert |
+| renderQpHistoryList() | `data-qp-history-menu-btn` |  |
 | loadQuickPlayPlaybackSpeeds() | `data-value` | …% |
 
 ## Tuner
 
 | Where | Counted as | Words on it |
 |---|---|---|
-| tunerView | `#tunerSettingsBtn` | settings |
+| tunerView | `#tunerSettingsBtn` | Tuner settings |
 | tunerView | `#tunerRetryBtn` | Try again |
-| tunerView | `#tunerPauseBtn` | pause |
+| tunerView | `#tunerPauseBtn` | Pause history |
 | tunerSettingsModal | `#tunerSettingsCloseBtn` | Close |
 | tunerSettingsModal | `#tunerTranspositionBtn` | Transposition C |
 | tunerSettingsModal | `#tunerANBtn` | Tuning reference (A4) 440Hz |
@@ -200,8 +200,8 @@ its words.
 | tuningForkView | `#forkMinus` | A semitone lower |
 | tuningForkView | `#forkPlus` | + |
 | tuningForkView | `#forkInstrumentBtn` | instrument |
-| tuningForkView | `#forkPlayBtn` | play_arrow play |
-| tuningForkView | `#forkMuteBtn` | volume_up |
+| tuningForkView | `#forkPlayBtn` | play |
+| tuningForkView | `#forkMuteBtn` | Mute |
 | tuningForkView | `#forkUsualBtn` | Back to the usual tuning note |
 
 ## Timer
@@ -210,11 +210,11 @@ its words.
 |---|---|---|
 | top bar | `#timerInlineCloseBtn` | Close |
 | top bar | `#timerInlinePickBtn` | Pick minutes |
-| top bar | `#timerInlinePlayBtn` | play_arrow start |
-| top bar | `#timerInlineStopBtn` | stop stop |
+| top bar | `#timerInlinePlayBtn` | start |
+| top bar | `#timerInlineStopBtn` | stop |
 | timerView | `#timerStartBtn` | Start |
-| timerView | `#timerPlayBtn` | pause |
-| timerView | `#timerStopBtn` | stop |
+| timerView | `#timerPlayBtn` | Pause |
+| timerView | `#timerStopBtn` | Stop |
 | timerDurationPickerModal | `#timerDurationPickerXBtn` | Close |
 | timerDurationPickerModal | `#timerDurationPickerCancelBtn` | Cancel |
 | timerDurationPickerModal | `#timerDurationPickerSaveBtn` | Save |
@@ -250,18 +250,18 @@ its words.
 | warmupsVolumeModal | `data-modal-close` | Close |
 | warmupsVolumeModal | `#warmupsVolumeMinus` | Decrease volume |
 | warmupsVolumeModal | `#warmupsVolumePlus` | + |
-| warmupsVolumeModal | `#warmupsMuteBtn` | volume_up |
-| warmupsView | `#warmupsChooseBtn` | Warm-ups expand_more |
-| warmupsView | `#warmupsSettingsBtn` | tune settings |
-| warmupsView | `#warmupsPrevBtn` | skip_previous previous |
-| warmupsView | `#warmupsNextMainBtn` | Next warm-up skip_next |
-| warmupsView | `#warmupsPlayBtn` | play_arrow Play |
+| warmupsVolumeModal | `#warmupsMuteBtn` | Mute |
+| warmupsView | `#warmupsChooseBtn` | Warm-ups |
+| warmupsView | `#warmupsSettingsBtn` | settings |
+| warmupsView | `#warmupsPrevBtn` | previous |
+| warmupsView | `#warmupsNextMainBtn` | Next warm-up |
+| warmupsView | `#warmupsPlayBtn` | Play |
 | warmupsView | `#warmupsCountIn` | 4 get ready |
-| warmupsView | `#warmupsNextBtn` | skip_next next |
+| warmupsView | `#warmupsNextBtn` | next |
 | warmupListModal | `#warmupListCloseBtn` | Close |
 | warmupListModal | `#warmupListSaveBtn` | Save |
 | warmupListModal | `#warmupListDeleteBtn` | Delete this list |
-| renderWarmupLists() | `data-warmup-edit` | ` : ' '} … … <span cla |
+| renderWarmupLists() | `data-warmup-edit` |  |
 | warmupsRenderChoose() | `data-warmup` | …. … … bpm |
 | warmupsRenderChoose() | `data-warmup-locked` | …. … … lock</spa |
 
@@ -297,7 +297,7 @@ its words.
 | scalesVolumeModal | `data-modal-close` | Close |
 | scalesVolumeModal | `#scalesVolumeMinus` | Decrease volume |
 | scalesVolumeModal | `#scalesVolumePlus` | + |
-| scalesVolumeModal | `#scalesMuteBtn` | volume_up |
+| scalesVolumeModal | `#scalesMuteBtn` | Mute |
 | scalesPoolModal | `data-modal-close` | Close |
 | scalesPoolModal | `#scalesSeeRangeBtn` | See your range |
 | scalesPoolModal | `data-modal-close` | Done |
@@ -306,19 +306,19 @@ its words.
 | scalesMyRangeModal | `data-modal-close` | Close |
 | scalesMyRangeModal | `#scalesMyRangeSetBtn` | Set your range |
 | scalesMyRangeModal | `data-modal-close` | Done |
-| scalesView | `#scalesChooseBtn` | C major scale expand_more |
+| scalesView | `#scalesChooseBtn` | C major scale |
 | scalesView | `#scalesLadderLevelBtn` | 1 level |
-| scalesView | `#scalesSettingsBtn` | tune settings |
+| scalesView | `#scalesSettingsBtn` | settings |
 | scalesView | `#scalesLevelLink` | Level 1 - change |
-| scalesView | `#scalesPrevBtn` | skip_previous previous |
-| scalesView | `#scalesNotYetBtn` | replay not yet |
-| scalesView | `#scalesNextMainBtn` | Next scale skip_next |
-| scalesView | `#scalesPlayBtn` | play_arrow Play |
+| scalesView | `#scalesPrevBtn` | previous |
+| scalesView | `#scalesNotYetBtn` | not yet |
+| scalesView | `#scalesNextMainBtn` | Next scale |
+| scalesView | `#scalesPlayBtn` | Play |
 | scalesView | `#scalesCountIn` | 4 get ready |
-| scalesView | `#scalesNextBtn` | skip_next next |
-| scalesView | `#scalesGotItBtn` | check got it |
-| scalesTile() | `data-option` | … … ` : ''} |
-| scalesRenderChoose() | `data-pick` | … … |
+| scalesView | `#scalesNextBtn` | next |
+| scalesView | `#scalesGotItBtn` | got it |
+| scalesTile() | `data-option` |  |
+| scalesRenderChoose() | `data-pick` |  |
 
 ## Theory
 
@@ -341,14 +341,14 @@ its words.
 | theoryResultsView | `#theoryChangeBtn` | Change options |
 | theoryResultsView | `#theoryOtherBtn` | Another quiz |
 | theoryResultsView | `#theoryHomeBtn` | Home |
-| renderTheoryList() | `data-quiz` | … … ${escapeHtml |
-| renderTheoryList() | `data-quiz` | … … … |
-| theoryOptionBox() | `data-theory-opt` | … … |
-| renderTheoryPlayed() | `data-set` | … … ` : ''}… · played ${theoryTim |
+| renderTheoryList() | `data-quiz` |  |
+| renderTheoryList() | `data-quiz` |  |
+| theoryOptionBox() | `data-theory-opt` |  |
+| renderTheoryPlayed() | `data-set` |  |
 | renderTheoryPlayed() | `#theoryPlayedMoreBtn` | Show more |
-| theoryNextQuestion() | `data-id` | … |
-| theoryNextQuestion() | `data-id` | … |
-| theoryNextQuestion() | `data-id` | … |
+| theoryNextQuestion() | `data-id` |  |
+| theoryNextQuestion() | `data-id` |  |
+| theoryNextQuestion() | `data-id` |  |
 
 ## Skills: Tempo, Pulse, Pitch, Rhythm
 
@@ -372,7 +372,7 @@ its words.
 | gapTrainerPlayView | `#gapTrainerStopBtn` | Stop |
 | earView | `smartlearn-more` | Learn more |
 | earView | `#earStartBtn` | Start |
-| earPlayView | `#earReplayBtn` | replay Play again |
+| earPlayView | `#earReplayBtn` | Play again |
 | earPlayView | `#earSkipBtn` | Skip |
 | earPlayView | `#earNextBtn` | Next note |
 | drillResultsView | `smartlearn-more` | Learn more |
@@ -382,16 +382,16 @@ its words.
 | drillResultsView | `#drillHomeBtn` | Home |
 | skillsAddModal | `#skillsAddCloseBtn` | Close |
 | skillsAddModal | `#skillsAddDoneBtn` | Add |
-| renderToolResults() | `data-tool-view` | ${escapeH |
-| renderSkills() | `data-skill-list` | … |
+| renderToolResults() | `data-tool-view` |  |
+| renderSkills() | `data-skill-list` |  |
 | renderSkills() | `#skillListNewBtn` | + New list |
-| renderSkills() | `data-skill-remove` | close |
-| renderDrillOptions() | `data-drill-opt` | … … |
-| renderDrillPlayed() | `data-set` | … … ` : ''}… · played ${theoryTime |
+| renderSkills() | `data-skill-remove` |  |
+| renderDrillOptions() | `data-drill-opt` |  |
+| renderDrillPlayed() | `data-set` |  |
 | renderDrillPlayed() | `data-more` | Show more |
-| renderSkillsHub() | `data-skill-view` | … ${escapeHtml(t. |
-| earShowQuestion() | `data-id` | … |
-| openRhythmPicker() | `data-rhythm` | … ……` : ''}</span |
+| renderSkillsHub() | `data-skill-view` |  |
+| earShowQuestion() | `data-id` |  |
+| openRhythmPicker() | `data-rhythm` |  |
 
 ## Range
 
@@ -421,33 +421,33 @@ its words.
 | rehearseView | `#rehearseAddBtn` | + Add a piece |
 | rehearseView | `#practiceListNewBtn` | + New practice list |
 | metroBuilderView | `#metroBlkMiniTunerInstrumentBtn` | C |
-| metroBuilderView | `#metroBlkMiniTunerCloseBtn` | close |
-| metroBuilderView | `#myMusicMenuBtn` | more_vert |
-| metroBuilderView | `#flowBulkArchiveBtn` | archive Archive several pieces |
-| metroBuilderView | `#flowBulkDeleteBtn` | delete Delete several pieces |
+| metroBuilderView | `#metroBlkMiniTunerCloseBtn` | Close tuner |
+| metroBuilderView | `#myMusicMenuBtn` | My music options |
+| metroBuilderView | `#flowBulkArchiveBtn` | Archive several pieces |
+| metroBuilderView | `#flowBulkDeleteBtn` | Delete several pieces |
 | metroBuilderView | `data-music-tab=pieces` | Pieces |
 | metroBuilderView | `data-music-tab=lists` | Practice lists |
 | metroBuilderView | `data-new-list` | + New practice list |
 | metroBuilderView | `#myMusicAddBtn` | + Add a piece |
-| metroBuilderView | `#flowLibraryItemMenuPlay` | play_arrow Play |
-| metroBuilderView | `#flowLibraryItemMenuEdit` | edit Edit |
-| metroBuilderView | `#flowLibraryItemMenuDuplicate` | content_copy Duplicate |
-| metroBuilderView | `#flowLibraryItemMenuCopy` | library_add Copy to my library |
+| metroBuilderView | `#flowLibraryItemMenuPlay` | Play |
+| metroBuilderView | `#flowLibraryItemMenuEdit` | Edit |
+| metroBuilderView | `#flowLibraryItemMenuDuplicate` | Duplicate |
+| metroBuilderView | `#flowLibraryItemMenuCopy` | Copy to my library |
 | metroBuilderView | `#flowLibraryItemMenuExport` | Export to MusicXML |
-| metroBuilderView | `#flowLibraryItemMenuBandSummary` | insights Band summary |
-| metroBuilderView | `#flowLibraryItemMenuArchive` | archive Archive |
-| metroBuilderView | `#flowLibraryItemMenuRestore` | unarchive Restore |
-| metroBuilderView | `#flowLibraryItemMenuReport` | flag Report |
-| metroBuilderView | `#flowLibraryItemMenuDelete` | delete Delete |
-| flowFromFileView | `#flowFromFileDropBtn` | upload_file Tap to browse score file Select a MusicXML or .mxl file MU |
+| metroBuilderView | `#flowLibraryItemMenuBandSummary` | Band summary |
+| metroBuilderView | `#flowLibraryItemMenuArchive` | Archive |
+| metroBuilderView | `#flowLibraryItemMenuRestore` | Restore |
+| metroBuilderView | `#flowLibraryItemMenuReport` | Report |
+| metroBuilderView | `#flowLibraryItemMenuDelete` | Delete |
+| flowFromFileView | `#flowFromFileDropBtn` | Tap to browse score file Select a MusicXML or .mxl file MUSICXML MXL M |
 | flowFromFileView | `#flowFromFileContinueBtn` | Continue to flow |
 | flowDetailsHubView | `#flowEditTabDetailsBtn` | Details |
 | flowDetailsHubView | `#flowEditTabBlocksBtn` | Bars |
 | flowDetailsHubView | `#flowEditTabMediaBtn` | Media |
 | flowDetailsHubView | `#flowAudienceBtn` | Just me who it's for |
-| flowDetailsHubView | `#flowUploadRecordingBtn` | upload Upload mp3 / mp4 audio (up to 25 MB) |
-| flowDetailsHubView | `#flowAddYouTubeBtn` | smart_display Add YouTube link |
-| flowDetailsHubView | `#flowUploadDocumentBtn` | upload_file Upload PDF or MusicXML score (up to 25 MB) |
+| flowDetailsHubView | `#flowUploadRecordingBtn` | Upload mp3 / mp4 audio (up to 25 MB) |
+| flowDetailsHubView | `#flowAddYouTubeBtn` | Add YouTube link |
+| flowDetailsHubView | `#flowUploadDocumentBtn` | Upload PDF or MusicXML score (up to 25 MB) |
 | flowDetailsHubView | `data-flow-layout` | 1 column |
 | flowDetailsHubView | `data-flow-layout` | 2 columns |
 | flowDetailsHubView | `data-flow-layout` | 4 columns |
@@ -456,34 +456,34 @@ its words.
 | flowDetailsHubView | `#flowEditStickyActionBtn` | Add bars |
 | flowDetailsHubView | `#flowEditCancelBtn` | Cancel |
 | flowDetailsHubView | `#flowEditSaveBtn` | Save |
-| flowPlayView | `#flowVolumeBtn` | volume_mute |
-| flowPlayView | `#flowResetBtn` | restart_alt reset |
+| flowPlayView | `#flowVolumeBtn` | Volume - tap to change |
+| flowPlayView | `#flowResetBtn` | reset |
 | flowPlayView | `#flowLoopBtn` | off repeat |
 | flowPlayView | `#flowPlaybackBtn` | 1 level |
-| flowPlayView | `#flowPlayBtn` | play_arrow play |
+| flowPlayView | `#flowPlayBtn` | play |
 | flowPlayView | `#flowSubdivideBtn` | 1 sub beats |
 | flowPlayView | `#flowSpeedBtn` | 100% play speed |
-| flowPlayView | `#flowSessionFinishBtn` | flag finish |
-| flowPlayView | `#flowPlayMenuBtn` | more_vert |
-| flowPlayView | `#flowPlayMenuEditDetails` | edit_note Edit details |
+| flowPlayView | `#flowSessionFinishBtn` | finish |
+| flowPlayView | `#flowPlayMenuBtn` | Flow options |
+| flowPlayView | `#flowPlayMenuEditDetails` | Edit details |
 | flowPlayView | `#flowPlayMenuEditFlow` | Edit bars |
-| flowPlayView | `#flowPlayMenuLevels` | signal_cellular_alt My Levels |
-| flowPlayView | `#flowPlayMenuCopy` | library_add Copy to my library |
+| flowPlayView | `#flowPlayMenuLevels` | My Levels |
+| flowPlayView | `#flowPlayMenuCopy` | Copy to my library |
 | flowPlayView | `#flowPlayMenuLoadLibrary` | Load from library |
-| flowPlayView | `#flowPlayMenuCreateNew` | add Create new |
-| flowPlayView | `#flowPlayMenuReport` | flag Report |
+| flowPlayView | `#flowPlayMenuCreateNew` | Create new |
+| flowPlayView | `#flowPlayMenuReport` | Report |
 | flowPlayView | `#flowMovementBtn` | all movement |
 | flowPlayView | `data-flow-play-layout` | 1 column |
 | flowPlayView | `data-flow-play-layout` | 2 columns |
 | flowPlayView | `data-flow-play-layout` | 4 columns |
-| top bar | `#flowBlockMenuDuplicate` | content_copy Duplicate |
-| top bar | `#flowBlockMenuMoveUp` | arrow_upward Move up |
-| top bar | `#flowBlockMenuMoveDown` | arrow_downward Move down |
-| top bar | `#flowBlockMenuDelete` | delete Delete bar |
-| top bar | `#flowFermataRowMenuEdit` | edit Edit |
-| top bar | `#flowFermataRowMenuDelete` | delete Delete |
-| top bar | `#flowRampRowMenuEdit` | edit Edit |
-| top bar | `#flowRampRowMenuDelete` | delete Delete |
+| top bar | `#flowBlockMenuDuplicate` | Duplicate |
+| top bar | `#flowBlockMenuMoveUp` | Move up |
+| top bar | `#flowBlockMenuMoveDown` | Move down |
+| top bar | `#flowBlockMenuDelete` | Delete bar |
+| top bar | `#flowFermataRowMenuEdit` | Edit |
+| top bar | `#flowFermataRowMenuDelete` | Delete |
+| top bar | `#flowRampRowMenuEdit` | Edit |
+| top bar | `#flowRampRowMenuDelete` | Delete |
 | flowBpmModal | `#flowBpmCloseBtn` | Close |
 | flowBpmModal | `#flowBpmMinus` | Decrease bpm |
 | flowBpmModal | `#flowBpmPlus` | + |
@@ -514,7 +514,7 @@ its words.
 | flowRampModal | `#flowRampEndBarPlus` | + |
 | flowRampModal | `#flowRampEndBeatMinus` | Decrease end beat |
 | flowRampModal | `#flowRampEndBeatPlus` | + |
-| flowRampModal | `#flowRampCustomTempoBtn` | 120 bpm edit |
+| flowRampModal | `#flowRampCustomTempoBtn` | 120 bpm |
 | flowRampModal | `#flowRampAddBtn` | + Insert ramp into block |
 | flowRampModal | `#flowRampCancelEditBtn` | Cancel |
 | flowBandPickerModal | `close (X)` | Close |
@@ -524,10 +524,10 @@ its words.
 | flowYouTubeModal | `#flowYouTubeSaveBtn` | Add video to flow |
 | flowYouTubeModal | `hide-modal(flowYouTubeModal)` | Cancel |
 | clipModal | `clip-close` | Close |
-| clipModal | `clip-mark(start)` | first_page Starts here |
+| clipModal | `clip-mark(start)` | Starts here |
 | clipModal | `clip-nudge(start)` | 1 second back |
 | clipModal | `clip-nudge(start)` | 1 second on |
-| clipModal | `clip-mark(end)` | last_page Ends here |
+| clipModal | `clip-mark(end)` | Ends here |
 | clipModal | `clip-nudge(end)` | 1 second back |
 | clipModal | `clip-nudge(end)` | 1 second on |
 | clipModal | `clip-try` | Play from the start mark |
@@ -535,14 +535,14 @@ its words.
 | clipModal | `clip-save` | Done |
 | clipModal | `clip-close` | Cancel |
 | barMapModal | `barmap-close` | Close |
-| barMapModal | `barmap-clip-mark(start)` | first_page Starts here |
+| barMapModal | `barmap-clip-mark(start)` | Starts here |
 | barMapModal | `barmap-clip-nudge(start)` | 1 second back |
 | barMapModal | `barmap-clip-nudge(start)` | 1 second on |
 | barMapModal | `#barMapPrevBtn` | Bar before |
 | barMapModal | `#barMapNextBtn` | Next bar |
 | barMapModal | `barmap-go` | Go |
 | barMapModal | `barmap-mark` | This is bar 1 |
-| barMapModal | `barmap-clip-mark(end)` | last_page Ends here |
+| barMapModal | `barmap-clip-mark(end)` | Ends here |
 | barMapModal | `barmap-clip-nudge(end)` | 1 second back |
 | barMapModal | `barmap-clip-nudge(end)` | 1 second on |
 | barMapModal | `barmap-save` | Done |
@@ -564,7 +564,7 @@ its words.
 | flowVolumeModal | `#flowVolumeCloseBtn` | Close |
 | flowVolumeModal | `#flowVolumeMinus` | Decrease volume |
 | flowVolumeModal | `#flowVolumePlus` | + |
-| flowVolumeModal | `#flowMuteBtn` | volume_up |
+| flowVolumeModal | `#flowMuteBtn` | Mute |
 | metroBlkMiniTunerInstrumentModal | `hide-modal(metroBlkMiniTunerInstrumentModal)` | Close |
 | metroSegNoteModal | `hide-modal(metroSegNoteModal)` | Close |
 | flowBarStartModal | `hide-modal(flowBarStartModal)` | Close |
@@ -596,22 +596,22 @@ its words.
 | listItemModal | `close (X)` | Close |
 | listItemModal | `hide-modal(listItemModal)` | Cancel |
 | listItemModal | `#liSaveBtn` | Save |
-| listItemModal | `#liActionBtn` | delete |
+| listItemModal | `#liActionBtn` | Remove |
 | flowCheckModal | `#flowCheckCloseBtn` | Close |
 | flowCheckModal | `#flowCheckFixBtn` | Go back and fix |
 | flowCheckModal | `#flowCheckContinueBtn` | Save anyway |
-| renderRehearseList() | `data-rehearse-id` | … … bar${f.totalBars === 1 ? '' : ' |
-| renderFlowPlaybackModal() | `pb-option` | … |
-| renderFlowPlaybackModal() | `data-pb-level` | … … |
-| renderFlowsList() | `data-flow-library-menu-btn` | more_vert |
+| renderRehearseList() | `data-rehearse-id` |  |
+| renderFlowPlaybackModal() | `pb-option` |  |
+| renderFlowPlaybackModal() | `data-pb-level` |  |
+| renderFlowsList() | `data-flow-library-menu-btn` |  |
 | flowMediaItemHtml() | `rec-map` | … · … start, bars and end |
 | flowMediaItemHtml() | `flow-speeds-restore` | Put the original speeds back |
 | flowMediaItemHtml() | `flow-recording-clip` | … start and end |
 | flowMediaItemHtml() | `flow-recording-movement` | … movement |
-| flowMediaItemHtml() | `flow-recording-delete` | delete |
+| flowMediaItemHtml() | `flow-recording-delete` |  |
 | renderFlowRecordingsList() | `flow-speeds-restore` | Put the original speeds back |
-| renderFlowDocumentsList() | `open-url` | visibility |
-| renderFlowDocumentsList() | `flow-document-delete` | delete |
+| renderFlowDocumentsList() | `open-url` |  |
+| renderFlowDocumentsList() | `flow-document-delete` |  |
 | flowBlockTileSectionsHtml() | `data-block-tile=time` | … time |
 | flowBlockTileSectionsHtml() | `data-block-tile=beatUnit` | … beat note |
 | flowBlockTileSectionsHtml() | `data-block-tile=bpm` | … bpm |
@@ -624,66 +624,66 @@ its words.
 | flowBlockTileSectionsHtml() | `data-block-tile=change` | … ramp |
 | flowBlockTileSectionsHtml() | `data-block-tile=sign` | … sign |
 | flowBlockTileSectionsHtml() | `data-block-tile=jump` | … jump |
-| flowBlockMarkBoxHtml() | `data-block-tile=rehearsalMark` | … |
+| flowBlockMarkBoxHtml() | `data-block-tile=rehearsalMark` |  |
 | flowBlockMarkBoxHtml() | `data-block-tile=rehearsalMark` | + RM |
-| flowBlockCardHtml() | `data-block-grab-handle` | drag_indicator |
-| flowBlockCardHtml() | `data-block-menu-btn` | more_vert |
-| renderFlowBarGrid() | `data-block-id` | … |
-| flowBarFullTileHtml() | `flow-jump` | … … … <span class="flow-bar-full-row |
-| flowLeadInPlayTileHtml() | `flow-jump` | `; if (layout === '2') { return `… Lead-in |
-| flowBarDetailTileHtml() | `flow-jump` | ` : ` `; const warning = f |
-| flowBarDetailTileHtml() | `data-block-id` | `; const warning = flowRepeatBarInvalid(b) \|\| flowIntroInval |
-| renderFlowBarPopup() | `data-bar-popup=prev` | … |
-| renderFlowBarPopup() | `data-bar-popup=next` | … |
-| renderFlowBarPopup() | `data-bar-popup=close` | … |
+| flowBlockCardHtml() | `data-block-grab-handle` |  |
+| flowBlockCardHtml() | `data-block-menu-btn` |  |
+| renderFlowBarGrid() | `data-block-id` |  |
+| flowBarFullTileHtml() | `flow-jump` |  |
+| flowLeadInPlayTileHtml() | `flow-jump` |  |
+| flowBarDetailTileHtml() | `flow-jump` |  |
+| flowBarDetailTileHtml() | `data-block-id` |  |
+| renderFlowBarPopup() | `data-bar-popup=prev` | Previous bar |
+| renderFlowBarPopup() | `data-bar-popup=next` | Next bar |
+| renderFlowBarPopup() | `data-bar-popup=close` | Close |
 | renderFlowBarPopup() | `data-bar-popup=earlier` | Move earlier |
 | renderFlowBarPopup() | `data-bar-popup=duplicate` | Duplicate |
 | renderFlowBarPopup() | `data-bar-popup=later` | Move later |
 | renderFlowBarPopup() | `data-bar-popup=delete` | Delete this bar |
-| openFlowChoiceModal() | `data-choice-idx` | … `} ${opt.selected && !opt.html ? ' check |
-| renderFlowRepeatBarModal() | `data-pass` | … |
-| flowOpenNotePicker() | `data-note` | … |
-| flowOpenBarStartPicker() | `data-start-option` | … |
-| flowBarlinePickerTileHtml() | `data-option` | … ${o.countLabel ? `<span class="flow-picker-tile-cou |
-| flowGlyphPickerTileHtml() | `data-option` | … … |
-| renderFlowFermataList() | `data-pause-edit` | … Bar …, beat ${flowPauseBeatNu |
-| renderFlowFermataList() | `data-pause-menu` | more_vert |
+| openFlowChoiceModal() | `data-choice-idx` |  |
+| renderFlowRepeatBarModal() | `data-pass` |  |
+| flowOpenNotePicker() | `data-note` |  |
+| flowOpenBarStartPicker() | `data-start-option` |  |
+| flowBarlinePickerTileHtml() | `data-option` |  |
+| flowGlyphPickerTileHtml() | `data-option` |  |
+| renderFlowFermataList() | `data-pause-edit` |  |
+| renderFlowFermataList() | `data-pause-menu` | Pause options |
 | renderFlowFermataAddSection() | `data-pause-kind` | … … … </button |
-| renderFlowRampList() | `data-ramp-edit` | … |
-| renderFlowRampList() | `data-ramp-menu` | more_vert |
-| renderFlowRampAddSection() | `data-ramp-target` | … … |
-| flowShowCheckReview() | `data-check-block` | … |
+| renderFlowRampList() | `data-ramp-edit` |  |
+| renderFlowRampList() | `data-ramp-menu` | Ramp options |
+| renderFlowRampAddSection() | `data-ramp-target` |  |
+| flowShowCheckReview() | `data-check-block` |  |
 | recScoreControlsHtml() | `rec-loop` | off repeat |
-| recScoreControlsHtml() | `rec-play` | play_arrow play |
+| recScoreControlsHtml() | `rec-play` | play |
 | recScoreControlsHtml() | `rec-speed` | 100% play speed |
 | renderBarMapModal() | `barmap-play` | Play |
 | renderBarMapModal() | `barmap-remove` | Remove |
-| renderFlowMediaDots() | `data-slide-index` | … |
-| renderFlowLoopModal() | `data-rest` | … |
+| renderFlowMediaDots() | `data-slide-index` |  |
+| renderFlowLoopModal() | `data-rest` |  |
 | loadFlowPlaybackSpeeds() | `data-value` | …% |
-| renderMetroSegTimeSigPicker() | `data-value` | … |
-| renderMetroSegTimeSigChips() | `data-value` | … |
-| renderMetroSegTimeSigChips() | `data-remove-id` | Archive ${escapeHtml(t.label)} |
-| renderMetroSegCustomSigManageList() | `timesig-delete` | delete |
+| renderMetroSegTimeSigPicker() | `data-value` |  |
+| renderMetroSegTimeSigChips() | `data-value` |  |
+| renderMetroSegTimeSigChips() | `data-remove-id` |  |
+| renderMetroSegCustomSigManageList() | `timesig-delete` |  |
 | renderMetroSegCustomSigManageList() | `timesig-archive` | Archive |
-| renderMetroBlkMiniTunerInstrumentOptions() | `data-value` | … |
+| renderMetroBlkMiniTunerInstrumentOptions() | `data-value` |  |
 | renderOutline() | `data-outline=back` | Back |
-| renderOutline() | `data-outline` | … |
-| outlineValueBtn() | `data-outline` | … … |
-| outlineTile() | `data-outline` | … … |
-| outlinePickNote() | `data-note` | … |
-| outlineTimeRowHtml() | `data-time-pick` | list |
-| outlineSpeedRowHtml() | `data-speed-note` | … |
-| outlineTableRowHtml() | `data-xkind` | … |
-| outlineTableRowHtml() | `data-xends` | … |
-| outlineExtrasStepHtml() | `data-outline-extra` | … …</stron |
+| renderOutline() | `data-outline` |  |
+| outlineValueBtn() | `data-outline` |  |
+| outlineTile() | `data-outline` |  |
+| outlinePickNote() | `data-note` |  |
+| outlineTimeRowHtml() | `data-time-pick` |  |
+| outlineSpeedRowHtml() | `data-speed-note` |  |
+| outlineTableRowHtml() | `data-xkind` |  |
+| outlineTableRowHtml() | `data-xends` |  |
+| outlineExtrasStepHtml() | `data-outline-extra` | …</stron |
 | outlineExtrasStepHtml() | `data-outline=addExtra` | + … |
-| outlineMediaStepHtml() | `data-outline-media-remove` | … … <span class="text-sm |
+| outlineMediaStepHtml() | `data-outline-media-remove` |  |
 | outlineMediaStepHtml() | `data-outline=addVideo` | + Add the link |
 | outlineMediaStepHtml() | `data-outline=pickFile` | + … |
-| renderOutlineExtraForm() | `data-x-sign` | … … |
+| renderOutlineExtraForm() | `data-x-sign` |  |
 | renderOutlineEndingsForm() | `data-ends-add` | + Add another ending |
-| outlineReadPanelHtml() | `data-outline=readChecks` | photo_camera Read from your …: ${pieceReadLevelWord(read. |
+| outlineReadPanelHtml() | `data-outline=readChecks` |  |
 
 ## Add a piece
 
@@ -691,21 +691,21 @@ its words.
 |---|---|---|
 | addPieceView | `#addPieceOwnerBtn` | Just me who it's for |
 | addPieceView | `#addPieceListBtn` | On its own practice list |
-| addPieceView | `#metroBlkEntryCreateBtn` | add_circle Create your own Put the bars in yourself |
-| addPieceView | `#metroBlkEntryQuickBtn` | bolt Quick entry Bars and marks first, then what's different |
-| addPieceView | `#metroBlkEntryPhotoBtn` | photo_camera From a photo or PDF Uses AI to import the piece |
-| addPieceView | `#metroBlkEntryFromFileBtn` | upload_file Import from MusicXML Open a MusicXML or .mxl file from not |
+| addPieceView | `#metroBlkEntryCreateBtn` | Create your own Put the bars in yourself |
+| addPieceView | `#metroBlkEntryQuickBtn` | Quick entry Bars and marks first, then what's different |
+| addPieceView | `#metroBlkEntryPhotoBtn` | From a photo or PDF Uses AI to import the piece |
+| addPieceView | `#metroBlkEntryFromFileBtn` | Import from MusicXML Open a MusicXML or .mxl file from notation softwa |
 | addPieceNewListForm() | `#addPieceNewListSaveBtn` | Save |
 
 ## Recordings
 
 | Where | Counted as | Words on it |
 |---|---|---|
-| recordingsView | `#recordingsUploadBtn` | upload Upload a rehearsal recording |
-| recordingsView | `#recordingsYouTubeBtn` | smart_display Add a YouTube video |
+| recordingsView | `#recordingsUploadBtn` | Upload a rehearsal recording |
+| recordingsView | `#recordingsYouTubeBtn` | Add a YouTube video |
 | renderRecordings() | `recordings-cut-change` | Change |
 | renderRecordings() | `recordings-cut-remove` | Remove |
-| renderRecordings() | `recordings-give` | library_add Give it to a piece |
+| renderRecordings() | `recordings-give` | Give it to a piece |
 | renderRecordings() | `recordings-delete` | Delete this recording |
 
 ## Practice lists
@@ -716,18 +716,18 @@ its words.
 | practiceListView | `#plWeekBtn` | None a week |
 | practiceListView | `#plMinsBtn` | None minutes |
 | practiceListView | `#plWarmBtn` | None warm-up |
-| practiceListView | `#plPieceMenuMovement` | segment Which movement |
-| practiceListView | `#plPieceMenuLevels` | signal_cellular_alt Prepare levels |
-| practiceListView | `#plPieceMenuDelete` | delete Delete |
+| practiceListView | `#plPieceMenuMovement` | Which movement |
+| practiceListView | `#plPieceMenuLevels` | Prepare levels |
+| practiceListView | `#plPieceMenuDelete` | Delete |
 | practiceListView | `#plAddPiecesBtn` | + Add pieces |
 | practiceListView | `#plPlanBtn` | Plan a session for this |
 | practiceListView | `#plArchiveBtn` | Archive this list |
 | practiceListView | `#plReportBtn` | Report this list |
 | practiceListView | `#plClearRecordingsBtn` | Delete this list's recordings |
 | practiceListView | `#plDeleteBtn` | Delete this list |
-| renderPracticeListRows() | `data-list` | … … · ` : ''}… · ${l.pieceCount |
-| renderPracticeList() | `data-piece` | … … ${pb.archived ? '' : pb.prep ? '<span class="text-sm |
-| renderPracticeList() | `data-piece-menu` | more_vert |
+| renderPracticeListRows() | `data-list` |  |
+| renderPracticeList() | `data-piece` |  |
+| renderPracticeList() | `data-piece-menu` |  |
 
 ## Home and All tools
 
@@ -736,24 +736,24 @@ its words.
 | mainView | `#homeAvatar` | Your avatar - change it in My details |
 | mainView | `#startPracticeSessionBtn` | Start a practice session |
 | mainView | `view(entryForm)` | Log time you've already played |
-| mainView | `view(toolsView)` | apps All tools chevron_right |
+| mainView | `view(toolsView)` | All tools |
 | toolsView | `view(quickPlayView)` | Metronome |
 | toolsView | `view(tunerView)` | Tuner |
-| toolsView | `view(timerView)` | timer Timer |
-| toolsView | `#tuningForkToolBtn` | sensors Tuning fork |
-| toolsView | `#warmupsToolBtn` | wb_twilight Warm-ups |
+| toolsView | `view(timerView)` | Timer |
+| toolsView | `#tuningForkToolBtn` | Tuning fork |
+| toolsView | `#warmupsToolBtn` | Warm-ups |
 | toolsView | `#scalesToolBtn` | Scales |
-| toolsView | `#addPieceToolBtn` | library_add Add a piece |
-| toolsView | `#prepareToolBtn` | construction Prepare |
+| toolsView | `#addPieceToolBtn` | Add a piece |
+| toolsView | `#prepareToolBtn` | Prepare |
 | toolsView | `#rehearseToolBtn` | Rehearse |
-| toolsView | `#recordingsToolBtn` | graphic_eq Recordings |
+| toolsView | `#recordingsToolBtn` | Recordings |
 | toolsView | `#theoryToolBtn` | Theory |
-| toolsView | `#skillsToolBtn` | fitness_center Skills |
-| toolsView | `#rangeToolBtn` | height Range |
+| toolsView | `#skillsToolBtn` | Skills |
+| toolsView | `#rangeToolBtn` | Range |
 | toolsView | `#toolsEditBtn` | Choose favourite tools |
-| top bar | `#homeToolMenuEarlier` | arrow_back Move earlier |
-| top bar | `#homeToolMenuLater` | arrow_forward Move later |
-| top bar | `#homeToolMenuRemove` | star Remove from favourites |
+| top bar | `#homeToolMenuEarlier` | Move earlier |
+| top bar | `#homeToolMenuLater` | Move later |
+| top bar | `#homeToolMenuRemove` | Remove from favourites |
 
 ## Stats
 
@@ -783,39 +783,39 @@ its words.
 | historyView | `view(entryForm)` | Add session time |
 | historyView | `#prevMonthBtn` |  |
 | historyView | `#nextMonthBtn` |  |
-| renderHistoryList() | `data-session-history-menu-btn` | more_vert |
+| renderHistoryList() | `data-session-history-menu-btn` |  |
 
 ## Instrument support
 
 | Where | Counted as | Words on it |
 |---|---|---|
-| top bar | `#instrumentSupportNavItem` | handyman Instrument support |
+| top bar | `#instrumentSupportNavItem` | Instrument support |
 | instrumentSupportView | `#supportNearBtn` | My bands' towns near |
 | instrumentSupportView | `#supportForBtn` | Everything looking for |
 | instrumentSupportView | `feedback` | Something wrong or missing? Tell us |
 | supportBusinessModal | `close (X)` | Close |
 | supportTownModal | `close (X)` | Close |
-| supportRowHtml() | `data-support-id` | … ${escape |
-| openSupportBusiness() | `data-support-open=link` | … |
+| supportRowHtml() | `data-support-id` |  |
+| openSupportBusiness() | `data-support-open=link` |  |
 | openSupportBusiness() | `data-support-open=phone` | Call … |
 | openSupportBusiness() | `data-support-open=email` | Email … |
-| searchSupportTowns() | `data-town` | … |
+| searchSupportTowns() | `data-town` |  |
 
 ## Set-up
 
 | Where | Counted as | Words on it |
 |---|---|---|
-| setupValueBox() | `data-setup` | … … |
+| setupValueBox() | `data-setup` |  |
 | setupBandsHtml() | `data-setup=band` | + … |
 | renderSetup() | `data-setup=back` | Back |
-| renderSetup() | `data-setup=next` | …` : 'Finish'} |
+| renderSetup() | `data-setup=next` |  |
 | setupPickBand() | `#setupNewBandAdd` | Add it |
 
 ## My bands
 
 | Where | Counted as | Words on it |
 |---|---|---|
-| accountBandsView | `#tidyBandsLink` | checklist Tidy my bands chevron_right |
+| accountBandsView | `#tidyBandsLink` | Tidy my bands |
 | accountBandsView | `#accountJoinBandBtn` | Add |
 | accountBandsView | `#accountAddBandToggleBtn` | Can't find your band? Add it |
 | accountBandsView | `#accountAddBandBtn` | Add |
@@ -826,53 +826,53 @@ its words.
 | bandMembersView | `#bandLogoRemoveBtn` | Take the logo off |
 | bandMembersView | `#bandInviteLevelBtn` | Can play what they can do |
 | bandMembersView | `#bandInviteBtn` | Invite |
-| top bar | `#accountBandMenuShare` | group_add Set up sharing |
-| top bar | `#accountBandMenuMembers` | group Members |
+| top bar | `#accountBandMenuShare` | Set up sharing |
+| top bar | `#accountBandMenuMembers` | Members |
 | top bar | `#accountBandMenuLeave` | Leave shared band |
-| top bar | `#accountBandMenuDirectory` | link It's a band in the list |
-| top bar | `#accountBandMenuMerge` | merge Same as another of mine |
-| top bar | `#accountBandMenuHide` | visibility_off I don't play with them now |
-| top bar | `#accountBandMenuReport` | flag Report the name |
-| top bar | `#accountBandMenuDelete` | delete Stop sharing |
+| top bar | `#accountBandMenuDirectory` | It's a band in the list |
+| top bar | `#accountBandMenuMerge` | Same as another of mine |
+| top bar | `#accountBandMenuHide` | I don't play with them now |
+| top bar | `#accountBandMenuReport` | Report the name |
+| top bar | `#accountBandMenuDelete` | Stop sharing |
 | renderAccountBandInvites() | `data-invite-accept` | Join … |
 | renderAccountBandInvites() | `data-invite-decline` | No thanks |
-| renderAccountBandsList() | `data-band-menu-id` | more_vert |
+| renderAccountBandsList() | `data-band-menu-id` |  |
 | renderTidyBands() | `data-tidy-band` | … … - tap to say what it is |
-| renderBandMembers() | `data-member` | … … |
-| renderBandMembers() | `data-invite` | … … invited ${escapeHtml(new Date(i.sentAt).toLocaleDateStri |
+| renderBandMembers() | `data-member` |  |
+| renderBandMembers() | `data-invite` |  |
 
 ## My account, instruments, settings
 
 | Where | Counted as | Words on it |
 |---|---|---|
-| settingsView | `view(settingsDisplayView)` | contrast Display and reading chevron_right |
-| settingsView | `view(settingsStatsView)` | bar_chart Stats chevron_right |
-| settingsView | `view(settingsTunerView)` | Tuner chevron_right |
-| settingsView | `view(settingsPlaybackView)` | Metronome playback chevron_right |
-| settingsView | `#settingsNoticesLink` | notifications Notifications Which notices the app sends you chevron_ri |
-| settingsView | `#settingsSetupLink` | checklist Set up again What I play, how it looks, who I play with chev |
+| settingsView | `view(settingsDisplayView)` | Display and reading |
+| settingsView | `view(settingsStatsView)` | Stats |
+| settingsView | `view(settingsTunerView)` | Tuner |
+| settingsView | `view(settingsPlaybackView)` | Metronome playback |
+| settingsView | `#settingsNoticesLink` | Notifications Which notices the app sends you |
+| settingsView | `#settingsSetupLink` | Set up again What I play, how it looks, who I play with |
 | settingsDisplayView | `#displayResetBtn` | Reset to standard |
 | settingsPlaybackView | `#metroCalibLatencyMinusBtn` | Less delay |
 | settingsPlaybackView | `#metroCalibLatencyPlusBtn` | + |
-| settingsPlaybackView | `#metroCalibPlayBtn` | play_arrow test |
-| settingsPlaybackView | `#metroCalibLatencyResetBtn` | restart_alt reset |
-| accountView | `view(accountDetailsView)` | badge My details chevron_right |
-| accountView | `#accountSecurityRow` | lock Sign-in and security chevron_right |
-| accountView | `view(accountBandsView)` | groups My bands chevron_right |
-| accountView | `#accountTeachersRow` | school My teachers chevron_right |
-| accountDetailsView | `#accountEditNameBtn` | Name - edit , edit |
-| accountDetailsView | `#accountEditDisplayNameBtn` | Display name - edit , edit |
-| accountDetailsView | `#accountEditAvatarBtn` | Avatar edit , change |
-| accountDetailsView | `#accountEditEmailBtn` | Email edit , change |
-| accountDetailsView | `#accountExportBtn` | download Download my information |
+| settingsPlaybackView | `#metroCalibPlayBtn` | test |
+| settingsPlaybackView | `#metroCalibLatencyResetBtn` | reset |
+| accountView | `view(accountDetailsView)` | My details |
+| accountView | `#accountSecurityRow` | Sign-in and security |
+| accountView | `view(accountBandsView)` | My bands |
+| accountView | `#accountTeachersRow` | My teachers |
+| accountDetailsView | `#accountEditNameBtn` | Name - , edit |
+| accountDetailsView | `#accountEditDisplayNameBtn` | Display name - , edit |
+| accountDetailsView | `#accountEditAvatarBtn` | Avatar , change |
+| accountDetailsView | `#accountEditEmailBtn` | Email , change |
+| accountDetailsView | `#accountExportBtn` | Download my information |
 | accountDetailsView | `#accountDeleteBtn` | Delete my account |
 | accountInstrumentsView | `#accountAddInstrumentBtn` | Add |
-| accountInstrumentsView | `#supportFromInstrumentsLink` | handyman Need a repair, a shop or hire? Instrument support - near your |
+| accountInstrumentsView | `#supportFromInstrumentsLink` | Need a repair, a shop or hire? Instrument support - near your bands |
 | accountTeachersView | `list-add(teachers)` | Add |
-| top bar | `#accountInstrumentMenuMain` | star Make main instrument |
-| top bar | `#accountInstrumentMenuRange` | height My range |
-| top bar | `#accountInstrumentMenuClef` | music_note My clef |
-| top bar | `#accountInstrumentMenuRemove` | remove_circle Remove |
+| top bar | `#accountInstrumentMenuMain` | Make main instrument |
+| top bar | `#accountInstrumentMenuRange` | My range |
+| top bar | `#accountInstrumentMenuClef` | My clef |
+| top bar | `#accountInstrumentMenuRemove` | Remove |
 | accountNameModal | `data-account-name-cancel` | Close |
 | accountNameModal | `#accountCancelNameBtn` | Cancel |
 | accountNameModal | `#accountSaveNameBtn` | Save |
@@ -886,13 +886,13 @@ its words.
 | accountDeleteModal | `close (X)` | Close |
 | accountDeleteModal | `#accountDeleteConfirmBtn` | Delete my account for good |
 | accountDeleteModal | `keep-account` | Keep my account |
-| renderSettingsList() | `list-edit` | edit |
-| renderAccountInstruments() | `data-instrument-menu-id` | more_vert |
+| renderSettingsList() | `list-edit` | Edit |
+| renderAccountInstruments() | `data-instrument-menu-id` |  |
 | renderTwoStepSetup() | `data-two-step-open` | Add to my authenticator app |
 | renderTwoStepSetup() | `data-two-step-copy-key` | Copy the setup key |
 | renderTwoStepSetup() | `data-two-step-confirm` | Turn on two-step sign-in |
 | renderRecoveryCodes() | `data-codes-copy` | Copy the codes |
-| renderRecoveryCodes() | `data-codes-done` | I've saved them |
+| renderRecoveryCodes() | `data-codes-done` |  |
 | renderPasswordPanel() | `#accountPasswordOpenBtn` | Change password |
 | renderPasswordPanel() | `#accountPasswordOpenBtn` | Add a password |
 | renderPasswordPanel() | `#accountPasswordSaveBtn` | Save |
@@ -902,27 +902,27 @@ its words.
 | renderAccountSecurity() | `#accountTwoStepOffBtn` | Turn off two-step sign-in |
 | renderAccountSecurity() | `#accountTwoStepConfirmBtn` | Confirm |
 | renderAccountSecurity() | `#accountTwoStepCancelBtn` | Cancel |
-| renderAvatarGrid() | `data-avatar` | …)} … |
+| renderAvatarGrid() | `data-avatar` |  |
 
 ## Signing in
 
 | Where | Counted as | Words on it |
 |---|---|---|
 | top bar | `#loginBtn` | Sign in with Google |
-| top bar | `data-password-toggle=loginPassword` | visibility |
+| top bar | `data-password-toggle=loginPassword` | Show password |
 | top bar | `#passwordLoginSubmit` | Log in |
 | top bar | `#forgotLinkBtn` | Forgot your password? |
 | top bar | `#forgotSubmit` | Send the link |
 | top bar | `#forgotBackBtn` | Back to log in |
 | top bar | `#emailChangeConfirmBtn` | Change my email address |
 | top bar | `#emailChangeBackBtn` | Not now |
-| top bar | `data-password-toggle=setPassword` | visibility |
-| top bar | `data-password-toggle=setPasswordConfirm` | visibility |
+| top bar | `data-password-toggle=setPassword` | Show password |
+| top bar | `data-password-toggle=setPasswordConfirm` | Show password |
 | top bar | `#setPasswordSubmit` | Save and log in |
 | top bar | `#setPasswordLoginLink` | Go to log in |
 | top bar | `#twoStepSubmit` | Continue |
 | top bar | `#twoStepRecoveryBtn` | Use a recovery code instead |
-| passwordFieldHtml() | `data-password-toggle` | visibility |
+| passwordFieldHtml() | `data-password-toggle` | Show password |
 
 ## Menu, notices and the rest
 
@@ -930,31 +930,31 @@ its words.
 |---|---|---|
 | noticeBannerModal | `close (X)` | Close |
 | top bar | `data-notice-banner-open` | Notice |
-| top bar | `data-notice-banner-close` | close |
+| top bar | `data-notice-banner-close` | Hide this notice until next time |
 | top bar | `#topBackBtn` |  |
 | top bar | `#topTunerToggleBtn` | Show tuner |
-| top bar | `#topTimerPill` | timer 00:00 left |
-| top bar | `#topTimerIconBtn` | timer |
+| top bar | `#topTimerPill` | 00:00 left |
+| top bar | `#topTimerIconBtn` | Timer |
 | top bar | `#navBurgerMenuBtn` | ☰ |
-| top bar | `#navRailFoldBtn` | menu_open |
-| top bar | `view-menu(mainView)` | home Home |
-| top bar | `#notificationsNavItem` | notifications Notifications |
-| top bar | `#navToolsBtn` | apps Tools chevron_right |
-| top bar | `view-menu(statsHomeView)` | bar_chart Stats |
-| top bar | `#myMusicNavItem` | library_music My music |
-| top bar | `view-menu(settingsView)` | settings My app settings |
-| top bar | `view-menu(accountInstrumentsView)` | music_note My instruments |
-| top bar | `#inviteNavItem` | person_add Invite someone |
-| top bar | `#feedbackNavItem` | chat Send feedback |
-| top bar | `view-menu(aboutView)` | info About |
-| top bar | `view-menu(accountView)` | person My account |
-| top bar | `logout` | logout Log out |
-| top bar | `#navToolsBackBtn` | chevron_left Tools |
+| top bar | `#navRailFoldBtn` | Fold the menu to icons |
+| top bar | `view-menu(mainView)` | Home |
+| top bar | `#notificationsNavItem` | Notifications |
+| top bar | `#navToolsBtn` | Tools |
+| top bar | `view-menu(statsHomeView)` | Stats |
+| top bar | `#myMusicNavItem` | My music |
+| top bar | `view-menu(settingsView)` | My app settings |
+| top bar | `view-menu(accountInstrumentsView)` | My instruments |
+| top bar | `#inviteNavItem` | Invite someone |
+| top bar | `#feedbackNavItem` | Send feedback |
+| top bar | `view-menu(aboutView)` | About |
+| top bar | `view-menu(accountView)` | My account |
+| top bar | `logout` | Log out |
+| top bar | `#navToolsBackBtn` | Tools |
 | top bar | `data-notice-banner-open` | Notice |
-| top bar | `data-notice-banner-close` | close |
+| top bar | `data-notice-banner-close` | Hide this notice until next time |
 | top bar | `reload` | Reload |
 | top bar | `#updateBannerMore` | See what's new |
-| top bar | `#updateBannerClose` | close |
+| top bar | `#updateBannerClose` | Hide until next time |
 | top bar | `#offlineBarBtn` | See them |
 | top bar | `#previewStopBtn` | Stop previewing |
 | notificationsView | `#notificationsMarkAllBtn` | Mark all as read |
@@ -962,10 +962,10 @@ its words.
 | notificationsView | `#notificationsClearedBtn` | Show cleared |
 | inviteView | `#inviteLevelBtn` | Standard member account type |
 | inviteView | `#inviteSendBtn` | Send invite |
-| aboutView | `view(aboutReleasesView)` | history Release history What changed in each version chevron_right |
-| aboutView | `about-policy(privacy)` | shield_person Privacy policy What we hold about you, and how to delete |
-| aboutView | `about-policy(terms)` | gavel Terms of use The terms for using the app chevron_right |
-| aboutView | `view(aboutGradesView)` | school Exam grades Where the grade lists come from chevron_right |
+| aboutView | `view(aboutReleasesView)` | Release history What changed in each version |
+| aboutView | `about-policy(privacy)` | Privacy policy What we hold about you, and how to delete it |
+| aboutView | `about-policy(terms)` | Terms of use The terms for using the app |
+| aboutView | `view(aboutGradesView)` | Exam grades Where the grade lists come from |
 | importantNoticeModal | `#importantNoticeOkBtn` | Got it |
 | urgentNotificationModal | `#urgentNotificationOkBtn` | Got it |
 | whatsNewModal | `close (X)` | Close |
@@ -1001,29 +1001,29 @@ its words.
 | renderOfflineList() | `data-offline-remove` | Remove |
 | renderNotificationsUpdateCard() | `#notificationsReloadBtn` | Reload now |
 | renderNotificationsUpdateCard() | `data-notifications-home` | Start practising |
-| renderNotificationsView() | `data-notification-id` | … … ${n.important ? '<span cl |
-| renderNotificationsView() | `data-notification-clear` | close |
+| renderNotificationsView() | `data-notification-id` |  |
+| renderNotificationsView() | `data-notification-clear` |  |
 | renderNotificationsView() | `data-notification-report` | Report this notice |
 | renderClearedList() | `data-notification-restore` | Restore |
-| renderInstrumentChoice() | `data-instrument-id` | … … |
+| renderInstrumentChoice() | `data-instrument-id` |  |
 | renderHiddenBands() | `data-band-show` | Show again |
 | renderInvite() | `data-resend-invite` | Send again |
-| renderInvite() | `data-cancel-invite` | … |
+| renderInvite() | `data-cancel-invite` |  |
 | renderBuild() | `data-slot` | …–… …</ |
-| renderBuild() | `data-add` | … … |
-| openChooser() | `data-opt` | … … ` : ''} |
-| openChooser() | `data-extra` | … |
-| renderPickList() | `data-pick-row` | … |
+| renderBuild() | `data-add` |  |
+| openChooser() | `data-opt` |  |
+| openChooser() | `data-extra` |  |
+| renderPickList() | `data-pick-row` |  |
 | renderPickList() | `data-pick-all` | Select all |
 | renderPickList() | `data-pick-none` | Unselect all |
 | newPracticeList() | `data-owner` | Just me Only you see it |
 | newPracticeList() | `data-owner` | … Everyone in the band will see it |
-| renderFilterBar() | `data-filter-open` | filter_list … <span class="metroBlk-ctrl- |
+| renderFilterBar() | `data-filter-open` |  |
 | renderFilterBar() | `data-filter-clear` | Clear all |
-| renderFilterBar() | `data-filter-chip` | … close |
-| filterPanelHtml() | `data-filter-pick` | …… … |
+| renderFilterBar() | `data-filter-chip` |  |
+| filterPanelHtml() | `data-filter-pick` |  |
 | filterClearAllHtml() | `data-filter-clear-all` | Clear all |
-| drawPanel() | `data-filter-back` | arrow_back … |
+| drawPanel() | `data-filter-back` |  |
 | drawPanel() | `data-filter-back` | Done - show … |
-| openSearchChoiceModal() | `data-search-idx` | … `}…</butt |
-| openSearchChoiceModal() | `data-search-other` | … |
+| openSearchChoiceModal() | `data-search-idx` |  |
+| openSearchChoiceModal() | `data-search-other` |  |

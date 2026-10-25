@@ -134,6 +134,11 @@ Related: [color](../foundations/color.md) - [spacing](../foundations/spacing.md)
 | `--heat-time-2` | `#e2c355` | `#7d6415` | intensity step 2 |
 | `--heat-time-3` | `#c9a22c` | `#b8952b` | intensity step 3 |
 | `--heat-time-4` | `#8f7114` | `#f5d78e` | intensity step 4 (max) |
+| `--heat-text-0` | `#333333` | `#ffffff` | a number written on heat step 0-4 (Admin -> Usage heat map, ML-22) |
+| `--heat-text-1` | `#333333` | `#ffffff` | on step 1 |
+| `--heat-text-2` | `#333333` | `#ffffff` | on step 2 |
+| `--heat-text-3` | `#333333` | `#121212` | on step 3 |
+| `--heat-text-4` | `#ffffff` | `#121212` | on step 4 - the darkest gold |
 | `--heat-sess-0` | `#ebedf0` | `#2d333b` | session-count heatmap, empty day (0-4 = intensity ramp) |
 | `--heat-sess-1` | `#f3e3a8` | `#4a3b0b` | intensity step 1 - same gold ramp as time (ML-235) |
 | `--heat-sess-2` | `#e2c355` | `#7d6415` | intensity step 2 |
