@@ -1695,7 +1695,9 @@
         const saveBtn = document.getElementById('configFormSaveBtn');
         saveBtn.disabled = true;
         try {
-            await apiCall(`/api/admin/config/${editingConfigKey}`, 'PUT', { value });
+            // ML-612: one month's dollar rate, on Costs and usage
+            if (editingConfigKey.startsWith('rate:')) await apiCall(`/api/admin/third-parties/exchange-rates/${editingConfigKey.slice(5)}`, 'PUT', { usdPerGbp: value });
+            else await apiCall(`/api/admin/config/${editingConfigKey}`, 'PUT', { value });
             const reloadFn = editingConfigReload;
             closeConfigForm();
             if (reloadFn) await reloadFn();
@@ -3330,7 +3332,8 @@
     }
 
     // ---- ML-429: what it costs, and usage against each plan's limits (the top of the Third parties page).
-    // Money is shown in pounds with US dollars beside it; the rate is the owner's own (app_config usd_per_gbp).
+    // Money is shown in pounds with US dollars beside it. ML-612: each payment in dollars at HMRC's rate for the
+    // month it was paid in (exchange_rates); the owner's own figure (app_config usd_per_gbp) only when there is none.
     let thirdPartyData = null;
     let editingCostId = null;
     let readingMeterKey = null;
@@ -3339,6 +3342,33 @@
     const CADENCE_WORDS = { one_off: 'once', weekly: 'a week', monthly: 'a month', yearly: 'a year' };
     const amountText = (n, unit) => (unit === 'USD' ? `$${Number(n).toFixed(2)}` : `${Number(n) >= 100 ? Math.round(Number(n)).toLocaleString('en-GB') : (Math.round(Number(n) * 100) / 100)} ${unit}`);
     const limitText = (m) => (Number(m.limit) > 0 ? `${amountText(m.limit, m.unit)} ${{ month: 'a month', day: 'a day', total: 'in all' }[m.per]}` : 'no limit of its own');
+    const monthName = (m) => new Date(`${m}-01T12:00:00Z`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    // Where this month's rate came from, in a few words
+    function rateSourceText(c) {
+        const rates = c.rates || [];
+        const exact = rates.find((r) => r.month === c.rateMonth);
+        if (exact) return `${monthName(exact.month)}, ${exact.source === 'manual' ? 'typed by you' : 'HMRC'}`;
+        const before = rates.filter((r) => r.month < c.rateMonth)[0] || rates[rates.length - 1];
+        return before ? `${monthName(before.month)}'s - this month's isn't in yet` : 'your own figure - no HMRC rate read yet';
+    }
+    function renderExchangeRates(c) {
+        const rows = (c.rates || []).map((r) => `
+            <tr>
+                <td>${monthName(r.month)}</td>
+                <td>$${r.usdPerGbp.toFixed(4)}</td>
+                <td>${r.source === 'manual' ? 'Typed by you' : 'HMRC'}</td>
+                <td><button class="admin-stat-exclude-btn" data-rate-month="${r.month}" type="button">Change</button></td>
+            </tr>`).join('') || '<tr><td colspan="4" class="admin-stat-empty">None read yet - the rates from HMRC are read once a day.</td></tr>';
+        return `
+            <div class="admin-feature"><div class="admin-test-case"><details class="admin-security-details"><summary>Exchange rates, month by month</summary>
+                <p class="admin-intro">HMRC's monthly rate for the US dollar - the one HMRC accepts for tax - read from its published file once a day, from the month of your first cost to next month (out a few days before it starts). A rate you type in for a month is kept; clear it to go back to HMRC's. With no rate at all, your own figure is used: $${Number(c.fallbackRate).toFixed(2)} to the pound.</p>
+                <div class="admin-stat-table-wrap"><table class="admin-stat-table">
+                    <thead><tr><th>Month</th><th>Dollars to £1</th><th>From</th><th></th></tr></thead>
+                    <tbody>${rows}</tbody>
+                </table></div>
+                <div class="admin-security-toolbar"><button class="admin-stat-exclude-btn" id="costRateBtn" type="button">Change your own figure</button></div>
+            </details></div></div>`;
+    }
     const partyName = (key) => ((thirdPartyData && thirdPartyData.entries.find((e) => e.key === key)) || { name: key }).name;
 
     function renderThirdPartyCosts(data) {
@@ -3357,21 +3387,21 @@
             </tr>`).join('') : '<tr><td colspan="8" class="admin-stat-empty">No costs recorded yet. Add what you pay for - Claude Code, a domain, the ICO fee...</td></tr>';
         return `
             <h2 class="admin-stat-section-title">What it costs</h2>
-            <p class="admin-intro">Pounds, with US dollars underneath, at £1 = $${c.rate.toFixed(2)} (your own rate - change it when it moves). "Spent so far" counts every payment up to today.</p>
+            <p class="admin-intro">Pounds, with US dollars underneath. "Spent so far" counts every payment up to today, each changed at HMRC's rate for the month it was paid in; what it is costing now is at this month's rate.</p>
             <div class="admin-stat-tiles">
                 <div class="admin-stat-tile"><div class="admin-stat-tile-label">Spent so far</div><div class="admin-stat-tile-value">${money(c.spent)}</div><div class="admin-stat-tile-sub">${dollars(c.spent)}</div></div>
                 <div class="admin-stat-tile"><div class="admin-stat-tile-label">Costing now, a month</div><div class="admin-stat-tile-value">${money(c.perMonth)}</div><div class="admin-stat-tile-sub">${dollars(c.perMonth)}</div></div>
                 <div class="admin-stat-tile"><div class="admin-stat-tile-label">Costing now, a year</div><div class="admin-stat-tile-value">${money(c.perYear)}</div><div class="admin-stat-tile-sub">${dollars(c.perYear)}</div></div>
-                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Exchange rate</div><div class="admin-stat-tile-value">$${c.rate.toFixed(2)}</div><div class="admin-stat-tile-sub">to the pound</div></div>
+                <div class="admin-stat-tile"><div class="admin-stat-tile-label">Exchange rate</div><div class="admin-stat-tile-value">$${c.rate.toFixed(4)}</div><div class="admin-stat-tile-sub">to the pound · ${escapeHtml(rateSourceText(c))}</div></div>
             </div>
             <div class="admin-security-toolbar">
                 <button class="btn-submit no-margin" id="costAddBtn" type="button">+ Add a cost</button>
-                <button class="admin-stat-exclude-btn" id="costRateBtn" type="button">Change the exchange rate</button>
             </div>
             <div class="admin-stat-table-wrap"><table class="admin-stat-table">
                 <thead><tr><th>Paid to</th><th>What for</th><th>Amount</th><th>How often</th><th>From</th><th>Until</th><th>Spent so far</th><th></th></tr></thead>
                 <tbody>${rows}</tbody>
-            </table></div>`;
+            </table></div>
+            ${renderExchangeRates(c)}`;
     }
 
     const USAGE_LEVEL = { pass: ['pass', 'Fine'], warn: ['warn', 'Getting near'], fail: ['fail', 'Nearly full'], info: ['never', '–'] };
@@ -3585,7 +3615,12 @@
             const t = e.target.closest('button');
             if (!t || !thirdPartyData) return;
             if (t.id === 'costAddBtn') { openCostForm(null); return; }
-            if (t.id === 'costRateBtn') { openConfigForm('usd_per_gbp', 'US dollars to the pound', String(thirdPartyData.costs.rate), 'How many dollars £1 buys (e.g. 1.30)', reloadThirdParties); return; }
+            if (t.id === 'costRateBtn') { openConfigForm('usd_per_gbp', 'Your own dollar rate', String(thirdPartyData.costs.fallbackRate), 'How many dollars £1 buys (e.g. 1.30) - used only for a month with no rate', reloadThirdParties); return; }
+            if (t.dataset.rateMonth) {
+                const r = thirdPartyData.costs.rates.find((x) => x.month === t.dataset.rateMonth);
+                openConfigForm(`rate:${r.month}`, `Dollars to the pound, ${monthName(r.month)}`, String(r.usdPerGbp), 'How many dollars £1 bought (e.g. 1.3456) - leave it empty to go back to the HMRC rate', reloadThirdParties);
+                return;
+            }
             if (t.dataset.costEdit) { openCostForm(Number(t.dataset.costEdit)); return; }
             if (t.dataset.costDelete) {
                 const row = thirdPartyData.costs.rows.find((r) => r.id === Number(t.dataset.costDelete));

@@ -423,6 +423,35 @@ export default [
     hosts: ['api.postcodes.io']
   },
   {
+    key: 'hmrc-exchange-rates',
+    notInPolicy: 'Nothing about anyone is sent or received: our server only downloads a file HMRC publishes for everyone, the month\'s exchange rates.',
+    name: 'HMRC monthly exchange rates (UK Trade Tariff service)',
+    group: 'service',
+    status: 'in_use',
+    who: 'HM Revenue & Customs, through the UK Trade Tariff service (GOV.UK)',
+    provides: 'What a US dollar cost in pounds each month, for Admin -> Costs and usage and the business case\'s actual v forecast (ML-612): each payment in dollars is changed into pounds at HMRC\'s rate for the month it was paid in - the rate HMRC accepts for tax. The daily job downloads one small file a month and keeps the rate in exchange_rates.',
+    usedIn: 'server/services/exchangeRates.js (the daily job and Costs and usage)',
+    plan: 'No plan',
+    cost: 'Free - no key or account needed',
+    licence: 'Open Government Licence v3.0 (Crown copyright)',
+    terms: [
+      { label: 'HMRC exchange rates on the Trade Tariff service', url: 'https://www.trade-tariff.service.gov.uk/exchange_rates' },
+      { label: 'Open Government Licence v3.0', url: 'https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/' }
+    ],
+    termsCheckedOn: '2026-10-25',
+    says: [
+      'GOV.UK content is published under the Open Government Licence: free to copy and use, commercially too, as long as the source is credited and it isn\'t suggested HMRC endorses us.',
+      'A month\'s rates come out a few days before the month starts. If the file can\'t be read, the last rate known is used and the page says so.'
+    ],
+    asks: [
+      { text: 'Credit the source where the rates are shown: Admin -> Costs and usage says the rates are HMRC\'s - only the owner sees it, nothing is shown to members.' }
+    ],
+    watch: [
+      'The file address (api/v2/exchange_rates/files/monthly_csv_YYYY-M.csv) isn\'t a promised API. If HMRC moves it, the page shows the last rate it has and a month can be typed in.'
+    ],
+    hosts: ['www.trade-tariff.service.gov.uk']
+  },
+  {
     key: 'jsdelivr',
     policyName: 'jsDelivr',
     name: 'jsDelivr',

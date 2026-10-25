@@ -155,7 +155,9 @@ The **Actual v forecast** tab is a row a month (`business_actuals`, migration 10
 out, beside what the plan forecast.
 
 - **Actual** - members are counted from accounts; paid out is the payments on Costs and usage that fell in the
-  month (`paidInMonth` in `server/thirdParties/costs.js`). The current month is brought up to date every day
+  month (`paidInMonth` in `server/thirdParties/costs.js`), dollars changed at HMRC's rate for that month
+  (ML-612 - "Costs and usage" in `docs/third-party-providers.md`). The plan's own figures keep the dollar rate
+  in its settings. The current month is brought up to date every day
   by the daily job (`/api/cron/usage-readings`) and whenever the business case is opened, so a month ends up
   as it stood on its last day.
 - **Forecast** - written **once**, the first time a month is recorded, from the scenario marked "where I am

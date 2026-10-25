@@ -41,6 +41,7 @@ import { closeReport } from '../services/contentReports.js';
 import { getSiteSecurityReview, runSiteSecurityReviewNow } from '../services/siteSecurityReview.js';
 import thirdPartyRegister from '../thirdParties/register.js';
 import { costsAndUsage, addCost, updateCost, deleteCost, readMeters, recordManualReading, sendUsageWarnings } from '../services/thirdPartyUsage.js';
+import { setMonthRate } from '../services/exchangeRates.js';
 import { getBusinessCase, saveBusinessCase, resetBusinessCase } from '../services/businessCase.js';
 import { getAdminDashboard } from '../services/adminDashboard.js';
 import { listRecords, saveRecord, setAttentionDone, saveAgreement } from '../services/thirdPartyRecords.js';
@@ -1005,6 +1006,16 @@ router.put('/third-parties/costs/:id', requireAuth, resolveAccount, requireSuper
 router.delete('/third-parties/costs/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     await deleteCost(req.params.id);
+    res.json(await thirdPartiesPage());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-612: the owner's own dollar rate for one month ('2026-10'); an empty rate takes the month back to HMRC's
+router.put('/third-parties/exchange-rates/:month', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    await setMonthRate(req.params.month, req.body && req.body.usdPerGbp);
     res.json(await thirdPartiesPage());
   } catch (error) {
     sendError(res, error);

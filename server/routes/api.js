@@ -24,6 +24,7 @@ import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrD
   listBandMembers, inviteToBand, cancelBandInvite, listMyBandInvites, acceptBandInvite, declineBandInvite, removeBandMember, setBandMemberLevel, setBandLeader, setSharesLevels,
   assertBandOrganiser, setBandLogo, removeBandLogo, bandInviteWelcome } from '../services/bands.js';
 import { readMeters, sendUsageWarnings } from '../services/thirdPartyUsage.js';
+import { refreshRates } from '../services/exchangeRates.js';
 import { getBusinessCase } from '../services/businessCase.js';
 import { runRetention, clearOldRecords } from '../services/retention.js';
 import { deleteMyAccount } from '../services/accountDeletion.js';
@@ -1071,6 +1072,8 @@ router.get('/cron/usage-readings', async (req, res) => {
   try {
     const results = await readMeters();
     const warnings = await sendUsageWarnings();
+    // ML-612: HMRC's exchange rate for any month not read yet (next month's is out a few days early)
+    const rates = await refreshRates().catch((error) => { console.error('Daily job: exchange rates not read:', error.message); return null; });
     // ML-443: reading the business case brings this month's "actual v forecast" row up to date
     await getBusinessCase().catch((error) => console.error('Daily job: actual v forecast not recorded:', error.message));
     // ML-464: retention - warn or delete accounts nobody uses, if the owner has switched it on
@@ -1079,7 +1082,7 @@ router.get('/cron/usage-readings', async (req, res) => {
     const cleared = await clearOldRecords().catch((error) => { console.error('Daily job: old records not cleared:', error.message); return null; });
     // ML-553: the pages of a photo or PDF read that were never read (or never deleted) go after a day
     const readPages = await sweepReadUploads().catch((error) => { console.error('Daily job: photo read pages not cleared:', error.message); return null; });
-    res.json({ read: results.filter((r) => r.ok).length, notRead: results.filter((r) => !r.ok).map((r) => r.key), warnings: warnings.length, retention, cleared, readPages });
+    res.json({ read: results.filter((r) => r.ok).length, notRead: results.filter((r) => !r.ok).map((r) => r.key), warnings: warnings.length, rates, retention, cleared, readPages });
   } catch (error) {
     sendError(res, error);
   }

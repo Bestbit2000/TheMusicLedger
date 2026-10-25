@@ -31,11 +31,41 @@ export function isRunning(cost, today) {
 
 const PER_YEAR = { weekly: 52, monthly: 12, yearly: 1 };
 
-// Everything the page shows about money, in both currencies. usdPerGbp is the owner's own rate.
+// ML-612: how many US dollars a pound bought in a month. `rates` is either one number (the same every
+// month) or { byMonth: { '2026-10': 1.3456, ... }, fallback } - HMRC's rate for each month, the one HMRC
+// accepts for tax. A month with no rate takes the nearest month before it that has one (or, before the
+// first, the first), and with none at all the fallback - the owner's own figure.
+export function rateLookup(rates) {
+  const one = (n) => (Number(n) > 0 ? Number(n) : null);
+  if (!rates || typeof rates !== 'object') { const r = one(rates) || 1; return () => r; }
+  const fallback = one(rates.fallback) || 1;
+  const months = Object.keys(rates.byMonth || {}).filter((m) => one(rates.byMonth[m])).sort();
+  return (day) => {
+    const month = String(day).slice(0, 7);
+    if (!months.length) return fallback;
+    if (rates.byMonth[month] && one(rates.byMonth[month])) return Number(rates.byMonth[month]);
+    const before = months.filter((m) => m < month);
+    return Number(rates.byMonth[before.length ? before[before.length - 1] : months[0]]);
+  };
+}
+// The month ('2026-10') of each of a cost's first n payments
+export function chargeMonths(cost, n) {
+  const start = new Date(dayOf(cost.startedOn));
+  const step = { weekly: null, monthly: 1, yearly: 12 }[cost.cadence];
+  return Array.from({ length: n }, (_, k) => {
+    if (cost.cadence === 'one_off') return iso(start.getTime()).slice(0, 7);
+    if (cost.cadence === 'weekly') return iso(start.getTime() + k * 7 * DAY).slice(0, 7);
+    return iso(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + k * step, 1)).slice(0, 7);
+  });
+}
+
+// Everything the page shows about money, in both currencies. usdPerGbp: see rateLookup - each payment is
+// changed at the rate for the month it was paid in; what it costs now, at this month's rate.
 // Each amount is { gbp, usd }.
 export function costSummary(costs, today, usdPerGbp) {
-  const rate = Number(usdPerGbp) > 0 ? Number(usdPerGbp) : 1;
-  const both = (amount, currency) => (currency === 'GBP' ? { gbp: amount, usd: amount * rate } : { gbp: amount / rate, usd: amount });
+  const rateOn = rateLookup(usdPerGbp);
+  const rate = rateOn(today);
+  const both = (amount, currency, r = rate) => (currency === 'GBP' ? { gbp: amount, usd: amount * r } : { gbp: amount / r, usd: amount });
   const add = (sum, x) => ({ gbp: sum.gbp + x.gbp, usd: sum.usd + x.usd });
   const round = (x) => ({ gbp: Math.round(x.gbp * 100) / 100, usd: Math.round(x.usd * 100) / 100 });
   let spent = { gbp: 0, usd: 0 };
@@ -44,7 +74,7 @@ export function costSummary(costs, today, usdPerGbp) {
   const rows = costs.map((c) => {
     const amount = Number(c.amount);
     const n = chargesSoFar(c, today);
-    const paid = both(amount * n, c.currency);
+    const paid = chargeMonths(c, n).reduce((sum, month) => add(sum, both(amount, c.currency, rateOn(month))), { gbp: 0, usd: 0 });
     const running = isRunning(c, today);
     const yearly = running ? both(amount * PER_YEAR[c.cadence], c.currency) : { gbp: 0, usd: 0 };
     spent = add(spent, paid);
@@ -67,8 +97,9 @@ export function costSummary(costs, today, usdPerGbp) {
 
 // ML-443: what was paid in one calendar month ('2026-10'), in pounds - the payments that fell in it, up
 // to and including `today` if the month isn't over. A month that hasn't started has paid nothing.
+// Dollars are changed at that month's rate (usdPerGbp: see rateLookup).
 export function paidInMonth(costs, month, today, usdPerGbp) {
-  const rate = Number(usdPerGbp) > 0 ? Number(usdPerGbp) : 1;
+  const rate = rateLookup(usdPerGbp)(month);
   const [y, m] = month.split('-').map(Number);
   const first = Date.UTC(y, m - 1, 1);
   const upTo = Math.min(dayOf(today), Date.UTC(y, m, 0));
@@ -194,4 +225,14 @@ export function spendBreakdown(lines, period, today, activeMembers) {
     services,
     daily: [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([day, cost]) => ({ day, cost: r4(cost) }))
   };
+}
+
+// ML-612: the US dollar's line in HMRC's monthly exchange rates (a CSV file, one line per currency:
+// "USA,Dollar,USD,1.3456,01/10/2026,31/10/2026" - the rate is units per £1). null when there is no such
+// line or the number is not believable, so a broken file never becomes a rate.
+export function parseHmrcUsd(csv) {
+  const line = String(csv || '').split(/\r?\n/).find((l) => l.split(',')[2] === 'USD');
+  if (!line) return null;
+  const rate = Number(line.split(',')[3]);
+  return rate >= 0.5 && rate <= 3 ? rate : null;
 }
