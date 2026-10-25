@@ -1,4 +1,5 @@
 {
+  "ML-612": "We now change the app's dollar costs into pounds at HMRC's exchange rate for the month each was paid.",
   "ML-613": "We fixed the website button for a repairer whose site has no secure address, and added the email addresses five businesses in Instrument support publish.",
   "ML-610": "We added Instrument support to the menu: repairers, shops and hire near your bands, nearest first, then ones anywhere in the UK. Settings is now My app settings.",
   "ML-609": "We gave the contra-alto and contrabass clarinets and the contrabass and soprillo saxophones their own scale lists - they had been given the tuba or flute lists.",

@@ -12,9 +12,9 @@
 
 import pool from '../config/db.js';
 import { costSummary, periodFor, meterStatus, alertsDue, parseChargeLines, billingPeriod, spendBreakdown } from '../thirdParties/costs.js';
-import { getConfigValue } from './appConfig.js';
 import { sendMail } from './mail.js';
 import { costUsd } from './pieceReads.js';
+import { listRates, ratesForSums, refreshRatesIfNeeded } from './exchangeRates.js';
 
 const withStatus = (status, message) => Object.assign(new Error(message), { status });
 const GB = 1024 * 1024 * 1024;
@@ -297,9 +297,10 @@ export async function vercelBreakdown() {
 
 // Everything the page needs about money and limits, in one go.
 export async function costsAndUsage() {
-  const [costs, usage, rate, vercel] = await Promise.all([
-    listCosts(), usageSummary(), getConfigValue('usd_per_gbp').catch(() => '1.30'),
+  await refreshRatesIfNeeded(); // ML-612: this month's HMRC rate, if the daily job hasn't read it yet
+  const [costs, usage, rates, rateList, vercel] = await Promise.all([
+    listCosts(), usageSummary(), ratesForSums(), listRates(),
     vercelBreakdown().catch((error) => { console.error('Vercel usage lines not read:', error.message); return null; })
   ]);
-  return { costs: costSummary(costs, today(), Number(rate)), usage, vercelUsage: vercel, limitsCheckedOn: LIMITS_CHECKED, alertsGoTo: !!(process.env.USAGE_ALERT_EMAIL || process.env.SIGNUP_ALERT_EMAIL) };
+  return { costs: { ...costSummary(costs, today(), rates), rates: rateList, fallbackRate: rates.fallback, rateMonth: today().slice(0, 7) }, usage, vercelUsage: vercel, limitsCheckedOn: LIMITS_CHECKED, alertsGoTo: !!(process.env.USAGE_ALERT_EMAIL || process.env.SIGNUP_ALERT_EMAIL) };
 }

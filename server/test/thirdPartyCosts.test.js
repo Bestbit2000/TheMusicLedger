@@ -1,7 +1,7 @@
 // ML-429: the sums behind costs and usage (server/thirdParties/costs.js). Pure - no database.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { chargesSoFar, isRunning, costSummary, periodFor, meterStatus, alertsDue, paidInMonth, parseChargeLines, billingPeriod, spendBreakdown } from '../thirdParties/costs.js';
+import { chargesSoFar, isRunning, costSummary, periodFor, meterStatus, alertsDue, paidInMonth, parseChargeLines, billingPeriod, spendBreakdown, rateLookup, chargeMonths, parseHmrcUsd } from '../thirdParties/costs.js';
 
 const cost = (over) => ({ partyKey: 'claude-code', amount: 100, currency: 'USD', cadence: 'monthly', startedOn: '2026-07-10', endedOn: null, ...over });
 
@@ -100,6 +100,51 @@ test('a weekly cost is paid as many times as its day falls in the month', () => 
   const weekly = [cost({ amount: 10, currency: 'GBP', cadence: 'weekly', startedOn: '2026-10-01' })];
   assert.equal(paidInMonth(weekly, '2026-10', '2026-12-01', 1.25), 50); // 1, 8, 15, 22, 29 October
   assert.equal(paidInMonth(weekly, '2026-11', '2026-12-01', 1.25), 40); // 5, 12, 19, 26 November
+});
+
+// ML-612: each payment at HMRC's rate for the month it was paid in
+const hmrc = { byMonth: { '2026-07': 1.25, '2026-08': 1.6, '2026-10': 1.3456 }, fallback: 1.3 };
+
+test('a month takes its own rate, or the nearest month before it that has one, or the fallback', () => {
+  const rateOn = rateLookup(hmrc);
+  assert.equal(rateOn('2026-08-10'), 1.6);
+  assert.equal(rateOn('2026-09'), 1.6);        // no September rate: August's
+  assert.equal(rateOn('2026-12-01'), 1.3456);  // after the last: the last
+  assert.equal(rateOn('2026-05'), 1.25);       // before the first: the first
+  assert.equal(rateLookup({ byMonth: {}, fallback: 1.3 })('2026-10'), 1.3);
+  assert.equal(rateLookup(1.25)('2026-10'), 1.25); // one number is every month's rate
+});
+
+test('the months a cost was paid in', () => {
+  assert.deepEqual(chargeMonths(cost(), 3), ['2026-07', '2026-08', '2026-09']);
+  assert.deepEqual(chargeMonths(cost({ cadence: 'yearly', startedOn: '2025-11-02' }), 2), ['2025-11', '2026-11']);
+  assert.deepEqual(chargeMonths(cost({ cadence: 'weekly', startedOn: '2026-10-29' }), 2), ['2026-10', '2026-11']);
+  assert.deepEqual(chargeMonths(cost({ cadence: 'one_off' }), 1), ['2026-07']);
+});
+
+test("spent so far changes each dollar payment at its own month's rate; costing now at this month's", () => {
+  const s = costSummary([cost()], '2026-08-15', hmrc); // $100 in July (1.25) and August (1.6)
+  assert.equal(s.spent.gbp, 142.5);  // 80 + 62.50
+  assert.equal(s.spent.usd, 200);
+  assert.equal(s.rate, 1.6);
+  assert.equal(s.perMonth.gbp, 62.5);
+  const p = costSummary([cost({ amount: 50, currency: 'GBP' })], '2026-08-15', hmrc); // £50 each month
+  assert.equal(p.spent.usd, 142.5);  // 62.50 + 80
+});
+
+test("paid in a month uses that month's rate", () => {
+  assert.equal(paidInMonth([cost()], '2026-07', '2026-11-15', hmrc), 80);
+  assert.equal(paidInMonth([cost()], '2026-08', '2026-11-15', hmrc), 62.5);
+  assert.equal(paidInMonth([cost()], '2026-10', '2026-11-15', hmrc), 74.32); // 100 / 1.3456
+});
+
+test("HMRC's file gives the dollar line, and nothing from a file without a believable one", () => {
+  const csv = ['Country/Territories,Currency,Currency Code,Currency Units per £1,Start date,End date',
+    'Australia,Dollar,AUD,1.8987,01/07/2026,31/07/2026', 'USA,Dollar,USD,1.3404,01/07/2026,31/07/2026', ''].join('\r\n');
+  assert.equal(parseHmrcUsd(csv), 1.3404);
+  assert.equal(parseHmrcUsd('USA,Dollar,USD,0,01/07/2026,31/07/2026'), null);
+  assert.equal(parseHmrcUsd('<html>Not found</html>'), null);
+  assert.equal(parseHmrcUsd(''), null);
 });
 
 // Vercel's bill, line by line (the spend reader)

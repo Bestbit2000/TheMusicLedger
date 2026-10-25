@@ -131,8 +131,18 @@ The top of **Admin → Third parties** shows what the app costs and how close ea
   `server/test/thirdPartyCosts.test.js`), migration `100_third_party_costs_usage.sql`.
 - **Costs** (`third_party_costs`) are entered by the owner on the page: who it is paid to (a register key), the
   amount in the currency it is charged in, how often (once / week / month / year), from and until. The page
-  shows **pounds with US dollars underneath** at the owner's own rate (`app_config` `usd_per_gbp`, changed
-  on the page): spent so far (every payment up to today), and what it is costing now a month and a year.
+  shows **pounds with US dollars underneath**: spent so far (every payment up to today), and what it is
+  costing now a month and a year.
+- **The dollar rate is HMRC's, month by month (ML-612).** Each payment is changed at HMRC's monthly rate for
+  the month it was paid in - the rate HMRC accepts for tax; what it is costing now is at this month's rate.
+  The rates are kept in `exchange_rates` (migration 159) and read by `server/services/exchangeRates.js` from
+  HMRC's published file (`.../api/v2/exchange_rates/files/monthly_csv_2026-10.csv`, the USD line, dollars per
+  £1) - by the daily job, from the month of the first cost to next month (out a few days before it starts),
+  and when the page opens without this month's. **Exchange rates, month by month** on the page lists them; a
+  month typed in there is kept (`source` 'manual') and never overwritten, and clearing it goes back to HMRC's.
+  A month with no rate takes the nearest one before it; with none at all, the owner's own figure
+  (`app_config` `usd_per_gbp`) is used. The sums are `rateLookup` and `chargeMonths` in `costs.js`. The
+  meters stay in dollars - their limits are dollars. The register entry is "HMRC monthly exchange rates".
 - **Meters** (`METERS` in the service) are the things a plan limits. Each is read one of three ways:
   - **counted by the app** - file storage (from our own records) and this database's size;
   - **asked from the provider** - Neon compute, storage and data sent out; PostHog events; Vercel's usage in

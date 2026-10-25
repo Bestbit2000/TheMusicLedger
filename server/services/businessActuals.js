@@ -9,7 +9,7 @@
 import pool from '../config/db.js';
 import { listCosts } from './thirdPartyUsage.js';
 import { paidInMonth } from '../thirdParties/costs.js';
-import { getConfigValue } from './appConfig.js';
+import { ratesForSums } from './exchangeRates.js';
 
 // Pure: what the plan forecast for one month ('2026-10') in the scenario the owner is in, or null if
 // the plan doesn't reach that month. Money is cash: what goes out and comes in that month.
@@ -25,14 +25,14 @@ export async function recordMonth(BusinessCase, plan, today = new Date().toISOSt
   const [members, costs, rate] = await Promise.all([
     pool.query('SELECT count(*)::int AS n FROM accounts WHERE deleted_at IS NULL'),
     listCosts(),
-    getConfigValue('usd_per_gbp').catch(() => '1.30')
+    ratesForSums() // ML-612: dollars at that month's HMRC rate
   ]);
   const f = forecastFor(BusinessCase, plan, month);
   await pool.query(
     `INSERT INTO business_actuals (month, members, paid_gbp, forecast_members, forecast_out_gbp, forecast_in_gbp, forecast_scenario)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
      ON CONFLICT (month) DO UPDATE SET members = EXCLUDED.members, paid_gbp = EXCLUDED.paid_gbp, updated_at = now()`,
-    [`${month}-01`, members.rows[0].n, paidInMonth(costs, month, today, Number(rate)), f && f.members, f && f.out, f && f.in, f && f.scenario]
+    [`${month}-01`, members.rows[0].n, paidInMonth(costs, month, today, rate), f && f.members, f && f.out, f && f.in, f && f.scenario]
   );
 }
 
