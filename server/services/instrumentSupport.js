@@ -202,7 +202,8 @@ export function cleanBusiness(input) {
   const offers = [...new Set(Array.isArray(b.offers) ? b.offers : [])];
   if (!offers.length || offers.some(o => !OFFERS.includes(o))) throw withStatus(400, 'Choose what it offers.');
   const link = text(b.link, 500);
-  if (link && !/^https:\/\/[^\s"'<>]+$/i.test(link)) throw withStatus(400, 'The link must be a full https:// address.');
+  // http as well as https (ML-613): a small business's site may only work over http. Never any other kind of link.
+  if (link && !/^https?:\/\/[^\s"'<>]+$/i.test(link)) throw withStatus(400, 'The link must be a full web address, starting https:// or http://.');
   const email = text(b.email, 200);
   if (email && !/^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(email)) throw withStatus(400, 'That email address doesn\'t look right.');
   const postcode = text(b.postcode, 10);
@@ -211,7 +212,7 @@ export function cleanBusiness(input) {
   if (source === 'website' && !link) throw withStatus(400, 'A business checked on its own website needs its website.');
   return {
     name, offers, ukWide: !!b.ukWide, town: text(b.town, 80), county: text(b.county, 80), postcode: postcode ? cleanPostcode(postcode) : null,
-    link, linkKind: link && /(^|\.)facebook\.com\//i.test(link.replace(/^https:\/\//i, '')) ? 'facebook' : 'website',
+    link, linkKind: link && /(^|\.)facebook\.com\//i.test(link.replace(/^https?:\/\//i, '')) ? 'facebook' : 'website',
     phone: text(b.phone, 40), email, whatTheyDo: text(b.whatTheyDo, 400), source, checkedUrl: text(b.checkedUrl, 500), hidden: !!b.hidden
   };
 }

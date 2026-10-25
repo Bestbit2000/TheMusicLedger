@@ -42,7 +42,8 @@ Admin → Feature access.
 **Tables** (migration 155): `support_businesses` (one row per business: `offers` is a list of
 `repairs-brass`, `repairs-woodwind`, `repairs-percussion`, `shop-brass`, `shop-woodwind`,
 `shop-percussion`, `hire`; `uk_wide`; town, county, postcode and its position; `link_url` + `link_kind`
-(website or facebook); phone, email, what they do; `source` website or owner; `checked_on`, `checked_url`;
+(website or facebook; an https or, for a site with no working https, an http address - never another kind of
+link, ML-613); phone, email, what they do; `source` website or owner; `checked_on`, `checked_url`;
 `hidden`), `support_search_counts` (day, looked for, near, searches, searches that found nothing nearby),
 `support_listing_counts` (day, business, times shown) and `place_locations` (a cache of every postcode and
 town looked up, so each is looked up once).

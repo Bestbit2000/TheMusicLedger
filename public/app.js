@@ -4319,7 +4319,7 @@
         box.innerHTML = actions.join('');
         box.querySelectorAll('[data-support-open]').forEach(btn => btn.addEventListener('click', () => {
             const how = btn.dataset.supportOpen;
-            if (how === 'link' && /^https:\/\//i.test(b.link)) window.open(b.link, '_blank', 'noopener');
+            if (how === 'link' && /^https?:\/\//i.test(b.link)) window.open(b.link, '_blank', 'noopener'); // ML-613: http too, never another kind of link
             if (how === 'phone') window.location.href = `tel:${String(b.phone).replace(/[^\d+]/g, '')}`;
             if (how === 'email') window.location.href = `mailto:${b.email}`;
         }));

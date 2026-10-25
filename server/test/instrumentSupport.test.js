@@ -54,9 +54,11 @@ describe('what a business is saved with', () => {
     assert.throws(() => cleanBusiness({ ...ok, offers: [] }), /offers/);
     assert.throws(() => cleanBusiness({ ...ok, offers: ['insurance'] }), /offers/);
   });
-  test('a link must be https, and one checked on its website must have one', () => {
-    assert.throws(() => cleanBusiness({ ...ok, link: 'http://example.com' }), /https/);
-    assert.throws(() => cleanBusiness({ ...ok, link: 'javascript:alert(1)' }), /https/);
+  test('a link is a web address (https, or http for a site that has no https - ML-613), and one checked on its website must have one', () => {
+    assert.equal(cleanBusiness({ ...ok, link: 'http://example.com' }).link, 'http://example.com');
+    assert.throws(() => cleanBusiness({ ...ok, link: 'javascript:alert(1)' }), /web address/);
+    assert.throws(() => cleanBusiness({ ...ok, link: 'ftp://example.com' }), /web address/);
+    assert.throws(() => cleanBusiness({ ...ok, link: 'example.com' }), /web address/);
     assert.throws(() => cleanBusiness({ ...ok, link: '' }), /website/);
     assert.equal(cleanBusiness({ ...ok, link: '', source: 'owner' }).link, null);
   });
