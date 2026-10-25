@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.71.1",
+    "date": "2026-10-25",
+    "changes": [
+      {
+        "key": "ML-613",
+        "type": "Fixes",
+        "summary": "We fixed the website button for a repairer whose site has no secure address, and added the email addresses five businesses in Instrument support publish."
+      }
+    ]
+  },
+  {
     "version": "0.71.0",
     "date": "2026-10-25",
     "changes": [
