@@ -23,16 +23,17 @@ export async function isFeatureLive(featureKey: string): Promise<boolean> {
 export const PASSWORD_TEST_EMAIL_LIKE = 'ml-gc-test+%@themusicledger.local';
 const isTestEmail = (email: string) => /^ml-gc-test\+[\w-]+@themusicledger\.local$/.test(email);
 
-// The newest emailed link of a kind ('invite' | 'reset') for an address, as a path ("/?invite=...") -
+// The newest emailed link of a kind ('invite' | 'reset') for an address, as a path ("/app?invite=...") -
 // with MAIL_PROVIDER=log the email is a row in email_outbox. Waits a little for it to arrive.
+// ML-242: links into the app are built by appLink() and go to /app; an older email's /?invite= is still read.
 export async function emailedLinkPath(email: string, purpose: 'invite' | 'reset' | 'change-email', afterId = 0): Promise<{ path: string; id: number; subject: string }> {
   const deadline = Date.now() + 10_000;
   for (;;) {
     const row = await withClient(async (c) => (await c.query(
       `SELECT id, subject, body_text FROM email_outbox WHERE lower(to_email) = lower($1) AND id > $2 AND body_text LIKE $3 ORDER BY id DESC LIMIT 1`,
-      [email, afterId, `%/?${purpose}=%`])).rows[0]);
-    const m = row && String(row.body_text).match(new RegExp(`/\\?${purpose}=([A-Za-z0-9_-]+)`));
-    if (m) return { path: `/?${purpose}=${m[1]}`, id: Number(row.id), subject: row.subject };
+      [email, afterId, `%?${purpose}=%`])).rows[0]);
+    const m = row && String(row.body_text).match(new RegExp(`(/app)?/?\\?${purpose}=([A-Za-z0-9_-]+)`));
+    if (m) return { path: `${m[1] || '/'}?${purpose}=${m[2]}`, id: Number(row.id), subject: row.subject };
     if (Date.now() > deadline) throw new Error(`No ${purpose} email for ${email} in email_outbox - is the server running with MAIL_PROVIDER=log?`);
     await new Promise(r => setTimeout(r, 400));
   }
