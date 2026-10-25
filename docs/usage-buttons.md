@@ -3,7 +3,7 @@
 **Made by `node scripts/usage-buttons.mjs` - don't edit it by hand.** What counts as a use, and how a tap is
 counted, is in [usage-stats.md](usage-stats.md) ("Every button").
 
-885 buttons: 885 have a name a tap can be counted by, 0 need one.
+890 buttons: 890 have a name a tap can be counted by, 0 need one.
 A button on a screen is listed under the screen or pop-up it is on; one the app builds as it goes, under
 the function that builds it (shown with ()). The words are only to help find it - a tap is never counted by
 its words.
@@ -27,7 +27,7 @@ its words.
 | Home and All tools | 21 | 0 |
 | Stats | 25 | 0 |
 | Instrument support | 11 | 0 |
-| Set-up | 5 | 0 |
+| Set-up | 10 | 0 |
 | My bands | 25 | 0 |
 | My account, instruments, settings | 58 | 0 |
 | Signing in | 15 | 0 |
@@ -648,7 +648,7 @@ its words.
 | flowGlyphPickerTileHtml() | `data-option` |  |
 | renderFlowFermataList() | `data-pause-edit` |  |
 | renderFlowFermataList() | `data-pause-menu` | Pause options |
-| renderFlowFermataAddSection() | `data-pause-kind` | … … … </button |
+| renderFlowFermataAddSection() | `data-pause-kind` | … … … </bu |
 | renderFlowRampList() | `data-ramp-edit` |  |
 | renderFlowRampList() | `data-ramp-menu` | Ramp options |
 | renderFlowRampAddSection() | `data-ramp-target` |  |
@@ -676,7 +676,7 @@ its words.
 | outlineSpeedRowHtml() | `data-speed-note` |  |
 | outlineTableRowHtml() | `data-xkind` |  |
 | outlineTableRowHtml() | `data-xends` |  |
-| outlineExtrasStepHtml() | `data-outline-extra` | …</stron |
+| outlineExtrasStepHtml() | `data-outline-extra` | …</str |
 | outlineExtrasStepHtml() | `data-outline=addExtra` | + … |
 | outlineMediaStepHtml() | `data-outline-media-remove` |  |
 | outlineMediaStepHtml() | `data-outline=addVideo` | + Add the link |
@@ -806,9 +806,14 @@ its words.
 | Where | Counted as | Words on it |
 |---|---|---|
 | setupValueBox() | `data-setup` |  |
+| setupInstrumentRowHtml() | `data-setup` |  |
+| setupPlayHtml() | `data-setup=instrument` | + … |
 | setupBandsHtml() | `data-setup=band` | + … |
 | renderSetup() | `data-setup=back` | Back |
 | renderSetup() | `data-setup=next` |  |
+| setupOpenInstrument() | `data-setup-clef` |  |
+| setupOpenInstrument() | `data-setup-inst=main` | Make it my main instrument |
+| setupOpenInstrument() | `data-setup-inst=remove` | Remove it from my list |
 | setupPickBand() | `#setupNewBandAdd` | Add it |
 
 ## My bands
@@ -1009,7 +1014,7 @@ its words.
 | renderHiddenBands() | `data-band-show` | Show again |
 | renderInvite() | `data-resend-invite` | Send again |
 | renderInvite() | `data-cancel-invite` |  |
-| renderBuild() | `data-slot` | …–… …</ |
+| renderBuild() | `data-slot` | …–… … |
 | renderBuild() | `data-add` |  |
 | openChooser() | `data-opt` |  |
 | openChooser() | `data-extra` |  |

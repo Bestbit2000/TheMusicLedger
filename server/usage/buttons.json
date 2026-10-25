@@ -5227,7 +5227,7 @@
    "group": "Menu, notices and the rest",
    "where": "renderBuild()",
    "name": "data-slot",
-   "label": "…–… …</",
+   "label": "…–… …",
    "html": false
   },
   {
@@ -5701,6 +5701,20 @@
   },
   {
    "group": "Set-up",
+   "where": "setupInstrumentRowHtml()",
+   "name": "data-setup",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Set-up",
+   "where": "setupPlayHtml()",
+   "name": "data-setup=instrument",
+   "label": "+ …",
+   "html": false
+  },
+  {
+   "group": "Set-up",
    "where": "setupBandsHtml()",
    "name": "data-setup=band",
    "label": "+ …",
@@ -5718,6 +5732,27 @@
    "where": "renderSetup()",
    "name": "data-setup=next",
    "label": "",
+   "html": false
+  },
+  {
+   "group": "Set-up",
+   "where": "setupOpenInstrument()",
+   "name": "data-setup-clef",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Set-up",
+   "where": "setupOpenInstrument()",
+   "name": "data-setup-inst=main",
+   "label": "Make it my main instrument",
+   "html": false
+  },
+  {
+   "group": "Set-up",
+   "where": "setupOpenInstrument()",
+   "name": "data-setup-inst=remove",
+   "label": "Remove it from my list",
    "html": false
   },
   {
@@ -5780,7 +5815,7 @@
    "group": "Pieces: Rehearse, play, edit",
    "where": "renderFlowFermataAddSection()",
    "name": "data-pause-kind",
-   "label": "… … … </button",
+   "label": "… … … </bu",
    "html": false
   },
   {
@@ -6151,7 +6186,7 @@
    "group": "Pieces: Rehearse, play, edit",
    "where": "outlineExtrasStepHtml()",
    "name": "data-outline-extra",
-   "label": "…</stron",
+   "label": "…</str",
    "html": false
   },
   {
