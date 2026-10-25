@@ -7,7 +7,7 @@
 
 ## 2. Overview
 Three short steps the first time a new member signs in, so the app suits them from the start: **What I
-play** (the instrument, the clef they read where there is a choice - ML-528 - and their first name if the
+play** (every instrument they play, the clef they read each in where there is a choice - ML-528 - and their first name if the
 account has none), **How it looks** (light or dark, text size, font, background tint, more spacing, reduce motion) and
 **Who I play with** (bands on their own, private, list). "Set up again" in Settings goes through it whenever
 they like. Feature `member_setup`. How it behaves is in `docs/home-greeting.md` ("Set-up for new members").
@@ -32,12 +32,22 @@ The owner's rules it follows (12 Oct 2026, and "No pressure" in `specs/README.md
   `.outline` (a column of rows, `--space-3` apart) › pinned to the bottom, `.flow-edit-sticky-bar-wrap` ›
   `.flow-edit-sticky-bar` › `.flow-edit-sticky-bar-actions.step-foot`: **Back** (`.btn-cancel.btn-nav`, not
   on the first step) and **Next** (`.btn-submit` - "Next: how it looks", "Next: who I play with", "Finish").
-- **What I play:** a welcome line (`.text-sm.text-muted`; "Welcome, Sam. Three quick things so the app
-  suits you..." the first time, "Change anything here..." when gone through again) › a `.form-group` "My
-  first name", only when the account has no first name › a value box `.metroBlk-ctrl-value-btn.w-full`
-  ("B♭ Cornet" over "my instrument"; "Choose" until one is picked) › a second value box ("Bass clef" over
-  "the clef I read") only for an instrument read in more than one clef › a line pointing to My instruments
-  for anyone who plays more than one.
+- **What I play** (every instrument they play, added here - owner, 25 Oct 2026): a welcome line
+  (`.text-sm.text-muted`; "Welcome, Sam. Three quick things so the app suits you. If you want, you can leave
+  any of them empty and come back to this later from the menu: My instruments." the first time, "Change
+  anything here... Tap an instrument to change its clef." when gone through again) › a `.form-group` "My
+  first name", only when the account has no first name › a `.history-item.settings-link` row per instrument
+  (its name over its clef, "· my main instrument" on the main one; a chevron) › `.outline-add` "+ Add my
+  instrument" / "+ Add another instrument" › "Play more than one? Add each of them here." while there are
+  fewer than two.
+- **An instrument's pop-up** (`#flowChoiceModal`, a tap on its row): its name › for an instrument read more
+  than one way, "Which clef do you mainly read?" (`.flow-tile-section-label`; "mainly" because many read both -
+  this is only the clef the app starts in, owner 25 Oct 2026) over a `.flow-choice-option` per clef,
+  the one on now `.selected` with a tick - saved as it is tapped, the pop-up stays open › "Make it my main
+  instrument" (`.btn-cancel.btn-nav.w-full`, not on the main one) › "Remove it from my list"
+  (`.btn-text.btn-text-danger`) › Done. Adding an instrument read more than one way opens this pop-up straight
+  away with a line at the top ("Added to your list..."); one read one way is simply added. The first one
+  added is the main one; removing the main one makes the next one main (as My instruments does).
 - **How it looks:** a line › `.outline-pair` of four value boxes (light or dark, text size, font,
   background tint), each opening the choice pop-up › a `.display-toggle-row` with a `.toggle-switch`
   ("More space between lines and letters" over "And no italics") › a second one, "Reduce motion" (ML-603), over the
@@ -62,8 +72,9 @@ None of its own - every class is an existing component's:
 | The column of rows, two across, "+ Add" | `.outline`, `.outline-pair`, `.outline-add` | [piece-outline](piece-outline.md) |
 | Value box | `.metroBlk-ctrl-value-btn`, `.metroBlk-ctrl-value-label` | [metronome](metronome.md) |
 | Choice rows, the row that grows | `.flow-choice-option`, `.plan-card`, `.flow-tile-section-label` | [add-piece](add-piece.md) |
+| An instrument's pop-up buttons | `.btn-cancel.btn-nav`, `.btn-text.btn-text-danger` | [button](button.md) |
 | Switch | `.display-toggle-row`, `.toggle-switch` | [toggle-switch](toggle-switch.md) |
-| Band rows, Settings row | `.history-item`, `.settings-link` | [list-row](list-row.md) |
+| Instrument rows, band rows, Settings row | `.history-item`, `.settings-link` (no margin of its own in the column) | [list-row](list-row.md) |
 
 ## 5. Props / API
 - `openSetup(first)` - opens it at step 1. `first`: it came up by itself for a new member (the welcome
@@ -81,8 +92,9 @@ None of its own - every class is an existing component's:
 
 ## 6. States
 - **First time / again:** only the welcome line and the closing toast differ.
-- **No instrument yet:** the value box says "Choose".
-- **An instrument read one way:** no clef box.
+- **No instrument yet:** only "+ Add my instrument" and the line under it.
+- **An instrument read one way:** its row shows its clef; its pop-up has no clef choice, only Make it my main
+  (not on the main one) and Remove.
 - **No bands yet:** the step is the line and "+ Add a band".
 - **Offline:** it doesn't come up by itself; opened from Settings, a choice that can't be saved says so in
   a toast (display choices are kept on the device, as in Settings).
@@ -93,9 +105,9 @@ None of its own - every class is an existing component's:
 <p class="text-sm text-muted mb-3"><strong>What I play</strong> · step 1 of 3</p>
 <h2 class="step-question">What do you play?</h2>
 <div class="outline">
-    <p class="text-sm text-muted no-margin">Welcome, Sam. Three quick things so the app suits you. Leave any of them empty - you can come back to this in Settings.</p>
-    <button type="button" class="metroBlk-ctrl-value-btn w-full" aria-haspopup="dialog"><strong>B♭ Euphonium</strong><span class="metroBlk-ctrl-value-label">my instrument</span></button>
-    <button type="button" class="metroBlk-ctrl-value-btn w-full" aria-haspopup="dialog"><strong>Bass clef</strong><span class="metroBlk-ctrl-value-label">the clef I read</span></button>
+    <p class="text-sm text-muted no-margin">Change anything here - each choice is saved as you make it. Tap an instrument to change its clef.</p>
+    <button type="button" class="history-item settings-link" aria-haspopup="dialog"><span class="settings-link-text"><span class="settings-link-title">B♭ Euphonium (4 valves)</span><span class="settings-link-sub">Bass clef · my main instrument</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+    <button type="button" class="outline-add" aria-haspopup="dialog">+ Add another instrument</button>
 </div>
 ```
 
@@ -109,5 +121,5 @@ None of its own - every class is an existing component's:
 - Going to another step moves the keyboard to the question (`tabindex="-1"`), so a screen reader reads the
   new step; after a pop-up closes it goes back to the button that opened it.
 - Every choice is a `<button>`; the pop-up's rows carry `aria-pressed`; the search box has a name.
-- Nothing is conveyed by colour alone: the instrument or clef on now has a tick.
+- Nothing is conveyed by colour alone: the clef on now has a tick, and the main instrument says so in words.
 - The words are positive and nothing is urged: no step counts against the member for being left empty.

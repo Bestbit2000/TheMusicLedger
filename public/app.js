@@ -4401,22 +4401,29 @@
     // Range need no clef of their own; each starts from this one.
     const instrumentHasClefChoice = (inst) => !!inst && (inst.clefChoices || []).length > 1;
     const CLEF_NAMES = { treble: 'Treble clef', bass: 'Bass clef', alto: 'Alto clef', tenor: 'Tenor clef' };
+    const clefChoiceSub = (inst, clef) => (clef === inst.ownClef ? 'Written for the instrument, as a brass band part is' : 'At concert pitch, as a concert or wind band part is');
+    // true once saved (or nothing to change)
+    async function saveInstrumentClef(inst, clef) {
+        if (clef === inst.theoryClef) return true;
+        try {
+            myInstruments = await API.account.setInstrumentClef(inst.id, clef);
+            rangeData = null; // its notes are written in the new clef now
+            scalesClefPicked = false;
+            renderAccountInstruments();
+            return true;
+        } catch (error) {
+            showWarningToast('Clef not saved: ' + error.message);
+            return false;
+        }
+    }
     function openInstrumentClefChoice(inst, then) {
         if (!instrumentHasClefChoice(inst)) return;
-        openFlowChoiceModal(`${inst.name}: which clef do you read?`, inst.clefChoices.map(clef => ({
+        openFlowChoiceModal(`${inst.name}: which clef do you mainly read?`, inst.clefChoices.map(clef => ({
             clef, selected: inst.theoryClef === clef,
-            html: addPieceRow(CLEF_NAMES[clef] || clef, clef === inst.ownClef ? 'Written for the instrument, as a brass band part is' : 'At concert pitch, as a concert or wind band part is')
+            html: addPieceRow(CLEF_NAMES[clef] || clef, clefChoiceSub(inst, clef))
         })), async (opt) => {
             if (opt.clef === inst.theoryClef) return;
-            try {
-                myInstruments = await API.account.setInstrumentClef(inst.id, opt.clef);
-                rangeData = null; // its notes are written in the new clef now
-                scalesClefPicked = false;
-                renderAccountInstruments();
-                if (then) then();
-            } catch (error) {
-                showWarningToast('Clef not saved: ' + error.message);
-            }
+            if (await saveInstrumentClef(inst, opt.clef) && then) then();
         });
     }
     async function saveMyInstruments(ids, primaryId) {
@@ -13812,7 +13819,7 @@
     //    into sharing. The switch is member_setup. specs/components/setup.md.
     const SETUP_STEPS = [
         { key: 'play', name: 'What I play', next: 'how it looks', question: 'What do you play?' },
-        { key: 'look', name: 'How it looks', next: 'who I play with', question: 'How do you like it to look?' },
+        { key: 'look', name: 'How it looks', next: 'who I play with', question: 'How would you like it to look?' },
         { key: 'bands', name: 'Who I play with', next: null, question: 'Who do you play with?' }
     ];
     let setup = null; // { step, first } while the page is open - first: it came up by itself after signing in
@@ -13827,17 +13834,24 @@
     const setupLookValue = (id) => { const c = SETUP_LOOK[id]; return (c.options.find(([v]) => v === displayPrefs[c.key]) || c.options[0])[1]; };
     const setupMain = () => (myInstruments || []).find(i => i.isPrimary) || (myInstruments || [])[0] || null;
     const setupNeedsName = () => !((accountProfile && accountProfile.firstName) || '').trim();
+    // What I play (owner, 25 Oct 2026): every instrument they play, added here - one row each, its clef under its
+    // name; a tap opens its own pop-up (the clef, make it my main, remove). Adding asks the clef straight after,
+    // only for an instrument read more than one way. The first one added is the main one.
+    function setupInstrumentRowHtml(i) {
+        const sub = [CLEF_NAMES[i.theoryClef] || '', i.isPrimary ? 'my main instrument' : ''].filter(Boolean).join(' · ');
+        return `<button type="button" class="history-item settings-link" data-setup="inst:${i.id}" aria-haspopup="dialog"><span class="settings-link-text"><span class="settings-link-title">${escapeHtml(i.name)}</span>${sub ? `<span class="settings-link-sub">${escapeHtml(sub)}</span>` : ''}</span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>`;
+    }
     function setupPlayHtml() {
-        const main = setupMain();
+        const mine = myInstruments || [];
         const hello = setup.first
-            ? `Welcome${accountProfile && (accountProfile.displayName || accountProfile.firstName) ? `, ${escapeHtml(accountProfile.displayName || accountProfile.firstName)}` : ''}. Three quick things so the app suits you. Leave any of them empty - you can come back to this in Settings.`
-            : 'Change anything here - each choice is saved as you make it.';
+            ? `Welcome${accountProfile && (accountProfile.displayName || accountProfile.firstName) ? `, ${escapeHtml(accountProfile.displayName || accountProfile.firstName)}` : ''}. Three quick things so the app suits you. If you want, you can leave any of them empty and come back to this later from the menu: My instruments.`
+            : `Change anything here - each choice is saved as you make it.${mine.length ? ` Tap an instrument to change ${mine.some(instrumentHasClefChoice) ? 'its clef' : 'it'}.` : ''}`;
         return `
             <p class="text-sm text-muted no-margin">${hello}</p>
             ${setupNeedsName() || setup.nameAsked ? `<div class="form-group no-margin"><label for="setupFirstName">My first name</label><input type="text" id="setupFirstName" autocomplete="given-name" maxlength="60" value="${escapeHtml((accountProfile && accountProfile.firstName) || '')}"></div>` : ''}
-            ${setupValueBox('instrument', main ? main.name : 'Choose', 'my instrument')}
-            ${instrumentHasClefChoice(main) ? setupValueBox('clef', CLEF_NAMES[main.theoryClef] || main.theoryClef, 'the clef I read') : ''}
-            <p class="text-sm text-muted no-margin">${(myInstruments || []).length > 1 ? `You also play ${escapeHtml(myInstruments.filter(i => i !== main).map(i => i.name).join(', '))}. ` : ''}Play more than one? Add the others in My instruments, on the menu.</p>`;
+            ${mine.map(setupInstrumentRowHtml).join('')}
+            <button type="button" class="outline-add" data-setup="instrument" aria-haspopup="dialog">+ ${mine.length ? 'Add another instrument' : 'Add my instrument'}</button>
+            ${mine.length < 2 ? '<p class="text-sm text-muted no-margin">Play more than one? Add each of them here.</p>' : ''}`;
     }
     function setupLookHtml() {
         return `
@@ -13888,14 +13902,59 @@
     async function setupPickInstrument() {
         try { if (!instrumentCatalogue) instrumentCatalogue = await API.instruments.list(); }
         catch (error) { showWarningToast('Instruments not loaded: ' + error.message); return; }
-        const main = setupMain();
-        openSearchChoiceModal('What do you play?', instrumentCatalogue.map(i => ({ label: i.name, group: i.family, value: i.id, selected: !!main && main.id === i.id })), async (it) => {
-            // the one chosen becomes the main instrument; any others already on the list stay
-            const ids = [...new Set([...(myInstruments || []).map(i => i.id), it.value])];
-            try { myInstruments = await API.account.setInstruments(ids, it.value); }
-            catch (error) { showWarningToast('Instrument not saved: ' + error.message); }
+        const mine = myInstruments || [];
+        const have = new Set(mine.map(i => i.id));
+        // the ones already on the list are left out; the first one added is the main one
+        openSearchChoiceModal(mine.length ? 'What else do you play?' : 'What do you play?', instrumentCatalogue.filter(i => !have.has(i.id)).map(i => ({ label: i.name, group: i.family, value: i.id })), async (it) => {
+            const main = setupMain();
+            try { myInstruments = await API.account.setInstruments([...mine.map(i => i.id), it.value], main ? main.id : it.value); }
+            catch (error) { showWarningToast('Instrument not saved: ' + error.message); setupRedraw('instrument'); return; }
+            renderAccountInstruments();
             setupRedraw('instrument');
+            // read more than one way: its own pop-up straight away, for the clef - closing it keeps the one ticked
+            if (instrumentHasClefChoice(myInstruments.find(i => i.id === it.value))) setupOpenInstrument(it.value, 'Added to your list. Change the clef any time by tapping the instrument.');
         }, { placeholder: 'Search instruments', all: true });
+    }
+    // One instrument's own pop-up: the clef it is read in (where there is a choice), make it my main, remove it.
+    // A clef is saved as it is tapped and the pop-up stays open; the other two close it. note: a line under it.
+    function setupOpenInstrument(id, note) {
+        const inst = (myInstruments || []).find(i => i.id === id);
+        if (!inst) return;
+        document.getElementById('flowChoiceTitle').innerText = inst.name;
+        const inlineExtra = document.getElementById('flowChoiceInlineExtra');
+        inlineExtra.classList.add('hidden-group');
+        inlineExtra.innerHTML = '';
+        const box = document.getElementById('flowChoiceOptions');
+        const draw = () => {
+            const cur = myInstruments.find(i => i.id === id) || inst;
+            box.innerHTML = (note ? `<p class="text-sm text-muted">${escapeHtml(note)}</p>` : '') + (instrumentHasClefChoice(cur)
+                ? '<span class="flow-tile-section-label">Which clef do you mainly read?</span>' + cur.clefChoices.map(clef => {
+                    const on = cur.theoryClef === clef;
+                    return `<button type="button" class="flow-choice-option${on ? ' selected' : ''}" data-setup-clef="${escapeHtml(clef)}" aria-pressed="${on}">${addPieceRow(CLEF_NAMES[clef] || clef, clefChoiceSub(cur, clef))}${on ? '<span class="material-symbols-outlined" aria-hidden="true">check</span>' : ''}</button>`;
+                }).join('')
+                : '')
+                + (cur.isPrimary ? '' : '<button type="button" class="btn-cancel btn-nav w-full" data-setup-inst="main">Make it my main instrument</button>')
+                + '<button type="button" class="btn-text btn-text-danger" data-setup-inst="remove">Remove it from my list</button>';
+            box.querySelectorAll('[data-setup-clef]').forEach(b => b.addEventListener('click', async () => {
+                if (!await saveInstrumentClef(myInstruments.find(i => i.id === id) || inst, b.dataset.setupClef)) return;
+                draw();
+                setupRedraw();
+                box.querySelector('.selected')?.focus();
+            }));
+            box.querySelectorAll('[data-setup-inst]').forEach(b => b.addEventListener('click', async () => {
+                const act = b.dataset.setupInst;
+                hideModal('flowChoiceModal');
+                // as My instruments does it: removing the main one makes the next one main
+                const rest = act === 'remove' ? myInstruments.filter(i => i.id !== id) : myInstruments;
+                const main = act === 'main' ? id : (rest.find(i => i.isPrimary) || rest[0] || {}).id || null;
+                await saveMyInstruments(rest.map(i => i.id), main);
+                setupRedraw(act === 'main' ? `inst:${id}` : 'instrument');
+            }));
+        };
+        draw();
+        filterPanelOpen = null; // ML-595: the choice pop-up is something else now
+        document.getElementById('flowChoiceCancelBtn').textContent = 'Done';
+        showModal('flowChoiceModal');
     }
     function setupPickLook(id) {
         const c = SETUP_LOOK[id];
@@ -13969,7 +14028,7 @@
         if (!t || !setup) return;
         const act = t.dataset.setup;
         if (act === 'instrument') return setupPickInstrument();
-        if (act === 'clef') return openInstrumentClefChoice(setupMain(), () => setupRedraw('clef'));
+        if (act.startsWith('inst:')) return setupOpenInstrument(Number(act.slice(5)));
         if (act.startsWith('look:')) return setupPickLook(act.slice(5));
         if (act === 'band') return setupPickBand();
         if (act === 'back' || act === 'next') {

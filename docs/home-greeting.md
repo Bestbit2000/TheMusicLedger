@@ -131,7 +131,7 @@ Three short steps the first time a new member signs in, so the app suits them fr
 
 | Step | Asks | Saved by |
 |---|---|---|
-| What I play | The instrument (it becomes the main one), the clef they read where the instrument has a choice (ML-528), and a first name if the account has none - an invitation to a band can't be accepted without one (ML-479) | `PUT /api/account/instruments`, `.../instruments/:id/clef`, `PUT /api/account` |
+| What I play | Every instrument they play, one row each (the first added is the main one; a tap opens its pop-up: the clef they read it in where it has a choice - ML-528 - make it my main, remove it; adding one read more than one way opens that pop-up straight away - owner, 25 Oct 2026), and a first name if the account has none - an invitation to a band can't be accepted without one (ML-479) | `PUT /api/account/instruments`, `.../instruments/:id/clef`, `PUT /api/account` |
 | How it looks | Light or dark, text size, font, background tint, more spacing - each on its own, no dyslexia preset (owner, 30 Sep 2026) | `saveDisplayPrefs` (`PUT /api/account/display`) |
 | Who I play with | Bands on my own list, from the directory or typed in | `POST /api/account/bands/:id/join`, `POST /api/account/bands` |
 

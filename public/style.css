@@ -2930,6 +2930,8 @@
     .outline-extra-clash { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--font-sm); font-weight: var(--font-weight-semibold); color: var(--danger-text); }
     .outline-extra-clash .flow-tile-warning-icon { flex: none; width: var(--icon-md); height: var(--icon-md); }
     .outline-add { min-height: var(--touch-target); border: 2px dashed var(--control-border); border-radius: var(--radius-lg); background: transparent; color: var(--text-color); font: inherit; font-weight: var(--font-weight-bold); cursor: pointer; }
+    /* a list row in the column (set-up's instruments): the column's gap spaces it, not the row's own margin */
+    .outline > .history-item.settings-link { margin-bottom: 0; }
     /* ML-418: a plan in the Pick a plan pop-up - its row is the button; one of your own has a ⋮ inside the box, top right */
     .plan-row { position: relative; }
     .plan-row .list-item-menu-btn { position: absolute; top: var(--space-2); right: var(--space-2); }
