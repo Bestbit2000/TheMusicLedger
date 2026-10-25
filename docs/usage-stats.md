@@ -162,6 +162,26 @@ first run, 10 without a name yet).
 - **A new tool** gets a line in `USES` and a `window.Usage?.begin / end / finish` where it starts, pauses
   and gets to its end - and a line in the tables above.
 
+## Telling members
+
+The owner asked for a notice (25 Oct 2026), published by him on Admin → Notifications at the release that
+switches the counting on. **Draft - not sent; the wording is his to change:**
+
+> **We now count which parts of the app are used**
+>
+> To see what helps and what nobody needs, the app now counts how often each tool, screen and button is
+> used.
+>
+> The counts never say who: there is nothing in them about you, your device or anything you type.
+>
+> So that each person is counted once a day, your device remembers which tools you have used today. That is
+> cleared every day and when you sign out, and it is never sent to us.
+>
+> The details are in the privacy policy, under About.
+
+Suggested as an ordinary notice, not Important: nothing in the counts is about anyone, so it doesn't need to
+stop everyone before they carry on. (Switching Important on would also allow the link to the privacy policy.)
+
 ## The owner's answers (25 Oct 2026)
 
 1. **The time limits:** yes - 30 seconds for a metronome or a recording, 5 seconds for the Tuning fork, 1
