@@ -1,6 +1,7 @@
 # Usage statistics: what counts as a use (ML-22)
 
-**Status: checked by the owner (25 Oct 2026) - his answers are at the end. Nothing here is built yet.**
+**Status: checked by the owner (25 Oct 2026) - his answers are at the end. The counting is built (step 2,
+"How it is counted" below); the page that shows it, Admin → Usage → Heat map, is step 3 and not built yet.**
 
 ML-22 asks how much each feature is used, so the owner can see what is used a lot and what is barely
 used. This page says, tool by tool, what one use is. Every count built later follows this page, so a
@@ -131,6 +132,35 @@ first run, 10 without a name yet).
   `data-count="..."` before the counting goes live, and a unit test then fails a release that adds a button
   without one.
 - **Close (X) and Done** are told apart where it matters by giving one of them `data-count`.
+
+## How it is counted (step 2)
+
+- **`public/usage.js`** (window.Usage, loaded before app.js) holds the list of uses (`USES`, with the time
+  after which one counts as finished), the naming rule for buttons (`buttonName`) and the counting. The
+  server (`server/services/usageRules.js`) and the button list (`scripts/usage-buttons.mjs`) load the same
+  file, so all three follow one rule.
+- **Three kinds:** `use` (a tool's start and finish, from the hooks in app.js marked "ML-22"), `tap` (every
+  button, by one click listener on the page, before the button's own code runs) and `view` (every screen
+  opened, in `switchView`). Play, Stop, Play again within a minute is one use; a use that finishes after a time
+  (30 seconds of metronome) waits while it is paused.
+- **On the device** the counts are added up and sent every 30 seconds, and when the app goes into the
+  background, to `POST /api/usage` - straight, not through `apiCall`: a count that can't be sent waits for
+  the next try and is lost if the app closes; none waits in the offline outbox. Nothing is counted while a
+  super admin previews the app as another account type.
+- **Members:** the device remembers which items it has used today (`localStorage` `tml.usageSeen`, cleared
+  each day and at sign-out - in the privacy policy) and marks the first use of each as "first today"; the
+  server adds those up as `members`.
+- **On the server** each row is checked (a known kind, place and use; a name, never typed text; small whole
+  numbers) and added to that day's row in **`usage_counts`** (migration 160): day (London), kind, item,
+  place (`own` / `session`), who (`member` / `admin` / `test` - the account is used for nothing else), started,
+  finished, members. No account column, so nothing in it is about anyone.
+- **A new button needs a name.** `server/test/usageCounts.test.js` reads every button (the same scan as
+  `scripts/usage-buttons.mjs`) and fails if one has no id, no `data-*` attribute and no `data-count`. A tile
+  built from a list gets `data-option` (`usageOptionKey` in app.js), so each choice is counted on its own.
+  Run `node scripts/usage-buttons.mjs` after adding buttons to bring [usage-buttons.md](usage-buttons.md) up
+  to date.
+- **A new tool** gets a line in `USES` and a `window.Usage?.begin / end / finish` where it starts, pauses
+  and gets to its end - and a line in the tables above.
 
 ## The owner's answers (25 Oct 2026)
 

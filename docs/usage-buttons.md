@@ -3,7 +3,7 @@
 **Made by `node scripts/usage-buttons.mjs` - don't edit it by hand.** What counts as a use, and how a tap is
 counted, is in [usage-stats.md](usage-stats.md) ("Every button").
 
-885 buttons: 875 have a name a tap can be counted by, 10 need one.
+885 buttons: 885 have a name a tap can be counted by, 0 need one.
 A button on a screen is listed under the screen or pop-up it is on; one the app builds as it goes, under
 the function that builds it (shown with ()). The words are only to help find it - a tap is never counted by
 its words.
@@ -15,12 +15,12 @@ its words.
 | Tuner | 11 | 0 |
 | Tuning fork | 7 | 0 |
 | Timer | 13 | 0 |
-| Warm-ups | 38 | 1 |
-| Scales | 50 | 1 |
-| Theory | 25 | 1 |
-| Skills: Tempo, Pulse, Pitch, Rhythm | 38 | 3 |
+| Warm-ups | 38 | 0 |
+| Scales | 50 | 0 |
+| Theory | 25 | 0 |
+| Skills: Tempo, Pulse, Pitch, Rhythm | 38 | 0 |
 | Range | 14 | 0 |
-| Pieces: Rehearse, play, edit | 268 | 3 |
+| Pieces: Rehearse, play, edit | 268 | 0 |
 | Add a piece | 7 | 0 |
 | Recordings | 6 | 0 |
 | Practice lists | 16 | 0 |
@@ -29,7 +29,7 @@ its words.
 | Instrument support | 11 | 0 |
 | Set-up | 5 | 0 |
 | My bands | 25 | 0 |
-| My account, instruments, settings | 58 | 1 |
+| My account, instruments, settings | 58 | 0 |
 | Signing in | 15 | 0 |
 | Menu, notices and the rest | 99 | 0 |
 
@@ -109,7 +109,7 @@ its words.
 | sessionBlockModal | `#sessionBlockCloseBtn` | Close |
 | top bar | `#sessionHistoryItemEdit` | edit Edit |
 | top bar | `#sessionHistoryItemDelete` | delete Delete |
-| renderPrepareList() | `data-prepare-id` | … … bar${f.totalBars === 1 ? '' |
+| renderPrepareList() | `data-prepare-id` | … … bar${f.totalBars === 1 ? '' : ' |
 | renderPathThrough() | `data-through` | … … |
 | paintBarHtml() | `data-bar` | … … |
 | renderPaint() | `data-pot` | … |
@@ -122,7 +122,7 @@ its words.
 | renderPlanPick() | `data-plan-menu` | more_vert |
 | renderSessScales() | `data-scales-all` | See all my scales |
 | sessContentRowHtml() | `data-content` | … chevron_right |
-| renderSessionPlan() | `data-block` | … … ${escapeHtml(blo |
+| renderSessionPlan() | `data-block` | … … ${escapeHtml(blockT |
 | openSessionBlockModal() | `data-opt` | … … ` : ''} |
 
 ## Metronome (Quick Play)
@@ -185,12 +185,12 @@ its words.
 | tunerView | `#tunerPauseBtn` | pause |
 | tunerSettingsModal | `#tunerSettingsCloseBtn` | Close |
 | tunerSettingsModal | `#tunerTranspositionBtn` | Transposition C |
-| tunerSettingsModal | `#tunerA4Btn` | Tuning reference (A4) 440Hz |
+| tunerSettingsModal | `#tunerANBtn` | Tuning reference (A4) 440Hz |
 | tunerTranspositionModal | `#tunerTranspositionCloseBtn` | Close |
-| tunerA4Modal | `#tunerA4CloseBtn` | Close |
-| tunerA4Modal | `#tunerA4Minus` | Decrease A4 reference |
-| tunerA4Modal | `#tunerA4Plus` | + |
-| tunerA4Modal | `#tunerA4ResetBtn` | Reset to 440Hz |
+| tunerA4Modal | `#tunerANCloseBtn` | Close |
+| tunerA4Modal | `#tunerANMinus` | Decrease A4 reference |
+| tunerA4Modal | `#tunerANPlus` | + |
+| tunerA4Modal | `#tunerANResetBtn` | Reset to 440Hz |
 
 ## Tuning fork
 
@@ -261,9 +261,9 @@ its words.
 | warmupListModal | `#warmupListCloseBtn` | Close |
 | warmupListModal | `#warmupListSaveBtn` | Save |
 | warmupListModal | `#warmupListDeleteBtn` | Delete this list |
-| renderWarmupLists() | `data-warmup-edit` | ` : ' '} … … <span cl |
+| renderWarmupLists() | `data-warmup-edit` | ` : ' '} … … <span cla |
 | warmupsRenderChoose() | `data-warmup` | …. … … bpm |
-| warmupsRenderChoose() | **needs a name** | …. … … lock</spa |
+| warmupsRenderChoose() | `data-warmup-locked` | …. … … lock</spa |
 
 ## Scales
 
@@ -317,7 +317,7 @@ its words.
 | scalesView | `#scalesCountIn` | 4 get ready |
 | scalesView | `#scalesNextBtn` | skip_next next |
 | scalesView | `#scalesGotItBtn` | check got it |
-| scalesTile() | **needs a name** | … … ` : ''} |
+| scalesTile() | `data-option` | … … ` : ''} |
 | scalesRenderChoose() | `data-pick` | … … |
 
 ## Theory
@@ -335,16 +335,16 @@ its words.
 | theoryOptionsView | `#theorySmartMoreBtn` | Learn more |
 | theoryOptionsView | `#theoryStartBtn` | Start |
 | theoryPlayView | `#theoryBreakNextBtn` | Next round |
-| theoryResultsView | **needs a name** | Learn more |
+| theoryResultsView | `smartlearn-more` | Learn more |
 | theoryResultsView | `#theoryBlockNextBtn` | Next quiz |
 | theoryResultsView | `#theoryAgainBtn` | Again |
 | theoryResultsView | `#theoryChangeBtn` | Change options |
 | theoryResultsView | `#theoryOtherBtn` | Another quiz |
 | theoryResultsView | `#theoryHomeBtn` | Home |
-| renderTheoryList() | `data-quiz` | … … ${escapeHt |
-| renderTheoryList() | `data-quiz` | … … ${n ? `${n |
+| renderTheoryList() | `data-quiz` | … … ${escapeHtml |
+| renderTheoryList() | `data-quiz` | … … … |
 | theoryOptionBox() | `data-theory-opt` | … … |
-| renderTheoryPlayed() | `data-set` | … … ` : ''}… · played ${theoryTi |
+| renderTheoryPlayed() | `data-set` | … … ` : ''}… · played ${theoryTim |
 | renderTheoryPlayed() | `#theoryPlayedMoreBtn` | Show more |
 | theoryNextQuestion() | `data-id` | … |
 | theoryNextQuestion() | `data-id` | … |
@@ -363,19 +363,19 @@ its words.
 | skillsView | `#skillListRenameBtn` | Rename this list |
 | skillsView | `#skillListDeleteBtn` | Delete this list |
 | skillsView | `#warmupListNewBtn` | + New warm-up list |
-| tapTempoView | **needs a name** | Learn more |
+| tapTempoView | `smartlearn-more` | Learn more |
 | tapTempoView | `#tapTempoStartBtn` | Start |
 | tapTempoPlayView | `#tapTempoPad` | Tap |
 | tapTempoPlayView | `#tapTempoNextBtn` | Next speed |
 | gapTrainerView | `#gapTrainerStartBtn` | Start |
 | gapTrainerPlayView | `#gapTrainerPad` | Tap the beat |
 | gapTrainerPlayView | `#gapTrainerStopBtn` | Stop |
-| earView | **needs a name** | Learn more |
+| earView | `smartlearn-more` | Learn more |
 | earView | `#earStartBtn` | Start |
 | earPlayView | `#earReplayBtn` | replay Play again |
 | earPlayView | `#earSkipBtn` | Skip |
 | earPlayView | `#earNextBtn` | Next note |
-| drillResultsView | **needs a name** | Learn more |
+| drillResultsView | `smartlearn-more` | Learn more |
 | drillResultsView | `#drillAgainBtn` | Again |
 | drillResultsView | `#drillChangeBtn` | Change options |
 | drillResultsView | `#drillOtherBtn` | Another skill |
@@ -387,11 +387,11 @@ its words.
 | renderSkills() | `#skillListNewBtn` | + New list |
 | renderSkills() | `data-skill-remove` | close |
 | renderDrillOptions() | `data-drill-opt` | … … |
-| renderDrillPlayed() | `data-set` | … … ` : ''}… · played ${theoryTim |
+| renderDrillPlayed() | `data-set` | … … ` : ''}… · played ${theoryTime |
 | renderDrillPlayed() | `data-more` | Show more |
-| renderSkillsHub() | `data-skill-view` | … ${escapeHtml( |
+| renderSkillsHub() | `data-skill-view` | … ${escapeHtml(t. |
 | earShowQuestion() | `data-id` | … |
-| openRhythmPicker() | `data-rhythm` | … ……` : ''}</sp |
+| openRhythmPicker() | `data-rhythm` | … ……` : ''}</span |
 
 ## Range
 
@@ -600,8 +600,8 @@ its words.
 | flowCheckModal | `#flowCheckCloseBtn` | Close |
 | flowCheckModal | `#flowCheckFixBtn` | Go back and fix |
 | flowCheckModal | `#flowCheckContinueBtn` | Save anyway |
-| renderRehearseList() | `data-rehearse-id` | … … bar${f.totalBars === 1 ? '' |
-| renderFlowPlaybackModal() | **needs a name** | … |
+| renderRehearseList() | `data-rehearse-id` | … … bar${f.totalBars === 1 ? '' : ' |
+| renderFlowPlaybackModal() | `pb-option` | … |
 | renderFlowPlaybackModal() | `data-pb-level` | … … |
 | renderFlowsList() | `data-flow-library-menu-btn` | more_vert |
 | flowMediaItemHtml() | `rec-map` | … · … start, bars and end |
@@ -629,9 +629,9 @@ its words.
 | flowBlockCardHtml() | `data-block-grab-handle` | drag_indicator |
 | flowBlockCardHtml() | `data-block-menu-btn` | more_vert |
 | renderFlowBarGrid() | `data-block-id` | … |
-| flowBarFullTileHtml() | `flow-jump` | … … … <span class="flow-bar-full-ro |
+| flowBarFullTileHtml() | `flow-jump` | … … … <span class="flow-bar-full-row |
 | flowLeadInPlayTileHtml() | `flow-jump` | `; if (layout === '2') { return `… Lead-in |
-| flowBarDetailTileHtml() | `flow-jump` | ` : ` `; const warning = |
+| flowBarDetailTileHtml() | `flow-jump` | ` : ` `; const warning = f |
 | flowBarDetailTileHtml() | `data-block-id` | `; const warning = flowRepeatBarInvalid(b) \|\| flowIntroInval |
 | renderFlowBarPopup() | `data-bar-popup=prev` | … |
 | renderFlowBarPopup() | `data-bar-popup=next` | … |
@@ -640,15 +640,15 @@ its words.
 | renderFlowBarPopup() | `data-bar-popup=duplicate` | Duplicate |
 | renderFlowBarPopup() | `data-bar-popup=later` | Move later |
 | renderFlowBarPopup() | `data-bar-popup=delete` | Delete this bar |
-| openFlowChoiceModal() | `data-choice-idx` | … `} ${opt.selected && !opt.html ? ' check</spa |
+| openFlowChoiceModal() | `data-choice-idx` | … `} ${opt.selected && !opt.html ? ' check |
 | renderFlowRepeatBarModal() | `data-pass` | … |
 | flowOpenNotePicker() | `data-note` | … |
 | flowOpenBarStartPicker() | `data-start-option` | … |
-| flowBarlinePickerTileHtml() | **needs a name** | … ${o.countLabel ? `<span class="flow-picker-tile- |
-| flowGlyphPickerTileHtml() | **needs a name** | … … |
-| renderFlowFermataList() | `data-pause-edit` | … Bar …, beat ${flowPauseBeat |
+| flowBarlinePickerTileHtml() | `data-option` | … ${o.countLabel ? `<span class="flow-picker-tile-cou |
+| flowGlyphPickerTileHtml() | `data-option` | … … |
+| renderFlowFermataList() | `data-pause-edit` | … Bar …, beat ${flowPauseBeatNu |
 | renderFlowFermataList() | `data-pause-menu` | more_vert |
-| renderFlowFermataAddSection() | `data-pause-kind` | … … … </bu |
+| renderFlowFermataAddSection() | `data-pause-kind` | … … … </button |
 | renderFlowRampList() | `data-ramp-edit` | … |
 | renderFlowRampList() | `data-ramp-menu` | more_vert |
 | renderFlowRampAddSection() | `data-ramp-target` | … … |
@@ -676,14 +676,14 @@ its words.
 | outlineSpeedRowHtml() | `data-speed-note` | … |
 | outlineTableRowHtml() | `data-xkind` | … |
 | outlineTableRowHtml() | `data-xends` | … |
-| outlineExtrasStepHtml() | `data-outline-extra` | … …</str |
+| outlineExtrasStepHtml() | `data-outline-extra` | … …</stron |
 | outlineExtrasStepHtml() | `data-outline=addExtra` | + … |
-| outlineMediaStepHtml() | `data-outline-media-remove` | … … <span class="text-s |
+| outlineMediaStepHtml() | `data-outline-media-remove` | … … <span class="text-sm |
 | outlineMediaStepHtml() | `data-outline=addVideo` | + Add the link |
 | outlineMediaStepHtml() | `data-outline=pickFile` | + … |
 | renderOutlineExtraForm() | `data-x-sign` | … … |
 | renderOutlineEndingsForm() | `data-ends-add` | + Add another ending |
-| outlineReadPanelHtml() | `data-outline=readChecks` | photo_camera Read from your …: ${pieceReadLevelWord(rea |
+| outlineReadPanelHtml() | `data-outline=readChecks` | photo_camera Read from your …: ${pieceReadLevelWord(read. |
 
 ## Add a piece
 
@@ -725,8 +725,8 @@ its words.
 | practiceListView | `#plReportBtn` | Report this list |
 | practiceListView | `#plClearRecordingsBtn` | Delete this list's recordings |
 | practiceListView | `#plDeleteBtn` | Delete this list |
-| renderPracticeListRows() | `data-list` | … … · ` : ''}… · ${l.pieceCoun |
-| renderPracticeList() | `data-piece` | … … ${pb.archived ? '' : pb.prep ? '<span class="text- |
+| renderPracticeListRows() | `data-list` | … … · ` : ''}… · ${l.pieceCount |
+| renderPracticeList() | `data-piece` | … … ${pb.archived ? '' : pb.prep ? '<span class="text-sm |
 | renderPracticeList() | `data-piece-menu` | more_vert |
 
 ## Home and All tools
@@ -885,7 +885,7 @@ its words.
 | avatarModal | `data-modal-close` | Close |
 | accountDeleteModal | `close (X)` | Close |
 | accountDeleteModal | `#accountDeleteConfirmBtn` | Delete my account for good |
-| accountDeleteModal | **needs a name** | Keep my account |
+| accountDeleteModal | `keep-account` | Keep my account |
 | renderSettingsList() | `list-edit` | edit |
 | renderAccountInstruments() | `data-instrument-menu-id` | more_vert |
 | renderTwoStepSetup() | `data-two-step-open` | Add to my authenticator app |
@@ -1001,7 +1001,7 @@ its words.
 | renderOfflineList() | `data-offline-remove` | Remove |
 | renderNotificationsUpdateCard() | `#notificationsReloadBtn` | Reload now |
 | renderNotificationsUpdateCard() | `data-notifications-home` | Start practising |
-| renderNotificationsView() | `data-notification-id` | … … ${n.important ? '<span c |
+| renderNotificationsView() | `data-notification-id` | … … ${n.important ? '<span cl |
 | renderNotificationsView() | `data-notification-clear` | close |
 | renderNotificationsView() | `data-notification-report` | Report this notice |
 | renderClearedList() | `data-notification-restore` | Restore |
@@ -1009,7 +1009,7 @@ its words.
 | renderHiddenBands() | `data-band-show` | Show again |
 | renderInvite() | `data-resend-invite` | Send again |
 | renderInvite() | `data-cancel-invite` | … |
-| renderBuild() | `data-slot` | …–… … |
+| renderBuild() | `data-slot` | …–… …</ |
 | renderBuild() | `data-add` | … … |
 | openChooser() | `data-opt` | … … ` : ''} |
 | openChooser() | `data-extra` | … |

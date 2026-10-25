@@ -193,6 +193,7 @@
             localStorage.removeItem('authToken');
             localStorage.removeItem('userId');
             localStorage.removeItem('tml.offlineCopyOn'); // ML-220: the copy for offline use goes too
+            window.Usage?.forget(); // ML-22: which items were used today on this device
             this.token = null;
             this.userId = null;
             this.isAuthenticated = false;
@@ -1188,6 +1189,26 @@
         cont.appendChild(scroll);
     }
 
+    // ML-22: usage counts - every button pressed, every screen opened, and each tool's start and finish,
+    // counted per item per day and never who (public/usage.js, docs/usage-stats.md). Sent straight to the
+    // server every 30 seconds, not through apiCall: a count that can't be sent waits for the next try, and
+    // none waits in the offline outbox. Nothing is counted while previewing the app as another account type.
+    // A picker tile's data-option, so each choice is counted on its own (never the tile's words)
+    function usageOptionKey(v) { return window.Usage ? window.Usage.optionKey(v) : 'option'; }
+    function startUsageCounts() {
+        if (!window.Usage) return;
+        Usage.start({
+            send: async (rows) => {
+                if (previewLevel || !auth.token) return;
+                const res = await fetch('/api/usage', { method: 'POST', keepalive: true, cache: 'no-store', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.token}` }, body: JSON.stringify({ rows }) });
+                if (res.status >= 500 || res.status === 429) throw new Error('not now'); // tried again later; anything else is dropped
+            },
+            place: () => (practiceRun && !practiceRun.done ? 'session' : 'own'),
+            screen: () => viewStack[viewStack.length - 1],
+            who: () => auth.userId || ''
+        });
+    }
+
     async function initializeApp() {
         // Check if coming back from OAuth callback
         if (await auth.handleCallback()) {
@@ -1205,6 +1226,7 @@
             displayLoginScreen();
             return;
         }
+        startUsageCounts(); // ML-22
 
         // Ask the browser not to evict this origin's storage under space
         // pressure - some mobile browsers otherwise treat localStorage as
@@ -2450,6 +2472,8 @@
 
         const targetEl = document.getElementById(viewName);
         setShown(targetEl, true);
+        window.Usage?.view(viewName); // ML-22: a screen opened
+        if (viewName === 'piecePathView') window.Usage?.begin('prepare'); // ML-22: a piece's path opened
         if (!isBack && viewName === 'flowPlayView') rehearseListOpen = false; // ML-601: a piece opened folds the list away
         applyPanes(viewName); // ML-239: on a wide screen a list page keeps its list on the left
         if (railOn()) renderNavMenu(); // ML-239: the rail is always showing, so it is kept as fresh as an opened menu
@@ -7820,6 +7844,7 @@
     document.getElementById('prepSkipBtn')?.addEventListener('click', () => openPaint());
     // The run-through has reached the end (or Done): on to setting the levels, with the Level it was played at.
     function runThroughDone() {
+        window.Usage?.finish('prepare'); // ML-22: a step of a piece's path done
         const lv = flowSession ? flowSession.level : 5;
         endLevelPractice();
         if (viewStack[viewStack.length - 1] === 'flowPlayView') viewStack.pop();
@@ -8244,7 +8269,7 @@
         const fixed = flowSubBeatsMode === 'fixed' ? flowSubdivideOverride : null;
         const when = practiceCountInWhen();
         const bars = countInText(practiceCountInBars() || 1);
-        const tile = (attrs, label, on) => `<button type="button" class="metroBlk-timesig-opt${on ? ' selected' : ''}" ${attrs} aria-pressed="${!!on}">${label}</button>`;
+        const tile = (attrs, label, on) => `<button type="button" class="metroBlk-timesig-opt${on ? ' selected' : ''}" ${attrs} data-count="pb-option" aria-pressed="${!!on}">${label}</button>`;
         const toggle = (id, label, help, on) => `<div class="display-toggle-row warmups-settings-row"><span id="${id}Lbl">${label}<span class="display-toggle-help">${help}</span></span><label class="toggle-switch"><input type="checkbox" id="${id}" aria-labelledby="${id}Lbl"${on ? ' checked' : ''}><span class="toggle-slider"></span></label></div>`;
         let own = '';
         if (s.custom) {
@@ -9217,6 +9242,8 @@
             open: sessPlan.open, template: sessPlan.template, focus: sessPlan.focus, auto: sessPlan.auto, source: sessPlan.source
         };
         practiceRun = r;
+        window.Usage?.begin('session'); // ML-22
+        window.Usage?.mark(`plan:${typeof r.template === 'string' && ['standard', 'concert'].includes(r.template) ? r.template : 'own'}`);
         renderUpdateBanner(); // ML-564: no "new version" strip during a practice session
         startSessionTimer(); // ML-421: the Timer runs for the whole session, in the top bar
         sessExtendOpen(r);
@@ -9343,6 +9370,7 @@
         const b = r.blocks[r.index];
         b.seconds += runElapsed();
         b.started = true;
+        window.Usage?.finish(`block:${b.kind === 'rehearsal' && b.stage === 'prepare' ? 'prepare' : b.kind}`); // ML-22: a block played to its end
         sessExtendOpen(r);
         if (r.index >= r.blocks.length - 1) { finishPracticeRun(false, !!r.timeUp); return; }
         if (PracticePlan.restBefore(r.blocks, r.index + 1)) startRest();
@@ -9394,6 +9422,7 @@
         sessionEnsureRunning();
         r.phase = 'rest';
         r.restStart = Date.now();
+        window.Usage?.begin('session-rest'); // ML-22: finished if it runs out
         r.restMessage = null;
         switchView('sessionRestView');
         renderRestMessage();
@@ -9439,6 +9468,8 @@
     function endRest() {
         const r = practiceRun;
         if (!r || r.phase !== 'rest') return;
+        if (restElapsed() >= restLength()) window.Usage?.finish('session-rest'); // ML-22: ran out, not skipped
+        window.Usage?.end('session-rest');
         r.blocks[r.index].seconds += Math.min(restLength(), restElapsed()); // the rest counts as practice time
         r.phase = 'play';
         if (viewStack[viewStack.length - 1] === 'sessionRestView') viewStack.pop(); // the next block takes its place
@@ -9452,6 +9483,7 @@
         sessionEnsureRunning();
         const b = r.blocks[r.index];
         b.started = true;
+        window.Usage?.begin(`block:${b.kind === 'rehearsal' && b.stage === 'prepare' ? 'prepare' : b.kind}`); // ML-22: a block began
         if (b.kind === 'rehearsal') {
             if (b.stage === 'prepare' && b.scoreId) { practiceRunSave(); await startPrepareInSession(b.scoreId, b.movement); return; }
             if (b.stage === 'playthrough') {
@@ -9539,6 +9571,7 @@
         const r = practiceRun;
         if (!r || r.done) return;
         if (early && r.phase !== 'rest') { const b = r.blocks[r.index]; b.seconds += runElapsed(); b.started = true; }
+        if (!early || timeUp) window.Usage?.finish('session'); // ML-22: every block played, or the time was up
         r.done = true;
         renderUpdateBanner(); // ML-564: the session is over, so a waiting "new version" strip can show now
         clearInterval(practiceTick);
@@ -13936,6 +13969,7 @@
     // Opens set-up. first: it came up by itself for a new member (the welcome says so).
     async function openSetup(first) {
         setup = { step: 0, first: !!first, nameAsked: false };
+        window.Usage?.begin('setup'); // ML-22: finished if Finish is pressed
         setup.nameAsked = setupNeedsName();
         switchView('setupView');
         // what each step shows, fresh: my instruments, and my bands with the directory to pick from
@@ -13978,6 +14012,7 @@
             if (act === 'next' && setup.step === SETUP_STEPS.length - 1) {
                 const first = setup.first;
                 switchView('mainView'); // (leaving the page is what marks it done - setupLeft)
+                window.Usage?.finish('setup');
                 showSuccessToast(first ? 'All set. Welcome!' : 'All set.');
                 return;
             }
@@ -14296,7 +14331,7 @@
     // and a caption underneath.
     function flowBarlinePickerTileHtml(o) {
         return `
-            <button type="button" class="flow-picker-tile${o.selected ? ' selected' : ''}" aria-label="${escapeHtml(o.caption)}${o.countLabel ? ' ' + o.countLabel : ''}" aria-pressed="${o.selected}">
+            <button type="button" class="flow-picker-tile${o.selected ? ' selected' : ''}" data-option="${usageOptionKey(o.caption)}" aria-label="${escapeHtml(o.caption)}${o.countLabel ? ' ' + o.countLabel : ''}" aria-pressed="${o.selected}">
                 <span class="flow-picker-tile-icon-row">
                     ${flowBarlineIconSvg(o.kind, 'metroBlk-note-svg')}
                     ${o.countLabel ? `<span class="flow-picker-tile-count">${escapeHtml(o.countLabel)}</span>` : ''}
@@ -14358,7 +14393,7 @@
     function flowGlyphPickerTileHtml(o) {
         const ariaLabel = o.ariaLabel || o.caption;
         return `
-            <button type="button" class="flow-picker-tile${o.selected ? ' selected' : ''}" aria-label="${escapeHtml(ariaLabel)}" aria-pressed="${o.selected}">
+            <button type="button" class="flow-picker-tile${o.selected ? ' selected' : ''}" data-option="${usageOptionKey(o.value !== undefined ? o.value : ariaLabel)}" aria-label="${escapeHtml(ariaLabel)}" aria-pressed="${o.selected}">
                 <span class="flow-picker-tile-icon-row">${o.icon || ''}</span>
                 <span class="flow-picker-tile-label">${escapeHtml(o.caption)}</span>
             </button>
@@ -16063,6 +16098,7 @@
     function onFlowBeat(beatInfo) {
         // ML-390: a Prepare run-through that has reached the end goes on to painting the bars.
         if (beatInfo.ended && flowSession && flowSession.mode === 'runthrough') { flowPlayer.stop(); updateFlowPlayIcon(); jumpFlowToStart(); runThroughDone(); return; }
+        if (beatInfo.ended) window.Usage?.finish('rehearse'); // ML-22: played to the end
         if (beatInfo.ended) {
             // ML-250: the end of the piece - stop and go back to the start, ready to play again.
             flowPlayer.stop();
@@ -16455,6 +16491,7 @@
             const text = place === -1 ? '' : mv ? `${FlowJourney.placeLabel(map.places, place)} · ${FlowJourney.movementLabel(mv, false)}, bars ${mv.startBar}-${mv.endBar}` : `${FlowJourney.placeLabel(map.places, place)} of ${FlowJourney.totalBars(currentFlowBlocks)}`;
             if (line.textContent !== text) line.textContent = text;
         }
+        if (playing !== recWasPlaying) { if (playing) window.Usage?.begin('recording'); else window.Usage?.end('recording'); } // ML-22: finished after 30 seconds
         if (playing !== recWasPlaying) { recWasPlaying = playing; if (recInPractice()) renderRecScoreControls(); } // ML-587: Play / Pause
         if (!playing && recTicker) { clearInterval(recTicker); recTicker = null; }
     }
@@ -17495,12 +17532,14 @@
         // ML-166 "Exclusive Playback" - starting the metronome stops any audio/video slide.
         stopAllFlowMediaExcept('metronome');
         flowPlayer.play();
+        window.Usage?.begin('rehearse'); // ML-22: finished at the end, or after a minute
         updateFlowPlayIcon();
         flowLastLitTileId = null; // pressing Play brings the bar that plays to the top, wherever you had scrolled to
         renderFlowPlaybackRow();
     }
     function pauseFlow() {
         flowPlayer.pause();
+        window.Usage?.end('rehearse');
         updateFlowPlayIcon();
     }
     function resetFlow() {
@@ -19912,6 +19951,7 @@
         // live everywhere else, but the engine's own internal tempo/beatsPerBar only updates when
         // explicitly told to). Doesn't touch position, so this is always safe to call, resume included.
         applyQpBlockToPlayer(qpBlocks[qpPlayIndex]);
+        window.Usage?.begin('metronome'); // ML-22: finished after 30 seconds played
         if (!qpSavedThisRun && !qpHistorySaveTimer) {
             qpHistorySaveTimer = setTimeout(() => {
                 qpHistorySaveTimer = null;
@@ -19929,6 +19969,7 @@
 
     function pauseQuickPlay() {
         qpPlayer.pause();
+        window.Usage?.end('metronome');
         updateQPPlayIcon();
         syncWakeLock();
         renderQpActiveBoxHighlight();
@@ -20615,6 +20656,7 @@
 
     function renderTunerPitch(freq, rms) {
         if (!tunerEngine.isActive()) return; // stray frame from just before stop()
+        if (freq > 0) window.Usage?.finish('tuner'); // ML-22: a note heard (once a use)
         const db = tunerRmsToDb(rms);
         const now = performance.now();
         // Live reading (note/needle below) keeps updating regardless of pause - only the history
@@ -20921,6 +20963,7 @@
             return;
         }
         setTunerStatusMessage('');
+        window.Usage?.begin('tuner'); // ML-22: finished when a note is heard
     }
 
     function stopTuner() {
@@ -21153,10 +21196,12 @@
             return { osc, times };
         });
         forkVoice = { oscs, gain };
+        window.Usage?.begin('tuning-fork'); // ML-22: finished after 5 seconds sounding
         renderFork();
     }
     function forkStop() {
         if (!forkVoice) return;
+        window.Usage?.end('tuning-fork');
         const { oscs, gain } = forkVoice, t = forkCtx.currentTime;
         forkVoice = null;
         gain.gain.cancelScheduledValues(t);
@@ -21684,6 +21729,7 @@
     function startTimerSession(targetSeconds) {
         const openEnded = targetSeconds === null;
         timerState = { targetSeconds, remainingSeconds: openEnded ? null : targetSeconds, elapsedSeconds: 0, running: true, openEnded };
+        if (!practiceRun || practiceRun.done) window.Usage?.begin('timer'); // ML-22 (a practice session's timer is the session's)
         clearInterval(timerIntervalId);
         timerIntervalId = setInterval(timerTick, 1000);
         renderTimerScreen();
@@ -21717,6 +21763,7 @@
         clearInterval(timerIntervalId);
         timerIntervalId = null;
         const forSession = !!timerState.forSession; // ML-421: a practice session's timer - the session carries on and logs the time itself
+        if (!forSession && timeUp === true) window.Usage?.finish('timer'); // ML-22: ran to the end
         const resumeMusic = timeUp === true && !forSession ? pauseMusicForTimer() : []; // the Stop buttons pass their click event
         const { elapsedSeconds, openEnded, targetSeconds } = timerState;
         timerState = null;
@@ -25913,7 +25960,7 @@
     }
     scalesPlayer.onBeat((info) => {
         // ML-589: the list has been played to the end
-        if (info && info.ended) { scalesStop(); scalesListDone = true; renderScalesDock(); return; }
+        if (info && info.ended) { scalesStop(); scalesListDone = true; window.Usage?.finish('scales'); renderScalesDock(); return; } // ML-22: played to the end
         const L = scalesToolLoop;
         if (L && L.tag && info && info.tag && info.tag !== L.tag) scalesLoopArrive();
         const w = scalesWritten;
@@ -25956,10 +26003,12 @@
         scalesPlayer.setNotesPerBeat(scales.npb);
         scalesPlayer.setSubdivisionFactor(1);
         scalesPlayer.play();
+        window.Usage?.begin('scales'); // ML-22
         scalesUpdatePlayUi();
     }
     function scalesPause() {
         scalesPlayer.pause();
+        window.Usage?.end('scales');
         if (scalesCountdown) { scalesCountdown = 0; scalesShowCountIn(0); }
         scalesUpdatePlayUi();
     }
@@ -26057,12 +26106,12 @@
     document.getElementById('scalesVolumeBtn')?.addEventListener('click', () => { scalesRenderVolume(); showModal('scalesVolumeModal'); });
 
     // --- Pickers: tap a tile to choose ---
-    const scalesTile = (value, caption, selected, attrs = '') =>
-        `<button type="button" class="flow-picker-tile${selected ? ' selected' : ''}" aria-pressed="${selected}" ${attrs}><span class="flow-picker-tile-icon-row">${value}</span>${caption ? `<span class="flow-picker-tile-label">${escapeHtml(caption)}</span>` : ''}</button>`;
+    const scalesTile = (value, caption, selected, attrs = '', option = '') =>
+        `<button type="button" class="flow-picker-tile${selected ? ' selected' : ''}" aria-pressed="${selected}" data-option="${usageOptionKey(option)}" ${attrs}><span class="flow-picker-tile-icon-row">${value}</span>${caption ? `<span class="flow-picker-tile-label">${escapeHtml(caption)}</span>` : ''}</button>`;
     function scalesFillGrid(gridId, options, onPick) {
         const grid = document.getElementById(gridId);
         if (!grid) return;
-        grid.innerHTML = options.map(o => scalesTile(o.value, o.caption, o.selected, o.attrs || '')).join('');
+        grid.innerHTML = options.map(o => scalesTile(o.value, o.caption, o.selected, o.attrs || '', o.v)).join(''); // ML-22: data-option, so each choice is counted
         grid.querySelectorAll('.flow-picker-tile').forEach((btn, i) => btn.addEventListener('click', () => onPick(options[i])));
     }
 
@@ -26534,8 +26583,8 @@
         L.busy = false;
         if (scalesLadder === L) scalesLadderNext();
     }
-    document.getElementById('scalesGotItBtn')?.addEventListener('click', () => scalesLadderAnswer(true));
-    document.getElementById('scalesNotYetBtn')?.addEventListener('click', () => scalesLadderAnswer(false));
+    document.getElementById('scalesGotItBtn')?.addEventListener('click', () => { window.Usage?.finish('scales'); scalesLadderAnswer(true); }); // ML-22: answered
+    document.getElementById('scalesNotYetBtn')?.addEventListener('click', () => { window.Usage?.finish('scales'); scalesLadderAnswer(false); });
     // The block's time ran out on a scale: one last "Got it?" for it (the Skills block's pop-up), then on
     function askScaleRating(cur, items, then) {
         const rec = scaleLevelOf(cur.key);
@@ -26935,7 +26984,7 @@
     let warmupsTick = 0, warmupsCountInClicks = 0, warmupsCountdown = 0;
     warmupsPlayer.onBeat((info) => {
         // ML-586: the tool's list has been played to the end
-        if (info && info.ended) { warmupsReset(); warmupsListDone = true; renderWarmupsDock(); return; }
+        if (info && info.ended) { warmupsReset(); warmupsListDone = true; window.Usage?.finish('warmups'); renderWarmupsDock(); return; } // ML-22: played to the end
         // ML-541: the block's time ran out during a time through - it's finished when the next one (or the next
         // warm-up) starts
         const finishing = practiceRun && practiceRun.finishingGo;
@@ -26983,10 +27032,12 @@
         warmupsPlayer.setNotesPerBeat(warmupsTimeline.notesPerBeat);
         warmupsPlayer.setSubdivisionFactor(1);
         warmupsPlayer.play();
+        window.Usage?.begin('warmups'); // ML-22
         warmupsUpdatePlayUi();
     }
     function warmupsPause() {
         warmupsPlayer.pause();
+        window.Usage?.end('warmups');
         if (warmupsCountdown) { warmupsCountdown = 0; warmupsShowCountIn(0); }
         warmupsUpdatePlayUi();
     }
@@ -27198,7 +27249,7 @@
             const exs = chosen.filter(ex => ex.kind === k.id), ok = exs.filter(ex => mine.includes(ex)).length;
             return `<div class="scales-choose-group"><h3 class="scales-choose-label">${escapeHtml(k.label)}<span class="scale-grid-sub">${ok === exs.length ? `${exs.length} warm-up${exs.length === 1 ? '' : 's'}` : `${ok} of ${exs.length} in your list`}</span></h3>${exs.map((ex, i) => mine.includes(ex)
                 ? `<button type="button" class="flow-choice-option level-answer warmups-choose-row${cur && ex.id === cur.id ? ' selected' : ''}" data-warmup="${ex.id}" aria-pressed="${!!(cur && ex.id === cur.id)}"><span class="grow">${i + 1}. ${escapeHtml(ex.title)}</span><span class="text-sm text-muted">${warmupsBpmOf(ex)} bpm</span></button>`
-                : `<button type="button" class="flow-choice-option level-answer warmups-choose-row is-locked" aria-disabled="true"><span class="grow">${i + 1}. ${escapeHtml(ex.title)}<br><span class="text-sm text-muted">${escapeHtml(warmupsWhy(ex))}</span></span><span class="material-symbols-outlined" aria-hidden="true">lock</span></button>`).join('')}</div>`;
+                : `<button type="button" class="flow-choice-option level-answer warmups-choose-row is-locked" data-warmup-locked aria-disabled="true"><span class="grow">${i + 1}. ${escapeHtml(ex.title)}<br><span class="text-sm text-muted">${escapeHtml(warmupsWhy(ex))}</span></span><span class="material-symbols-outlined" aria-hidden="true">lock</span></button>`).join('')}</div>`;
         }).join('');
         list.querySelectorAll('[data-warmup]').forEach(b => b.addEventListener('click', () => {
             hideModal('warmupsChooseModal');

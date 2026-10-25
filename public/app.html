@@ -3637,7 +3637,7 @@
         <div class="smartlearn-note" id="tapTempoSmart">
             <span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span>
             <span class="smartlearn-note-text" id="tapTempoSmartText">SmartLearn</span>
-            <button type="button" class="smartlearn-more" aria-haspopup="dialog" aria-label="Learn more about SmartLearn">Learn more</button>
+            <button type="button" class="smartlearn-more" data-count="smartlearn-more" aria-haspopup="dialog" aria-label="Learn more about SmartLearn">Learn more</button>
         </div>
         <button type="button" class="btn-submit" id="tapTempoStartBtn">Start</button>
         <div id="tapTempoPlayed"></div>
@@ -3679,7 +3679,7 @@
         <div class="smartlearn-note" id="earSmart">
             <span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span>
             <span class="smartlearn-note-text" id="earSmartText">SmartLearn</span>
-            <button type="button" class="smartlearn-more" aria-haspopup="dialog" aria-label="Learn more about SmartLearn">Learn more</button>
+            <button type="button" class="smartlearn-more" data-count="smartlearn-more" aria-haspopup="dialog" aria-label="Learn more about SmartLearn">Learn more</button>
         </div>
         <button type="button" class="btn-submit" id="earStartBtn">Start</button>
         <div id="earPlayed"></div>
@@ -3715,7 +3715,7 @@
         <div class="smartlearn-note hidden-group" id="drillResultSmartBox">
             <span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span>
             <span class="smartlearn-note-text" id="drillResultSmart"></span>
-            <button type="button" class="smartlearn-more" aria-haspopup="dialog" aria-label="Learn more about SmartLearn">Learn more</button>
+            <button type="button" class="smartlearn-more" data-count="smartlearn-more" aria-haspopup="dialog" aria-label="Learn more about SmartLearn">Learn more</button>
         </div>
         <button type="button" class="btn-submit" id="drillAgainBtn">Again</button>
         <div class="theory-exits">
@@ -3788,7 +3788,7 @@
         <div class="smartlearn-note hidden-group" id="theoryResultSmartBox">
             <span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span>
             <span class="smartlearn-note-text" id="theoryResultSmart"></span>
-            <button type="button" class="smartlearn-more" aria-haspopup="dialog" aria-label="Learn more about SmartLearn">Learn more</button>
+            <button type="button" class="smartlearn-more" data-count="smartlearn-more" aria-haspopup="dialog" aria-label="Learn more about SmartLearn">Learn more</button>
         </div>
         <!-- ML-418: in a practice session's Theory block the results lead on to the block's next quiz -->
         <button type="button" class="btn-submit hidden-group" id="theoryBlockNextBtn">Next quiz</button>
@@ -4731,7 +4731,7 @@
             <input type="text" id="accountDeleteWord" autocomplete="off" autocapitalize="characters" spellcheck="false">
         </div>
         <button type="button" class="btn-delete" id="accountDeleteConfirmBtn" disabled>Delete my account for good</button>
-        <button type="button" class="btn-text" data-modal-x>Keep my account</button>
+        <button type="button" class="btn-text" data-count="keep-account" data-modal-x>Keep my account</button>
     </div>
 </div>
 
@@ -4841,6 +4841,8 @@
 <script src="drills.js"></script>
 <script src="rhythm.js"></script>
 <script src="offline.js"></script>
+<!-- ML-22: usage counts - counted, never who (docs/usage-stats.md) -->
+<script src="usage.js"></script>
 <script src="app.js"></script>
 <script src="a11y.js"></script>
 

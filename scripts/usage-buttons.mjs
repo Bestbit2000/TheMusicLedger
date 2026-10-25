@@ -10,6 +10,7 @@
 // See docs/usage-stats.md ("Every button").
 import fs from 'node:fs';
 import path from 'node:path';
+import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -45,23 +46,15 @@ const groupOf = (where) => (GROUPS.find(([, re]) => re.test(where)) || GROUPS[GR
 
 const attr = (tag, name) => { const m = tag.match(new RegExp(`\\s${name}="([^"]*)"`)); return m ? m[1] : null; };
 const words = (s) => s.replace(/<[^>]*>/g, ' ').replace(/\$\{[^}]*\}/g, '…').replace(/&[a-z]+;/g, ' ').replace(/material-symbols-outlined/g, '').replace(/\s+/g, ' ').trim();
-// The name a tap is counted by - or null
+// The name a tap is counted by - or null. The app's own rule (Usage.buttonName in public/usage.js, loaded
+// with vm), given the button's attributes in order. An id made as the app runs (id="tile-${n}") is left
+// for the app to fill in, so the list shows the button's next name.
+const sandbox = { self: {} };
+vm.runInNewContext(fs.readFileSync(path.join(root, 'public/usage.js'), 'utf8'), sandbox);
+const Usage = sandbox.self.Usage;
 function countName(tag) {
-  const id = attr(tag, 'id');
-  if (id && !id.includes('${')) return `#${id}`;
-  const own = attr(tag, 'data-count');
-  if (own) return own;
-  const act = attr(tag, 'data-act');
-  if (act) { const arg = attr(tag, 'data-arg'); return arg && /^[a-zA-Z_-]+$/.test(arg) ? `${act}(${arg})` : act; }
-  const data = [...tag.matchAll(/\sdata-([a-z0-9-]+)(?:="([^"]*)")?/g)].filter(([, n]) => !['modal-x', 'tooltip'].includes(n));
-  if (data.length) {
-    const [, n, v] = data[0];
-    // a value that is a word stays (data-setup="next"); an id or a run-time value is left off (data-setup="inst:44")
-    const fixed = v && /^[a-zA-Z_-]+$/.test(v) ? `=${v}` : '';
-    return `data-${n}${fixed}`;
-  }
-  if (/class="[^"]*modal-close-x/.test(tag)) return 'close (X)';
-  return null;
+  const attrs = [...tag.slice(7).matchAll(/\s([a-zA-Z][a-zA-Z0-9:-]*)(?:="([^"]*)")?/g)].map(([, n, v]) => [n, v || '']).filter(([n, v]) => !(n === 'id' && v.includes('${')));
+  return Usage.buttonName(attrs, /class="[^"]*modal-close-x/.test(tag));
 }
 
 const items = []; // { group, where, name, label }
@@ -98,7 +91,11 @@ for (const m of js.matchAll(/<button\b[^>]*>/g)) {
   items.push({ group: fixed ? fixed[1] : groupOf(where.replace(PREFIX, '')), where: `${where}()`, name: countName(m[0]), label: words(after).slice(0, 60) || attr(m[0], 'aria-label') || '' });
 }
 
-// 3. Write it out
+// The list, for server/test/usageButtons.test.js (every button has a name)
+export { items };
+
+// 3. Write it out - only when run, not when the test imports the list
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
 const order = GROUPS.map(([g]) => g);
 const byGroup = new Map(order.map((g) => [g, []]));
 items.forEach((it) => byGroup.get(it.group).push(it));
@@ -127,3 +124,4 @@ for (const g of order) {
 fs.writeFileSync(path.join(root, 'docs/usage-buttons.md'), out);
 console.log(`${items.length} buttons, ${unnamed.length} need a name - written to docs/usage-buttons.md`);
 for (const g of order) { const l = byGroup.get(g); if (l.length) console.log(`  ${g}: ${l.length} (${l.filter((it) => !it.name).length} need a name)`); }
+}
