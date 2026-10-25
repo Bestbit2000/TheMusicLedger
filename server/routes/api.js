@@ -66,6 +66,7 @@ import { beginSetup, confirmSetup, newRecoveryCodes, turnOff } from '../services
 import { pricingColumns } from '../services/pricing.js';
 import { joinOptions, submitJoinRequest } from '../services/joinRequests.js';
 import { supportList, findPlaces } from '../services/instrumentSupport.js';
+import { recordUsage, whoFor } from '../services/usageCounts.js';
 
 const router = express.Router();
 
@@ -1331,6 +1332,16 @@ router.put('/account/bands/:id/members/:memberId/band-leader', requireAuth, reso
 });
 // ML-498: a band's notice to its members - sent by an organiser, a member who can change music or the band leader,
 // within the band's limits. One way only: there is no route to answer one.
+// ML-22: usage counts from the device - added to today's numbers per item, with nothing about who sent them
+// (server/services/usageCounts.js, docs/usage-stats.md). Signed in, so strangers can't add to them.
+router.post('/usage', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json({ counted: await recordUsage(req.body && req.body.rows, whoFor(req.userId, req.realAccountLevel)) });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 // ML-610: Instrument support - repairers, shops and hire near your bands (docs/instrument-support.md). near: a town
 // picked for this look only (never kept); without it, the towns of the bands on My bands.
 router.get('/support', requireAuth, resolveAccount, requireFeature('instrument_support'), async (req, res) => {

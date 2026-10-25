@@ -267,12 +267,21 @@
                 </div>
             </div>
             <div class="admin-subtabs">
-                <button class="admin-subtab-item active" data-subtab="usage-durations" type="button">Durations</button>
+                <button class="admin-subtab-item active" data-subtab="usage-heatmap" type="button">Heat map</button>
+                <button class="admin-subtab-item" data-subtab="usage-quiet" type="button">Quiet corners</button>
+                <button class="admin-subtab-item" data-subtab="usage-durations" type="button">Durations</button>
                 <button class="admin-subtab-item" data-subtab="usage-instruments" type="button">Instruments</button>
                 <button class="admin-subtab-item" data-subtab="usage-notevalues" type="button">Note values</button>
                 <button class="admin-subtab-item" data-subtab="usage-flowauthoring" type="button">Flow authoring time</button>
             </div>
-            <div id="usage-durations-subtab" class="admin-subtab-panel">
+            <!-- ML-22: how often each tool, button and screen is used - counted, never who (docs/usage-stats.md) -->
+            <div id="usage-heatmap-subtab" class="admin-subtab-panel">
+                <div id="usageHeatmap">Loading&hellip;</div>
+            </div>
+            <div id="usage-quiet-subtab" class="admin-subtab-panel hidden-group">
+                <div id="usageQuiet">Loading&hellip;</div>
+            </div>
+            <div id="usage-durations-subtab" class="admin-subtab-panel hidden-group">
                 <p class="admin-intro">How long saved sessions are (<code>sessions.total_duration_minutes</code>, every session type). The first chart is the 5-minute steps from 5 to 120 minutes; the second is every other length people have typed in, most common first - a length that keeps coming up there may be worth adding as a preset. Hover a bar for its count.</p>
                 <div id="usageDurationsList" class="admin-feature-list">Loading&hellip;</div>
             </div>

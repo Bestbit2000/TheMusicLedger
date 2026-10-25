@@ -473,3 +473,30 @@ body.admin-body { display: block; background: var(--bg-color); }
 .usage-meter-text { font-size: var(--font-sm); color: var(--label-color); }
 .admin-stat-tile .usage-meter { order: 2; margin-top: var(--space-2); min-width: 0; }
 .admin-stat-table .usage-meter { margin-top: var(--space-1); } /* clear of the amount written above it */
+
+/* ML-22 - Admin -> Usage -> Heat map (specs/components/usage-heatmap.md): how often each tool, button and screen
+   is used, week by week - counted, never who. A table: the tool down the side, a week a column, a square per week
+   shaded on the Stats page's own gold ramp (--heat-time-0..4) with its number written in it (--heat-text-0..4), so
+   colour is never the only clue. */
+.usage-heat-controls { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-end; margin-bottom: var(--space-4); }
+.usage-heat-controls label { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--font-sm); color: var(--label-color); }
+.usage-heat-legend { display: flex; align-items: center; gap: var(--space-1); margin-left: auto; font-size: var(--font-sm); color: var(--label-color); }
+.usage-heat-legend .usage-heat-cell { width: var(--space-5); min-width: 0; height: var(--space-5); }
+.usage-heat-table { border-collapse: separate; border-spacing: var(--space-1); width: 100%; font-size: var(--font-sm); }
+.usage-heat-table th { font-weight: var(--font-weight-semibold); color: var(--label-color); text-align: center; white-space: nowrap; }
+.usage-heat-table th.usage-heat-name, .usage-heat-table td.usage-heat-name { text-align: left; white-space: nowrap; min-width: calc(var(--space-6) * 8); } /* the names keep their room; the grid scrolls sideways in its box instead */
+.usage-heat-table td.usage-heat-total { text-align: right; white-space: nowrap; padding-left: var(--space-3); }
+.usage-heat-group th { text-align: left; padding-top: var(--space-4); border-bottom: 1px solid var(--input-border); }
+.usage-heat-cell { display: flex; align-items: center; justify-content: center; min-width: var(--space-6); height: var(--space-6); border-radius: var(--radius-sm); font-size: var(--font-xs); font-variant-numeric: tabular-nums; }
+.usage-heat-0 { background: var(--heat-time-0); color: var(--heat-text-0); }
+.usage-heat-1 { background: var(--heat-time-1); color: var(--heat-text-1); }
+.usage-heat-2 { background: var(--heat-time-2); color: var(--heat-text-2); }
+.usage-heat-3 { background: var(--heat-time-3); color: var(--heat-text-3); }
+.usage-heat-4 { background: var(--heat-time-4); color: var(--heat-text-4); }
+.usage-heat-link { background: none; border: none; padding: 0; font: inherit; color: var(--link-color); text-decoration: underline; cursor: pointer; text-align: left; min-height: var(--touch-target); }
+/* Quiet corners and a tool's buttons never pressed: each a small chip */
+.usage-chip-list { display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; margin: 0; padding: 0; }
+.usage-chip { border: 1px solid var(--input-border); border-radius: var(--radius-pill); padding: var(--space-1) var(--space-3); font-size: var(--font-sm); }
+/* A tool's buttons: how many presses, as a bar against the most-pressed button (the darkest heat step, so it
+   reads against the card in both themes) */
+.usage-press-bar { display: block; width: var(--bar-w); min-width: var(--space-1); height: var(--space-2); margin-top: var(--space-1); border-radius: var(--radius-pill); background: var(--heat-time-4); }

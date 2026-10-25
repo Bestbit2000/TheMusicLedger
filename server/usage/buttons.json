@@ -1,0 +1,6277 @@
+{
+ "views": [
+  "aboutGradesView",
+  "aboutPrivacyView",
+  "aboutReleasesView",
+  "aboutTermsView",
+  "aboutView",
+  "accountBandsView",
+  "accountDetailsView",
+  "accountInstrumentsView",
+  "accountSecurityView",
+  "accountTeachersView",
+  "accountView",
+  "addPieceView",
+  "bandMembersView",
+  "bandSummaryView",
+  "bandWelcomeView",
+  "drillResultsView",
+  "earPlayView",
+  "earView",
+  "flowDetailsHubView",
+  "flowFromFileView",
+  "flowPlayView",
+  "gapTrainerPlayView",
+  "gapTrainerView",
+  "historyView",
+  "instrumentSupportView",
+  "inviteView",
+  "levelsCutView",
+  "levelsPaintView",
+  "levelsProgressView",
+  "mainView",
+  "metroBuilderView",
+  "notificationsView",
+  "pieceOutlineView",
+  "piecePathView",
+  "practiceListView",
+  "prepareListView",
+  "prepareRunView",
+  "quickPlayView",
+  "rangeView",
+  "recordingsView",
+  "rehearseView",
+  "rhythmPlayView",
+  "rhythmView",
+  "scalesView",
+  "sessionBuildView",
+  "sessionContentView",
+  "sessionLengthView",
+  "sessionPickView",
+  "sessionPlanView",
+  "sessionRestView",
+  "sessionRunView",
+  "settingsDisplayView",
+  "settingsNoticesView",
+  "settingsPlaybackView",
+  "settingsStatsView",
+  "settingsTunerView",
+  "settingsView",
+  "setupView",
+  "skillsHubView",
+  "skillsView",
+  "statsHomeView",
+  "statsView",
+  "streakStatsView",
+  "tapTempoPlayView",
+  "tapTempoView",
+  "theoryOptionsView",
+  "theoryPlayView",
+  "theoryResultsView",
+  "theoryView",
+  "tidyBandsView",
+  "timerView",
+  "toolResultsView",
+  "toolsView",
+  "tunerView",
+  "tuningForkView",
+  "warmupsView"
+ ],
+ "buttons": [
+  {
+   "group": "Menu, notices and the rest",
+   "where": "noticeBannerModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "data-notice-banner-open",
+   "label": "Notice",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "data-notice-banner-close",
+   "label": "Hide this notice until next time",
+   "html": true
+  },
+  {
+   "group": "Signing in",
+   "where": "top bar",
+   "name": "#loginBtn",
+   "label": "Sign in with Google",
+   "html": true
+  },
+  {
+   "group": "Signing in",
+   "where": "top bar",
+   "name": "data-password-toggle=loginPassword",
+   "label": "Show password",
+   "html": true
+  },
+  {
+   "group": "Signing in",
+   "where": "top bar",
+   "name": "#passwordLoginSubmit",
+   "label": "Log in",
+   "html": true
+  },
+  {
+   "group": "Signing in",
+   "where": "top bar",
+   "name": "#forgotLinkBtn",
+   "label": "Forgot your password?",
+   "html": true
+  },
+  {
+   "group": "Signing in",
+   "where": "top bar",
+   "name": "#forgotSubmit",
+   "label": "Send the link",
+   "html": true
+  },
+  {
+   "group": "Signing in",
+   "where": "top bar",
+   "name": "#forgotBackBtn",
+   "label": "Back to log in",
+   "html": true
+  },
+  {
+   "group": "Signing in",
+   "where": "top bar",
+   "name": "#emailChangeConfirmBtn",
+   "label": "Change my email address",
+   "html": true
+  },
+  {
+   "group": "Signing in",
+   "where": "top bar",
+   "name": "#emailChangeBackBtn",
+   "label": "Not now",
+   "html": true
+  },
+  {
+   "group": "Signing in",
+   "where": "top bar",
+   "name": "data-password-toggle=setPassword",
+   "label": "Show password",
+   "html": true
+  },
+  {
+   "group": "Signing in",
+   "where": "top bar",
+   "name": "data-password-toggle=setPasswordConfirm",
+   "label": "Show password",
+   "html": true
+  },
+  {
+   "group": "Signing in",
+   "where": "top bar",
+   "name": "#setPasswordSubmit",
+   "label": "Save and log in",
+   "html": true
+  },
+  {
+   "group": "Signing in",
+   "where": "top bar",
+   "name": "#setPasswordLoginLink",
+   "label": "Go to log in",
+   "html": true
+  },
+  {
+   "group": "Signing in",
+   "where": "top bar",
+   "name": "#twoStepSubmit",
+   "label": "Continue",
+   "html": true
+  },
+  {
+   "group": "Signing in",
+   "where": "top bar",
+   "name": "#twoStepRecoveryBtn",
+   "label": "Use a recovery code instead",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "#topBackBtn",
+   "label": "",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "#topTunerToggleBtn",
+   "label": "Show tuner",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "#topTimerPill",
+   "label": "00:00 left",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "#topTimerIconBtn",
+   "label": "Timer",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "#navBurgerMenuBtn",
+   "label": "☰",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "#navRailFoldBtn",
+   "label": "Fold the menu to icons",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "view-menu(mainView)",
+   "label": "Home",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "#notificationsNavItem",
+   "label": "Notifications",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "#navToolsBtn",
+   "label": "Tools",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "view-menu(statsHomeView)",
+   "label": "Stats",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "#myMusicNavItem",
+   "label": "My music",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "view-menu(settingsView)",
+   "label": "My app settings",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "view-menu(accountInstrumentsView)",
+   "label": "My instruments",
+   "html": true
+  },
+  {
+   "group": "Instrument support",
+   "where": "top bar",
+   "name": "#instrumentSupportNavItem",
+   "label": "Instrument support",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "#inviteNavItem",
+   "label": "Invite someone",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "#feedbackNavItem",
+   "label": "Send feedback",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "view-menu(aboutView)",
+   "label": "About",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "view-menu(accountView)",
+   "label": "My account",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "logout",
+   "label": "Log out",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "#navToolsBackBtn",
+   "label": "Tools",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "data-notice-banner-open",
+   "label": "Notice",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "data-notice-banner-close",
+   "label": "Hide this notice until next time",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "reload",
+   "label": "Reload",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "#updateBannerMore",
+   "label": "See what's new",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "#updateBannerClose",
+   "label": "Hide until next time",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "#offlineBarBtn",
+   "label": "See them",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "top bar",
+   "name": "#sessionBar",
+   "label": "Block 1 of 1 5:00",
+   "html": true
+  },
+  {
+   "group": "Timer",
+   "where": "top bar",
+   "name": "#timerInlineCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Timer",
+   "where": "top bar",
+   "name": "#timerInlinePickBtn",
+   "label": "Pick minutes",
+   "html": true
+  },
+  {
+   "group": "Timer",
+   "where": "top bar",
+   "name": "#timerInlinePlayBtn",
+   "label": "start",
+   "html": true
+  },
+  {
+   "group": "Timer",
+   "where": "top bar",
+   "name": "#timerInlineStopBtn",
+   "label": "stop",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "#previewStopBtn",
+   "label": "Stop previewing",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "mainView",
+   "name": "#homeAvatar",
+   "label": "Your avatar - change it in My details",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "mainView",
+   "name": "#startPracticeSessionBtn",
+   "label": "Start a practice session",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "mainView",
+   "name": "view(entryForm)",
+   "label": "Log time you've already played",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "mainView",
+   "name": "view(toolsView)",
+   "label": "All tools",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "toolsView",
+   "name": "view(quickPlayView)",
+   "label": "Metronome",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "toolsView",
+   "name": "view(tunerView)",
+   "label": "Tuner",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "toolsView",
+   "name": "view(timerView)",
+   "label": "Timer",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "toolsView",
+   "name": "#tuningForkToolBtn",
+   "label": "Tuning fork",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "toolsView",
+   "name": "#warmupsToolBtn",
+   "label": "Warm-ups",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "toolsView",
+   "name": "#scalesToolBtn",
+   "label": "Scales",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "toolsView",
+   "name": "#addPieceToolBtn",
+   "label": "Add a piece",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "toolsView",
+   "name": "#prepareToolBtn",
+   "label": "Prepare",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "toolsView",
+   "name": "#rehearseToolBtn",
+   "label": "Rehearse",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "toolsView",
+   "name": "#recordingsToolBtn",
+   "label": "Recordings",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "toolsView",
+   "name": "#theoryToolBtn",
+   "label": "Theory",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "toolsView",
+   "name": "#skillsToolBtn",
+   "label": "Skills",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "toolsView",
+   "name": "#rangeToolBtn",
+   "label": "Range",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "toolsView",
+   "name": "#toolsEditBtn",
+   "label": "Choose favourite tools",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsHomeView",
+   "name": "view(statsView)",
+   "label": "Practice time this week -",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsHomeView",
+   "name": "view(statsView)",
+   "label": "Practice time this month -",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsHomeView",
+   "name": "view(statsView)",
+   "label": "Practice time this year -",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsHomeView",
+   "name": "view(streakStatsView)",
+   "label": "Current practice streak -",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsHomeView",
+   "name": "view(streakStatsView)",
+   "label": "Longest practice streak -",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsHomeView",
+   "name": "view(historyView)",
+   "label": "Sessions this week -",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsHomeView",
+   "name": "view(historyView)",
+   "label": "Sessions this month -",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsHomeView",
+   "name": "view(rehearseView)",
+   "label": "Next concert -",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsHomeView",
+   "name": "view(theoryView)",
+   "label": "Last Theory Level -",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsHomeView",
+   "name": "view(toolResultsView)",
+   "label": "Tools last played -",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsHomeView",
+   "name": "#statsEditBtn",
+   "label": "Choose Home stats",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsView",
+   "name": "scroll-area",
+   "label": "",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsView",
+   "name": "scroll-area",
+   "label": "",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsView",
+   "name": "scroll-area",
+   "label": "",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsView",
+   "name": "scroll-area",
+   "label": "",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsView",
+   "name": "scroll-area",
+   "label": "",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsView",
+   "name": "scroll-area",
+   "label": "",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsView",
+   "name": "scroll-area",
+   "label": "",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsView",
+   "name": "scroll-area",
+   "label": "",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsView",
+   "name": "scroll-area",
+   "label": "",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "statsView",
+   "name": "scroll-area",
+   "label": "",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "historyView",
+   "name": "view(entryForm)",
+   "label": "Add session time",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "historyView",
+   "name": "#prevMonthBtn",
+   "label": "",
+   "html": true
+  },
+  {
+   "group": "Stats",
+   "where": "historyView",
+   "name": "#nextMonthBtn",
+   "label": "",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "settingsView",
+   "name": "view(settingsDisplayView)",
+   "label": "Display and reading",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "settingsView",
+   "name": "view(settingsStatsView)",
+   "label": "Stats",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "settingsView",
+   "name": "view(settingsTunerView)",
+   "label": "Tuner",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "settingsView",
+   "name": "view(settingsPlaybackView)",
+   "label": "Metronome playback",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "settingsView",
+   "name": "#settingsNoticesLink",
+   "label": "Notifications Which notices the app sends you",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "settingsView",
+   "name": "#settingsSetupLink",
+   "label": "Set up again What I play, how it looks, who I play with",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "settingsDisplayView",
+   "name": "#displayResetBtn",
+   "label": "Reset to standard",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "settingsPlaybackView",
+   "name": "#metroCalibLatencyMinusBtn",
+   "label": "Less delay",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "settingsPlaybackView",
+   "name": "#metroCalibLatencyPlusBtn",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "settingsPlaybackView",
+   "name": "#metroCalibPlayBtn",
+   "label": "test",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "settingsPlaybackView",
+   "name": "#metroCalibLatencyResetBtn",
+   "label": "reset",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountView",
+   "name": "view(accountDetailsView)",
+   "label": "My details",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountView",
+   "name": "#accountSecurityRow",
+   "label": "Sign-in and security",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountView",
+   "name": "view(accountBandsView)",
+   "label": "My bands",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountView",
+   "name": "#accountTeachersRow",
+   "label": "My teachers",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountDetailsView",
+   "name": "#accountEditNameBtn",
+   "label": "Name - , edit",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountDetailsView",
+   "name": "#accountEditDisplayNameBtn",
+   "label": "Display name - , edit",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountDetailsView",
+   "name": "#accountEditAvatarBtn",
+   "label": "Avatar , change",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountDetailsView",
+   "name": "#accountEditEmailBtn",
+   "label": "Email , change",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountDetailsView",
+   "name": "#accountExportBtn",
+   "label": "Download my information",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountDetailsView",
+   "name": "#accountDeleteBtn",
+   "label": "Delete my account",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountInstrumentsView",
+   "name": "#accountAddInstrumentBtn",
+   "label": "Add",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountInstrumentsView",
+   "name": "#supportFromInstrumentsLink",
+   "label": "Need a repair, a shop or hire? Instrument support - near your bands",
+   "html": true
+  },
+  {
+   "group": "Instrument support",
+   "where": "instrumentSupportView",
+   "name": "#supportNearBtn",
+   "label": "My bands' towns near",
+   "html": true
+  },
+  {
+   "group": "Instrument support",
+   "where": "instrumentSupportView",
+   "name": "#supportForBtn",
+   "label": "Everything looking for",
+   "html": true
+  },
+  {
+   "group": "Instrument support",
+   "where": "instrumentSupportView",
+   "name": "feedback",
+   "label": "Something wrong or missing? Tell us",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "accountBandsView",
+   "name": "#tidyBandsLink",
+   "label": "Tidy my bands",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "accountBandsView",
+   "name": "#accountJoinBandBtn",
+   "label": "Add",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "accountBandsView",
+   "name": "#accountAddBandToggleBtn",
+   "label": "Can't find your band? Add it",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "accountBandsView",
+   "name": "#accountAddBandBtn",
+   "label": "Add",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandWelcomeView",
+   "name": "#bandWelcomeJoinBtn",
+   "label": "Join the band",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandWelcomeView",
+   "name": "#bandWelcomeLaterBtn",
+   "label": "Not now",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandMembersView",
+   "name": "#bandNoticeSendBtn",
+   "label": "Send to the band",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandMembersView",
+   "name": "#bandLogoBtn",
+   "label": "Add a logo",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandMembersView",
+   "name": "#bandLogoRemoveBtn",
+   "label": "Take the logo off",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandMembersView",
+   "name": "#bandInviteLevelBtn",
+   "label": "Can play what they can do",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandMembersView",
+   "name": "#bandInviteBtn",
+   "label": "Invite",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountTeachersView",
+   "name": "list-add(teachers)",
+   "label": "Add",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "top bar",
+   "name": "#accountInstrumentMenuMain",
+   "label": "Make main instrument",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "top bar",
+   "name": "#accountInstrumentMenuRange",
+   "label": "My range",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "top bar",
+   "name": "#accountInstrumentMenuClef",
+   "label": "My clef",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "top bar",
+   "name": "#accountInstrumentMenuRemove",
+   "label": "Remove",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "top bar",
+   "name": "#accountBandMenuShare",
+   "label": "Set up sharing",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "top bar",
+   "name": "#accountBandMenuMembers",
+   "label": "Members",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "top bar",
+   "name": "#accountBandMenuLeave",
+   "label": "Leave shared band",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "top bar",
+   "name": "#accountBandMenuDirectory",
+   "label": "It's a band in the list",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "top bar",
+   "name": "#accountBandMenuMerge",
+   "label": "Same as another of mine",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "top bar",
+   "name": "#accountBandMenuHide",
+   "label": "I don't play with them now",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "top bar",
+   "name": "#accountBandMenuReport",
+   "label": "Report the name",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "top bar",
+   "name": "#accountBandMenuDelete",
+   "label": "Stop sharing",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "notificationsView",
+   "name": "#notificationsMarkAllBtn",
+   "label": "Mark all as read",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "notificationsView",
+   "name": "#notificationsClearAllBtn",
+   "label": "Clear all",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "notificationsView",
+   "name": "#notificationsClearedBtn",
+   "label": "Show cleared",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "inviteView",
+   "name": "#inviteLevelBtn",
+   "label": "Standard member account type",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "inviteView",
+   "name": "#inviteSendBtn",
+   "label": "Send invite",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "aboutView",
+   "name": "view(aboutReleasesView)",
+   "label": "Release history What changed in each version",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "aboutView",
+   "name": "about-policy(privacy)",
+   "label": "Privacy policy What we hold about you, and how to delete it",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "aboutView",
+   "name": "about-policy(terms)",
+   "label": "Terms of use The terms for using the app",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "aboutView",
+   "name": "view(aboutGradesView)",
+   "label": "Exam grades Where the grade lists come from",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "quickPlayView",
+   "name": "#qpVolumeBtn",
+   "label": "Volume - tap to change",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "quickPlayView",
+   "name": "#qpPlayBtn",
+   "label": "play",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "quickPlayView",
+   "name": "#qpResetBtn",
+   "label": "reset",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "quickPlayView",
+   "name": "#qpSubdivideBtn",
+   "label": "1 sub beats",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "quickPlayView",
+   "name": "#qpSpeedBtn",
+   "label": "100% play speed",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "quickPlayView",
+   "name": "#qpLoadedHistoryUndoBtn",
+   "label": "Revert to the loaded version",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "quickPlayView",
+   "name": "#qpLoadedHistoryClearBtn",
+   "label": "Clear loaded history and reset",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "quickPlayView",
+   "name": "#qpAddBlockBtn",
+   "label": "+ Add bar",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "quickPlayView",
+   "name": "#qpBarMenuMoveUp",
+   "label": "Move up",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "quickPlayView",
+   "name": "#qpBarMenuMoveDown",
+   "label": "Move down",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "quickPlayView",
+   "name": "#qpBarMenuDuplicate",
+   "label": "Duplicate",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "quickPlayView",
+   "name": "#qpBarMenuDelete",
+   "label": "Delete",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "quickPlayView",
+   "name": "#qpBarMenuResetAll",
+   "label": "Delete all and reset",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "rehearseView",
+   "name": "data-music-tab=pieces",
+   "label": "Pieces",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "rehearseView",
+   "name": "data-music-tab=lists",
+   "label": "Practice lists",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "rehearseView",
+   "name": "#rehearseAddBtn",
+   "label": "+ Add a piece",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "rehearseView",
+   "name": "#practiceListNewBtn",
+   "label": "+ New practice list",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessionLengthView",
+   "name": "#sessSameBtn",
+   "label": "Same as last time",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessionLengthView",
+   "name": "#sessLenMinus",
+   "label": "5 minutes less",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessionLengthView",
+   "name": "#sessLenPlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessionLengthView",
+   "name": "#sessToPlanBtn",
+   "label": "Next: what kind of practice",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessionPickView",
+   "name": "data-step-back=sessionLengthView",
+   "label": "How long",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessionPickView",
+   "name": "#sessPlanBtn",
+   "label": "Standard plan",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessionPickView",
+   "name": "#sessToContentBtn",
+   "label": "Next: what's in it",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessionBuildView",
+   "name": "#sessBuildSurpriseBtn",
+   "label": "Surprise me",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessionBuildView",
+   "name": "#sessBuildClearBtn",
+   "label": "Clear",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessionBuildView",
+   "name": "#sessBuildSaveBtn",
+   "label": "Save my plan and use it",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessionBuildView",
+   "name": "#sessBuildDeleteBtn",
+   "label": "Delete this plan",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessionContentView",
+   "name": "data-step-back=sessionLengthView",
+   "label": "How long",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessionContentView",
+   "name": "data-step-back=sessionPickView",
+   "label": "What kind",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessionContentView",
+   "name": "#sessToReadyBtn",
+   "label": "Ready! See my session",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessionPlanView",
+   "name": "#sessStartBtn",
+   "label": "Start",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessionRunView",
+   "name": "#sessRunGoBtn",
+   "label": "Start this block",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessionRunView",
+   "name": "#sessRunNextBtn",
+   "label": "Next block",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessionRunView",
+   "name": "#sessRunEndBtn",
+   "label": "End the session now",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessionRunView",
+   "name": "#sessRunDoneBtn",
+   "label": "Done",
+   "html": true
+  },
+  {
+   "group": "Range",
+   "where": "rangeView",
+   "name": "#rangeSetBtn",
+   "label": "Set your range",
+   "html": true
+  },
+  {
+   "group": "Range",
+   "where": "rangeView",
+   "name": "#rangeStartBtn",
+   "label": "Start - listen with the microphone",
+   "html": true
+  },
+  {
+   "group": "Range",
+   "where": "rangeView",
+   "name": "#rangeHeldBtn",
+   "label": "Held it (8 beats)",
+   "html": true
+  },
+  {
+   "group": "Range",
+   "where": "rangeView",
+   "name": "#rangeNotYetBtn",
+   "label": "Not yet",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "rhythmView",
+   "name": "#rhythmStartBtn",
+   "label": "Start",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "rhythmView",
+   "name": "#rhythmSheetBtn",
+   "label": "Play through the whole set",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "rhythmView",
+   "name": "#rhythmWordBtn",
+   "label": "My own word for this rhythm",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "rhythmPlayView",
+   "name": "#rhythmPad",
+   "label": "Tap",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "rhythmPlayView",
+   "name": "#rhythmStopBtn",
+   "label": "Stop",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "skillsView",
+   "name": "#skillsAddBtn",
+   "label": "+ Add skills",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "skillsView",
+   "name": "#skillListRenameBtn",
+   "label": "Rename this list",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "skillsView",
+   "name": "#skillListDeleteBtn",
+   "label": "Delete this list",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "skillsView",
+   "name": "#warmupListNewBtn",
+   "label": "+ New warm-up list",
+   "html": true
+  },
+  {
+   "group": "Practice lists",
+   "where": "practiceListView",
+   "name": "#plDateBtn",
+   "label": "None target date",
+   "html": true
+  },
+  {
+   "group": "Practice lists",
+   "where": "practiceListView",
+   "name": "#plWeekBtn",
+   "label": "None a week",
+   "html": true
+  },
+  {
+   "group": "Practice lists",
+   "where": "practiceListView",
+   "name": "#plMinsBtn",
+   "label": "None minutes",
+   "html": true
+  },
+  {
+   "group": "Practice lists",
+   "where": "practiceListView",
+   "name": "#plWarmBtn",
+   "label": "None warm-up",
+   "html": true
+  },
+  {
+   "group": "Practice lists",
+   "where": "practiceListView",
+   "name": "#plPieceMenuMovement",
+   "label": "Which movement",
+   "html": true
+  },
+  {
+   "group": "Practice lists",
+   "where": "practiceListView",
+   "name": "#plPieceMenuLevels",
+   "label": "Prepare levels",
+   "html": true
+  },
+  {
+   "group": "Practice lists",
+   "where": "practiceListView",
+   "name": "#plPieceMenuDelete",
+   "label": "Delete",
+   "html": true
+  },
+  {
+   "group": "Practice lists",
+   "where": "practiceListView",
+   "name": "#plAddPiecesBtn",
+   "label": "+ Add pieces",
+   "html": true
+  },
+  {
+   "group": "Practice lists",
+   "where": "practiceListView",
+   "name": "#plPlanBtn",
+   "label": "Plan a session for this",
+   "html": true
+  },
+  {
+   "group": "Practice lists",
+   "where": "practiceListView",
+   "name": "#plArchiveBtn",
+   "label": "Archive this list",
+   "html": true
+  },
+  {
+   "group": "Practice lists",
+   "where": "practiceListView",
+   "name": "#plReportBtn",
+   "label": "Report this list",
+   "html": true
+  },
+  {
+   "group": "Practice lists",
+   "where": "practiceListView",
+   "name": "#plClearRecordingsBtn",
+   "label": "Delete this list's recordings",
+   "html": true
+  },
+  {
+   "group": "Practice lists",
+   "where": "practiceListView",
+   "name": "#plDeleteBtn",
+   "label": "Delete this list",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "piecePathView",
+   "name": "#pathMovementBtn",
+   "label": "all movement",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "piecePathView",
+   "name": "#pathBarByBarBtn",
+   "label": "Bar by bar",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "piecePathView",
+   "name": "#pathGoBtn",
+   "label": "Start preparing",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "piecePathView",
+   "name": "#pathSkipBtn",
+   "label": "Skip play through and set the level directly",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "piecePathView",
+   "name": "#pathPaintBtn",
+   "label": "Set the levels again",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "piecePathView",
+   "name": "#pathCutBtn",
+   "label": "Focus sections",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "prepareRunView",
+   "name": "#prepCountInBtn",
+   "label": "1 bar count-in before it starts",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "prepareRunView",
+   "name": "#prepPlayBtn",
+   "label": "Play it through",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "prepareRunView",
+   "name": "#prepSkipBtn",
+   "label": "Skip play through and set the level directly",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "levelsPaintView",
+   "name": "#paintTypeBtn",
+   "label": "Type bars instead",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "levelsPaintView",
+   "name": "data-paint-tool=brush",
+   "label": "Fill bar",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "levelsPaintView",
+   "name": "data-paint-tool=section",
+   "label": "Fill section",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "levelsPaintView",
+   "name": "data-paint-tool=all",
+   "label": "Fill all",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "levelsPaintView",
+   "name": "data-paint-tool=range",
+   "label": "Range",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "levelsPaintView",
+   "name": "data-paint-tool=rubber",
+   "label": "Remove level",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "levelsPaintView",
+   "name": "#paintUndoBtn",
+   "label": "Undo",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "levelsPaintView",
+   "name": "#paintNextBtn",
+   "label": "Next: split into focus sections",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "levelsCutView",
+   "name": "#cutTypeBtn",
+   "label": "Type bars instead",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "levelsCutView",
+   "name": "#cutDoneBtn",
+   "label": "Done preparing",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroBuilderView",
+   "name": "#metroBlkMiniTunerInstrumentBtn",
+   "label": "C",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroBuilderView",
+   "name": "#metroBlkMiniTunerCloseBtn",
+   "label": "Close tuner",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroBuilderView",
+   "name": "#myMusicMenuBtn",
+   "label": "My music options",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroBuilderView",
+   "name": "#flowBulkArchiveBtn",
+   "label": "Archive several pieces",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroBuilderView",
+   "name": "#flowBulkDeleteBtn",
+   "label": "Delete several pieces",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroBuilderView",
+   "name": "data-music-tab=pieces",
+   "label": "Pieces",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroBuilderView",
+   "name": "data-music-tab=lists",
+   "label": "Practice lists",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroBuilderView",
+   "name": "data-new-list",
+   "label": "+ New practice list",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroBuilderView",
+   "name": "#myMusicAddBtn",
+   "label": "+ Add a piece",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroBuilderView",
+   "name": "#flowLibraryItemMenuPlay",
+   "label": "Play",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroBuilderView",
+   "name": "#flowLibraryItemMenuEdit",
+   "label": "Edit",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroBuilderView",
+   "name": "#flowLibraryItemMenuDuplicate",
+   "label": "Duplicate",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroBuilderView",
+   "name": "#flowLibraryItemMenuCopy",
+   "label": "Copy to my library",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroBuilderView",
+   "name": "#flowLibraryItemMenuExport",
+   "label": "Export to MusicXML",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroBuilderView",
+   "name": "#flowLibraryItemMenuBandSummary",
+   "label": "Band summary",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroBuilderView",
+   "name": "#flowLibraryItemMenuArchive",
+   "label": "Archive",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroBuilderView",
+   "name": "#flowLibraryItemMenuRestore",
+   "label": "Restore",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroBuilderView",
+   "name": "#flowLibraryItemMenuReport",
+   "label": "Report",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroBuilderView",
+   "name": "#flowLibraryItemMenuDelete",
+   "label": "Delete",
+   "html": true
+  },
+  {
+   "group": "Recordings",
+   "where": "recordingsView",
+   "name": "#recordingsUploadBtn",
+   "label": "Upload a rehearsal recording",
+   "html": true
+  },
+  {
+   "group": "Recordings",
+   "where": "recordingsView",
+   "name": "#recordingsYouTubeBtn",
+   "label": "Add a YouTube video",
+   "html": true
+  },
+  {
+   "group": "Tuning fork",
+   "where": "tuningForkView",
+   "name": "#forkStave",
+   "label": "Tuning note - tap the stave near a note to pick it",
+   "html": true
+  },
+  {
+   "group": "Tuning fork",
+   "where": "tuningForkView",
+   "name": "#forkMinus",
+   "label": "A semitone lower",
+   "html": true
+  },
+  {
+   "group": "Tuning fork",
+   "where": "tuningForkView",
+   "name": "#forkPlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Tuning fork",
+   "where": "tuningForkView",
+   "name": "#forkInstrumentBtn",
+   "label": "instrument",
+   "html": true
+  },
+  {
+   "group": "Tuning fork",
+   "where": "tuningForkView",
+   "name": "#forkPlayBtn",
+   "label": "play",
+   "html": true
+  },
+  {
+   "group": "Tuning fork",
+   "where": "tuningForkView",
+   "name": "#forkMuteBtn",
+   "label": "Mute",
+   "html": true
+  },
+  {
+   "group": "Tuning fork",
+   "where": "tuningForkView",
+   "name": "#forkUsualBtn",
+   "label": "Back to the usual tuning note",
+   "html": true
+  },
+  {
+   "group": "Add a piece",
+   "where": "addPieceView",
+   "name": "#addPieceOwnerBtn",
+   "label": "Just me who it's for",
+   "html": true
+  },
+  {
+   "group": "Add a piece",
+   "where": "addPieceView",
+   "name": "#addPieceListBtn",
+   "label": "On its own practice list",
+   "html": true
+  },
+  {
+   "group": "Add a piece",
+   "where": "addPieceView",
+   "name": "#metroBlkEntryCreateBtn",
+   "label": "Create your own Put the bars in yourself",
+   "html": true
+  },
+  {
+   "group": "Add a piece",
+   "where": "addPieceView",
+   "name": "#metroBlkEntryQuickBtn",
+   "label": "Quick entry Bars and marks first, then what's different",
+   "html": true
+  },
+  {
+   "group": "Add a piece",
+   "where": "addPieceView",
+   "name": "#metroBlkEntryPhotoBtn",
+   "label": "From a photo or PDF Uses AI to import the piece",
+   "html": true
+  },
+  {
+   "group": "Add a piece",
+   "where": "addPieceView",
+   "name": "#metroBlkEntryFromFileBtn",
+   "label": "Import from MusicXML Open a MusicXML or .mxl file from notation software",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowFromFileView",
+   "name": "#flowFromFileDropBtn",
+   "label": "Tap to browse score file Select a MusicXML or .mxl file MUSICXML MXL MSCZ",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowFromFileView",
+   "name": "#flowFromFileContinueBtn",
+   "label": "Continue to flow",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowDetailsHubView",
+   "name": "#flowEditTabDetailsBtn",
+   "label": "Details",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowDetailsHubView",
+   "name": "#flowEditTabBlocksBtn",
+   "label": "Bars",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowDetailsHubView",
+   "name": "#flowEditTabMediaBtn",
+   "label": "Media",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowDetailsHubView",
+   "name": "#flowAudienceBtn",
+   "label": "Just me who it's for",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowDetailsHubView",
+   "name": "#flowUploadRecordingBtn",
+   "label": "Upload mp3 / mp4 audio (up to 25 MB)",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowDetailsHubView",
+   "name": "#flowAddYouTubeBtn",
+   "label": "Add YouTube link",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowDetailsHubView",
+   "name": "#flowUploadDocumentBtn",
+   "label": "Upload PDF or MusicXML score (up to 25 MB)",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowDetailsHubView",
+   "name": "data-flow-layout",
+   "label": "1 column",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowDetailsHubView",
+   "name": "data-flow-layout",
+   "label": "2 columns",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowDetailsHubView",
+   "name": "data-flow-layout",
+   "label": "4 columns",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowDetailsHubView",
+   "name": "#flowAddBlockBtn",
+   "label": "+ Add bar",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowDetailsHubView",
+   "name": "#flowEditStickySecondaryBtn",
+   "label": "Add media",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowDetailsHubView",
+   "name": "#flowEditStickyActionBtn",
+   "label": "Add bars",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowDetailsHubView",
+   "name": "#flowEditCancelBtn",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowDetailsHubView",
+   "name": "#flowEditSaveBtn",
+   "label": "Save",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "#flowVolumeBtn",
+   "label": "Volume - tap to change",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "#flowResetBtn",
+   "label": "reset",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "#flowLoopBtn",
+   "label": "off repeat",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "#flowPlaybackBtn",
+   "label": "1 level",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "#flowPlayBtn",
+   "label": "play",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "#flowSubdivideBtn",
+   "label": "1 sub beats",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "#flowSpeedBtn",
+   "label": "100% play speed",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "#flowSessionFinishBtn",
+   "label": "finish",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "#flowPlayMenuBtn",
+   "label": "Flow options",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "#flowPlayMenuEditDetails",
+   "label": "Edit details",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "#flowPlayMenuEditFlow",
+   "label": "Edit bars",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "#flowPlayMenuLevels",
+   "label": "My Levels",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "#flowPlayMenuCopy",
+   "label": "Copy to my library",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "#flowPlayMenuLoadLibrary",
+   "label": "Load from library",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "#flowPlayMenuCreateNew",
+   "label": "Create new",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "#flowPlayMenuReport",
+   "label": "Report",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "#flowMovementBtn",
+   "label": "all movement",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "data-flow-play-layout",
+   "label": "1 column",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "data-flow-play-layout",
+   "label": "2 columns",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "data-flow-play-layout",
+   "label": "4 columns",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "top bar",
+   "name": "#flowBlockMenuDuplicate",
+   "label": "Duplicate",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "top bar",
+   "name": "#flowBlockMenuMoveUp",
+   "label": "Move up",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "top bar",
+   "name": "#flowBlockMenuMoveDown",
+   "label": "Move down",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "top bar",
+   "name": "#flowBlockMenuDelete",
+   "label": "Delete bar",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "top bar",
+   "name": "#homeToolMenuEarlier",
+   "label": "Move earlier",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "top bar",
+   "name": "#homeToolMenuLater",
+   "label": "Move later",
+   "html": true
+  },
+  {
+   "group": "Home and All tools",
+   "where": "top bar",
+   "name": "#homeToolMenuRemove",
+   "label": "Remove from favourites",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "top bar",
+   "name": "#flowFermataRowMenuEdit",
+   "label": "Edit",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "top bar",
+   "name": "#flowFermataRowMenuDelete",
+   "label": "Delete",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "top bar",
+   "name": "#flowRampRowMenuEdit",
+   "label": "Edit",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "top bar",
+   "name": "#flowRampRowMenuDelete",
+   "label": "Delete",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBpmModal",
+   "name": "#flowBpmCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBpmModal",
+   "name": "#flowBpmMinus",
+   "label": "Decrease bpm",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBpmModal",
+   "name": "#flowBpmPlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBarsModal",
+   "name": "#flowBarsCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBarsModal",
+   "name": "#flowBarsMinus",
+   "label": "Decrease bars",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBarsModal",
+   "name": "#flowBarsPlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowChoiceModal",
+   "name": "hide-modal(flowChoiceModal)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowChoiceModal",
+   "name": "#flowChoiceCancelBtn",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowFermataModal",
+   "name": "#flowFermataCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowFermataModal",
+   "name": "#flowFermataOpenFormBtn",
+   "label": "+ Add another pause",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowFermataModal",
+   "name": "#flowFermataBarMinus",
+   "label": "Decrease bar",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowFermataModal",
+   "name": "#flowFermataBarPlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowFermataModal",
+   "name": "#flowFermataBeatMinus",
+   "label": "Decrease beat",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowFermataModal",
+   "name": "#flowFermataBeatPlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowFermataModal",
+   "name": "#flowFermataDurationMinus",
+   "label": "Decrease duration",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowFermataModal",
+   "name": "#flowFermataDurationPlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowFermataModal",
+   "name": "#flowFermataAddBtn",
+   "label": "+ Insert pause into block",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowFermataModal",
+   "name": "#flowFermataCancelEditBtn",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowRampModal",
+   "name": "#flowRampCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowRampModal",
+   "name": "#flowRampOpenFormBtn",
+   "label": "+ Add another ramp",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowRampModal",
+   "name": "#flowRampBarMinus",
+   "label": "Decrease start bar",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowRampModal",
+   "name": "#flowRampBarPlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowRampModal",
+   "name": "#flowRampBeatMinus",
+   "label": "Decrease start beat",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowRampModal",
+   "name": "#flowRampBeatPlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowRampModal",
+   "name": "data-ramp-end-mode=block_end",
+   "label": "End of block",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowRampModal",
+   "name": "data-ramp-end-mode=specific",
+   "label": "Specific beat",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowRampModal",
+   "name": "#flowRampEndBarMinus",
+   "label": "Decrease end bar",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowRampModal",
+   "name": "#flowRampEndBarPlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowRampModal",
+   "name": "#flowRampEndBeatMinus",
+   "label": "Decrease end beat",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowRampModal",
+   "name": "#flowRampEndBeatPlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowRampModal",
+   "name": "#flowRampCustomTempoBtn",
+   "label": "120 bpm",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowRampModal",
+   "name": "#flowRampAddBtn",
+   "label": "+ Insert ramp into block",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowRampModal",
+   "name": "#flowRampCancelEditBtn",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBandPickerModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBandPickerModal",
+   "name": "#flowBandPickerConfirmBtn",
+   "label": "Move",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBandPickerModal",
+   "name": "hide-modal(flowBandPickerModal)",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowYouTubeModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowYouTubeModal",
+   "name": "#flowYouTubeSaveBtn",
+   "label": "Add video to flow",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowYouTubeModal",
+   "name": "hide-modal(flowYouTubeModal)",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "clipModal",
+   "name": "clip-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "clipModal",
+   "name": "clip-mark(start)",
+   "label": "Starts here",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "clipModal",
+   "name": "clip-nudge(start)",
+   "label": "1 second back",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "clipModal",
+   "name": "clip-nudge(start)",
+   "label": "1 second on",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "clipModal",
+   "name": "clip-mark(end)",
+   "label": "Ends here",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "clipModal",
+   "name": "clip-nudge(end)",
+   "label": "1 second back",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "clipModal",
+   "name": "clip-nudge(end)",
+   "label": "1 second on",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "clipModal",
+   "name": "clip-try",
+   "label": "Play from the start mark",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "clipModal",
+   "name": "#clipClearBtn",
+   "label": "Use all of it",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "clipModal",
+   "name": "clip-save",
+   "label": "Done",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "clipModal",
+   "name": "clip-close",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "barMapModal",
+   "name": "barmap-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "barMapModal",
+   "name": "barmap-clip-mark(start)",
+   "label": "Starts here",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "barMapModal",
+   "name": "barmap-clip-nudge(start)",
+   "label": "1 second back",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "barMapModal",
+   "name": "barmap-clip-nudge(start)",
+   "label": "1 second on",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "barMapModal",
+   "name": "#barMapPrevBtn",
+   "label": "Bar before",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "barMapModal",
+   "name": "#barMapNextBtn",
+   "label": "Next bar",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "barMapModal",
+   "name": "barmap-go",
+   "label": "Go",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "barMapModal",
+   "name": "barmap-mark",
+   "label": "This is bar 1",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "barMapModal",
+   "name": "barmap-clip-mark(end)",
+   "label": "Ends here",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "barMapModal",
+   "name": "barmap-clip-nudge(end)",
+   "label": "1 second back",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "barMapModal",
+   "name": "barmap-clip-nudge(end)",
+   "label": "1 second on",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "barMapModal",
+   "name": "barmap-save",
+   "label": "Done",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "barMapModal",
+   "name": "#barMapMatchBtn",
+   "label": "Match the piece's speeds to these marks",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "barMapModal",
+   "name": "barmap-close",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Tuner",
+   "where": "tunerView",
+   "name": "#tunerSettingsBtn",
+   "label": "Tuner settings",
+   "html": true
+  },
+  {
+   "group": "Tuner",
+   "where": "tunerView",
+   "name": "#tunerRetryBtn",
+   "label": "Try again",
+   "html": true
+  },
+  {
+   "group": "Tuner",
+   "where": "tunerView",
+   "name": "#tunerPauseBtn",
+   "label": "Pause history",
+   "html": true
+  },
+  {
+   "group": "Tuner",
+   "where": "tunerSettingsModal",
+   "name": "#tunerSettingsCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Tuner",
+   "where": "tunerSettingsModal",
+   "name": "#tunerTranspositionBtn",
+   "label": "Transposition C",
+   "html": true
+  },
+  {
+   "group": "Tuner",
+   "where": "tunerSettingsModal",
+   "name": "#tunerANBtn",
+   "label": "Tuning reference (A4) 440Hz",
+   "html": true
+  },
+  {
+   "group": "Tuner",
+   "where": "tunerTranspositionModal",
+   "name": "#tunerTranspositionCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Tuner",
+   "where": "tunerA4Modal",
+   "name": "#tunerANCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Tuner",
+   "where": "tunerA4Modal",
+   "name": "#tunerANMinus",
+   "label": "Decrease A4 reference",
+   "html": true
+  },
+  {
+   "group": "Tuner",
+   "where": "tunerA4Modal",
+   "name": "#tunerANPlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Tuner",
+   "where": "tunerA4Modal",
+   "name": "#tunerANResetBtn",
+   "label": "Reset to 440Hz",
+   "html": true
+  },
+  {
+   "group": "Timer",
+   "where": "timerView",
+   "name": "#timerStartBtn",
+   "label": "Start",
+   "html": true
+  },
+  {
+   "group": "Timer",
+   "where": "timerView",
+   "name": "#timerPlayBtn",
+   "label": "Pause",
+   "html": true
+  },
+  {
+   "group": "Timer",
+   "where": "timerView",
+   "name": "#timerStopBtn",
+   "label": "Stop",
+   "html": true
+  },
+  {
+   "group": "Timer",
+   "where": "timerDurationPickerModal",
+   "name": "#timerDurationPickerXBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Timer",
+   "where": "timerDurationPickerModal",
+   "name": "#timerDurationPickerCancelBtn",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Timer",
+   "where": "timerDurationPickerModal",
+   "name": "#timerDurationPickerSaveBtn",
+   "label": "Save",
+   "html": true
+  },
+  {
+   "group": "Theory",
+   "where": "theoryPickModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Theory",
+   "where": "theoryPickModal",
+   "name": "data-modal-close",
+   "label": "Done",
+   "html": true
+  },
+  {
+   "group": "Theory",
+   "where": "theorySetModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Theory",
+   "where": "theorySetModal",
+   "name": "#theorySetUseBtn",
+   "label": "Use these options",
+   "html": true
+  },
+  {
+   "group": "Theory",
+   "where": "smartLearnModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Theory",
+   "where": "smartLearnModal",
+   "name": "#smartLearnActionBtn",
+   "label": "Upgrade now",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesSettingsModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesSettingsModal",
+   "name": "#scalesInstrumentBtn",
+   "label": "- instrument",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesSettingsModal",
+   "name": "#scalesClefBtn",
+   "label": "Treble clef",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesSettingsModal",
+   "name": "#scalesPoolBtn",
+   "label": "1 grades",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesSettingsModal",
+   "name": "#scalesSizeBtn",
+   "label": "Medium music size",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesSettingsModal",
+   "name": "#scalesSettingsRangeBtn",
+   "label": "See your range",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesSettingsModal",
+   "name": "#scalesDirBtn",
+   "label": "Up down direction",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesSettingsModal",
+   "name": "#scalesDetailBtn",
+   "label": "Notes detail",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesSettingsModal",
+   "name": "#scalesSpeedBtn",
+   "label": "72 bpm speed",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesSettingsModal",
+   "name": "#scalesNpbBtn",
+   "label": "1 notes / beat",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesSettingsModal",
+   "name": "#scalesRepeatBtn",
+   "label": "Twice play each one",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesSettingsModal",
+   "name": "#scalesCountInBtn",
+   "label": "1 bar count-in",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesSettingsModal",
+   "name": "#scalesVolumeBtn",
+   "label": "80% volume",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesSettingsModal",
+   "name": "data-modal-close",
+   "label": "Done",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesInstrumentModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesSizeModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesSpeedModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesSpeedModal",
+   "name": "#scalesBpmMinus",
+   "label": "Decrease beats per minute",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesSpeedModal",
+   "name": "#scalesBpmPlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesRepeatModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesClefModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesDirModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesDetailModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesNpbModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesCountInModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsSettingsModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsSettingsModal",
+   "name": "#warmupsInstrumentBtn",
+   "label": "- instrument",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsSettingsModal",
+   "name": "#warmupsClefBtn",
+   "label": "Treble clef",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsSettingsModal",
+   "name": "#warmupsTopicsBtn",
+   "label": "All topics",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsSettingsModal",
+   "name": "#warmupsSizeBtn",
+   "label": "Medium music size",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsSettingsModal",
+   "name": "#warmupsSeeRangeBtn",
+   "label": "See your range",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsSettingsModal",
+   "name": "#warmupsSpeedBtn",
+   "label": "Their own speed",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsSettingsModal",
+   "name": "#warmupsRepeatBtn",
+   "label": "Twice play each one",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsSettingsModal",
+   "name": "#warmupsCountInBtn",
+   "label": "1 bar count-in",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsSettingsModal",
+   "name": "#warmupsVolumeBtn",
+   "label": "80% volume",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsSettingsModal",
+   "name": "data-modal-close",
+   "label": "Done",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsInstrumentModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsTopicsModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsTopicsModal",
+   "name": "data-modal-close",
+   "label": "Done",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsClefModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsSizeModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsSpeedModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsChooseModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsChooseModal",
+   "name": "#warmupsChooseEditBtn",
+   "label": "Change my warm-ups",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsRepeatModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsCountInModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsVolumeModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsVolumeModal",
+   "name": "#warmupsVolumeMinus",
+   "label": "Decrease volume",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsVolumeModal",
+   "name": "#warmupsVolumePlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsVolumeModal",
+   "name": "#warmupsMuteBtn",
+   "label": "Mute",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesVolumeModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesVolumeModal",
+   "name": "#scalesVolumeMinus",
+   "label": "Decrease volume",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesVolumeModal",
+   "name": "#scalesVolumePlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesVolumeModal",
+   "name": "#scalesMuteBtn",
+   "label": "Mute",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesPoolModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesPoolModal",
+   "name": "#scalesSeeRangeBtn",
+   "label": "See your range",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesPoolModal",
+   "name": "data-modal-close",
+   "label": "Done",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesChooseModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesChooseModal",
+   "name": "#scalesChooseEditBtn",
+   "label": "Change your scales",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountNameModal",
+   "name": "data-account-name-cancel",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountNameModal",
+   "name": "#accountCancelNameBtn",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountNameModal",
+   "name": "#accountSaveNameBtn",
+   "label": "Save",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountDisplayNameModal",
+   "name": "data-account-name-cancel",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountDisplayNameModal",
+   "name": "#accountCancelDisplayNameBtn",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountDisplayNameModal",
+   "name": "#accountSaveDisplayNameBtn",
+   "label": "Save",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountEmailModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountEmailModal",
+   "name": "#accountEmailCancelBtn",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountEmailModal",
+   "name": "#accountEmailSendBtn",
+   "label": "Send the link",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "avatarModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "importantNoticeModal",
+   "name": "#importantNoticeOkBtn",
+   "label": "Got it",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "urgentNotificationModal",
+   "name": "#urgentNotificationOkBtn",
+   "label": "Got it",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "whatsNewModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "whatsNewModal",
+   "name": "reload",
+   "label": "Reload now",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "policyModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesMyRangeModal",
+   "name": "data-modal-close",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesMyRangeModal",
+   "name": "#scalesMyRangeSetBtn",
+   "label": "Set your range",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesMyRangeModal",
+   "name": "data-modal-close",
+   "label": "Done",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessTimeUpModal",
+   "name": "#sessTimeUpFinishBtn",
+   "label": "Finish the session",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessTimeUpModal",
+   "name": "#sessTimeUpExtendBtn",
+   "label": "Just another 5 minutes",
+   "html": true
+  },
+  {
+   "group": "Timer",
+   "where": "timerFinishedModal",
+   "name": "#timerFinishedYesBtn",
+   "label": "Yes, save it",
+   "html": true
+  },
+  {
+   "group": "Timer",
+   "where": "timerFinishedModal",
+   "name": "#timerFinishedExtendBtn",
+   "label": "Just another 5 minutes",
+   "html": true
+  },
+  {
+   "group": "Timer",
+   "where": "timerFinishedModal",
+   "name": "#timerFinishedNoBtn",
+   "label": "No",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesView",
+   "name": "#scalesChooseBtn",
+   "label": "C major scale",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesView",
+   "name": "#scalesLadderLevelBtn",
+   "label": "1 level",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesView",
+   "name": "#scalesSettingsBtn",
+   "label": "settings",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesView",
+   "name": "#scalesLevelLink",
+   "label": "Level 1 - change",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesView",
+   "name": "#scalesPrevBtn",
+   "label": "previous",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesView",
+   "name": "#scalesNotYetBtn",
+   "label": "not yet",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesView",
+   "name": "#scalesNextMainBtn",
+   "label": "Next scale",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesView",
+   "name": "#scalesPlayBtn",
+   "label": "Play",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesView",
+   "name": "#scalesCountIn",
+   "label": "4 get ready",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesView",
+   "name": "#scalesNextBtn",
+   "label": "next",
+   "html": true
+  },
+  {
+   "group": "Scales",
+   "where": "scalesView",
+   "name": "#scalesGotItBtn",
+   "label": "got it",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsView",
+   "name": "#warmupsChooseBtn",
+   "label": "Warm-ups",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsView",
+   "name": "#warmupsSettingsBtn",
+   "label": "settings",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsView",
+   "name": "#warmupsPrevBtn",
+   "label": "previous",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsView",
+   "name": "#warmupsNextMainBtn",
+   "label": "Next warm-up",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsView",
+   "name": "#warmupsPlayBtn",
+   "label": "Play",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsView",
+   "name": "#warmupsCountIn",
+   "label": "4 get ready",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsView",
+   "name": "#warmupsNextBtn",
+   "label": "next",
+   "html": true
+  },
+  {
+   "group": "Theory",
+   "where": "theoryView",
+   "name": "#theoryInstrumentSetBtn",
+   "label": "Choose your instrument - it sets the clef the quizzes start on",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "tapTempoView",
+   "name": "smartlearn-more",
+   "label": "Learn more",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "tapTempoView",
+   "name": "#tapTempoStartBtn",
+   "label": "Start",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "tapTempoPlayView",
+   "name": "#tapTempoPad",
+   "label": "Tap",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "tapTempoPlayView",
+   "name": "#tapTempoNextBtn",
+   "label": "Next speed",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "gapTrainerView",
+   "name": "#gapTrainerStartBtn",
+   "label": "Start",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "gapTrainerPlayView",
+   "name": "#gapTrainerPad",
+   "label": "Tap the beat",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "gapTrainerPlayView",
+   "name": "#gapTrainerStopBtn",
+   "label": "Stop",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "earView",
+   "name": "smartlearn-more",
+   "label": "Learn more",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "earView",
+   "name": "#earStartBtn",
+   "label": "Start",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "earPlayView",
+   "name": "#earReplayBtn",
+   "label": "Play again",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "earPlayView",
+   "name": "#earSkipBtn",
+   "label": "Skip",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "earPlayView",
+   "name": "#earNextBtn",
+   "label": "Next note",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "drillResultsView",
+   "name": "smartlearn-more",
+   "label": "Learn more",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "drillResultsView",
+   "name": "#drillAgainBtn",
+   "label": "Again",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "drillResultsView",
+   "name": "#drillChangeBtn",
+   "label": "Change options",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "drillResultsView",
+   "name": "#drillOtherBtn",
+   "label": "Another skill",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "drillResultsView",
+   "name": "#drillHomeBtn",
+   "label": "Home",
+   "html": true
+  },
+  {
+   "group": "Theory",
+   "where": "theoryOptionsView",
+   "name": "#theoryIncludedBtn",
+   "label": "What&#39;s included?",
+   "html": true
+  },
+  {
+   "group": "Theory",
+   "where": "theoryOptionsView",
+   "name": "#theorySmartMoreBtn",
+   "label": "Learn more",
+   "html": true
+  },
+  {
+   "group": "Theory",
+   "where": "theoryOptionsView",
+   "name": "#theoryStartBtn",
+   "label": "Start",
+   "html": true
+  },
+  {
+   "group": "Theory",
+   "where": "theoryPlayView",
+   "name": "#theoryBreakNextBtn",
+   "label": "Next round",
+   "html": true
+  },
+  {
+   "group": "Theory",
+   "where": "theoryResultsView",
+   "name": "smartlearn-more",
+   "label": "Learn more",
+   "html": true
+  },
+  {
+   "group": "Theory",
+   "where": "theoryResultsView",
+   "name": "#theoryBlockNextBtn",
+   "label": "Next quiz",
+   "html": true
+  },
+  {
+   "group": "Theory",
+   "where": "theoryResultsView",
+   "name": "#theoryAgainBtn",
+   "label": "Again",
+   "html": true
+  },
+  {
+   "group": "Theory",
+   "where": "theoryResultsView",
+   "name": "#theoryChangeBtn",
+   "label": "Change options",
+   "html": true
+  },
+  {
+   "group": "Theory",
+   "where": "theoryResultsView",
+   "name": "#theoryOtherBtn",
+   "label": "Another quiz",
+   "html": true
+  },
+  {
+   "group": "Theory",
+   "where": "theoryResultsView",
+   "name": "#theoryHomeBtn",
+   "label": "Home",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "#submitBtn",
+   "label": "Save session",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "#cancelAddBtn",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpSubdivideModal",
+   "name": "hide-modal(qpSubdivideModal)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpSubdivideModal",
+   "name": "#qpSubdivideMinus",
+   "label": "Decrease sub beats",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpSubdivideModal",
+   "name": "#qpSubdividePlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpSubdivideModal",
+   "name": "#qpSubdivideCancelBtn",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpSubdivideModal",
+   "name": "#qpSubdivideSaveBtn",
+   "label": "Save",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpSpeedModal",
+   "name": "hide-modal(qpSpeedModal)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpVolumeModal",
+   "name": "#qpVolumeCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpVolumeModal",
+   "name": "#qpVolumeMinus",
+   "label": "Decrease volume",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpVolumeModal",
+   "name": "#qpVolumePlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpVolumeModal",
+   "name": "#qpMuteBtn",
+   "label": "Mute",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowSubdivideModal",
+   "name": "hide-modal(flowSubdivideModal)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowSubdivideModal",
+   "name": "#flowSubdivideMinus",
+   "label": "Decrease sub beats",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowSubdivideModal",
+   "name": "#flowSubdividePlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowSubdivideModal",
+   "name": "#flowSubdivideCancelBtn",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowSubdivideModal",
+   "name": "#flowSubdivideSaveBtn",
+   "label": "Save",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBulkDeleteModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBulkDeleteModal",
+   "name": "#flowBulkDeleteDoneBtn",
+   "label": "Delete",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBulkArchiveModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBulkArchiveModal",
+   "name": "#flowBulkArchiveDoneBtn",
+   "label": "Archive",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "skillsAddModal",
+   "name": "#skillsAddCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "skillsAddModal",
+   "name": "#skillsAddDoneBtn",
+   "label": "Add",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupListModal",
+   "name": "#warmupListCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupListModal",
+   "name": "#warmupListSaveBtn",
+   "label": "Save",
+   "html": true
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupListModal",
+   "name": "#warmupListDeleteBtn",
+   "label": "Delete this list",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "scaleUpModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "scaleUpModal",
+   "name": "#scaleUpOkBtn",
+   "label": "Carry on",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlineExtraModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlineExtraModal",
+   "name": "#outlineExtraSaveBtn",
+   "label": "Add it",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlineExtraModal",
+   "name": "#outlineExtraRemoveBtn",
+   "label": "Remove this extra",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessPlanModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessPlanModal",
+   "name": "#sessPlanNewBtn",
+   "label": "+ New plan",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessPlanModal",
+   "name": "#sessPlanUseBtn",
+   "label": "Use this plan",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessPlanModal",
+   "name": "#sessPlanMenuChange",
+   "label": "Change",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessPlanModal",
+   "name": "#sessPlanMenuDelete",
+   "label": "Delete",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "skillRateModal",
+   "name": "#skillRateCloseBtn",
+   "label": "Close without saying",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "skillRateModal",
+   "name": "#skillRateYesBtn",
+   "label": "Got it - next step",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "skillRateModal",
+   "name": "#skillRateNoBtn",
+   "label": "Not yet Same step next time",
+   "html": true
+  },
+  {
+   "group": "Range",
+   "where": "rangePickerModal",
+   "name": "#rangePickerCloseBtn",
+   "label": "Close without saving",
+   "html": true
+  },
+  {
+   "group": "Range",
+   "where": "rangePickerModal",
+   "name": "#rangeBottomStave",
+   "label": "Bottom note - tap the stave near a note to pick it",
+   "html": true
+  },
+  {
+   "group": "Range",
+   "where": "rangePickerModal",
+   "name": "#rangeBottomMinus",
+   "label": "Bottom note a semitone lower",
+   "html": true
+  },
+  {
+   "group": "Range",
+   "where": "rangePickerModal",
+   "name": "#rangeBottomPlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Range",
+   "where": "rangePickerModal",
+   "name": "#rangeTopStave",
+   "label": "Top note - tap the stave near a note to pick it",
+   "html": true
+  },
+  {
+   "group": "Range",
+   "where": "rangePickerModal",
+   "name": "#rangeTopMinus",
+   "label": "Top note a semitone lower",
+   "html": true
+  },
+  {
+   "group": "Range",
+   "where": "rangePickerModal",
+   "name": "#rangeTopPlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Range",
+   "where": "rangePickerModal",
+   "name": "#rangeMeasureBtn",
+   "label": "Measure it with the tuner",
+   "html": true
+  },
+  {
+   "group": "Range",
+   "where": "rangePickerModal",
+   "name": "#rangePickerCancelBtn",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Range",
+   "where": "rangePickerModal",
+   "name": "#rangePickerSaveBtn",
+   "label": "Save",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "paintTypeModal",
+   "name": "#paintTypeCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "paintTypeModal",
+   "name": "#paintTypeDoneBtn",
+   "label": "Set these bars",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "cutTypeModal",
+   "name": "#cutTypeCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "cutTypeModal",
+   "name": "#cutTypeDoneBtn",
+   "label": "Make it a focus section",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessPiecesModal",
+   "name": "#sessPiecesCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessPiecesModal",
+   "name": "#sessPiecesDoneBtn",
+   "label": "Use these pieces",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "plOwnerModal",
+   "name": "#plOwnerCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "plDateModal",
+   "name": "#plDateCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "plDateModal",
+   "name": "#plDateNoneBtn",
+   "label": "No target date Just show how many blocks it takes",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "plDateModal",
+   "name": "#plDateSetBtn",
+   "label": "Pick a date See the pace that gets you there",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "plDateModal",
+   "name": "#plDateDoneBtn",
+   "label": "Done",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "plPiecesModal",
+   "name": "#plPiecesCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "plPiecesModal",
+   "name": "#plPiecesDoneBtn",
+   "label": "Add",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessPiecesBlockModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessPiecesBlockModal",
+   "name": "#sessPiecesSourceBtn",
+   "label": "All my pieces with Levels where the pieces come from",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessPiecesBlockModal",
+   "name": "#sessPiecesBlockDoneBtn",
+   "label": "Done",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessScalesBlockModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessScalesBlockModal",
+   "name": "#sessScalesBlockDoneBtn",
+   "label": "Done",
+   "html": true
+  },
+  {
+   "group": "Instrument support",
+   "where": "supportBusinessModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Instrument support",
+   "where": "supportTownModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "sessionBlockModal",
+   "name": "#sessionBlockCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "levelRateModal",
+   "name": "#levelRateCloseBtn",
+   "label": "Close without answering",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "levelRateModal",
+   "name": "#levelRateMoreBtn",
+   "label": "Move up even further",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowSpeedModal",
+   "name": "hide-modal(flowSpeedModal)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowVolumeModal",
+   "name": "#flowVolumeCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowVolumeModal",
+   "name": "#flowVolumeMinus",
+   "label": "Decrease volume",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowVolumeModal",
+   "name": "#flowVolumePlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowVolumeModal",
+   "name": "#flowMuteBtn",
+   "label": "Mute",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpHistoryModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpHistoryModal",
+   "name": "#qpHistoryCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpHistoryModal",
+   "name": "#qpHistoryLoadBtn",
+   "label": "Load",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpMergeBarsModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpMergeBarsModal",
+   "name": "#qpMergeBarsCancelBtn",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpMergeBarsModal",
+   "name": "#qpMergeBarsSaveBtn",
+   "label": "Save to flow",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "top bar",
+   "name": "#qpHistoryItemRename",
+   "label": "Rename",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "top bar",
+   "name": "#qpHistoryItemDuplicate",
+   "label": "Duplicate",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "top bar",
+   "name": "#qpHistoryItemFavoriteToggle",
+   "label": "Set as favourite",
+   "html": true
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "top bar",
+   "name": "#qpHistoryItemDelete",
+   "label": "Delete",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroBlkMiniTunerInstrumentModal",
+   "name": "hide-modal(metroBlkMiniTunerInstrumentModal)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroSegNoteModal",
+   "name": "hide-modal(metroSegNoteModal)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBarStartModal",
+   "name": "hide-modal(flowBarStartModal)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBarEndModal",
+   "name": "hide-modal(flowBarEndModal)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowSignModal",
+   "name": "#flowSignCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowJumpModal",
+   "name": "#flowJumpCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowRepeatBarModal",
+   "name": "#flowRepeatBarCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowRepeatBarModal",
+   "name": "#flowRepeatBarStartMinus",
+   "label": "Decrease start bar",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowRepeatBarModal",
+   "name": "#flowRepeatBarStartPlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowRepeatBarModal",
+   "name": "#flowRepeatBarCancelBtn",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowRepeatBarModal",
+   "name": "#flowRepeatBarSaveBtn",
+   "label": "Save",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowLoopModal",
+   "name": "#flowLoopCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowLoopModal",
+   "name": "#flowLoopStartMinus",
+   "label": "Decrease start bar",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowLoopModal",
+   "name": "#flowLoopStartPlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowLoopModal",
+   "name": "#flowLoopEndMinus",
+   "label": "Decrease end bar",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowLoopModal",
+   "name": "#flowLoopEndPlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowLoopModal",
+   "name": "#flowLoopOffBtn",
+   "label": "Turn off",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowLoopModal",
+   "name": "#flowLoopSaveBtn",
+   "label": "Repeat",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowIntroModal",
+   "name": "#flowIntroCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowIntroModal",
+   "name": "#flowIntroStartMinus",
+   "label": "Decrease start bar",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowIntroModal",
+   "name": "#flowIntroStartPlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowIntroModal",
+   "name": "#flowIntroEndMinus",
+   "label": "Decrease end bar",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowIntroModal",
+   "name": "#flowIntroEndPlus",
+   "label": "+",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowIntroModal",
+   "name": "#flowIntroCancelBtn",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowIntroModal",
+   "name": "#flowIntroSaveBtn",
+   "label": "Save",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroSegTimeSigModal",
+   "name": "hide-modal(metroSegTimeSigModal)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroSegTimeSigModal",
+   "name": "#metroSegCustomSigAddBtn",
+   "label": "Set",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "metroSegTimeSigModal",
+   "name": "hide-modal(metroSegTimeSigModal)",
+   "label": "Done",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "listItemModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "listItemModal",
+   "name": "hide-modal(listItemModal)",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "listItemModal",
+   "name": "#liSaveBtn",
+   "label": "Save",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "listItemModal",
+   "name": "#liActionBtn",
+   "label": "Remove",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowCheckModal",
+   "name": "#flowCheckCloseBtn",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowCheckModal",
+   "name": "#flowCheckFixBtn",
+   "label": "Go back and fix",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowCheckModal",
+   "name": "#flowCheckContinueBtn",
+   "label": "Save anyway",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountDeleteModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountDeleteModal",
+   "name": "#accountDeleteConfirmBtn",
+   "label": "Delete my account for good",
+   "html": true
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "accountDeleteModal",
+   "name": "keep-account",
+   "label": "Keep my account",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "confirmModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "confirmModal",
+   "name": "#confirmCancelBtn",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "confirmModal",
+   "name": "#confirmActionBtn",
+   "label": "Confirm",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "offlineModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "offlineModal",
+   "name": "#offlineSyncBtn",
+   "label": "Sync now",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "reportModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "reportModal",
+   "name": "#reportCancelBtn",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "reportModal",
+   "name": "#reportSendBtn",
+   "label": "Send report",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "feedbackModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "feedbackModal",
+   "name": "#feedbackCancelBtn",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "feedbackModal",
+   "name": "#feedbackSubmitBtn",
+   "label": "Send",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "promptModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "promptModal",
+   "name": "prompt-close",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "promptModal",
+   "name": "#promptActionBtn",
+   "label": "Save",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "top bar",
+   "name": "#sessionHistoryItemEdit",
+   "label": "Edit",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "top bar",
+   "name": "#sessionHistoryItemDelete",
+   "label": "Delete",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "editModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "editModal",
+   "name": "#saveEditBtn",
+   "label": "Update record",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "editModal",
+   "name": "hide-modal(editModal)",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "#toastUndoBtn",
+   "label": "Undo",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "close-toast(toastSuccess)",
+   "label": "X",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "close-toast(toastWarning)",
+   "label": "X",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "close-toast(toastInfo)",
+   "label": "X",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "#toastUndoActionBtn",
+   "label": "Undo",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "close-toast(toastUndo)",
+   "label": "X",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "renderOfflineList()",
+   "name": "data-offline-remove",
+   "label": "Remove",
+   "html": false
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "renderToolResults()",
+   "name": "data-tool-view",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "renderNotificationsUpdateCard()",
+   "name": "#notificationsReloadBtn",
+   "label": "Reload now",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "renderNotificationsUpdateCard()",
+   "name": "data-notifications-home",
+   "label": "Start practising",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "renderNotificationsView()",
+   "name": "data-notification-id",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "renderNotificationsView()",
+   "name": "data-notification-clear",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "renderNotificationsView()",
+   "name": "data-notification-report",
+   "label": "Report this notice",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "renderClearedList()",
+   "name": "data-notification-restore",
+   "label": "Restore",
+   "html": false
+  },
+  {
+   "group": "Stats",
+   "where": "renderHistoryList()",
+   "name": "data-session-history-menu-btn",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "renderSettingsList()",
+   "name": "list-edit",
+   "label": "Edit",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "renderInstrumentChoice()",
+   "name": "data-instrument-id",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "renderAccountInstruments()",
+   "name": "data-instrument-menu-id",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Instrument support",
+   "where": "supportRowHtml()",
+   "name": "data-support-id",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Instrument support",
+   "where": "openSupportBusiness()",
+   "name": "data-support-open=link",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Instrument support",
+   "where": "openSupportBusiness()",
+   "name": "data-support-open=phone",
+   "label": "Call …",
+   "html": false
+  },
+  {
+   "group": "Instrument support",
+   "where": "openSupportBusiness()",
+   "name": "data-support-open=email",
+   "label": "Email …",
+   "html": false
+  },
+  {
+   "group": "Instrument support",
+   "where": "searchSupportTowns()",
+   "name": "data-town",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "My bands",
+   "where": "renderAccountBandInvites()",
+   "name": "data-invite-accept",
+   "label": "Join …",
+   "html": false
+  },
+  {
+   "group": "My bands",
+   "where": "renderAccountBandInvites()",
+   "name": "data-invite-decline",
+   "label": "No thanks",
+   "html": false
+  },
+  {
+   "group": "My bands",
+   "where": "renderAccountBandsList()",
+   "name": "data-band-menu-id",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "renderHiddenBands()",
+   "name": "data-band-show",
+   "label": "Show again",
+   "html": false
+  },
+  {
+   "group": "My bands",
+   "where": "renderTidyBands()",
+   "name": "data-tidy-band",
+   "label": "… … - tap to say what it is",
+   "html": false
+  },
+  {
+   "group": "My bands",
+   "where": "renderBandMembers()",
+   "name": "data-member",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "My bands",
+   "where": "renderBandMembers()",
+   "name": "data-invite",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "renderTwoStepSetup()",
+   "name": "data-two-step-open",
+   "label": "Add to my authenticator app",
+   "html": false
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "renderTwoStepSetup()",
+   "name": "data-two-step-copy-key",
+   "label": "Copy the setup key",
+   "html": false
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "renderTwoStepSetup()",
+   "name": "data-two-step-confirm",
+   "label": "Turn on two-step sign-in",
+   "html": false
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "renderRecoveryCodes()",
+   "name": "data-codes-copy",
+   "label": "Copy the codes",
+   "html": false
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "renderRecoveryCodes()",
+   "name": "data-codes-done",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Signing in",
+   "where": "passwordFieldHtml()",
+   "name": "data-password-toggle",
+   "label": "Show password",
+   "html": false
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "renderPasswordPanel()",
+   "name": "#accountPasswordOpenBtn",
+   "label": "Change password",
+   "html": false
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "renderPasswordPanel()",
+   "name": "#accountPasswordOpenBtn",
+   "label": "Add a password",
+   "html": false
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "renderPasswordPanel()",
+   "name": "#accountPasswordSaveBtn",
+   "label": "Save",
+   "html": false
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "renderPasswordPanel()",
+   "name": "#accountPasswordCancelBtn",
+   "label": "Cancel",
+   "html": false
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "renderAccountSecurity()",
+   "name": "#accountTwoStepStartBtn",
+   "label": "Set up two-step sign-in",
+   "html": false
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "renderAccountSecurity()",
+   "name": "#accountNewCodesBtn",
+   "label": "New recovery codes",
+   "html": false
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "renderAccountSecurity()",
+   "name": "#accountTwoStepOffBtn",
+   "label": "Turn off two-step sign-in",
+   "html": false
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "renderAccountSecurity()",
+   "name": "#accountTwoStepConfirmBtn",
+   "label": "Confirm",
+   "html": false
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "renderAccountSecurity()",
+   "name": "#accountTwoStepCancelBtn",
+   "label": "Cancel",
+   "html": false
+  },
+  {
+   "group": "My account, instruments, settings",
+   "where": "renderAvatarGrid()",
+   "name": "data-avatar",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Practice session",
+   "where": "renderPrepareList()",
+   "name": "data-prepare-id",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "renderInvite()",
+   "name": "data-resend-invite",
+   "label": "Send again",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "renderInvite()",
+   "name": "data-cancel-invite",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Add a piece",
+   "where": "addPieceNewListForm()",
+   "name": "#addPieceNewListSaveBtn",
+   "label": "Save",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderRehearseList()",
+   "name": "data-rehearse-id",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Practice session",
+   "where": "renderPathThrough()",
+   "name": "data-through",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Practice session",
+   "where": "paintBarHtml()",
+   "name": "data-bar",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Practice session",
+   "where": "renderPaint()",
+   "name": "data-pot",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Practice session",
+   "where": "renderPaintTypePicker()",
+   "name": "data-level",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Practice session",
+   "where": "renderCut()",
+   "name": "data-split",
+   "label": "Split it for me",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowPlaybackModal()",
+   "name": "pb-option",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowPlaybackModal()",
+   "name": "data-pb-level",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Practice session",
+   "where": "openLevelRating()",
+   "name": "data-rate",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Practice session",
+   "where": "openLevelRating()",
+   "name": "data-rate",
+   "label": "Too fast? Back to Level …",
+   "html": false
+  },
+  {
+   "group": "Practice session",
+   "where": "openLevelRating()",
+   "name": "data-rate",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Practice session",
+   "where": "renderPlanPick()",
+   "name": "data-plan",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Practice session",
+   "where": "renderPlanPick()",
+   "name": "data-plan-menu",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "renderBuild()",
+   "name": "data-slot",
+   "label": "…–… …</",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "renderBuild()",
+   "name": "data-add",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Practice session",
+   "where": "renderSessScales()",
+   "name": "data-scales-all",
+   "label": "See all my scales",
+   "html": false
+  },
+  {
+   "group": "Practice session",
+   "where": "sessContentRowHtml()",
+   "name": "data-content",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "openChooser()",
+   "name": "data-opt",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "openChooser()",
+   "name": "data-extra",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Practice session",
+   "where": "renderSessionPlan()",
+   "name": "data-block",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Practice session",
+   "where": "openSessionBlockModal()",
+   "name": "data-opt",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Practice lists",
+   "where": "renderPracticeListRows()",
+   "name": "data-list",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Practice lists",
+   "where": "renderPracticeList()",
+   "name": "data-piece",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Practice lists",
+   "where": "renderPracticeList()",
+   "name": "data-piece-menu",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "renderSkills()",
+   "name": "data-skill-list",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "renderSkills()",
+   "name": "#skillListNewBtn",
+   "label": "+ New list",
+   "html": false
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "renderSkills()",
+   "name": "data-skill-remove",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "renderPickList()",
+   "name": "data-pick-row",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "renderPickList()",
+   "name": "data-pick-all",
+   "label": "Select all",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "renderPickList()",
+   "name": "data-pick-none",
+   "label": "Unselect all",
+   "html": false
+  },
+  {
+   "group": "Warm-ups",
+   "where": "renderWarmupLists()",
+   "name": "data-warmup-edit",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "newPracticeList()",
+   "name": "data-owner",
+   "label": "Just me Only you see it",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "newPracticeList()",
+   "name": "data-owner",
+   "label": "… Everyone in the band will see it",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "renderFilterBar()",
+   "name": "data-filter-open",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "renderFilterBar()",
+   "name": "data-filter-clear",
+   "label": "Clear all",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "renderFilterBar()",
+   "name": "data-filter-chip",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "filterPanelHtml()",
+   "name": "data-filter-pick",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "filterClearAllHtml()",
+   "name": "data-filter-clear-all",
+   "label": "Clear all",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "drawPanel()",
+   "name": "data-filter-back",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "drawPanel()",
+   "name": "data-filter-back",
+   "label": "Done - show …",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowsList()",
+   "name": "data-flow-library-menu-btn",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowMediaItemHtml()",
+   "name": "rec-map",
+   "label": "… · … start, bars and end",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowMediaItemHtml()",
+   "name": "flow-speeds-restore",
+   "label": "Put the original speeds back",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowMediaItemHtml()",
+   "name": "flow-recording-clip",
+   "label": "… start and end",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowMediaItemHtml()",
+   "name": "flow-recording-movement",
+   "label": "… movement",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowMediaItemHtml()",
+   "name": "flow-recording-delete",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowRecordingsList()",
+   "name": "flow-speeds-restore",
+   "label": "Put the original speeds back",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowDocumentsList()",
+   "name": "open-url",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowDocumentsList()",
+   "name": "flow-document-delete",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBlockTileSectionsHtml()",
+   "name": "data-block-tile=time",
+   "label": "… time",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBlockTileSectionsHtml()",
+   "name": "data-block-tile=beatUnit",
+   "label": "… beat note",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBlockTileSectionsHtml()",
+   "name": "data-block-tile=bpm",
+   "label": "… bpm",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBlockTileSectionsHtml()",
+   "name": "data-block-tile=bars",
+   "label": "… bars",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBlockTileSectionsHtml()",
+   "name": "data-block-tile=start",
+   "label": "… start",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBlockTileSectionsHtml()",
+   "name": "data-block-tile=end",
+   "label": "… end",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBlockTileSectionsHtml()",
+   "name": "data-block-tile=repeatBar",
+   "label": "… alt ending",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBlockTileSectionsHtml()",
+   "name": "data-block-tile=intro",
+   "label": "… bar range",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBlockTileSectionsHtml()",
+   "name": "data-block-tile=pause",
+   "label": "… pause",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBlockTileSectionsHtml()",
+   "name": "data-block-tile=change",
+   "label": "… ramp",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBlockTileSectionsHtml()",
+   "name": "data-block-tile=sign",
+   "label": "… sign",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBlockTileSectionsHtml()",
+   "name": "data-block-tile=jump",
+   "label": "… jump",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBlockMarkBoxHtml()",
+   "name": "data-block-tile=rehearsalMark",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBlockMarkBoxHtml()",
+   "name": "data-block-tile=rehearsalMark",
+   "label": "+ RM",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBlockCardHtml()",
+   "name": "data-block-grab-handle",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBlockCardHtml()",
+   "name": "data-block-menu-btn",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowBarGrid()",
+   "name": "data-block-id",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBarFullTileHtml()",
+   "name": "flow-jump",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowLeadInPlayTileHtml()",
+   "name": "flow-jump",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBarDetailTileHtml()",
+   "name": "flow-jump",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBarDetailTileHtml()",
+   "name": "data-block-id",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowBarPopup()",
+   "name": "data-bar-popup=prev",
+   "label": "Previous bar",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowBarPopup()",
+   "name": "data-bar-popup=next",
+   "label": "Next bar",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowBarPopup()",
+   "name": "data-bar-popup=close",
+   "label": "Close",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowBarPopup()",
+   "name": "data-bar-popup=earlier",
+   "label": "Move earlier",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowBarPopup()",
+   "name": "data-bar-popup=duplicate",
+   "label": "Duplicate",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowBarPopup()",
+   "name": "data-bar-popup=later",
+   "label": "Move later",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowBarPopup()",
+   "name": "data-bar-popup=delete",
+   "label": "Delete this bar",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "openFlowChoiceModal()",
+   "name": "data-choice-idx",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "openSearchChoiceModal()",
+   "name": "data-search-idx",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "openSearchChoiceModal()",
+   "name": "data-search-other",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Set-up",
+   "where": "setupValueBox()",
+   "name": "data-setup",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Set-up",
+   "where": "setupBandsHtml()",
+   "name": "data-setup=band",
+   "label": "+ …",
+   "html": false
+  },
+  {
+   "group": "Set-up",
+   "where": "renderSetup()",
+   "name": "data-setup=back",
+   "label": "Back",
+   "html": false
+  },
+  {
+   "group": "Set-up",
+   "where": "renderSetup()",
+   "name": "data-setup=next",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Set-up",
+   "where": "setupPickBand()",
+   "name": "#setupNewBandAdd",
+   "label": "Add it",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowRepeatBarModal()",
+   "name": "data-pass",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowOpenNotePicker()",
+   "name": "data-note",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowOpenBarStartPicker()",
+   "name": "data-start-option",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowBarlinePickerTileHtml()",
+   "name": "data-option",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowGlyphPickerTileHtml()",
+   "name": "data-option",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowFermataList()",
+   "name": "data-pause-edit",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowFermataList()",
+   "name": "data-pause-menu",
+   "label": "Pause options",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowFermataAddSection()",
+   "name": "data-pause-kind",
+   "label": "… … … </button",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowRampList()",
+   "name": "data-ramp-edit",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowRampList()",
+   "name": "data-ramp-menu",
+   "label": "Ramp options",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowRampAddSection()",
+   "name": "data-ramp-target",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowShowCheckReview()",
+   "name": "data-check-block",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "recScoreControlsHtml()",
+   "name": "rec-loop",
+   "label": "off repeat",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "recScoreControlsHtml()",
+   "name": "rec-play",
+   "label": "play",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "recScoreControlsHtml()",
+   "name": "rec-speed",
+   "label": "100% play speed",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderBarMapModal()",
+   "name": "barmap-play",
+   "label": "Play",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderBarMapModal()",
+   "name": "barmap-remove",
+   "label": "Remove",
+   "html": false
+  },
+  {
+   "group": "Recordings",
+   "where": "renderRecordings()",
+   "name": "recordings-cut-change",
+   "label": "Change",
+   "html": false
+  },
+  {
+   "group": "Recordings",
+   "where": "renderRecordings()",
+   "name": "recordings-cut-remove",
+   "label": "Remove",
+   "html": false
+  },
+  {
+   "group": "Recordings",
+   "where": "renderRecordings()",
+   "name": "recordings-give",
+   "label": "Give it to a piece",
+   "html": false
+  },
+  {
+   "group": "Recordings",
+   "where": "renderRecordings()",
+   "name": "recordings-delete",
+   "label": "Delete this recording",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowMediaDots()",
+   "name": "data-slide-index",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowLoopModal()",
+   "name": "data-rest",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "loadFlowPlaybackSpeeds()",
+   "name": "data-value",
+   "label": "…%",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderMetroSegTimeSigPicker()",
+   "name": "data-value",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderMetroSegTimeSigChips()",
+   "name": "data-value",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderMetroSegTimeSigChips()",
+   "name": "data-remove-id",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderMetroSegCustomSigManageList()",
+   "name": "timesig-delete",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderMetroSegCustomSigManageList()",
+   "name": "timesig-archive",
+   "label": "Archive",
+   "html": false
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpBlockBoxHtml()",
+   "name": "data-qp-grab-handle",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpBlockBoxHtml()",
+   "name": "data-qp-menu-btn",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpBlockBoxHtml()",
+   "name": "data-qp-timesig-btn",
+   "label": "… time",
+   "html": false
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpBlockBoxHtml()",
+   "name": "data-qp-note-btn",
+   "label": "… beat note",
+   "html": false
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpBlockBoxHtml()",
+   "name": "data-qp-bpm-minus",
+   "label": "Decrease beats per minute",
+   "html": false
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpBlockBoxHtml()",
+   "name": "data-qp-bpm-plus",
+   "label": "+",
+   "html": false
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "qpOpenNotePicker()",
+   "name": "data-note",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "renderQpMergeGroupHtml()",
+   "name": "data-qp-merge-split",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "renderQpMergeGroupHtml()",
+   "name": "data-qp-merge-toggle-menu",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "renderQpMergeGroupHtml()",
+   "name": "data-qp-merge-into",
+   "label": "Merge above",
+   "html": false
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "renderQpMergeGroupHtml()",
+   "name": "data-qp-merge-into",
+   "label": "Merge below",
+   "html": false
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "renderQpHistoryList()",
+   "name": "data-qp-history-menu-btn",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Metronome (Quick Play)",
+   "where": "loadQuickPlayPlaybackSpeeds()",
+   "name": "data-value",
+   "label": "…%",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderMetroBlkMiniTunerInstrumentOptions()",
+   "name": "data-value",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Theory",
+   "where": "renderTheoryList()",
+   "name": "data-quiz",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Theory",
+   "where": "renderTheoryList()",
+   "name": "data-quiz",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Theory",
+   "where": "theoryOptionBox()",
+   "name": "data-theory-opt",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Theory",
+   "where": "renderTheoryPlayed()",
+   "name": "data-set",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Theory",
+   "where": "renderTheoryPlayed()",
+   "name": "#theoryPlayedMoreBtn",
+   "label": "Show more",
+   "html": false
+  },
+  {
+   "group": "Theory",
+   "where": "theoryNextQuestion()",
+   "name": "data-id",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Theory",
+   "where": "theoryNextQuestion()",
+   "name": "data-id",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Theory",
+   "where": "theoryNextQuestion()",
+   "name": "data-id",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderOutline()",
+   "name": "data-outline=back",
+   "label": "Back",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderOutline()",
+   "name": "data-outline",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlineValueBtn()",
+   "name": "data-outline",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlineTile()",
+   "name": "data-outline",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlinePickNote()",
+   "name": "data-note",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlineTimeRowHtml()",
+   "name": "data-time-pick",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlineSpeedRowHtml()",
+   "name": "data-speed-note",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlineTableRowHtml()",
+   "name": "data-xkind",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlineTableRowHtml()",
+   "name": "data-xends",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlineExtrasStepHtml()",
+   "name": "data-outline-extra",
+   "label": "…</stron",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlineExtrasStepHtml()",
+   "name": "data-outline=addExtra",
+   "label": "+ …",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlineMediaStepHtml()",
+   "name": "data-outline-media-remove",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlineMediaStepHtml()",
+   "name": "data-outline=addVideo",
+   "label": "+ Add the link",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlineMediaStepHtml()",
+   "name": "data-outline=pickFile",
+   "label": "+ …",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderOutlineExtraForm()",
+   "name": "data-x-sign",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderOutlineEndingsForm()",
+   "name": "data-ends-add",
+   "label": "+ Add another ending",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlineReadPanelHtml()",
+   "name": "data-outline=readChecks",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "renderDrillOptions()",
+   "name": "data-drill-opt",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "renderDrillPlayed()",
+   "name": "data-set",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "renderDrillPlayed()",
+   "name": "data-more",
+   "label": "Show more",
+   "html": false
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "renderSkillsHub()",
+   "name": "data-skill-view",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "earShowQuestion()",
+   "name": "data-id",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Skills: Tempo, Pulse, Pitch, Rhythm",
+   "where": "openRhythmPicker()",
+   "name": "data-rhythm",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Scales",
+   "where": "scalesTile()",
+   "name": "data-option",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Scales",
+   "where": "scalesRenderChoose()",
+   "name": "data-pick",
+   "label": "",
+   "html": false
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsRenderChoose()",
+   "name": "data-warmup",
+   "label": "…. … … bpm",
+   "html": false
+  },
+  {
+   "group": "Warm-ups",
+   "where": "warmupsRenderChoose()",
+   "name": "data-warmup-locked",
+   "label": "…. … … lock</spa",
+   "html": false
+  }
+ ]
+}
