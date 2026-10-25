@@ -394,6 +394,35 @@ export default [
     hosts: ['pwnedpasswords.com']
   },
   {
+    key: 'postcodes-io',
+    policyName: 'postcodes.io',
+    name: 'postcodes.io',
+    group: 'service',
+    status: 'in_use',
+    who: 'Ideal Postcodes Ltd (UK) - open source (MIT), free public API',
+    provides: 'Finds where a postcode, town or village is, for Instrument support (ML-610): a band\'s or a business\'s postcode or town, and the towns a member types to look near. Called from our server only, and each answer is kept in place_locations so a place is looked up once. Nothing about a member is sent.',
+    usedIn: 'server/services/instrumentSupport.js; scripts/instrument-support-seed-migration.mjs',
+    plan: 'No plan',
+    cost: 'Free - no key or subscription needed',
+    licence: 'The data: Open Government Licence v3.0 (ONS Postcode Directory, OS Open Names); the code: MIT',
+    terms: [
+      { label: 'Documentation (data sources)', url: 'https://postcodes.io/docs/overview' },
+      { label: 'Open Government Licence v3.0', url: 'https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/' }
+    ],
+    termsCheckedOn: CHECKED,
+    says: [
+      'Free, with no key. The site publishes no terms of use, rate limit or promise it will be available; Instrument support says towns can\'t be looked up just now if it doesn\'t answer, and places already looked up are kept.',
+      'Its data is the ONS Postcode Directory and OS Open Names, both under the Open Government Licence.'
+    ],
+    asks: [
+      { text: 'The data it serves has its own entry and credit (UK postcode and place data, under outside content).' }
+    ],
+    watch: [
+      'No published terms or fair-use limit. If Instrument support grows to many areas, ask Ideal Postcodes (support@ideal-postcodes.co.uk) or run our own copy (the code is MIT).'
+    ],
+    hosts: ['api.postcodes.io']
+  },
+  {
     key: 'jsdelivr',
     policyName: 'jsDelivr',
     name: 'jsDelivr',

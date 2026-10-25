@@ -1,0 +1,551 @@
+{
+  "area": "Within about 45 minutes' drive of Woking, Surrey, plus UK-wide services",
+  "centre": "Woking",
+  "max_drive_minutes": 45,
+  "checked_on": "2026-10-25",
+  "rule": "Only businesses checked on their own website, except ones the owner knows personally (source: owner)",
+  "businesses": [
+    {
+      "name": "Dawkes Music",
+      "offers": [
+        "shop-brass",
+        "shop-woodwind",
+        "repairs-brass",
+        "repairs-woodwind",
+        "hire"
+      ],
+      "group": "local",
+      "town": "Maidenhead",
+      "county": "Berkshire",
+      "postcode": "SL6 8BT",
+      "drive_minutes_from_woking": 35,
+      "website": "https://www.dawkes.co.uk",
+      "phone": "01628 630800",
+      "email": "info@dawkes.co.uk",
+      "what_they_say": "A woodwind and brass warehouse shop with its own on-site repair workshop for woodwind and brass, booked by appointment, and an instrument rental scheme.",
+      "post_in": true,
+      "source": "own website",
+      "checked_url": "https://www.dawkes.co.uk/instrument-repairs",
+      "notes": "Couriers can be arranged to collect an instrument for servicing from anywhere in the UK."
+    },
+    {
+      "name": "Rosehill Instruments",
+      "offers": [
+        "shop-brass",
+        "shop-woodwind",
+        "hire"
+      ],
+      "group": "local",
+      "town": "Beaconsfield",
+      "county": "Buckinghamshire",
+      "postcode": "HP9 2JD",
+      "drive_minutes_from_woking": 40,
+      "website": "https://www.rosehillinstruments.co.uk",
+      "phone": "01494 671717",
+      "email": "info@rosehillinstruments.co.uk",
+      "what_they_say": "A brass and woodwind showroom that also hires student instruments (trumpet, cornet, trombone, flute, clarinet, saxophones, oboe) by the school term.",
+      "post_in": null,
+      "source": "own website",
+      "checked_url": "https://www.rosehillinstruments.co.uk/Buy-back/",
+      "notes": "The site has no repairs page; servicing and minor repairs are only mentioned as included in the rental charge. Saturday visits by appointment."
+    },
+    {
+      "name": "Morgan's Musical Instrument Repairs",
+      "offers": [
+        "repairs-brass",
+        "repairs-woodwind"
+      ],
+      "group": "local",
+      "town": "West Molesey",
+      "county": "Surrey",
+      "postcode": "KT8 1RB",
+      "drive_minutes_from_woking": 25,
+      "website": "https://www.morgansmusic.co.uk",
+      "phone": "020 4571 1212",
+      "email": "morgansmusicservices@gmail.com",
+      "what_they_say": "Repairs woodwind (flute, clarinet, saxophone, oboe, bassoon) and brass (trumpet, trombone, tuba and more), including parts, modifications and cleaning.",
+      "post_in": null,
+      "source": "own website",
+      "checked_url": "https://www.morgansmusic.co.uk",
+      "notes": null
+    },
+    {
+      "name": "Sutton Music Centre",
+      "offers": [
+        "shop-brass",
+        "shop-woodwind",
+        "shop-percussion",
+        "repairs-woodwind",
+        "repairs-brass",
+        "hire"
+      ],
+      "group": "local",
+      "town": "Sutton",
+      "county": "Surrey",
+      "postcode": "SM1 1JN",
+      "drive_minutes_from_woking": 40,
+      "website": "https://suttonmusic.co.uk",
+      "phone": "020 8642 2838",
+      "email": "info@suttonmusic.co.uk",
+      "what_they_say": "A general music shop selling woodwind, brass and percussion, with an on-site workshop for woodwind and brass servicing and a rental scheme for flutes, clarinets, alto saxophones and trumpets.",
+      "post_in": null,
+      "source": "own website",
+      "checked_url": "https://suttonmusic.co.uk/pages/repairs",
+      "notes": "Bigger brass jobs go to off-site workshops they work with. Online shop with UK shipping."
+    },
+    {
+      "name": "Henry Potter & Co (Drums) Ltd",
+      "offers": [
+        "repairs-brass",
+        "repairs-woodwind",
+        "repairs-percussion",
+        "shop-percussion"
+      ],
+      "group": "local",
+      "town": "Aldershot",
+      "county": "Hampshire",
+      "postcode": "GU12 4PY",
+      "drive_minutes_from_woking": 25,
+      "website": "https://henrypotter.co.uk",
+      "phone": "07973 498073",
+      "email": null,
+      "what_they_say": "Repairs and overhauls wind, brass and percussion instruments (including dent removal, plating and timpani rebuilds), makes timpani and drums, and is a UK dealer for Majestic Percussion.",
+      "post_in": null,
+      "source": "own website",
+      "checked_url": "https://henrypotter.co.uk/repairs-servicing.htm",
+      "notes": "Based in Aldershot, not London. The email address on the site is hidden behind JavaScript."
+    },
+    {
+      "name": "The Drums & Percussion Centre",
+      "offers": [
+        "shop-percussion",
+        "repairs-percussion"
+      ],
+      "group": "local",
+      "town": "Woking",
+      "county": "Surrey",
+      "postcode": "GU22 0PP",
+      "drive_minutes_from_woking": 5,
+      "website": "https://www.drumsandpercussioncentre.com",
+      "phone": "01483 721100",
+      "email": null,
+      "what_they_say": "A drum and percussion shop in the Mayford Centre selling kits, snares, cymbals, hardware and percussion (including tuned percussion), and doing repairs and drum tuning.",
+      "post_in": null,
+      "source": "own website",
+      "checked_url": "https://www.drumsandpercussioncentre.com/storepage5491996.aspx",
+      "notes": "Unit F12-13, The Mayford Centre, Mayford Green. Online shop with UK mainland delivery. The site blocks plain fetches; it was read with a browser user agent."
+    },
+    {
+      "name": "Surrey Arts instrument hire",
+      "offers": [
+        "hire"
+      ],
+      "group": "local",
+      "town": "Guildford",
+      "county": "Surrey",
+      "postcode": "GU3 3BH",
+      "drive_minutes_from_woking": 15,
+      "website": "https://www.surreycc.gov.uk/culture-and-leisure/arts/music/lessons-for-children/instruments",
+      "phone": null,
+      "email": "surreyartsmusic@surreycc.gov.uk",
+      "what_they_say": "Surrey County Council's music service hires woodwind, brass, percussion and other instruments from its Instrument Hire Store, to its own pupils and ensemble members and also to musicians who don't have lessons with it.",
+      "post_in": null,
+      "source": "own website",
+      "checked_url": "https://www.surreycc.gov.uk/culture-and-leisure/arts/music/lessons-for-children/instruments",
+      "notes": "Collected by appointment from Surrey Arts, 14 The Pines, Broad Street, Guildford. Fees for non-Surrey Arts students by email."
+    },
+    {
+      "name": "SH Music",
+      "offers": [
+        "repairs-brass",
+        "repairs-woodwind"
+      ],
+      "group": "local",
+      "town": "Reading",
+      "county": "Berkshire",
+      "postcode": null,
+      "drive_minutes_from_woking": 45,
+      "website": "https://www.technicallymusical.com",
+      "phone": "07856 821975",
+      "email": null,
+      "what_they_say": "A one-person woodwind and brass repair workshop in Reading (saxophone, clarinet, flute, oboe, bassoon and brass) doing servicing, repairs and restorations by appointment.",
+      "post_in": true,
+      "source": "own website",
+      "checked_url": "https://www.technicallymusical.com/contact-us",
+      "notes": "The site says repairs can also be done by courier. Currently part time, so replies can take a few days; text the number. No street address on the site."
+    },
+    {
+      "name": "Ritz Music",
+      "offers": [
+        "hire"
+      ],
+      "group": "local",
+      "town": "Richmond",
+      "county": "Greater London",
+      "postcode": "TW9 1UF",
+      "drive_minutes_from_woking": 40,
+      "website": "https://www.ritzmusic.co.uk",
+      "phone": null,
+      "email": null,
+      "what_they_say": "A Richmond music school and studio that hires new instruments by the month, including flute, clarinet and trumpet, delivered free to your door.",
+      "post_in": null,
+      "source": "own website",
+      "checked_url": "https://www.ritzmusic.co.uk/rentals/",
+      "notes": "Has just relaunched an online shop, but the site doesn't say which band instruments it sells, so shop is not listed."
+    },
+    {
+      "name": "West London Brass Repairs",
+      "offers": [
+        "repairs-brass"
+      ],
+      "group": "local",
+      "town": null,
+      "county": null,
+      "postcode": null,
+      "drive_minutes_from_woking": null,
+      "website": null,
+      "phone": null,
+      "email": null,
+      "what_they_say": null,
+      "post_in": null,
+      "source": "owner",
+      "checked_url": null,
+      "notes": "No website. The owner is ringing them to check they are happy to be listed (25 Oct 2026); details to come from the owner. Not shown until they say yes."
+    },
+    {
+      "name": "Charley Brighton",
+      "offers": [
+        "repairs-brass"
+      ],
+      "group": "local",
+      "town": "Staines-upon-Thames",
+      "county": "Surrey",
+      "postcode": null,
+      "drive_minutes_from_woking": 20,
+      "website": "https://www.facebook.com/profile.php?id=61594053785849",
+      "phone": null,
+      "email": null,
+      "what_they_say": "Brass instrument repairs, from Staines.",
+      "post_in": null,
+      "source": "owner",
+      "checked_url": null,
+      "notes": "No website - contact is through their Facebook page (shown as \"Their Facebook page\", not \"website\"). The owner checked with Charley on 25 Oct 2026 - happy to be listed. No phone or email given; town and Facebook page from the owner. Drive time is an estimate."
+    },
+    {
+      "name": "sax.co.uk (SAX London)",
+      "offers": [
+        "shop-woodwind",
+        "repairs-woodwind",
+        "hire"
+      ],
+      "group": "uk-wide",
+      "town": "London",
+      "county": "Greater London",
+      "postcode": "SE1 9LQ",
+      "drive_minutes_from_woking": 65,
+      "website": "https://sax.co.uk",
+      "phone": "01892 662533",
+      "email": "help@sax.co.uk",
+      "what_they_say": "A saxophone-only shop with a store at 26 Stamford Street on the South Bank, a saxophone-only workshop (The Sax Clinic) and a saxophone hire scheme for UK residents.",
+      "post_in": null,
+      "source": "own website",
+      "checked_url": "https://sax.co.uk/pages/contact-us",
+      "notes": "Over 45 minutes from Woking, so listed as UK-wide for its online shop and UK hire scheme. Saxophones only. Workshop lead time for larger repairs is about three months; workshop email london@sax.co.uk. The site rate-limits automated fetches."
+    },
+    {
+      "name": "Clarinet & Flute London",
+      "offers": [
+        "shop-woodwind",
+        "repairs-woodwind"
+      ],
+      "group": "uk-wide",
+      "town": "London",
+      "county": "Greater London",
+      "postcode": "SE1 9LQ",
+      "drive_minutes_from_woking": 65,
+      "website": "https://clarinetandflute.com",
+      "phone": "020 7620 6099",
+      "email": "info@clarinetandflute.com",
+      "what_they_say": "A clarinet and flute shop (sister to sax.co.uk, same address) with its own clarinet and flute repair workshop and online ordering with delivery.",
+      "post_in": null,
+      "source": "own website",
+      "checked_url": "https://clarinetandflute.com/pages/workshop",
+      "notes": "The workshop page says it is at full capacity and not taking more instruments at the moment."
+    },
+    {
+      "name": "Howarth of London",
+      "offers": [
+        "shop-woodwind",
+        "repairs-woodwind",
+        "hire"
+      ],
+      "group": "uk-wide",
+      "town": "London",
+      "county": "Greater London",
+      "postcode": "W1U 7PN",
+      "drive_minutes_from_woking": 70,
+      "website": "https://www.howarthlondon.com",
+      "phone": "020 7935 2407",
+      "email": null,
+      "what_they_say": "A specialist woodwind maker and shop in Marylebone that repairs oboes, bassoons, clarinets, saxophones and flutes and hires instruments long or short term.",
+      "post_in": null,
+      "source": "own website",
+      "checked_url": "https://www.howarthlondon.com/long-term-rental-instrument/",
+      "notes": "Long-term hire is posted anywhere in the UK (carriage charged). The repairs page asks you to phone first and doesn't say whether instruments can be posted in."
+    },
+    {
+      "name": "Just Flutes",
+      "offers": [
+        "shop-woodwind",
+        "repairs-woodwind"
+      ],
+      "group": "uk-wide",
+      "town": "Croydon",
+      "county": "Greater London",
+      "postcode": "CR0 1DP",
+      "drive_minutes_from_woking": 50,
+      "website": "https://www.justflutes.com",
+      "phone": null,
+      "email": null,
+      "what_they_say": "A flute specialist shop that also sells clarinets, saxophones, oboes and accessories online, with repair studios in Croydon and Sevenoaks for all woodwind.",
+      "post_in": true,
+      "source": "own website",
+      "checked_url": "https://www.justflutes.com/content/our-services/repair-workshop",
+      "notes": "Just over 45 minutes from Woking. Repairs and services are often done by post at the Croydon workshop; booking-in system."
+    },
+    {
+      "name": "Rivera Repairs",
+      "offers": [
+        "repairs-brass",
+        "repairs-woodwind"
+      ],
+      "group": "uk-wide",
+      "town": "London",
+      "county": "Greater London",
+      "postcode": "SE25 6SZ",
+      "drive_minutes_from_woking": 55,
+      "website": "https://www.riverarepairs.co.uk",
+      "phone": "07516 723200",
+      "email": "info@riverarepairs.co.uk",
+      "what_they_say": "Service, repair and restoration of brass and woodwind instruments from a London workshop, with instruments accepted by post or courier from anywhere.",
+      "post_in": true,
+      "source": "own website",
+      "checked_url": "https://www.riverarepairs.co.uk/contact.html",
+      "notes": "Drop-off or collection within reasonable distance can be arranged."
+    },
+    {
+      "name": "Rosser Repairs",
+      "offers": [
+        "repairs-brass",
+        "repairs-woodwind"
+      ],
+      "group": "uk-wide",
+      "town": "Catford, London",
+      "county": "Greater London",
+      "postcode": "SE6 1EJ",
+      "drive_minutes_from_woking": 65,
+      "website": "http://rosserrepairs.co.uk",
+      "phone": "07946 633915",
+      "email": null,
+      "what_they_say": "Woodwind and brass repairs by Jocelyn Rosser in Catford; instruments can be dropped off or sent by Royal Mail Special Delivery.",
+      "post_in": true,
+      "source": "own website",
+      "checked_url": "http://rosserrepairs.co.uk/delivery",
+      "notes": "Site is http only (no secure version)."
+    },
+    {
+      "name": "Ian Peters Woodwind",
+      "offers": [
+        "repairs-woodwind"
+      ],
+      "group": "uk-wide",
+      "town": "Hordle",
+      "county": "Hampshire",
+      "postcode": "SO41 0JA",
+      "drive_minutes_from_woking": 80,
+      "website": "https://ianpeterswoodwind.com",
+      "phone": "01590 698062",
+      "email": "i.petersclt@gmail.com",
+      "what_they_say": "Services and repairs clarinets, saxophones, flutes, oboes, cor anglais and bassoons, from small repairs while you wait to full overhauls.",
+      "post_in": true,
+      "source": "own website",
+      "checked_url": "https://ianpeterswoodwind.com",
+      "notes": "Too far for a local listing; the site says collection by courier can be arranged. Mobile 07711 557655."
+    },
+    {
+      "name": "Hanson Music & Arts",
+      "offers": [
+        "shop-brass",
+        "shop-woodwind",
+        "repairs-brass",
+        "repairs-woodwind"
+      ],
+      "group": "uk-wide",
+      "town": "Marsden",
+      "county": "West Yorkshire",
+      "postcode": "HD7 6AB",
+      "drive_minutes_from_woking": 240,
+      "website": "https://www.hansonmusic.co.uk",
+      "phone": "01484 848060",
+      "email": "info@hansonmusic.co.uk",
+      "what_they_say": "A brass and woodwind maker and shop (Hanson clarinets, saxophones, trumpets) with a repair workshop that takes instruments from anywhere through its insured courier collection.",
+      "post_in": true,
+      "source": "own website",
+      "checked_url": "https://hansonworld.co.uk/repairs/brass-repairs-price-list/",
+      "notes": "Publishes brass and woodwind repair price guides."
+    },
+    {
+      "name": "Normans",
+      "offers": [
+        "shop-brass",
+        "shop-woodwind",
+        "shop-percussion",
+        "hire"
+      ],
+      "group": "uk-wide",
+      "town": "Burton upon Trent",
+      "county": "Staffordshire",
+      "postcode": "DE14 1RZ",
+      "drive_minutes_from_woking": 150,
+      "website": "https://www.normans.co.uk",
+      "phone": "01283 535333",
+      "email": "support@normans.co.uk",
+      "what_they_say": "An online music shop selling brass, woodwind and percussion, with monthly instrument hire (trumpet, cornet, trombone, flutes, clarinet, alto sax) delivered to your door.",
+      "post_in": null,
+      "source": "own website",
+      "checked_url": "https://www.normans.co.uk/pages/rental",
+      "notes": "No repairs of its own any more: its repairs page points to The British Music Service (Sleaford) and W&B Instrument Repairs (Canterbury). Hire is run with a partner, Wuva."
+    },
+    {
+      "name": "John Packer",
+      "offers": [
+        "shop-brass",
+        "shop-woodwind",
+        "repairs-brass",
+        "repairs-woodwind",
+        "hire"
+      ],
+      "group": "uk-wide",
+      "town": "Wellington",
+      "county": "Somerset",
+      "postcode": "TA21 9JF",
+      "drive_minutes_from_woking": 150,
+      "website": "https://johnpacker.co.uk",
+      "phone": "01823 282386",
+      "email": null,
+      "what_they_say": "A large brass and woodwind specialist selling online with UK delivery, booking services and repairs, and hiring its own student instruments by the month with postage.",
+      "post_in": null,
+      "source": "own website",
+      "checked_url": "https://johnpacker.co.uk/collections/hire",
+      "notes": "The repairs page content loads by script and couldn't be read, so whether repairs can be posted in is unknown."
+    },
+    {
+      "name": "Wessex Tubas",
+      "offers": [
+        "shop-brass"
+      ],
+      "group": "uk-wide",
+      "town": "Andover",
+      "county": "Hampshire",
+      "postcode": "SP10 5NW",
+      "drive_minutes_from_woking": 50,
+      "website": "https://www.wessex-tubas.com",
+      "phone": null,
+      "email": null,
+      "what_they_say": "Designs and sells brass instruments, including British brass band and student instruments, online with free standard UK delivery.",
+      "post_in": null,
+      "source": "own website",
+      "checked_url": "https://www.wessex-tubas.com/",
+      "notes": "Just over 45 minutes from Woking; listed for its online shop."
+    },
+    {
+      "name": "Heritage Music",
+      "offers": [
+        "shop-brass",
+        "shop-woodwind",
+        "repairs-brass",
+        "repairs-woodwind",
+        "hire"
+      ],
+      "group": "uk-wide",
+      "town": "Banbury",
+      "county": "Oxfordshire",
+      "postcode": "OX16 1TP",
+      "drive_minutes_from_woking": 80,
+      "website": "https://heritage-music.co.uk",
+      "phone": null,
+      "email": null,
+      "what_they_say": "A brass and woodwind specialist selling online, by mail order and in store, with its own repair workshop and an instrument rental scheme.",
+      "post_in": null,
+      "source": "own website",
+      "checked_url": "https://heritage-music.co.uk/",
+      "notes": "Listed for its online and mail-order shop; the site doesn't say whether repairs or rentals work by post. Town worked out from the postcode."
+    }
+  ],
+  "left_out": [
+    {
+      "name": "Mole Valley Music",
+      "why": "Its own site has an expired/invalid security certificate; the http address redirects to the broken https one, so it couldn't be checked safely."
+    },
+    {
+      "name": "Woodwind London (Muswell Hill)",
+      "why": "Over 45 minutes away and its own site offers no post-in repairs or UK-wide delivery (rental delivery is north London only)."
+    },
+    {
+      "name": "Windstruments (Bingley, West Yorkshire)",
+      "why": "Far away; its own site says rentals are collected from the shop and repairs are dropped off in person; no online basket."
+    },
+    {
+      "name": "Hands Music (Kingston upon Thames)",
+      "why": "Found only in directories; its website could not be reached."
+    },
+    {
+      "name": "Tim Davies Woodwind Repair (Guildford)",
+      "why": "Found only on Yell; no own website found."
+    },
+    {
+      "name": "Binfield Woodwind Repairs (Beverley Baker)",
+      "why": "Its own site shows only a one-line title (woodwind repairs); no location or contact details could be read from it."
+    },
+    {
+      "name": "Windology Music",
+      "why": "Its website would not load."
+    },
+    {
+      "name": "Berkshire Instrument Repairs (Reading)",
+      "why": "Its own site is about guitars, basses, ukuleles and banjos; brass and woodwind get only a passing mention."
+    },
+    {
+      "name": "Christopher Burrows Woodwind and Brass Repairer",
+      "why": "In Stoke Hammond, Buckinghamshire - too far, and its site doesn't offer post-in repairs."
+    },
+    {
+      "name": "Brass-Fix UK",
+      "why": "Workshop in Towcester - too far, and its site doesn't offer post-in repairs."
+    },
+    {
+      "name": "Brass Toff",
+      "why": "In Lowton near Manchester - too far, and its site doesn't say it takes instruments by post."
+    },
+    {
+      "name": "Mikes Music (Bognor Regis)",
+      "why": "Over 45 minutes away and its site doesn't offer post-in repairs."
+    },
+    {
+      "name": "Hayes Music (Romsey)",
+      "why": "Over 45 minutes away; its delivery and post-in terms weren't checked."
+    },
+    {
+      "name": "Malcolm Ball percussion hire",
+      "why": "A professional percussionist's hire for engagements, not a shop or general hire service."
+    },
+    {
+      "name": "Andertons (Guildford)",
+      "why": "Guitar, keyboard and drum chain store; not a band woodwind/brass shop and not checked."
+    },
+    {
+      "name": "Brittens Music (New Haw)",
+      "why": "Its New Haw shop has closed; it now serves Surrey customers by phone only. Left out on the owner's say-so (25 Oct 2026)."
+    }
+  ]
+}

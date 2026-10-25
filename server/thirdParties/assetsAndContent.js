@@ -182,6 +182,34 @@ export const content = [
     hosts: ['abrsm.org']
   },
   {
+    key: 'uk-postcode-place-data',
+    name: 'UK postcode and place data (ONS Postcode Directory, OS Open Names)',
+    group: 'content',
+    status: 'in_use',
+    who: 'Office for National Statistics, Ordnance Survey and Royal Mail (Crown copyright and Royal Mail copyright), served to us by postcodes.io',
+    provides: 'Where a postcode, town or village is - used only to work out how far a business in Instrument support is from a member\'s bands (ML-610). The positions are kept in place_locations; nothing from the data is shown except the place names and counties in the "Another town" search.',
+    usedIn: 'server/services/instrumentSupport.js; scripts/instrument-support-seed-migration.mjs; the credit line on the Instrument support screen (public/app.html); docs/instrument-support.md',
+    cost: 'Free',
+    licence: 'Open Government Licence v3.0 (the ONS Postcode Directory includes Royal Mail and Ordnance Survey data, free to use under it)',
+    terms: [
+      { label: 'Open Government Licence v3.0', url: 'https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/' },
+      { label: 'ONS licences (postcode products)', url: 'https://www.ons.gov.uk/methodology/geography/licences' },
+      { label: 'postcodes.io data sources', url: 'https://postcodes.io/docs/overview' }
+    ],
+    termsCheckedOn: CHECKED,
+    says: [
+      'Free to copy, adapt and use commercially, as long as the source is credited and it isn\'t suggested the data\'s owners endorse us.',
+      'The ONS Postcode Directory carries three credits: Ordnance Survey, Royal Mail and the Office for National Statistics.'
+    ],
+    asks: [
+      { text: 'Credit it where it is used: "Contains OS data © Crown copyright and database right; contains Royal Mail data © Royal Mail copyright and database right; source: Office for National Statistics, licensed under the Open Government Licence v3.0." - done, at the foot of the Instrument support screen.' },
+      { text: 'Don\'t suggest the ONS, Ordnance Survey or Royal Mail endorse the app or the businesses listed.' }
+    ],
+    watch: [
+      'The Royal Mail part of the ONS data is free for using the data as we do (finding positions); it is not a full address file and must not be sold or passed on as one.'
+    ]
+  },
+  {
     key: 'takadimi',
     name: 'Takadimi',
     group: 'content',

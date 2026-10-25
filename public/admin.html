@@ -66,6 +66,7 @@
                 <div class="admin-nav-group-items" id="adminNavGroup-content">
                 <button class="admin-nav-item" data-section="flows" type="button">Flows</button>
                 <button class="admin-nav-item" data-section="warmups" type="button">Warm-ups</button>
+                <button class="admin-nav-item" data-section="instrument-support" type="button">Instrument support</button>
                 <button class="admin-nav-item" data-section="recordings" type="button">Shared music <span id="reportsNavCount" class="admin-nav-count hidden-group"></span></button>
                 <button class="admin-nav-item" data-section="rest-messages" type="button">Rest messages</button>
                 <button class="admin-nav-item" data-section="theory-grades" type="button">Theory grades</button>
@@ -306,6 +307,13 @@
             <p class="admin-intro">The exercises in the Warm-ups tool, in the order it plays them. Written for treble-clef brass (brass band parts); the tool shows bass and tenor clef by moving the same notes down a major 9th, so lip slurs stay on the same harmonics. Switched-off exercises stay here but aren't shown in the tool.</p>
             <button class="btn-submit no-margin admin-add-btn" id="addWarmupBtn" type="button">+ New exercise</button>
             <div id="warmupsAdminList">Loading&hellip;</div>
+        </section>
+        <!-- ML-610: the businesses in Instrument support, and what members looked for (public/admin-instrument-support.js,
+             docs/instrument-support.md) -->
+        <section id="instrument-support-section" class="admin-section hidden-group">
+            <h1>Instrument support</h1>
+            <p class="admin-intro">The repairers, shops and hire members see in Instrument support: within about 45 minutes of their bands' towns, nearest first, then the UK-wide ones. Only a business found on its own website, or one you know that has said yes, goes in. <strong>Hide</strong> one while you wait for a yes; <strong>Remove</strong> one that asks to come off. Its position comes from its postcode, or its town if there is none.</p>
+            <div id="adminSupport"><p class="admin-intro">Loading&hellip;</p></div>
         </section>
         <!-- ML-390: the messages for the 30-second rest between practice-session blocks. Each player draws
              from their own shuffled deck, so every message comes round once before any repeats; a breathing
@@ -553,6 +561,34 @@
         <div class="flex-row gap-md mt-4">
             <button class="btn-cancel btn-nav no-margin" id="warmupFormCancelBtn" type="button">Cancel</button>
             <button class="btn-submit no-margin" id="warmupFormSaveBtn" type="button">Save</button>
+        </div>
+    </div>
+</div>
+<!-- ML-610: add or change a business in Instrument support -->
+<div class="modal" id="supportFormModal" role="dialog" aria-modal="true" aria-labelledby="supportFormTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="supportFormTitle">Add a business</h2>
+        <div class="form-group"><label for="supportFormName">Name</label><input type="text" id="supportFormName" maxlength="120"></div>
+        <div class="form-group" role="group" aria-labelledby="supportFormOffersLabel"><label id="supportFormOffersLabel">What it offers</label><div class="flex-col gap-xs" id="supportFormOffers"></div></div>
+        <div class="setting-row setting-row-grouped">
+            <span id="supportFormUkWideLabel">UK-wide (posts, delivers or sells online)</span><label class="toggle-switch"><input type="checkbox" id="supportFormUkWide" aria-labelledby="supportFormUkWideLabel"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="form-group"><label for="supportFormTown">Town</label><input type="text" id="supportFormTown" maxlength="80"></div>
+        <div class="form-group"><label for="supportFormCounty">County</label><input type="text" id="supportFormCounty" maxlength="80"></div>
+        <div class="form-group"><label for="supportFormPostcode">Postcode (for its position - never shown)</label><input type="text" id="supportFormPostcode" maxlength="10" autocomplete="off"></div>
+        <div class="form-group"><label for="supportFormLink">Website or Facebook page (https://)</label><input type="url" id="supportFormLink" maxlength="500"></div>
+        <div class="form-group"><label for="supportFormPhone">Phone</label><input type="tel" id="supportFormPhone" maxlength="40"></div>
+        <div class="form-group"><label for="supportFormEmail">Email</label><input type="email" id="supportFormEmail" maxlength="200"></div>
+        <div class="form-group"><label for="supportFormWhat">What they do (shown to members)</label><textarea id="supportFormWhat" rows="3" maxlength="400"></textarea></div>
+        <div class="form-group"><label for="supportFormSource">Where it came from</label><select id="supportFormSource"><option value="website">Its own website</option><option value="owner">Known to us, and said yes</option></select></div>
+        <div class="form-group"><label for="supportFormCheckedUrl">The page you checked it on</label><input type="url" id="supportFormCheckedUrl" maxlength="500"></div>
+        <div class="setting-row setting-row-grouped">
+            <span id="supportFormHiddenLabel">Hidden from members</span><label class="toggle-switch"><input type="checkbox" id="supportFormHidden" aria-labelledby="supportFormHiddenLabel"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="flex-row gap-md mt-4">
+            <button class="btn-cancel btn-nav no-margin" id="supportFormCancelBtn" type="button">Cancel</button>
+            <button class="btn-submit no-margin" id="supportFormSaveBtn" type="button">Save</button>
         </div>
     </div>
 </div>
@@ -1134,6 +1170,7 @@
 <script src="admin-retention.js"></script>
 <script src="admin-join-requests.js"></script>
 <script src="admin-piece-reads.js"></script>
+<script src="admin-instrument-support.js"></script>
 <!-- ML-443: the business case sums, then the page that runs them (both after admin.js) -->
 <script src="businessCase.js"></script>
 <script src="admin-business.js"></script>

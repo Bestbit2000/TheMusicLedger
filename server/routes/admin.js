@@ -46,6 +46,7 @@ import { getAdminDashboard } from '../services/adminDashboard.js';
 import { listRecords, saveRecord, setAttentionDone, saveAgreement } from '../services/thirdPartyRecords.js';
 import { retentionStatus, saveRule, runRetention, clearOldRecords } from '../services/retention.js';
 import { listJoinRequests, letInJoinRequest, passJoinRequest, dismissJoinRequest } from '../services/joinRequests.js';
+import { adminSupport, addBusiness, updateBusiness, removeBusiness } from '../services/instrumentSupport.js';
 import { listReads as listPieceReads, setChecked as setPieceReadChecked, rerunRead as rerunPieceRead, dropTestFiles as dropPieceReadTestFiles } from '../services/pieceReads.js';
 import { applyRecords } from '../thirdParties/records.js';
 import { getInstrumentUsageStats } from '../services/instruments.js';
@@ -1146,6 +1147,37 @@ router.delete('/piece-reads/:id/test-files', requireAuth, resolveAccount, requir
 
 // ML-464: retention - the rule (a switch, a unit, three lengths of time), who is next, and "Run now".
 // The same job runs once a day from the scheduler (routes/api.js). docs/retention.md.
+// ML-610: Admin -> Instrument support - the listings (add from a business's own website, edit, hide, remove for good)
+// and what members looked for (counted, never who). docs/instrument-support.md.
+router.get('/support', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    res.json(await adminSupport());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/support', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    res.json(await addBusiness(req.body));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.put('/support/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    res.json(await updateBusiness(req.params.id, req.body));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.delete('/support/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    res.json(await removeBusiness(req.params.id));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 // ML-580: Admin -> Waiting list - the requests from the public page, and Let in / Pass to the organiser / Not now
 router.get('/join-requests', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {

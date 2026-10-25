@@ -64,6 +64,7 @@ import { requestEmailChange } from '../services/emailChange.js';
 import { beginSetup, confirmSetup, newRecoveryCodes, turnOff } from '../services/twoStep.js';
 import { pricingColumns } from '../services/pricing.js';
 import { joinOptions, submitJoinRequest } from '../services/joinRequests.js';
+import { supportList, findPlaces } from '../services/instrumentSupport.js';
 
 const router = express.Router();
 
@@ -1327,6 +1328,25 @@ router.put('/account/bands/:id/members/:memberId/band-leader', requireAuth, reso
 });
 // ML-498: a band's notice to its members - sent by an organiser, a member who can change music or the band leader,
 // within the band's limits. One way only: there is no route to answer one.
+// ML-610: Instrument support - repairers, shops and hire near your bands (docs/instrument-support.md). near: a town
+// picked for this look only (never kept); without it, the towns of the bands on My bands.
+router.get('/support', requireAuth, resolveAccount, requireFeature('instrument_support'), async (req, res) => {
+  try {
+    const near = req.query.near ? { name: String(req.query.near).slice(0, 80), county: req.query.county ? String(req.query.county).slice(0, 80) : null } : null;
+    res.json(await supportList(req.accountId, { lookingFor: String(req.query.for || 'all'), near }));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+// The "another town" box: towns and villages that start with what was typed (postcodes.io)
+router.get('/support/places', requireAuth, resolveAccount, requireFeature('instrument_support'), async (req, res) => {
+  try {
+    res.json({ places: await findPlaces(req.query.q, req.accountId) });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 router.get('/account/bands/:id/notices', requireAuth, resolveAccount, requireFeature('band_notices'), async (req, res) => {
   try {
     await assertNotificationsEnabled();

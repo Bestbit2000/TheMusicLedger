@@ -201,10 +201,14 @@
                 <div class="nav-section-title">You</div>
                 <!-- ML-299: create, import, library and edit pieces (the old Flow start screen). Gated by flow_manage. -->
                 <button type="button" class="dropdown-item nav-item hidden-group" id="myMusicNavItem" data-view="metroBuilderView" data-act="view-menu" data-arg="metroBuilderView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">library_music</span><span class="nav-item-text">My music</span></button>
+                <!-- ML-610 (owner, 25 Oct 2026): "My app settings" - how the app works for you, not any sort of settings - then
+                     My instruments with Instrument support straight after it, last in the group so the "My..." items stay
+                     together. My account is down by Log out. -->
+                <button type="button" class="dropdown-item nav-item" data-view="settingsView" data-act="view-menu" data-arg="settingsView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">settings</span><span class="nav-item-text">My app settings</span></button>
                 <!-- ML-382: your instruments and each one's range - about your playing, so next to My music, not in My account -->
                 <button type="button" class="dropdown-item nav-item" data-view="accountInstrumentsView" data-act="view-menu" data-arg="accountInstrumentsView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">music_note</span><span class="nav-item-text">My instruments</span></button>
-                <button type="button" class="dropdown-item nav-item" data-view="accountView" data-act="view-menu" data-arg="accountView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">person</span><span class="nav-item-text">My account</span></button>
-                <button type="button" class="dropdown-item nav-item" data-view="settingsView" data-act="view-menu" data-arg="settingsView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">settings</span><span class="nav-item-text">Settings</span></button>
+                <!-- ML-610: repairers, shops and hire near your bands. Gated by instrument_support (renderFeatureGates). -->
+                <button type="button" class="dropdown-item nav-item hidden-group" id="instrumentSupportNavItem" data-view="instrumentSupportView" data-act="view-menu" data-arg="instrumentSupportView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">handyman</span><span class="nav-item-text">Instrument support</span></button>
                 <!-- ML-77: admin.html itself gates to Super admin accounts - this link is
                      hidden for everyone else (see syncAdminLinkVisibility) so it isn't
                      dangled in front of accounts that would just bounce off a notice. -->
@@ -221,7 +225,8 @@
                 <button type="button" class="dropdown-item nav-item" data-view="aboutView" data-act="view-menu" data-arg="aboutView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">info</span><span class="nav-item-text">About</span><span class="nav-item-meta" id="navAppVersion"></span></button>
 
                 <div class="nav-divider" role="separator"></div>
-                <!-- Log out on its own at the bottom, with the account it signs out of underneath. -->
+                <!-- My account, then Log out with the account it signs out of underneath (ML-610: the "who you are" pair). -->
+                <button type="button" class="dropdown-item nav-item" data-view="accountView" data-act="view-menu" data-arg="accountView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">person</span><span class="nav-item-text">My account</span></button>
                 <button type="button" class="dropdown-item nav-item" data-act="logout"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">logout</span><span class="nav-item-text">Log out<span class="nav-item-sub" id="navAccountEmail"></span></span></button>
                 </div>
                 <div class="nav-panel nav-panel-sub hidden-group" id="navToolsPanel" role="group" aria-label="Tools">
@@ -913,6 +918,24 @@
             <select id="accountInstrumentPicker" aria-label="Instrument to add" class="flex-1"><option value="">Choose an instrument&hellip;</option></select>
             <button class="btn-submit btn-inline" id="accountAddInstrumentBtn">Add</button>
         </div>
+        <!-- ML-610: Instrument support, opened on the main instrument's family (renderSupportLink). A future instrument
+             care timetable here will link to a service / repair person in it too. -->
+        <button type="button" class="history-item settings-link mt-5 hidden-group" id="supportFromInstrumentsLink"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">handyman</span><span class="settings-link-text"><span class="settings-link-title">Need a repair, a shop or hire?</span><span class="settings-link-sub" id="supportFromInstrumentsSub">Instrument support - near your bands</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+    </div>
+
+    <!-- ML-610: Instrument support - repairers, shops and hire within about 45 minutes of your bands, nearest first, then
+         UK-wide ones that post, deliver or sell online. A plain list the owner keeps: no reviews, and contact is outside
+         the app. Near and Looking for are one button and one pop-up each. docs/instrument-support.md. -->
+    <div id="instrumentSupportView" class="hidden-group">
+        <p class="metro-help-text">Repairers, shops and hire near your bands. Get in touch with them directly.</p>
+        <div class="outline-pair">
+            <button type="button" class="metroBlk-ctrl-value-btn w-full" id="supportNearBtn" aria-haspopup="dialog"><strong id="supportNearVal">My bands' towns</strong><span class="metroBlk-ctrl-value-label">near</span></button>
+            <button type="button" class="metroBlk-ctrl-value-btn w-full" id="supportForBtn" aria-haspopup="dialog"><strong id="supportForVal">Everything</strong><span class="metroBlk-ctrl-value-label">looking for</span></button>
+        </div>
+        <div id="supportList" aria-live="polite"></div>
+        <p class="metro-help-text mt-4">Every business here was found on its own website, or is one we know that agreed to be listed. We don't check their work or prices - ask them.</p>
+        <p class="text-sm text-muted">How far is worked out with open data: contains OS data © Crown copyright and database right; contains Royal Mail data © Royal Mail copyright and database right; source: Office for National Statistics, licensed under the Open Government Licence v3.0.</p>
+        <button type="button" class="btn-text" data-act="feedback" aria-haspopup="dialog">Something wrong or missing? Tell us</button>
     </div>
 
     <div id="accountBandsView" class="hidden-group">
@@ -4235,6 +4258,32 @@
         </div>
         <div id="sessScalesBody"></div>
         <button type="button" class="btn-submit mt-4" data-modal-close id="sessScalesBlockDoneBtn">Done</button>
+    </div>
+</div>
+
+<!-- ML-610: a business in Instrument support - what it does, and how to get in touch (its website or Facebook page, phone,
+     email - each opens outside the app). Where the listing came from, and how to ask for it to be changed. -->
+<div class="modal" id="supportBusinessModal" role="dialog" aria-modal="true" aria-labelledby="supportBusinessName">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="supportBusinessName">Business</h2>
+        <p class="metro-help-text" id="supportBusinessWhere"></p>
+        <p id="supportBusinessWhat"></p>
+        <div class="flex-col gap-sm mt-3" id="supportBusinessActions"></div>
+        <p class="metro-help-text mt-4" id="supportBusinessSource"></p>
+    </div>
+</div>
+
+<!-- ML-610: Instrument support - another town, for this look only (nothing is kept). Towns and villages as you type. -->
+<div class="modal" id="supportTownModal" role="dialog" aria-modal="true" aria-labelledby="supportTownTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="supportTownTitle">Another town</h2>
+        <div class="form-group">
+            <label for="supportTownInput">Town or village</label>
+            <input type="search" id="supportTownInput" autocomplete="off" maxlength="60" placeholder="Start typing a town">
+        </div>
+        <div id="supportTownResults" aria-live="polite"></div>
     </div>
 </div>
 

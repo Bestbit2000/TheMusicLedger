@@ -17,9 +17,9 @@ per-row "more" menus (`.account-band-menu`, positioned by JS next to the ⋮ but
 
 1. Home, Notifications (with its `.notif-count`), **Tools ›** (ML-326).
 2. Progress: Stats (ML-327: the Stats dashboard - Streaks, Session history and Tool results are reached from its cards, not the menu).
-3. You: My music (ML-299: create, import, library and edit pieces - the old Flow start screen, gated by `flow_manage`; the home tool that plays them is Rehearse, shown in Tools only once there is a piece), My account, Settings, Administration (super admins). No name by My account (ML-289) - the email under Log out already says who you are.
-4. Send feedback, About (version as `.nav-item-meta`).
-5. Log out on its own, last, with the signed-in email under it as a `.nav-item-sub` line.
+3. You: My music (ML-299: create, import, library and edit pieces - the old Flow start screen, gated by `flow_manage`; the home tool that plays them is Rehearse, shown in Tools only once there is a piece), **My app settings** (ML-610: how the app works for you - the screen is still `settingsView`), My instruments, **Instrument support** (ML-610, feature `instrument_support`: repairers, shops and hire near your bands - straight after My instruments, which also links to it), Administration (super admins).
+4. Invite someone, Send feedback, About (version as `.nav-item-meta`).
+5. **My account, then Log out** (ML-610, the owner's Option A, 25 Oct 2026: who you are and signing out sit together at the bottom), with the signed-in email under Log out as a `.nav-item-sub` line. No name by My account (ML-289) - the email under Log out already says who you are.
 
 Each row is a `.dropdown-item.nav-item`: `.nav-item-icon` (a Material Symbol) › `.nav-item-text` (the label, optionally with a `.nav-item-sub` line under it) › optional `.nav-item-meta` or `.nav-item-chevron` at the right. There's no line between rows, only between groups.
 

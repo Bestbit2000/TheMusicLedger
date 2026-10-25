@@ -1739,6 +1739,8 @@
         document.getElementById('skillsToolBtn')?.classList.toggle('hidden-group', !skillsHubTools().length);
         document.getElementById('rangeToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('range_trainer'));
         document.getElementById('tuningForkToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('tuning_fork')); // ML-158
+        document.getElementById('instrumentSupportNavItem')?.classList.toggle('hidden-group', !isFeatureEnabled('instrument_support')); // ML-610
+        renderSupportLink();
         document.getElementById('recordingsToolBtn')?.classList.toggle('hidden-group', !isFeatureEnabled('rehearsal_recordings')); // ML-489
         const manage = isFeatureEnabled('flow_manage');
         const create = manage && isFeatureEnabled('flow_create'); // ML-345: Add a piece
@@ -2332,7 +2334,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutPrivacyView', 'aboutTermsView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'bandWelcomeView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'settingsNoticesView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'levelsProgressView', 'bandSummaryView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView', 'setupView', 'tuningForkView'];
+    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutPrivacyView', 'aboutTermsView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'bandWelcomeView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'settingsNoticesView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'levelsProgressView', 'bandSummaryView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView', 'setupView', 'tuningForkView', 'instrumentSupportView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     // ML-107 (owner's list, 12 Oct 2026): anywhere you have your instrument up while looking at the screen - the
@@ -2485,7 +2487,7 @@
         if (viewName === 'accountTeachersView') { document.getElementById('topTitle').innerText = 'My teachers'; loadTeacherList(); }
         // ML-282: Settings is a list of groups, each its own screen. Every screen re-syncs its
         // controls from storage in case they were last changed elsewhere (the Tuner page itself).
-        const SETTINGS_TITLES = { settingsView: 'Settings', settingsDisplayView: 'Display and reading', settingsStatsView: 'Stats settings', settingsTunerView: 'Tuner settings', settingsPlaybackView: 'Metronome & playback' };
+        const SETTINGS_TITLES = { settingsView: 'My app settings', settingsDisplayView: 'Display and reading', settingsStatsView: 'Stats settings', settingsTunerView: 'Tuner settings', settingsPlaybackView: 'Metronome & playback' };
         if (SETTINGS_TITLES[viewName]) {
             document.getElementById('topTitle').innerText = SETTINGS_TITLES[viewName];
             syncSettingsControls();
@@ -2509,6 +2511,7 @@
         if (viewName === 'earView') { document.getElementById('topTitle').innerText = 'Pitch'; renderEarSetup(); }
         if (viewName === 'rangeView') { document.getElementById('topTitle').innerText = 'Range'; renderRangeView(); rangePlayer.prewarm(); }
         if (viewName === 'tuningForkView') { document.getElementById('topTitle').innerText = 'Tuning fork'; renderFork(); }
+        if (viewName === 'instrumentSupportView') { document.getElementById('topTitle').innerText = 'Instrument support'; startSupport(); } // ML-610
         if (viewName === 'setupView') { document.getElementById('topTitle').innerText = 'Set-up'; if (!setup) setup = { step: 0, first: false, nameAsked: setupNeedsName() }; renderSetup(); }
         if (viewName === 'rhythmView') { document.getElementById('topTitle').innerText = 'Rhythm'; renderRhythmView(); rhythmPlayer.prewarm(); }
         if (viewName === 'rhythmPlayView') document.getElementById('topTitle').innerText = 'Rhythm';
@@ -4224,8 +4227,173 @@
                 `<optgroup label="${escapeHtml(f)}">${instrumentCatalogue.filter(i => i.family === f && !mine.has(i.id))
                     .map(i => `<option value="${i.id}">${escapeHtml(i.name)}</option>`).join('')}</optgroup>`).join('');
         }
+        renderSupportLink(); // ML-610
         renderAccountSummaries();
     }
+    // ========================================
+    // INSTRUMENT SUPPORT (ML-610)
+    // ========================================
+    // Repairers, shops and hire near your bands - in place of the "anyone know a...?" WhatsApp question. A plain list
+    // the owner keeps: within about 45 minutes of your bands' towns, nearest first, then UK-wide ones that post,
+    // deliver or sell online. Near and Looking for are one button and one pop-up each; a town picked is for this look
+    // only. Contact is outside the app. The server counts what was looked for, never who. docs/instrument-support.md.
+    const SUPPORT_FOR = [
+        ['all', 'Everything', ''],
+        ['repairs-brass', 'Brass repairs', 'Servicing, dents, valves and slides'],
+        ['repairs-woodwind', 'Woodwind repairs', 'Pads, springs, keys and corks'],
+        ['shop', 'A shop', 'Instruments, mouthpieces, reeds, oils and music'],
+        ['hire', 'Hire', 'Borrow an instrument while yours is away, or to try one'],
+        ['percussion', 'Percussion', 'Band percussion: a shop or repairs']
+    ];
+    const support = { lookingFor: 'all', near: null, data: null, openFor: null }; // near: { name, county } picked for this look, or null
+    function supportOn() { return isFeatureEnabled('instrument_support'); } // a declaration: renderFeatureGates may ask before this line runs
+    // What a business offers, in a few words: "Brass and woodwind repairs, a shop and hire"
+    function supportOffersText(offers) {
+        const has = (o) => offers.includes(o);
+        const fam = (kind) => ['brass', 'woodwind', 'percussion'].filter(f => has(`${kind}-${f}`));
+        const words = (list) => list.length === 1 ? list[0] : `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`;
+        const bits = [];
+        const rep = fam('repairs'), shop = fam('shop');
+        if (rep.length) bits.push(`${words(rep)} repairs`);
+        if (shop.length) bits.push(shop.length === 3 ? 'a shop' : `a ${words(shop)} shop`);
+        if (has('hire')) bits.push('hire');
+        const text = words(bits);
+        return text.charAt(0).toUpperCase() + text.slice(1);
+    }
+    function supportRowHtml(b, local) {
+        // How far and where first - the line is cut short on a phone, and the pop-up has the rest
+        const where = local ? `about ${b.minutes} min${b.town ? ` · ${b.town}` : ''}` : (b.town || 'UK-wide');
+        return `<button type="button" class="history-item settings-link" data-support-id="${b.id}" aria-haspopup="dialog"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">${local ? 'handyman' : 'local_shipping'}</span><span class="settings-link-text"><span class="settings-link-title">${escapeHtml(b.name)}</span><span class="settings-link-sub">${escapeHtml(`${where} · ${supportOffersText(b.offers)}`)}</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>`;
+    }
+    function renderSupportList() {
+        const box = document.getElementById('supportList');
+        if (!box) return;
+        document.getElementById('supportForVal').textContent = (SUPPORT_FOR.find(([k]) => k === support.lookingFor) || SUPPORT_FOR[0])[1];
+        document.getElementById('supportNearVal').textContent = support.near ? support.near.name : 'My bands\' towns';
+        const d = support.data;
+        if (!d) { box.innerHTML = '<p class="metro-help-text mt-4">Loading&hellip;</p>'; return; }
+        if (d.error) { box.innerHTML = `<p class="metro-help-text mt-4">${escapeHtml(d.error)}</p>`; return; }
+        const towns = d.near.towns || [];
+        const from = towns.length > 3 ? `${towns.slice(0, 3).join(', ')} and more` : towns.join(', ');
+        const localHtml = !towns.length
+            ? '<p class="metro-help-text">None of the bands on My bands has a town we know. Choose a town with "near".</p>'
+            : d.local.length
+                ? `<p class="metro-help-text">Nearest first, from ${escapeHtml(from)}.</p>${d.local.map(b => supportRowHtml(b, true)).join('')}`
+                : `<p class="metro-help-text">Nothing within about ${d.maxMinutes} minutes of ${escapeHtml(from)} yet.</p>`;
+        box.innerHTML = `<h2 class="section-title">Within about ${d.maxMinutes} minutes</h2>${localHtml}`
+            + (d.ukWide.length ? `<h2 class="section-title">Anywhere in the UK</h2><p class="metro-help-text">Further away, but they post, deliver or sell online.</p>${d.ukWide.map(b => supportRowHtml(b, false)).join('')}` : '');
+    }
+    async function loadSupport() {
+        support.data = null;
+        renderSupportList();
+        const q = new URLSearchParams({ for: support.lookingFor });
+        if (support.near) { q.set('near', support.near.name); if (support.near.county) q.set('county', support.near.county); }
+        try { support.data = await apiCall(`/api/support?${q}`); }
+        catch (error) { support.data = { error: `The list didn't load: ${error.message}` }; }
+        renderSupportList();
+    }
+    // Each time the screen opens it starts afresh: near your bands' towns (a town picked was for that look only), looking
+    // for everything - or, from My instruments, the main instrument's family (openSupport)
+    function startSupport() {
+        support.near = null;
+        support.lookingFor = support.openFor || 'all';
+        support.openFor = null;
+        loadSupport();
+    }
+    function openSupport(lookingFor) {
+        support.openFor = lookingFor || null;
+        if (!isShown('instrumentSupportView')) switchView('instrumentSupportView'); else startSupport();
+    }
+    function openSupportBusiness(id) {
+        const d = support.data;
+        const b = d && [...d.local, ...d.ukWide].find(x => x.id === id);
+        if (!b) return;
+        document.getElementById('supportBusinessName').textContent = b.name;
+        document.getElementById('supportBusinessWhere').textContent = [supportOffersText(b.offers), b.town, b.minutes ? `about ${b.minutes} min from ${b.from}` : (b.ukWide ? 'works across the UK' : '')].filter(Boolean).join(' · ');
+        document.getElementById('supportBusinessWhat').textContent = b.whatTheyDo || '';
+        const actions = [];
+        if (b.link) actions.push(`<button type="button" class="btn-submit no-margin" data-support-open="link">${b.linkKind === 'facebook' ? 'Their Facebook page' : 'Visit their website'}</button>`);
+        if (b.phone) actions.push(`<button type="button" class="btn-cancel btn-nav no-margin" data-support-open="phone">Call ${escapeHtml(b.phone)}</button>`);
+        if (b.email) actions.push(`<button type="button" class="btn-cancel btn-nav no-margin" data-support-open="email">Email ${escapeHtml(b.email)}</button>`);
+        const box = document.getElementById('supportBusinessActions');
+        box.innerHTML = actions.join('');
+        box.querySelectorAll('[data-support-open]').forEach(btn => btn.addEventListener('click', () => {
+            const how = btn.dataset.supportOpen;
+            if (how === 'link' && /^https:\/\//i.test(b.link)) window.open(b.link, '_blank', 'noopener');
+            if (how === 'phone') window.location.href = `tel:${String(b.phone).replace(/[^\d+]/g, '')}`;
+            if (how === 'email') window.location.href = `mailto:${b.email}`;
+        }));
+        const checked = b.checkedOn ? new Date(`${b.checkedOn}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+        document.getElementById('supportBusinessSource').textContent = `${b.source === 'owner' ? 'Known to us, and happy to be listed' : 'From their own website'}${checked ? `, checked ${checked}` : ''}. We don't check their work or prices. Is this your business? Use Send feedback to change or remove it.`;
+        showModal('supportBusinessModal');
+    }
+    // Near: your bands' towns (each of them on its own too), or another town - for this look only
+    function openSupportNear() {
+        const towns = (support.data && support.data.near && !support.data.near.picked ? support.data.near.towns : null) || support.bandTowns || [];
+        const options = [{ value: '', html: addPieceRow('My bands\' towns', towns.length ? towns.join(' · ') : 'None of your bands has a town we know'), selected: !support.near }]
+            .concat(towns.map(t => ({ value: t, label: t, selected: !!support.near && support.near.name === t })))
+            .concat([{ value: '*', html: addPieceRow('Another town', 'Only for now - nothing is kept') }]);
+        openFlowChoiceModal('Near where?', options, (opt) => {
+            if (opt.value === '*') { openSupportTown(); return; }
+            support.near = opt.value ? { name: opt.value, county: null } : null;
+            loadSupport();
+        });
+    }
+    let supportTownTimer = null;
+    function openSupportTown() {
+        const input = document.getElementById('supportTownInput');
+        input.value = '';
+        document.getElementById('supportTownResults').innerHTML = '';
+        showModal('supportTownModal');
+        setTimeout(() => input.focus(), 50);
+    }
+    async function searchSupportTowns() {
+        const text = document.getElementById('supportTownInput').value.trim();
+        const box = document.getElementById('supportTownResults');
+        if (text.length < 2) { box.innerHTML = ''; return; }
+        let places = [];
+        try { places = (await apiCall(`/api/support/places?q=${encodeURIComponent(text)}`)).places || []; }
+        catch (error) { box.innerHTML = `<p class="metro-help-text">${escapeHtml(error.message)}</p>`; return; }
+        if (document.getElementById('supportTownInput').value.trim() !== text) return; // typed on meanwhile
+        box.innerHTML = places.length
+            ? places.map((p, i) => `<button type="button" class="flow-choice-option" data-town="${i}">${addPieceRow(p.name, p.county || '')}</button>`).join('')
+            : '<p class="metro-help-text">No town or village by that name.</p>';
+        box.querySelectorAll('[data-town]').forEach(btn => btn.addEventListener('click', () => {
+            const p = places[Number(btn.dataset.town)];
+            hideModal('supportTownModal');
+            support.near = { name: p.name, county: p.county };
+            loadSupport();
+        }));
+    }
+    document.getElementById('supportTownInput')?.addEventListener('input', () => { clearTimeout(supportTownTimer); supportTownTimer = setTimeout(searchSupportTowns, 300); });
+    function openSupportFor() {
+        openFlowChoiceModal('What are you looking for?', SUPPORT_FOR.map(([value, title, sub]) => ({ value, selected: support.lookingFor === value, html: sub ? addPieceRow(title, sub) : `<span><strong>${title}</strong></span>` })), (opt) => {
+            support.lookingFor = opt.value;
+            loadSupport();
+        });
+    }
+    document.getElementById('supportNearBtn')?.addEventListener('click', openSupportNear);
+    document.getElementById('supportForBtn')?.addEventListener('click', openSupportFor);
+    document.getElementById('supportList')?.addEventListener('click', (e) => {
+        const row = e.target.closest('[data-support-id]');
+        if (row) openSupportBusiness(Number(row.dataset.supportId));
+    });
+    // My instruments' link: set to the main instrument's family (instruments.family_key - ML-609)
+    function supportForInstrument() {
+        const main = (myInstruments || []).find(i => i.isPrimary) || (myInstruments || [])[0];
+        const key = main && main.familyKey;
+        return key === 'brass' ? 'repairs-brass' : key === 'woodwind' ? 'repairs-woodwind' : key === 'percussion' ? 'percussion' : 'all';
+    }
+    function renderSupportLink() {
+        const link = document.getElementById('supportFromInstrumentsLink');
+        if (!link) return;
+        setShown(link, supportOn());
+        const forKey = supportForInstrument();
+        const word = { 'repairs-brass': 'brass', 'repairs-woodwind': 'woodwind', percussion: 'percussion' }[forKey];
+        document.getElementById('supportFromInstrumentsSub').textContent = `Instrument support - ${word ? `${word}, ` : ''}near your bands`;
+    }
+    document.getElementById('supportFromInstrumentsLink')?.addEventListener('click', () => openSupport(supportForInstrument()));
+
     // ML-528: the clef you read an instrument in - yours, on every device (account_instruments.clef). Only some
     // instruments are read more than one way (a euphonium, baritone, trombone or tuba: a treble-clef part in a
     // brass band, bass clef at concert pitch in a wind band). The server hands back each instrument as you read
@@ -8093,7 +8261,7 @@
             ${own}
             ${toggle('pbSubToggle', 'Sub beats', subOn ? 'Auto fits the time signature - or set how many a beat' : 'Off: just the beats', subOn)}
             ${subOn ? `<div class="metroBlk-speed-options warmups-settings-grid" role="group" aria-label="Sub beats">${tile('data-pb-sub="auto"', 'Auto', !fixed)}${Array.from({ length: FLOW_SUBDIVIDE_MAX - FLOW_SUBDIVIDE_MIN + 1 }, (_, i) => FLOW_SUBDIVIDE_MIN + i).map(n => tile(`data-pb-sub="${n}"`, String(n), fixed === n)).join('')}</div>` : ''}
-            ${toggle('pbCountToggle', 'Count-in', when === 'off' ? 'Off: it starts as soon as you press play' : `${bars} - how many is in Settings`, when !== 'off')}
+            ${toggle('pbCountToggle', 'Count-in', when === 'off' ? 'Off: it starts as soon as you press play' : `${bars} - how many is in My app settings`, when !== 'off')}
             ${when !== 'off' ? `<div class="metro-transport-grid metro-transport-grid-2 warmups-settings-grid" role="group" aria-label="When it counts in">${tile('data-pb-count="first"', '<span>First time only<br><small>then a bar between goes</small></span>', when === 'first')}${tile('data-pb-count="every"', '<span>Every time round<br><small>before every go</small></span>', when === 'every')}</div>` : ''}`;
         const box = document.getElementById('flowChoiceOptions');
         const again = () => renderFlowPlaybackModal();
@@ -13673,7 +13841,7 @@
     }
     function setupLookHtml() {
         return `
-            <p class="text-sm text-muted no-margin">Each choice shows straight away. There is more in Settings, under Display and reading.</p>
+            <p class="text-sm text-muted no-margin">Each choice shows straight away. There is more in My app settings, under Display and reading.</p>
             <div class="outline-pair">${['theme', 'textSize', 'font', 'background'].map(id => setupValueBox(`look:${id}`, setupLookValue(id), SETUP_LOOK[id].label)).join('')}</div>
             <div class="display-toggle-row">
                 <span id="setupSpacingLabel">More space between lines and letters<span class="display-toggle-help">And no italics</span></span><label class="toggle-switch"><input type="checkbox" id="setupSpacing" aria-labelledby="setupSpacingLabel"${displayPrefs.dyslexia ? ' checked' : ''}><span class="toggle-slider"></span></label>

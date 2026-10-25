@@ -1,10 +1,11 @@
 {
+  "ML-610": "We added Instrument support to the menu: repairers, shops and hire within about 45 minutes of your bands, nearest first, and the ones anywhere in the UK - and the menu's Settings is now My app settings, with My account down by Log out.",
   "ML-609": "We gave the contra-alto and contrabass clarinets and the contrabass and soprillo saxophones their own scale lists - they had been given the tuba or flute lists.",
   "ML-602": "We added 3-valve and 4-valve versions of the euphonium, baritone horn and basses, and a 3-valve instrument's range now stops at its lowest real note, not the pedal notes below the gap.",
   "ML-606": "We fixed the bar pop-up on a phone: with big bar numbers the rehearsal mark now shows in full and the close button stays on the screen.",
   "ML-607": "We took the bar of how far through the list and the \"Next\" line off Warm-ups, so the screen just shows what you are playing.",
   "ML-608": "We made every block on a practice session's \"What goes in\" step look the same and tucked the details into each block's pop-up, and a Levels bar now shows how many bars are at each Level.",
-  "ML-603": "We added Reduce motion to Settings, Display and reading: with it on, things appear and go instead of sliding or fading, and countdowns move a step a second.",
+  "ML-603": "We added Reduce motion to My app settings, Display and reading: with it on, things appear and go instead of sliding or fading, and countdowns move a step a second.",
   "ML-605": "We put the Tuner's Transposition and Tuning reference back in pop-ups over its settings, and closing one now leaves the settings open.",
   "ML-595": "We gave every list one Filter button: it says how many filters are on, shows each as a chip you can take off, and lets you filter several ways at once.",
   "ML-601": "We fold Rehearse's list of pieces away on a wide screen while a piece plays, so its bars get the room - Back brings the list back.",
