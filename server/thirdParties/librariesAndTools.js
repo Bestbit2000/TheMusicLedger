@@ -47,7 +47,7 @@ export const libraries = [
   }),
   npm('sanitize-html', 'MIT', 'Apostrophe Technologies (ApostropheCMS)', 'Cleans the HTML of the words and the signature on Admin -> Email wording (ML-617) - only the allowed formatting, links and the uploaded logo are kept - before they are saved and before they go into an email.', LIVE, {
     termsCheckedOn: '2026-10-26',
-    says: ['It brings in six packages of its own (htmlparser2, postcss, launder, parse-srcset, is-plain-object, escape-string-regexp) to read the HTML and its styles. All run on our server only; nothing is sent to their authors.', 'Version 2.18.0 had an advisory (deep nesting could crash it); 2.18.1 fixes it - keep it at 2.18.1 or later.']
+    says: ['It brings in six packages of its own (htmlparser2, postcss, launder, parse-srcset, is-plain-object, escape-string-regexp) to read the HTML and its styles. All run on our server only; nothing is sent to their authors.', 'Version 2.18.0 had an advisory (deep nesting could crash it); 2.18.1 fixes it - keep it at 2.18.1 or later.', 'Its htmlparser2 is held at version 10 ("overrides" in server/package.json): version 12 is ES-module only, which the loader on Vercel cannot require(), and it took the server down on sandbox (26 Oct 2026). server/test/vercelLoading.test.js checks it.']
   }),
   npm('nodemailer', 'MIT-0', 'Andris Reinman', 'Sends email over SMTP, when MAIL_PROVIDER is "smtp".', LIVE),
   npm('@simplewebauthn/server', 'MIT', 'Matthew Miller', 'Checks a passkey\'s signed answer when a super admin opens the admin panel (ML-518). The browser half is our own file - nothing is loaded from anywhere else.', LIVE, {

@@ -34,5 +34,10 @@
   },
   "devDependencies": {
     "xmllint-wasm": "^4.0.2"
+  },
+  "overrides": {
+    "sanitize-html": {
+      "htmlparser2": "^10.1.0"
+    }
   }
 }
