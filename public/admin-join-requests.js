@@ -1,5 +1,6 @@
 // ML-580: Admin -> Waiting list. The requests to join from the public page, newest first: who, their email, the
-// band they named and their instrument. Let in sends the ordinary invitation email (a Standard member); Pass to
+// band they named and their instrument. Let in sends the ordinary invitation email (a Standard member, in with
+// Google or a password - whichever ways are on); Pass to
 // the organiser - when the band they named shares its music here - sends that band's organisers a notice, and
 // they decide; Not now removes it. Each goes from the list once done. The rules are
 // server/services/joinRequests.js; docs/waiting-list.md. Built from the panel's own pieces: no classes of its own.
@@ -35,7 +36,7 @@
                 </td>
             </tr>`).join('');
         $('adminJoinRequests').innerHTML = `
-            ${data.canLetIn ? '' : '<p class="admin-intro"><span class="admin-badge warn">Let in is off</span> It sends the email-and-password invitation, and email and password sign-in is switched off on this site. Switch on "Email and password login" (Live) on Feature access to use it.</p>'}
+            ${data.canLetIn ? '' : '<p class="admin-intro"><span class="admin-badge warn">Let in is off</span> It sends an invitation, and no way of signing in is switched on on this site.</p>'}
             <div class="admin-stat-table-wrap"><table class="admin-stat-table admin-bc-table">
                 <thead><tr><th class="admin-bc-text">Who</th><th class="admin-bc-text">Band</th><th class="admin-bc-text">Plays</th><th>Asked</th><th><span class="visually-hidden">What to do</span></th></tr></thead>
                 <tbody>${rows}</tbody>
@@ -92,7 +93,12 @@
             if (t.dataset.pass) pass(find(t.dataset.pass));
             if (t.dataset.dismiss) dismiss(find(t.dataset.dismiss));
         });
-        // The menu's count, without waiting for the page to be opened
-        A.apiCall('/api/admin/join-requests').then((d) => A.setNavCount('waitingListNavCount', d.requests.length)).catch(() => { /* the count just stays off */ });
     });
+    // The menu's count, without waiting for the page to be opened. admin.js asks for it once the panel has
+    // loaded - not before: until the super admin has proved it is them (ML-518) every admin route says no, so
+    // asked any earlier the count stayed off on every site with the check.
+    function refreshCount() {
+        A.apiCall('/api/admin/join-requests').then((d) => A.setNavCount('waitingListNavCount', d.requests.length)).catch(() => { /* the count just stays off */ });
+    }
+    window.AdminJoinRequests = { refreshCount };
 })();

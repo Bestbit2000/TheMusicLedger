@@ -814,11 +814,13 @@
     async function reloadInvites() {
         let data;
         try { data = await apiCall('/api/admin/invites'); } catch (e) { allInvites = []; return; } // before migration 074
-        passwordLoginOn = !!data.enabled;
+        passwordLoginOn = !!data.passwordLogin;
         emailsAreSent = data.emailsAreSent !== false;
+        // 26 Oct 2026: an invitation lets them in with Google, or a password where that is on (server/services/signInWays.js)
+        const ways = passwordLoginOn ? 'sign in with Google or choose a password' : 'sign in with Google';
         document.getElementById('inviteFormIntro').textContent = emailsAreSent
-            ? 'They get an email with a link to choose a password. It works once, for 7 days. Someone who already logs in with Google keeps their account and gains a password.'
-            : "This site doesn't send emails, so the link to choose a password won't reach them from here. Someone who already logs in with Google keeps their account and gains a password.";
+            ? `They get an email with a link to ${ways}. It works for 7 days.${passwordLoginOn ? ' Someone who already logs in with Google keeps their account and gains a password.' : ''}`
+            : `This site doesn't send emails, so the invitation won't reach them from here. Where it does, they ${ways}.`;
         setShown('invitesOffNote', !data.enabled);
         document.getElementById('inviteBtn').disabled = !data.enabled;
         allInvites = data.invites || [];
@@ -4144,6 +4146,7 @@
         document.getElementById('adminShell').classList.remove('hidden-group');
         openPageFromAddress(); // ML-443: admin.html#accounts opens on Accounts
         if (!location.hash.slice(1) || location.hash === '#dashboard') window.AdminDashboard?.open(); // the first page reads itself
+        window.AdminJoinRequests?.refreshCount(); // ML-580: the Waiting list's count on the menu
         try {
             loadFeatureAccess(); // ML-414: the first page - who can use what, and the catalogue
             const backtest = await apiCall('/api/admin/backtest');

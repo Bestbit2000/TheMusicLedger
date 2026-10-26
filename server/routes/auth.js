@@ -2,7 +2,8 @@ import express from 'express';
 import passport from '../config/passport.js';
 import { signToken } from '../utils/authToken.js';
 import { currentTokenVersion, forgetTokenVersion, emailIsShutOut, SHUT_OUT_MESSAGE } from '../services/tokenVersions.js';
-import { passwordLoginEnabled, login, forgotPassword, resetPassword, describeLink, acceptInvite, appUrl, secondStep, setupFromChallenge, confirmSetupFromChallenge } from '../services/passwordAuth.js';
+import { signInWaysOn } from '../services/signInWays.js';
+import { login, forgotPassword, resetPassword, describeLink, acceptInvite, appUrl, secondStep, setupFromChallenge, confirmSetupFromChallenge } from '../services/passwordAuth.js';
 import { mailIsReal } from '../services/mail.js';
 import { limitLinkTries } from '../services/passwordAuth.js';
 import { describeEmailChange, confirmEmailChange } from '../services/emailChange.js';
@@ -123,11 +124,13 @@ router.post('/test-login', async (req, res) => {
 // Tokens come back as JSON (the page stores them) rather than in a redirect URL.
 
 // Which login methods the login screen offers - the one thing it asks before anyone has logged in.
+// The list is SIGN_IN_WAYS (server/services/signInWays.js); google/password stay for the screen as it is.
 router.get('/methods', async (req, res) => {
   try {
-    res.json({ google: true, password: await passwordLoginEnabled() });
+    const ways = await signInWaysOn();
+    res.json({ google: ways.includes('google'), password: ways.includes('password'), ways });
   } catch (error) {
-    res.json({ google: true, password: false });
+    res.json({ google: true, password: false, ways: ['google'] });
   }
 });
 

@@ -27,6 +27,16 @@ emails are sent by Brevo, from the app's own domain** - `docs/app-name.md`.
   promoting a super admin stays a deliberate change there). The email's link (`/?invite=…`, 7 days, once) opens "choose a password"; saving it
   creates the account (with the invite's name and type) and logs in. A newer invite replaces an older
   one. Unused invites are listed there and can be cancelled.
+- **Ways in (26 Oct 2026).** An invitation offers every way of signing in that is on here, not only a password:
+  `server/services/signInWays.js` (`SIGN_IN_WAYS`) lists them - Google always, a password while `password_login` is
+  Live - and the email ("To get started, sign in with Google (if this email address is a Google account) or choose a
+  password.", button **Get started**), the screen its link opens (`showInviteWays` in `app.js`: Google's button and/or
+  the password boxes) and `GET /auth/methods` (`ways`) all read it. A first Google sign-in with the invited address
+  takes the invitation as choosing a password would: the invite's account type, its name where Google gave none, and the
+  link is used up (`getOrCreateAccount`). An address that already has an account is only offered a password. So the
+  admin's invite and the Waiting list's **Let in** work with password login off; **Invite someone** (the main menu)
+  still needs it, as before. A new way: one entry in `SIGN_IN_WAYS`, its button on the sign-in screen and in
+  `INVITE_WAYS` (`app.js`), and its own sign-in route.
 - **Log in** with email + password on the login screen (under Google's button). The server answers with
   the app's usual signed token as JSON; the page stores it like Google's.
 - **What the token holds, and how a Google sign-in hands it over (ML-475).** The token says who it is

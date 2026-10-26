@@ -25,18 +25,27 @@ export async function getOrCreateAccount(email, firstName = '', surname = '', cl
   // ML-430: an email whose account was deleted starts again as a fresh, empty account - but it takes
   // over the token number the deletion left, so sign-ins from before the deletion stay signed out.
   const marker = deletedEmailHash(email);
+  // An invitation waiting for this address (the owner, 26 Oct 2026: an invitation works with Google too): the new
+  // account takes its account type, and its name where Google gave none, and the invitation is used up - as
+  // choosing a password through it would (acceptInvite). Google has told us the address is theirs.
+  const invite = (await pool.query(
+    `SELECT account_level, first_name, surname FROM auth_email_links
+      WHERE purpose = 'invite' AND used_at IS NULL AND expires_at > now() AND lower(email) = lower($1)
+      ORDER BY created_at DESC LIMIT 1`, [email])).rows[0];
+  const name = { first: firstName || invite?.first_name || '', last: surname || invite?.surname || '' };
   const inserted = await pool.query(
     // ML-517: a new member hasn't seen set-up yet (setup_done_on NULL). The local test accounts
     // (@themusicledger.local - /auth/login on a developer's machine, the back-tests) start with it done, so a
     // freshly made one lands on the home screen like every other.
-    `INSERT INTO accounts (email, first_name, surname, token_version, setup_done_on)
-     VALUES ($1, $2, $3, COALESCE((SELECT token_version FROM deleted_account_markers WHERE email_hash = $4), 0), CASE WHEN $5 THEN CURRENT_DATE END)
+    `INSERT INTO accounts (email, first_name, surname, token_version, setup_done_on, account_level)
+     VALUES ($1, $2, $3, COALESCE((SELECT token_version FROM deleted_account_markers WHERE email_hash = $4), 0), CASE WHEN $5 THEN CURRENT_DATE END, $6)
      ON CONFLICT (email) DO NOTHING RETURNING id`,
-    [email, firstName, surname, marker, String(email).toLowerCase().endsWith('@themusicledger.local')]
+    [email, name.first, name.last, marker, String(email).toLowerCase().endsWith('@themusicledger.local'), invite?.account_level || 'standard_member']
   );
   if (inserted.rows.length) await pool.query('DELETE FROM deleted_account_markers WHERE email_hash = $1', [marker]);
   if (!inserted.rows.length) return (await pool.query('SELECT id FROM accounts WHERE email = $1', [email])).rows[0].id;
-  await sendSignupAlert({ firstName, surname, email, method: 'Google', ...client });
+  if (invite) await pool.query("UPDATE auth_email_links SET used_at = now() WHERE purpose = 'invite' AND used_at IS NULL AND lower(email) = lower($1)", [email]);
+  await sendSignupAlert({ firstName: name.first, surname: name.last, email, method: invite ? 'Google (invite)' : 'Google', ...client });
   return inserted.rows[0].id;
 }
 

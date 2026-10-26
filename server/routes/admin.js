@@ -25,7 +25,8 @@ import { getReviews, markReviewed } from '../services/reviews.js';
 import { adminRequestEmailChange } from '../services/emailChange.js';
 import { getFeatureAccess, saveFeatureAccess, clearFeatureCache } from '../services/features.js';
 import { listBandsForAdmin, createSharedBand, updateBandAdmin, deleteOrArchiveBandAdmin, setBandDetails } from '../services/bands.js';
-import { createInvite, listPendingInvites, cancelInvite, passwordLoginEnabled, appUrl, adminSendReset, adminUnlock, adminSignOutEverywhere, adminTurnOffTwoStep } from '../services/passwordAuth.js';
+import { signInWaysOn } from '../services/signInWays.js';
+import { createInvite, listPendingInvites, cancelInvite, appUrl, adminSendReset, adminUnlock, adminSignOutEverywhere, adminTurnOffTwoStep } from '../services/passwordAuth.js';
 import { sentOrHeld, mailIsReal } from '../services/mail.js';
 import { listDurationOptionsForAdmin, createDurationOption, updateDurationOption, deleteDurationOption, listDurationUsageStats, listSessionMinuteCounts } from '../services/durationOptions.js';
 import { listTimeSignatureOptionsForAdmin, createTimeSignatureOption, updateTimeSignatureOption, deleteOrArchiveTimeSignatureOption, listNoteValueUsage } from '../services/timeSignatures.js';
@@ -453,10 +454,12 @@ router.post('/accounts/:id/reopen', requireAuth, resolveAccount, requireSuperAdm
 router.post('/blocked-emails/unblock', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck,
   accountAction((req) => unblockEmail((req.body || {}).email), (done) => `${done.email} is off the block list and can sign up again.`));
 
-// ML-355: invite someone to log in with their email and a password (password_login must be on).
+// ML-355: invite someone - in with Google, or a password where password_login is on (SIGN_IN_WAYS, 26 Oct 2026).
+// `enabled` is whether an invitation can be sent at all; `passwordLogin` is for the password actions (a reset link).
 router.get('/invites', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
-    res.json({ enabled: await passwordLoginEnabled(), invites: await listPendingInvites(), emailsAreSent: mailIsReal() });
+    const ways = await signInWaysOn();
+    res.json({ enabled: ways.length > 0, passwordLogin: ways.includes('password'), invites: await listPendingInvites(), emailsAreSent: mailIsReal() });
   } catch (error) {
     sendError(res, error);
   }

@@ -1616,7 +1616,7 @@
         window.history.replaceState({}, document.title, window.location.pathname);
         setShown('mainContainer', false);
         setShown('loginScreen', true);
-        document.getElementById('loginStatusText').textContent = purpose === 'invite' ? 'Choose a password to get started.' : 'Choose a new password.';
+        document.getElementById('loginStatusText').textContent = purpose === 'invite' ? 'Just a moment…' : 'Choose a new password.';
         document.querySelector('#loginScreen .splash-title').textContent = purpose === 'invite' ? 'Welcome' : 'New password';
         showSplashPanel('set');
         splashMessage('setPasswordMessage', '');
@@ -1624,7 +1624,7 @@
             .then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'This link has expired or already been used - ask for a new one.'); return d; })
             .then(d => {
                 document.getElementById('setPasswordEmail').value = d.email;
-                if (d.firstName && purpose === 'invite') document.getElementById('loginStatusText').textContent = `Hi ${d.firstName} - choose a password to get started.`;
+                if (purpose === 'invite') { showInviteWays(d); return; }
                 document.getElementById('setPassword').focus();
             })
             .catch(err => {
@@ -1633,6 +1633,20 @@
                 setShown('setPasswordLoginLink', true);
             });
         return true;
+    }
+    // An invitation's screen offers every way in the server says is on for it (server/services/signInWays.js,
+    // 26 Oct 2026): Google's own button, and the password boxes. A new way is its button here and a line below.
+    const INVITE_WAYS = { google: 'sign in with Google', password: 'choose a password' };
+    function showInviteWays(d) {
+        const ways = (d.ways || ['password']).filter(w => INVITE_WAYS[w]);
+        const words = ways.map(w => INVITE_WAYS[w]);
+        const list = words.length > 1 ? `${words.slice(0, -1).join(', ')} or ${words[words.length - 1]}` : words[0] || '';
+        document.getElementById('loginStatusText').textContent = `${d.firstName ? `Hi ${d.firstName} - to` : 'To'} get started, ${list}.`;
+        setShown('loginBtn', ways.includes('google'));
+        document.getElementById('loginBtn').classList.toggle('show', ways.includes('google')); // as displayLoginScreen
+        setShown('setPasswordFields', ways.includes('password'));
+        setShown('setPasswordOr', ways.includes('password') && ways.length > 1);
+        if (ways.length === 1 && ways[0] === 'password') document.getElementById('setPassword').focus();
     }
     document.getElementById('setPasswordForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();

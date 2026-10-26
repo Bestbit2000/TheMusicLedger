@@ -1,13 +1,13 @@
 // ML-580: the waiting list's form (server/services/joinRequests.js, readJoinForm) - what is kept, what a robot is
-// quietly told "thanks" for, and what a person is asked to put right. Plus, from the source: the form sends no
-// email, its routes are the listed open ones, and the admin routes are guarded. Pure: the pool is never queried.
+// quietly told "thanks" for, and what a person is asked to put right. Plus, from the source: the form emails only
+// the owner, its routes are the listed open ones, and the admin routes are guarded. Pure: the pool is never queried.
 
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 process.env.DATABASE_URL ||= 'postgres://test@localhost/test';
-const { readJoinForm, bandLabel, MIN_FILL_MS } = await import('../services/joinRequests.js');
+const { readJoinForm, bandLabel, MIN_FILL_MS, joinAlertEmail, JOIN_ALERT_TO } = await import('../services/joinRequests.js');
 const read = (path) => fs.readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
 const NOW = 1_800_000_000_000;
@@ -44,11 +44,24 @@ describe('readJoinForm', () => {
 });
 
 describe('the waiting list, from the source', () => {
-  test('the form never sends an email', () => {
+  test('the form never emails the person asking - only the owner, at our own address', () => {
     const src = read('server/services/joinRequests.js');
-    assert.doesNotMatch(src, /sendMail\(/);
+    const sends = src.match(/sendMail\(\{[^}]*\}/g) || [];
+    assert.deepEqual(sends, ['sendMail({ to: process.env.JOIN_ALERT_EMAIL || JOIN_ALERT_TO, ...joinAlertEmail(request) }'], 'one email, to us');
+    assert.equal(JOIN_ALERT_TO, 'info@notablybetter.com');
     const submit = src.slice(src.indexOf('export async function submitJoinRequest'), src.indexOf('// ---- Admin'));
     assert.doesNotMatch(submit, /createInvite|createTargetedNotification/, 'only the owner\'s Let in or Pass on contacts anyone');
+    assert.match(submit, /if \(kept\[0\]\?\.is_new\)/, 'asking again is not news');
+    assert.match(submit, /if \(rows\[0\]\.n > JOIN_ALERTS_A_DAY\) return false;/, 'a crowd of robots cannot fill the inbox');
+  });
+  test('the owner\'s email says who and what, but not their email address', () => {
+    const { subject, text } = joinAlertEmail({ firstName: 'Sam', lastName: 'Reed', email: 'sam.reed@example.com', band: 'Cobham Band (Cobham)', instrument: 'Cornet' });
+    assert.equal(subject, 'Notably Better: Sam Reed has asked to join');
+    assert.match(text, /Band: Cobham Band \(Cobham\)/);
+    assert.match(text, /Plays: Cornet/);
+    assert.match(text, /Admin, Waiting list/);
+    assert.doesNotMatch(text, /example\.com/);
+    assert.match(joinAlertEmail({ firstName: 'Sam', lastName: 'Reed' }).text, /Band: none given\nPlays: not given/);
   });
   test('the sender is counted by a hash, never the address itself', () => {
     assert.match(read('server/services/joinRequests.js'), /limitJoinRequests\(crypto\.createHash\('sha256'\)/);

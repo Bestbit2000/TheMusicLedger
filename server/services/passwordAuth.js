@@ -16,6 +16,7 @@ import { deletedEmailHash, forgetTokenVersion, currentTokenVersion, emailIsShutO
 import { twoStepStatus, beginSetup, confirmSetup, verifyLoginCode } from './twoStep.js';
 import { sendSignupAlert } from './signupAlert.js';
 import { appLink } from '../utils/appPath.js';
+import { signInWaysOn, invitationWays } from './signInWays.js';
 
 const INVITE_DAYS = 7;
 const RESET_MINUTES = 60;
@@ -170,8 +171,20 @@ async function liveLink(client, secret, purpose, lock = false) {
 // (the email layout is emailBody in mail.js)
 
 // ---- invites (super admin) ----
+// 26 Oct 2026 (the owner): an invitation lets them in whichever way is on here - Google, or choosing a password -
+// read from SIGN_IN_WAYS, so a way added later is offered too. The link carries who they are and the account type:
+// a password chosen through it (acceptInvite) or a first Google sign-in with the same address (getOrCreateAccount)
+// both take it, and use it up. Someone who already has an account can only gain a password from it.
+export function invitationEmail({ firstName, url, ways, existing }) {
+  const hello = firstName ? `Hi ${String(firstName).trim()},` : 'Hi,';
+  const lines = existing
+    ? [hello, "You've been invited to log in to Notably Better with your email and a password, as well as Google. Choose a password to get started."]
+    : [hello, "You've been invited to Notably Better.", invitationWays(ways)];
+  return { subject: "You're invited to Notably Better", ...emailBody(lines, 'Get started', url, `This link works for ${INVITE_DAYS} days. If you weren't expecting it, you can ignore this email.`) };
+}
 export async function createInvite({ email, firstName, surname, accountLevel, createdBy, origin }) {
-  await requireEnabled();
+  const ways = await signInWaysOn();
+  if (!ways.length) throw fail(404, 'Not found');
   const to = normaliseEmail(email);
   if (!looksLikeEmail(to)) throw fail(400, 'Enter a valid email address.');
   const level = accountLevel || 'standard_member';
@@ -181,16 +194,14 @@ export async function createInvite({ email, firstName, surname, accountLevel, cr
     await client.query('BEGIN');
     const existing = await accountByEmail(client, to);
     if (existing?.password_hash) throw fail(409, 'That email already has a password login - they can use "Forgot password" if they need a new one.');
+    // Already a member, and a password is the only thing an invitation could add
+    if (existing && !ways.includes('password')) throw fail(409, 'That email already has an account - they sign in as they always do.');
     const secret = await newLink(client, {
       purpose: 'invite', email: to, firstName: String(firstName || '').trim().slice(0, 80) || null,
       surname: String(surname || '').trim().slice(0, 80) || null, accountLevel: level, createdBy, minutes: INVITE_DAYS * 24 * 60
     });
-    const url = appLink(origin, `?invite=${secret}`);
-    const hello = firstName ? `Hi ${String(firstName).trim()},` : 'Hi,';
-    const { text, html } = emailBody(
-      [hello, `You've been invited to Notably Better${existing ? ' - this lets you log in with your email and a password as well as Google' : ''}. Choose a password to get started.`],
-      'Choose your password', url, `This link works once, for ${INVITE_DAYS} days. If you weren't expecting it, you can ignore this email.`);
-    await sendMail({ to, subject: "You're invited to Notably Better", text, html });
+    const { subject, text, html } = invitationEmail({ firstName, url: appLink(origin, `?invite=${secret}`), ways, existing: !!existing });
+    await sendMail({ to, subject, text, html });
     await client.query('COMMIT');
     return { email: to, existingAccount: !!existing, ...emailOutcome() }; // ML-479: emailed, or notSentHere
   } catch (e) {
@@ -268,12 +279,17 @@ export async function cancelInvite(id) {
 }
 
 // ---- the link screens (invite / reset): what the link is for, before choosing a password ----
+// An invitation's screen also says which ways in it offers (SIGN_IN_WAYS) - only a password, if the address already
+// has an account; a reset link is about a password, so it needs that switched on.
 export async function describeLink(secret, purpose, ip) {
-  await requireEnabled();
+  const ways = purpose === 'invite' ? await signInWaysOn() : [];
+  if (purpose === 'invite' ? !ways.length : !(await passwordLoginEnabled())) throw fail(404, 'Not found');
   if (await overLimit('link', ip, 60, 15)) throw fail(429, TOO_MANY);
   const link = await liveLink(pool, String(secret || ''), purpose);
   if (!link) throw fail(404, purpose === 'invite' ? 'This invite has expired or already been used - ask for a new one.' : 'This link has expired or already been used - ask for a new one.');
-  return { email: link.email, firstName: link.first_name };
+  if (purpose !== 'invite') return { email: link.email, firstName: link.first_name };
+  const existing = await accountByEmail(pool, link.email);
+  return { email: link.email, firstName: link.first_name, ways: existing ? ways.filter((w) => w === 'password') : ways };
 }
 
 async function setPassword(client, accountId, password) {

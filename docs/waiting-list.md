@@ -23,8 +23,13 @@ The form works without its script: it posts to `POST /api/join` and the page com
 
 ## What the form never does (the owner's decisions)
 
-- **No email.** Sending the form emails nobody, so it can't be used to send emails to a stranger's address. The first
-  email anyone gets is the owner's invitation.
+- **No email to the person asking.** Sending the form emails nobody at the address typed in, so it can't be used to
+  send emails to a stranger's address. The first email they get is the owner's invitation.
+- **The owner is told** (his request, 26 Oct 2026): a new request - not one asked again - emails
+  `info@notablybetter.com` (`JOIN_ALERT_EMAIL` overrides it) with their name, band and instrument, never their email
+  address, and says to open Admin → Waiting list (`tellTheOwner`, `joinAlertEmail`). After 20 new requests in a day
+  (`JOIN_ALERTS_A_DAY`) the rest wait quietly on the list, so a crowd of robots can't fill the inbox or use up the day's
+  emails. A failed email changes nothing for the person asking. On dev and sandbox it lands in `email_outbox`.
 - **No CAPTCHA, nothing loaded from outside.** Robots are kept out by a field only robots fill in (`.public-trap`), a
   check that the form wasn't sent within 3 seconds of the page opening, and 5 sends an hour per sender
   (`limitJoinRequests`). The sender is counted by a hash of their internet address, never the address itself, and the
@@ -34,12 +39,14 @@ The form works without its script: it posts to `POST /api/join` and the page com
 
 `public/admin-join-requests.js`, routes in `server/routes/admin.js` (super admins, the admin check). Newest first:
 who, their email, the band and instrument, when they asked; a badge if the address is already a member or a closed
-account. The menu counts what is waiting, and so does the Dashboard ("people are waiting to join").
+account. The menu counts what is waiting, and so does the Dashboard ("people are waiting to join"). The menu's count is
+asked for once the panel has loaded (`AdminJoinRequests.refreshCount`, from `load()` in `admin.js`) - asked any
+earlier, before the admin check (ML-518), it was refused and never showed.
 
 - **Let in** - the ordinary invitation email (`createInvite`, a Standard member). They add their band on My bands, or
-  in the set-up steps, once they are in. It is the email-and-password invitation, so it needs **Email and password
-  login** Live on Admin → Feature access; where that is off (sandbox, 22 Oct 2026) the page says so and the button is
-  greyed out, instead of the invitation code's bare "Not found".
+  in the set-up steps, once they are in. Since 26 Oct 2026 the invitation offers every way in that is on (Google always,
+  a password while **Email and password login** is Live - "Ways in" in `docs/password-login.md`), so Let in works with
+  password login off; only if no way in were on would the page say so and grey the button out.
 - **Pass to the organiser** - only for a band that shares its music here (a `group` for that directory entry) with an
   organiser. Its organisers get a notice (`createTargetedNotification`) saying who asked, their instrument and email,
   and how to invite them from the band's Members page; nothing is sent to the person unless an organiser invites them.
@@ -58,7 +65,7 @@ Live counts. Off: the page says to write to hello@notablybetter.com instead.
 
 ## Checks
 
-`server/test/joinRequests.test.js` (the form's rules; no email; the routes' guards; the 90 days). The open routes are
+`server/test/joinRequests.test.js` (the form's rules; the only email is the owner's; the routes' guards; the 90 days). The open routes are
 listed in `OPEN_ROUTES` (`server/services/siteSecurityReview.js`). The axe scan covers the page with the form.
 Before release: the Online Safety run-through (an organiser is shown a non-member's name and email) and the Children's
 Code self-assessment (the age tick).

@@ -2,7 +2,8 @@
 // the owner lets them in, passes the request to a band's organiser, or turns it down, on Admin -> Waiting list.
 //
 // What the form never does, by the owner's decisions (22 Oct 2026):
-//  - send an email - so it can't be used to email a stranger's address; the first email is an invitation;
+//  - send an email to the person asking - so it can't be used to email a stranger's address; their first email is
+//    an invitation. (The owner himself is told of a new request - tellTheOwner, 26 Oct 2026.)
 //  - say whether an address is already a member, already waiting or closed - every answer is the same;
 //  - load anything from outside (no CAPTCHA): a field only robots fill in, a check that the form wasn't sent a
 //    moment after the page opened, and a limit per sender keep robots out. The sender is counted by a scrambled
@@ -10,9 +11,11 @@
 import crypto from 'node:crypto';
 import pool from '../config/db.js';
 import { isFeatureLive } from './features.js';
-import { createInvite, normaliseEmail, limitJoinRequests, passwordLoginEnabled } from './passwordAuth.js';
+import { createInvite, normaliseEmail, limitJoinRequests } from './passwordAuth.js';
+import { signInWaysOn } from './signInWays.js';
 import { emailIsShutOut } from './tokenVersions.js';
 import { createTargetedNotification } from './notifications.js';
+import { sendMail } from './mail.js';
 
 const fail = (status, message) => Object.assign(new Error(message), { status });
 const looksLikeEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length <= 254;
@@ -67,15 +70,50 @@ export async function submitJoinRequest(body, ip) {
           AND (lower(name) = lower($1) OR (town IS NOT NULL AND lower(name || ' (' || town || ')') = lower($1)))`, [bandName]);
     if (rows.length === 1) { directoryBandId = Number(rows[0].id); bandName = null; }
   }
-  const instrument = form.instrumentId ? (await pool.query('SELECT id FROM instruments WHERE id = $1 AND active', [form.instrumentId])).rows[0] : null;
-  // Asking twice keeps one request, with the latest answers
-  await pool.query(
+  const instrument = form.instrumentId ? (await pool.query('SELECT id, name FROM instruments WHERE id = $1 AND active', [form.instrumentId])).rows[0] : null;
+  // Asking twice keeps one request, with the latest answers. xmax = 0 only on a row just made: a new request.
+  const { rows: kept } = await pool.query(
     `INSERT INTO join_requests (first_name, last_name, email, directory_band_id, band_name, instrument_id, age_confirmed)
      VALUES ($1, $2, $3, $4, $5, $6, true)
      ON CONFLICT ((lower(email))) DO UPDATE SET first_name = $1, last_name = $2, directory_band_id = $4, band_name = $5,
-       instrument_id = $6, updated_at = now()`,
+       instrument_id = $6, updated_at = now()
+     RETURNING (xmax = 0) AS is_new`,
     [form.firstName, form.lastName, form.email, directoryBandId, bandName, instrument ? instrument.id : null]);
+  if (kept[0]?.is_new) {
+    await tellTheOwner({ ...form, band: directoryBandId ? form.band : bandName, instrument: instrument ? instrument.name : null });
+  }
   return { ok: true, message: THANKS };
+}
+
+// The owner is emailed when someone new asks (his request, 26 Oct 2026), so he knows to look at Admin -> Waiting
+// list. It goes to one address of ours, never to the one typed in the form - so the form still can't be used to
+// email a stranger. It doesn't carry their email address (that stays on the page). Asking again isn't news, and
+// after JOIN_ALERTS_A_DAY new requests in a day the rest wait quietly on the list, so a crowd of robots can't fill
+// the inbox or use up the day's emails. A failed email changes nothing for the person asking.
+export const JOIN_ALERT_TO = 'info@notablybetter.com';
+export const JOIN_ALERTS_A_DAY = 20;
+export function joinAlertEmail({ firstName, lastName, band, instrument }) {
+  const who = `${firstName} ${lastName}`;
+  const text = [
+    `${who} has asked to join Notably Better from the website.`,
+    '',
+    `Band: ${band || 'none given'}`,
+    `Plays: ${instrument || 'not given'}`,
+    '',
+    'Open Admin, Waiting list to let them in, pass them to their band\'s organiser, or turn it down.'
+  ].join('\n');
+  return { subject: `Notably Better: ${who} has asked to join`.slice(0, 150), text };
+}
+async function tellTheOwner(request) {
+  try {
+    const { rows } = await pool.query("SELECT count(*)::int AS n FROM join_requests WHERE created_at > now() - interval '1 day'");
+    if (rows[0].n > JOIN_ALERTS_A_DAY) return false;
+    await sendMail({ to: process.env.JOIN_ALERT_EMAIL || JOIN_ALERT_TO, ...joinAlertEmail(request) });
+    return true;
+  } catch (error) {
+    console.error('Waiting list: the owner could not be emailed:', error.message);
+    return false;
+  }
 }
 
 // ---- Admin -> Waiting list (super admins, server/routes/admin.js) ----
@@ -102,10 +140,11 @@ export async function listJoinRequests() {
       spaces: spaces.filter((s) => s.organisers > 0).map((s) => ({ id: Number(s.id), name: s.name, organisers: s.organisers }))
     });
   }
-  // Let in is the email-and-password invitation, so it needs that sign-in switched on (password_login Live)
-  return { requests: out, keptDays: JOIN_KEPT_DAYS, canLetIn: await passwordLoginEnabled() };
+  // Let in is the ordinary invitation: Google, or a password where that is switched on (SIGN_IN_WAYS) - so it needs
+  // a way in, and Google always is one
+  return { requests: out, keptDays: JOIN_KEPT_DAYS, canLetIn: (await signInWaysOn()).length > 0 };
 }
-export const LET_IN_NEEDS = 'Let in sends the email-and-password invitation, and email and password sign-in is switched off on this site. Switch on "Email and password login" (Live) on Admin -> Feature access first.';
+export const LET_IN_NEEDS = 'Let in sends an invitation, and no way of signing in is switched on on this site.';
 
 export async function joinRequestCount() {
   return (await pool.query('SELECT count(*)::int AS n FROM join_requests')).rows[0].n;
@@ -120,7 +159,7 @@ async function oneRequest(id) {
 
 // Let in: the ordinary invitation email (a Standard member), then the request goes.
 export async function letInJoinRequest(id, adminAccountId, origin) {
-  if (!(await passwordLoginEnabled())) throw fail(409, LET_IN_NEEDS); // createInvite's own answer would be "Not found"
+  if (!(await signInWaysOn()).length) throw fail(409, LET_IN_NEEDS); // createInvite's own answer would be "Not found"
   const r = await oneRequest(id);
   const invite = await createInvite({ email: r.email, firstName: r.first_name, surname: r.last_name, accountLevel: 'standard_member', createdBy: adminAccountId, origin });
   await pool.query('DELETE FROM join_requests WHERE id = $1', [id]);
