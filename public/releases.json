@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.72.0",
+    "date": "2026-10-26",
+    "changes": [
+      {
+        "key": "ML-615",
+        "type": "New",
+        "summary": "We made it possible to add every instrument you play, each with its clef, on the first step of set-up."
+      },
+      {
+        "key": "ML-614",
+        "type": "New",
+        "summary": "We reworded the \"How it looks\" question on set-up."
+      },
+      {
+        "key": "ML-612",
+        "type": "New",
+        "summary": "We now change the app's dollar costs into pounds at HMRC's exchange rate for the month each was paid."
+      },
+      {
+        "key": "ML-22",
+        "type": "New",
+        "summary": "We now count how much each tool, screen and button is used - never who - so we can see what helps and what nobody needs."
+      }
+    ]
+  },
+  {
     "version": "0.71.1",
     "date": "2026-10-25",
     "changes": [
