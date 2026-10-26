@@ -266,7 +266,7 @@ export default [
     personalData: true, // emails people send us are stored in the mailbox; its data processing agreement is part of its terms
     status: 'in_use',
     who: 'Fasthosts Internet Limited (UK), part of the IONOS group (Germany)',
-    provides: 'The domain notablybetter.com and its DNS records (which point the site at Vercel and prove our emails are ours), and one mailbox, hello@notablybetter.com - the address the privacy policy and terms give for questions, privacy requests, complaints and reports.',
+    provides: 'The domain notablybetter.com and its DNS records (which point the site at Vercel and prove our emails are ours), and two mailboxes: hello@notablybetter.com - the address the privacy policy and terms give for questions, privacy requests, complaints and reports - and info@notablybetter.com, where the app tells the owner of each new request to join (ML-616).',
     usedIn: 'Nothing in the code. The DNS records are kept in Fasthosts\' control panel (Advanced DNS): an A record and www for Vercel, Brevo\'s DKIM and brand records, the Brevo code, SPF and DMARC, and Fasthosts\' own mail records.',
     plan: 'A .com domain and one Mail Basic mailbox (2 GB), on a 12-month contract from October 2026',
     cost: 'Not written here - the owner enters it on Costs and usage',

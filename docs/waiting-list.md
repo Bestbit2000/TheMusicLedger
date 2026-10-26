@@ -27,7 +27,7 @@ The form works without its script: it posts to `POST /api/join` and the page com
   send emails to a stranger's address. The first email they get is the owner's invitation.
 - **The owner is told** (his request, 26 Oct 2026): a new request - not one asked again - emails
   `info@notablybetter.com` (`JOIN_ALERT_EMAIL` overrides it) with their name, band and instrument, never their email
-  address, and says to open Admin → Waiting list (`tellTheOwner`, `joinAlertEmail`). After 20 new requests in a day
+  address, and says to open Admin → Waiting list (`tellTheOwner`, `joinAlertEmail`). After 30 new requests in a day (a whole band of 25 may ask at once)
   (`JOIN_ALERTS_A_DAY`) the rest wait quietly on the list, so a crowd of robots can't fill the inbox or use up the day's
   emails. A failed email changes nothing for the person asking. On dev and sandbox it lands in `email_outbox`.
 - **No CAPTCHA, nothing loaded from outside.** Robots are kept out by a field only robots fill in (`.public-trap`), a

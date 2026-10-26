@@ -91,7 +91,7 @@ export async function submitJoinRequest(body, ip) {
 // after JOIN_ALERTS_A_DAY new requests in a day the rest wait quietly on the list, so a crowd of robots can't fill
 // the inbox or use up the day's emails. A failed email changes nothing for the person asking.
 export const JOIN_ALERT_TO = 'info@notablybetter.com';
-export const JOIN_ALERTS_A_DAY = 20;
+export const JOIN_ALERTS_A_DAY = 30; // a whole band (25) may ask on one day (owner, 26 Oct 2026)
 export function joinAlertEmail({ firstName, lastName, band, instrument }) {
   const who = `${firstName} ${lastName}`;
   const text = [
