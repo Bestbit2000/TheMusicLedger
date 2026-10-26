@@ -51,6 +51,7 @@ import { retentionStatus, saveRule, runRetention, clearOldRecords } from '../ser
 import { listEmailWording, saveEmailWording, resetEmailWording, previewEmail, isAlert } from '../services/emailWording.js';
 import { emailSignature, signatureForAdmin, saveSignature, setSignatureLogo, removeSignatureLogo, removeSignature, LOGO_FOLDER, MAX_LOGO_BYTES, LOGO_TYPES } from '../services/emailSignature.js';
 import { cleanSignatureHtml, htmlToText } from '../services/emailHtml.js';
+import { listPopupTexts, savePopupTexts, resetPopupTexts } from '../services/popupTexts.js';
 import { handleUpload } from '@vercel/blob/client';
 import { appLink } from '../utils/appPath.js';
 import { listJoinRequests, letInJoinRequest, passJoinRequest, dismissJoinRequest } from '../services/joinRequests.js';
@@ -1350,6 +1351,10 @@ router.post('/email-signature/logo/upload-token', requireAuth, resolveAccount, r
   onUploadCompleted: async () => {}
 })));
 router.put('/email-signature/logo', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, signatureRoute((req) => setSignatureLogo(req.body || {}, req.accountId)));
+// ML-618 stage 4: the message each of the owner's pop-ups starts with (services/popupTexts.js) - read by the pop-ups too
+router.get('/popup-texts', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, signatureRoute(() => listPopupTexts()));
+router.put('/popup-texts/:key', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, signatureRoute((req) => savePopupTexts(req.params.key, (req.body || {}).parts, req.accountId)));
+router.delete('/popup-texts/:key', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, signatureRoute((req) => resetPopupTexts(req.params.key)));
 router.delete('/email-signature/logo', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, signatureRoute((req) => removeSignatureLogo(req.accountId)));
 
 export default router;

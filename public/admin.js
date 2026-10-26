@@ -682,24 +682,27 @@
     // written here from the reason, shown to the owner and sent as he leaves it. server/services/accountClosing.js
     const DISCIPLINE_KIND = { warning: 'Warned', closed: 'Closed', reopened: 'Reopened' };
     let discipline = null; // { account, mode: 'warn' | 'close' | 'record', reasons, written }
+    // ML-618 stage 4: what each pop-up's message starts with is on Admin -> Email wording (server/services/popupTexts.js),
+    // part by part - read afresh as each pop-up opens, so a change saved there shows at once. popupMessage puts the
+    // parts together, one paragraph each.
+    let popupTexts = null;
+    async function loadPopupTexts() {
+        try { popupTexts = (await apiCall('/api/admin/popup-texts')).texts; } catch (error) { popupTexts = null; }
+        return popupTexts;
+    }
+    function popupPart(key, fills = {}) {
+        const text = (popupTexts && popupTexts[key]) || '';
+        return text.replace(/\{([^{}]*)\}/g, (all, name) => (fills[name.trim().toLowerCase()] ?? all));
+    }
+    const popupMessage = (parts) => parts.filter((p) => p !== '').join('\n\n');
     function disciplineMessage(mode, reason) {
-        const why = {
-            shared: 'Why: something you shared in the app breaks the terms of use, which say what may be shared.',
-            conduct: 'Why: the way you have treated other members breaks the terms of use.',
-            repeated: 'Why: it has carried on after we warned you about it.',
-            other: 'Why: '
-        }[reason];
-        return (mode === 'close'
-            ? ['We have closed your Notably Better account, so you can no longer sign in.', why,
-                'What happens now: anything you shared with a band stays with the band. Your own pieces and practice history are kept for now. If you would like them deleted, or a copy of them, email us and we will do it.',
-                'If you think this is a mistake, email hello@notablybetter.com and we will look again.']
-            : ['This is a warning about your Notably Better account.', why,
-                'What to do next: please read the terms of use (notablybetter.com/terms.html) and keep to them. If it happens again we may close your account.',
-                'If you think this is a mistake, or have a question, email hello@notablybetter.com.']).join('\n\n');
+        const k = mode === 'close' ? 'close' : 'warn';
+        return popupMessage([popupPart(`${k}.opening`), popupPart(`${k}.why.${reason}`), popupPart(`${k}.next`), popupPart(`${k}.closing`)]);
     }
     async function openAccountDiscipline(a, mode) {
         let data;
         try { data = await apiCall(`/api/admin/accounts/${a.id}/record`); } catch (error) { showToast(error.message); return; }
+        if (mode !== 'record' && !(await loadPopupTexts())) showToast('The starting message could not be loaded - write the message yourself.');
         discipline = { account: a, mode, reasons: data.reasons, written: '' };
         const el = (id) => document.getElementById(id);
         el('accountDisciplineTitle').textContent = mode === 'close' ? 'Close this account' : mode === 'warn' ? 'Warn this member' : 'Warnings and closing so far';
@@ -2970,52 +2973,23 @@
         if (rec.kind === 'logo') return logoRemovalMessage(rec, reason);
         const what = rec.kind === 'video' ? `the video "${rec.title}"` : rec.kind === 'document' ? `the document "${rec.title}"` : rec.kind === 'score' ? `the piece "${rec.title}", with its recordings and documents,` : `the recording "${rec.title}"`;
         const from = rec.kind !== 'score' && rec.pieces.length ? ` It has come off ${rec.pieces.length === 1 ? `the piece ${piecesText(rec.pieces)}` : `these pieces: ${piecesText(rec.pieces)}`}.` : '';
-        const why = {
-            person: 'Why: someone who is in it asked us to remove it. Anyone in a recording can ask for that, and when they do we have to remove it everywhere.',
-            copyright: 'Why: we were told it may be someone else\'s copyright, and it can\'t stay in the app while that is in doubt.',
-            reported: 'Why: a member told us about it, and having looked at it we agree it should not be here.',
-            terms: 'Why: it breaks the terms of use, which say what may be shared in the app.',
-            other: 'Why: '
-        }[reason];
-        const next = {
-            person: 'What to do next: please don\'t upload it again. You are welcome to add a different recording, as long as everyone in it knows it is being shared.',
-            copyright: 'What to do next: please don\'t upload it again unless you have the right to use it. If you do have that right, reply to tell us and we will look again.',
-            reported: 'What to do next: please don\'t add it again. The terms of use say what may be shared.',
-            terms: 'What to do next: please don\'t add it again. The terms of use say what may be shared.',
-            other: 'What to do next: '
-        }[reason];
-        return [`We have removed ${what} from Notably Better.${from} Nothing else of yours has changed.`, why, next, 'If you think this is a mistake, or have a question, email hello@notablybetter.com.'].join('\n\n');
+        return popupMessage([popupPart('remove.opening', { what, 'where from': from }), popupPart(`remove.why.${reason}`), popupPart(`remove.next.${reason}`), popupPart('remove.closing')]);
     }
     // ML-511: a band's practice list. Only the list goes - its pieces stay with the band.
     function listRemovalMessage(rec, reason) {
-        const why = {
-            copyright: 'Why: we were told its name may be someone else\'s to use, and it can\'t stay in the app while that is in doubt.',
-            reported: 'Why: a member told us about it, and having looked at it we agree it should not be here.',
-            terms: 'Why: it breaks the terms of use, which say what may be shared in the app.',
-            other: 'Why: '
-        }[reason];
-        const next = reason === 'other' ? 'What to do next: ' : 'What to do next: you are welcome to make the list again with a name that fits the terms of use.';
-        return [`We have removed the practice list "${rec.title}"${rec.pieces[0].band ? ` from ${rec.pieces[0].band}` : ''} in Notably Better. The pieces that were on it are still there, and nothing else of the band's has changed.`, why, next, 'If you think this is a mistake, or have a question, email hello@notablybetter.com.'].join('\n\n');
+        const band = rec.pieces[0].band;
+        return popupMessage([popupPart('remove_list.opening', { list: rec.title, 'from band': band ? ` from ${band}` : '' }), popupPart(`remove_list.why.${reason}`),
+            popupPart(reason === 'other' ? 'remove_list.next.other' : 'remove_list.next'), popupPart('remove_list.closing')]);
     }
     // ML-534: a band's logo. The band stays, with everything it has - only the picture goes.
     function logoRemovalMessage(rec, reason) {
-        const why = {
-            copyright: 'Why: we were told the picture may be someone else\'s to use, and it can\'t stay in the app while that is in doubt.',
-            reported: 'Why: a member told us about it, and having looked at it we agree it should not be here.',
-            terms: 'Why: it breaks the terms of use, which say what may be shared in the app.',
-            other: 'Why: '
-        }[reason] || 'Why: ';
-        const next = reason === 'other' ? 'What to do next: ' : 'What to do next: you are welcome to add a different logo that fits the terms of use.';
-        return [`We have removed the logo of your band "${rec.pieces[0].band}" in Notably Better. Its members, pieces and practice lists are all as they were.`, why, next, 'If you think this is a mistake, or have a question, email hello@notablybetter.com.'].join('\n\n');
+        return popupMessage([popupPart('remove_logo.opening', { band: rec.pieces[0].band }), popupPart(`remove_logo.why.${reason}`) || popupPart('remove_logo.why.other'),
+            popupPart(reason === 'other' ? 'remove_logo.next.other' : 'remove_logo.next'), popupPart('remove_logo.closing')]);
     }
     // ML-511: a band's name. The band stays, with everything it has - only the name changes.
     function renameMessage(band, newName, reason) {
-        const why = {
-            reported: 'Why: a member told us about the name, and having looked at it we agree it should not be here.',
-            terms: 'Why: the name breaks the terms of use, which say what may be shared in the app.',
-            other: 'Why: '
-        }[reason];
-        return [`We have changed the name of your band "${band.title}" in Notably Better. It is now "${newName || '...'}". Its members, pieces and practice lists are all as they were.`, why, 'What to do next: nothing, unless you would like a different name - email hello@notablybetter.com and we will change it.', 'If you think this is a mistake, or have a question, email the same address.'].join('\n\n');
+        return popupMessage([popupPart('rename.opening', { 'old name': band.title, 'new name': newName || '...' }), popupPart(`rename.why.${reason}`),
+            popupPart('rename.next'), popupPart('rename.closing')]);
     }
     // One table shape for recordings and for shared pieces and documents (ML-507)
     function sharedTable(all, q, heading, empty) {
@@ -3096,10 +3070,11 @@
         adminRecordingsData = await apiCall('/api/admin/recordings');
         renderAdminRecordings();
     }
-    function openRecordingRemove(key) {
+    async function openRecordingRemove(key) {
         const [kind, id] = key.split(':');
         const rec = [...adminRecordingsData.recordings, ...adminRecordingsData.shared].find(r => r.kind === kind && String(r.id) === id);
         if (!rec) return;
+        if (!(await loadPopupTexts())) showToast('The starting message could not be loaded - write the message yourself.');
         removingRecording = rec;
         document.getElementById('recordingRemoveTitle').textContent = rec.kind === 'score' ? 'Remove this piece' : rec.kind === 'list' ? 'Remove this practice list' : rec.kind === 'document' ? 'Remove this document' : rec.kind === 'logo' ? 'Remove this band logo' : 'Remove this recording';
         document.getElementById('recordingRemoveWhat').textContent = rec.kind === 'score'
@@ -3155,10 +3130,11 @@
             renameWritten = renameMessage(renamingBand, renameEl('bandRenameName').value.trim(), renameEl('bandRenameReason').value);
             box.value = renameWritten;
         };
-        document.getElementById('adminBandThings')?.addEventListener('click', (e) => {
+        document.getElementById('adminBandThings')?.addEventListener('click', async (e) => {
             const btn = e.target.closest('[data-band-rename]');
             const band = btn && adminRecordingsData.shared.find(r => r.kind === 'band' && String(r.id) === btn.dataset.bandRename);
             if (!band) return;
+            if (!(await loadPopupTexts())) showToast('The starting message could not be loaded - write the message yourself.');
             renamingBand = band;
             renameEl('bandRenameWhat').textContent = `"${band.title}", set up by ${band.addedBy} - ${band.pieces[0].title}. A band can't be removed without taking its music with it, so its name is changed. Its organisers are told.`;
             renameEl('bandRenameName').value = '';

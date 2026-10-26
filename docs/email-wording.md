@@ -16,13 +16,33 @@ All in `server/services/emailCatalogue.js` (`EMAILS`), in three groups (`GROUPS`
   account open again.
 - **Messages you write** (6): a warning, account closed, something removed, band renamed, and the email copies of urgent
   and important notices. The owner's message (or the notice's words) is `{message}`, which must be a paragraph of its
-  own; the page holds the words around it. The **starting text** each pop-up offers (the "Why:" and "What to do next:"
-  lines for each reason) is still in `public/admin.js` - next on the list (ML-618 stage 4).
+  own; the page holds the words around it. What each pop-up's message **starts with** is on the page too - "Starting messages in pop-ups", below.
 - **Alerts to you** (5): a new sign-up, an upgrade request, something reported, a service near its limit, a new request
   to join. `toOwner` - no signature.
 
 Small changes that came with moving them: a member with no first name is greeted "Hi there," / "Hello there," (was
 "Hi," / "Hello,"), and the retention warnings' way back in is the email's button (it was a link inside a sentence).
+
+## Starting messages in pop-ups (ML-618 stage 4)
+
+The message each of the owner's pop-ups starts with - **Warning a member**, **Closing an account** (Admin → Accounts),
+**Removing a recording, video, document or piece**, **a practice list**, **a band's logo** and **Renaming a band**
+(Admin → Shared music) - is on the same page, below the emails. Each pop-up's message is its parts, one paragraph each:
+the **first line** (with its own fill-ins - `{what}`, `{band}`, `{new name}`...; the one that says what happened is
+required), a **"Why:" line for each reason** the pop-up offers, **"What to do next:"** (one per reason, or one for all but
+"Another reason"), and the **last line**. "Another reason" starts "Why: " / "What to do next: " for the owner to finish.
+Plain text - the message also shows in the app - up to 800 characters a part; a part left empty is left out. The
+owner can still change the message in the pop-up before it is sent; this is only where it starts. What is sent is
+then the email's `{message}`.
+
+- `server/services/popupTexts.js`: `POPUPS` (each pop-up's reasons, first-line fill-ins and built-in parts - the words the
+  pop-ups used before), `checkPart`, and the admin functions. `popup_texts` (migration 163): one row per changed part
+  (`warn.opening`, `remove.why.person`...); a part saved back to its built-in words is not kept.
+- `public/admin.js` reads them (`GET /api/admin/popup-texts`, `texts`) afresh each time a pop-up opens - so a change shows
+  at once - and puts them together (`popupPart`, `popupMessage`); it carries no starting words of its own (a test checks).
+  If they can't be read, the pop-up says so and opens with an empty message.
+- Routes: `GET /api/admin/popup-texts`, `PUT` / `DELETE /api/admin/popup-texts/:key` (save parts / reset a pop-up) -
+  super admins, behind the admin check. Tests: `server/test/popupTexts.test.js`.
 
 ## The page
 

@@ -246,6 +246,82 @@
         else $('emailWordingSave').disabled = !wordingChanged();
     }
 
+    // ---- ML-618 stage 4: the message each of your pop-ups starts with (server/services/popupTexts.js) ----
+    // Plain text, part by part: the first line, a "Why:" line for each reason, "What to do next:" and the last line.
+    let popups = null;
+    let currentPopup = null;
+    const popupDraft = () => Object.fromEntries([...document.querySelectorAll('#adminPopupTexts textarea[data-part]')].map((t) => [t.dataset.part, t.value]));
+    const popupChanged = () => currentPopup && currentPopup.parts.some((x) => (popupDraft()[x.part] ?? x.text) !== x.text);
+
+    function renderPopups() {
+        const rows = popups.map((p) => `
+            <tr>
+                <td class="admin-bc-text"><strong>${esc(p.name)}</strong><div class="admin-stat-tile-sub">${esc(p.about)}</div></td>
+                <td class="admin-bc-text">${changedLine(p)}</td>
+                <td>${currentPopup && p.key === currentPopup.key ? '<span class="text-muted">Open below</span>' : `<button type="button" class="admin-stat-exclude-btn" data-popup="${esc(p.key)}" aria-label="Change how ${esc(p.name.toLowerCase())} starts">Change</button>`}</td>
+            </tr>`).join('');
+        const p = currentPopup;
+        const editorHtml = p ? `
+            <h2 class="admin-stat-section-title" id="popupTextEditing">Changing: ${esc(p.name)}</h2>
+            <p class="admin-intro">The pop-up puts these together, one paragraph each, for the reason you choose - then you can change the message in the pop-up before it is sent. Plain text. Leave a part empty and it is left out.</p>
+            ${p.fillIns.length ? `<p class="admin-intro">Fill-ins for the first line:</p><ul class="admin-intro">${p.fillIns.map((f) => `<li><code>{${esc(f.name)}}</code> - ${esc(f.what)}${f.required ? ' <strong>Must be in it.</strong>' : ''}</li>`).join('')}</ul>` : ''}
+            ${p.parts.map((x, i) => `<div class="form-group"><label for="popupPart${i}">${esc(x.label)}</label><textarea id="popupPart${i}" data-part="${esc(x.part)}" rows="3" maxlength="800">${esc(x.text)}</textarea></div>`).join('')}
+            <div class="admin-security-toolbar">
+                <button type="button" class="btn-submit no-margin" id="popupTextSave" disabled>Save</button>
+                ${p.changed ? '<button type="button" class="admin-stat-exclude-btn" id="popupTextReset">Reset to the original</button>' : ''}
+                <span class="admin-test-case-meta" id="popupTextStatus" role="status" aria-live="polite"></span>
+            </div>` : '';
+        $('adminPopupTexts').innerHTML = `
+            <h2 class="admin-stat-section-title">Starting messages in pop-ups</h2>
+            <p class="admin-intro">The message each of your pop-ups starts with when you warn a member, close an account, remove something or rename a band. It is what then goes in the email's {message} - and in the app.</p>
+            <div class="admin-stat-table-wrap"><table class="admin-stat-table admin-bc-table">
+                <thead><tr><th class="admin-bc-text">Pop-up</th><th class="admin-bc-text">Wording</th><th><span class="visually-hidden">Change</span></th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table></div>
+            ${editorHtml}`;
+    }
+    async function openPopups() {
+        try { popups = (await A.apiCall('/api/admin/popup-texts')).popups; renderPopups(); } catch (error) { $('adminPopupTexts').innerHTML = `<p>Error loading data: ${esc(error.message)}</p>`; }
+    }
+    const afterPopupSave = (out) => {
+        popups = out.popups;
+        currentPopup = popups.find((p) => p.key === currentPopup.key);
+        renderPopups();
+    };
+    function choosePopup(key) {
+        const go = () => {
+            currentPopup = popups.find((p) => p.key === key);
+            renderPopups();
+            $('popupTextEditing').scrollIntoView({ block: 'start' });
+            $('popupPart0').focus({ preventScroll: true });
+        };
+        if (!popupChanged()) { go(); return; }
+        A.showConfirmModal(`Leave ${currentPopup.name.toLowerCase()} without saving?`, 'The changes you made to its starting message are not kept.', go, true);
+    }
+    async function savePopup() {
+        const draftParts = popupDraft();
+        const parts = Object.fromEntries(currentPopup.parts.filter((x) => draftParts[x.part] !== x.text).map((x) => [x.part, draftParts[x.part]]));
+        try { afterPopupSave(await A.apiCall(`/api/admin/popup-texts/${currentPopup.key}`, 'PUT', { parts })); A.showToast('Saved - the pop-up starts with it now', 'success'); } catch (error) { $('popupTextStatus').textContent = error.message; }
+    }
+    function resetPopup() {
+        A.showConfirmModal(`Reset ${currentPopup.name.toLowerCase()} to the original?`, 'Every part of its starting message goes back to the built-in words.', async () => {
+            try { afterPopupSave(await A.apiCall(`/api/admin/popup-texts/${currentPopup.key}`, 'DELETE')); A.showToast('Back to the original words', 'success'); } catch (error) { A.showToast(error.message); }
+        }, true);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const popupHost = $('adminPopupTexts');
+        popupHost?.addEventListener('click', (e) => {
+            const t = e.target.closest('button');
+            if (!t || !popups) return;
+            if (t.dataset.popup) choosePopup(t.dataset.popup);
+            if (t.id === 'popupTextSave') savePopup();
+            if (t.id === 'popupTextReset') resetPopup();
+        });
+        popupHost?.addEventListener('input', () => { if (currentPopup) $('popupTextSave').disabled = !popupChanged(); });
+        document.querySelector('.admin-nav-item[data-section="email-wording"]')?.addEventListener('click', openPopups);
+    });
+
     document.addEventListener('DOMContentLoaded', () => {
         const host = $('adminEmailWording');
         if (!host) return;
