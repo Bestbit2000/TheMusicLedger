@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.74.1",
+    "date": "2026-10-26",
+    "changes": [
+      {
+        "key": "ML-618",
+        "type": "New",
+        "summary": "We made it possible to invite someone to a band with Google or a password, and tidied the wording of our emails."
+      }
+    ]
+  },
+  {
     "version": "0.74.0",
     "date": "2026-10-26",
     "changes": [
