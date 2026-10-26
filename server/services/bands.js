@@ -24,8 +24,10 @@ import { del } from '@vercel/blob';
 import { accountDisplayName } from './accounts.js';
 import { isBandLogoFileUrl, MAX_BAND_LOGO_BYTES, BAND_LOGO_TYPES } from './blobUrls.js';
 import { storedFileFacts } from './storedFiles.js';
-import { sendMail, emailBody, emailOutcome } from './mail.js';
+import { sendMail, emailOutcome } from './mail.js';
 import { passwordLinkForNewcomer } from './passwordAuth.js';
+import { emailFor } from './emailWording.js';
+import { signInWaysOn, waysInWords } from './signInWays.js';
 import { isFeatureEnabled } from './features.js';
 import { appLink } from '../utils/appPath.js';
 import { noticeBandInvite, withdrawBandInviteNotice, noticeBandLevel, noticeBandRemoved } from './autoNotices.js'; // ML-497
@@ -684,23 +686,23 @@ export async function inviteToBand(accountId, bandId, email, level = 'play', ori
     const from = nameOf(rows[0]); // never empty: requireName, above
     const band = rows[0].band_name;
     // ML-534: the band's logo at the top, when it has one (and only ever its own stored file)
-    const logo = rows[0].logo_url && isBandLogoFileUrl(rows[0].logo_url, bandId) && await isFeatureEnabled('band_welcome')
-      ? { image: { src: rows[0].logo_url, alt: `The logo of ${band}` } } : {};
+    const picture = rows[0].logo_url && isBandLogoFileUrl(rows[0].logo_url, bandId) && await isFeatureEnabled('band_welcome')
+      ? { src: rows[0].logo_url, alt: `The logo of ${band}` } : null;
     const home = String(origin).replace(/\/+$/, '');
-    const intro = `${from} has invited you to join ${band} on Notably Better - the practice app the band uses for its music.`;
-    // Someone with no account yet gets a link to choose a password (so a Google account isn't needed);
-    // anyone else just needs the front door - they sign in the way they already do.
-    const newcomer = await passwordLinkForNewcomer(to, home);
-    const { text, html } = newcomer
-      ? emailBody(['Hi,', intro,
-          `You don't have an account yet. Choose a password to make one - it takes a minute - and the invitation will be waiting for you on My bands. (If ${to} is a Google address, you can sign in with Google at ${home} instead.)`],
-        'Choose a password', newcomer.url,
-        `The link works once, for ${newcomer.days} days; ask ${from} to send it again if it has run out. If you weren't expecting this, you can ignore it and nothing will happen.`, logo)
-      : emailBody(['Hi,', intro,
-          `To see the invitation, open the app and sign in with this email address (${to}). It will be waiting on My account, under My bands.`],
-        'Open Notably Better', appLink(home, '?band-invite=1'),
-        `The invitation waits for ${INVITE_DAYS} days. If you weren't expecting it, you can ignore this email and nothing will happen.`, logo);
-    await sendMail({ to, subject: `${from} has invited you to join ${band}`, text, html });
+    const front = appLink(home, '?band-invite=1');
+    const values = { 'invited by': from, band, email: to, picture };
+    // ML-618: the words are on Admin -> Email wording. Someone with no account yet is offered every way in (Google, or a
+    // password - the link to choose one goes to the screen that offers both); anyone else just needs the front door -
+    // they sign in the way they already do.
+    const { rows: member } = await pool.query('SELECT 1 FROM accounts WHERE lower(email) = lower($1)', [to]);
+    const newcomer = member.length ? null : await passwordLinkForNewcomer(to, home); // null too while password login is off
+    const { subject, text, html } = member.length
+      ? await emailFor('band_invite_member', { ...values, url: front, days: INVITE_DAYS })
+      : await emailFor('band_invite_new', {
+        ...values, 'ways in': waysInWords(await signInWaysOn()),
+        url: newcomer ? newcomer.url : front, days: newcomer ? newcomer.days : INVITE_DAYS
+      });
+    await sendMail({ to, subject, text, html });
     return emailOutcome();
   } catch (error) {
     console.error('Band invitation: the email was not sent:', error.message);

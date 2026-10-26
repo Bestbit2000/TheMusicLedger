@@ -67,7 +67,7 @@ test('asking: the link goes to the new address, and nothing changes until it is 
   // The new address has the link; the old address is shown mostly hidden (the new one may have been mistyped)
   const [mail] = await outbox(to);
   assert.equal(mail.subject, 'Confirm your new email address for Notably Better');
-  assert.match(mail.body_text, /Confirm my new email address: https:\/\/app\.example\/\?change-email=[\w-]+\n/);
+  assert.match(mail.body_text, /Confirm my new email address: https:\/\/app\.example\/app\?change-email=[\w-]+\n/);
   assert.ok(mail.body_text.includes(change.maskEmail(sam.email)));
   assert.ok(!mail.body_text.includes(sam.email));
   assert.match(mail.body_text, /works once, for 60 minutes/);

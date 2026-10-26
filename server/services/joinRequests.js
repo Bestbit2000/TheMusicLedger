@@ -16,6 +16,9 @@ import { signInWaysOn } from './signInWays.js';
 import { emailIsShutOut } from './tokenVersions.js';
 import { createTargetedNotification } from './notifications.js';
 import { sendMail } from './mail.js';
+import { buildEmail } from './emailBuild.js';
+import { EMAILS } from './emailCatalogue.js';
+import { wordingFor } from './emailWording.js';
 
 const fail = (status, message) => Object.assign(new Error(message), { status });
 const looksLikeEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length <= 254;
@@ -92,23 +95,16 @@ export async function submitJoinRequest(body, ip) {
 // the inbox or use up the day's emails. A failed email changes nothing for the person asking.
 export const JOIN_ALERT_TO = 'info@notablybetter.com';
 export const JOIN_ALERTS_A_DAY = 30; // a whole band (25) may ask on one day (owner, 26 Oct 2026)
-export function joinAlertEmail({ firstName, lastName, band, instrument }) {
-  const who = `${firstName} ${lastName}`;
-  const text = [
-    `${who} has asked to join Notably Better from the website.`,
-    '',
-    `Band: ${band || 'none given'}`,
-    `Plays: ${instrument || 'not given'}`,
-    '',
-    'Open Admin, Waiting list to let them in, pass them to their band\'s organiser, or turn it down.'
-  ].join('\n');
-  return { subject: `Notably Better: ${who} has asked to join`.slice(0, 150), text };
+// ML-618: the words are on Admin -> Email wording (alert_join); wording - the built-in wording if none
+export function joinAlertEmail({ firstName, lastName, band, instrument }, wording = EMAILS.alert_join.builtIn) {
+  const mail = buildEmail('alert_join', wording, { name: `${firstName} ${lastName}`, band: band || 'none given', plays: instrument || 'not given' });
+  return { ...mail, subject: mail.subject.slice(0, 150) };
 }
 async function tellTheOwner(request) {
   try {
     const { rows } = await pool.query("SELECT count(*)::int AS n FROM join_requests WHERE created_at > now() - interval '1 day'");
     if (rows[0].n > JOIN_ALERTS_A_DAY) return false;
-    await sendMail({ to: process.env.JOIN_ALERT_EMAIL || JOIN_ALERT_TO, ...joinAlertEmail(request), toOwner: true }); // ML-617: no signature
+    await sendMail({ to: process.env.JOIN_ALERT_EMAIL || JOIN_ALERT_TO, ...joinAlertEmail(request, await wordingFor('alert_join')), toOwner: true }); // ML-617: no signature
     return true;
   } catch (error) {
     console.error('Waiting list: the owner could not be emailed:', error.message);

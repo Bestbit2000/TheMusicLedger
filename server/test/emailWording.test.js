@@ -128,6 +128,52 @@ describe('the signature on emails (mail.js)', () => {
   });
 });
 
+describe('every email the app sends (ML-618)', () => {
+  const keys = Object.keys(EMAILS);
+  test('each built-in wording passes its own checks, and builds with every fill-in filled', () => {
+    for (const key of keys) {
+      const e = EMAILS[key];
+      assert.equal(checkWording(key, e.builtIn), null, key);
+      const values = { 'ways in': 'choose a password', url: 'https://app.example/app', ...e.sample };
+      for (const name of Object.keys(e.fillIns)) values[name] ??= `[${name}]`;
+      const { subject, text } = buildEmail(key, e.builtIn, values);
+      assert.doesNotMatch(`${subject}\n${text}`, /\{[^{}]*\}/, `${key}: a fill-in left unfilled`);
+      assert.ok(e.group && e.name && e.about, `${key}: group, name and when it is sent`);
+    }
+  });
+  test('alerts go to the owner without the signature; nothing else does', () => {
+    for (const key of keys) assert.equal(!!EMAILS[key].toOwner, EMAILS[key].group === 'alerts', key);
+  });
+  test('no email is built outside the page any more - every one reads its wording', () => {
+    const dir = new URL('../services/', import.meta.url);
+    for (const f of fs.readdirSync(dir).filter((n) => n.endsWith('.js') && !['emailLayout.js', 'mail.js'].includes(n))) {
+      assert.doesNotMatch(fs.readFileSync(new URL(f, dir), 'utf8'), /\bemailBody\(/, `${f} builds an email by hand - put it in emailCatalogue.js`);
+    }
+  });
+  test('every email the code asks for is in the list', () => {
+    const dir = new URL('../services/', import.meta.url);
+    const asked = new Set();
+    for (const f of fs.readdirSync(dir).filter((n) => n.endsWith('.js'))) {
+      for (const m of fs.readFileSync(new URL(f, dir), 'utf8').matchAll(/(?:emailFor|wordingFor|buildEmail)\('([a-z_]+)'/g)) asked.add(m[1]);
+    }
+    for (const key of asked) assert.ok(EMAILS[key], `${key} is asked for but not in emailCatalogue.js`);
+    assert.ok(asked.size >= 12, 'the rest are chosen through a variable (retention steps, notice kinds, address changes)');
+  });
+  test('a message is its own paragraphs, escaped; an empty optional line leaves nothing behind', () => {
+    const { text, html } = buildEmail('account_warning', EMAILS.account_warning.builtIn, { 'first name': 'Kim', message: 'One <b>\n\nTwo\nthree' });
+    assert.equal(text, 'Hello Kim,\n\nOne <b>\n\nTwo\nthree\n\nNotably Better');
+    assert.match(html, /<p>One &lt;b&gt;<\/p><p>Two<br>three<\/p>/);
+    assert.match(checkWording('account_warning', { ...EMAILS.account_warning.builtIn, body: '<p>Hi, {message}</p>' }), /paragraph of its own/);
+    assert.doesNotMatch(buildEmail('alert_report', EMAILS.alert_report.builtIn, { what: 'x', 'what they wrote': '' }).html, /<p><\/p>/);
+  });
+  test('an email with no button has none; the band invitation carries the logo', () => {
+    assert.doesNotMatch(buildEmail('retention_deleted', EMAILS.retention_deleted.builtIn, { 'first name': 'Kim', 'time unused': '2 years', url: 'https://a.example' }).html, /<a href/);
+    const band = buildEmail('band_invite_member', EMAILS.band_invite_member.builtIn, { ...EMAILS.band_invite_member.sample, url: 'https://a.example', picture: { src: 'https://x.public.blob.vercel-storage.com/band-logos/1/l.png', alt: 'The logo' } });
+    assert.match(band.html, /<img src="https:\/\/x\.public\.blob\.vercel-storage\.com\/band-logos\/1\/l\.png" alt="The logo"/);
+    assert.equal(band.subject, 'Sue Brown has invited you to join Cobham Band');
+  });
+});
+
 describe('from the source', () => {
   test('the signature routes are super admins only, behind the admin check; the logo stays in its own folder', () => {
     const admin = read('server/routes/admin.js');
@@ -147,6 +193,6 @@ describe('from the source', () => {
     assert.match(read('server/routes/admin.js'), /SELECT email FROM accounts WHERE id = \$1', \[req\.accountId\]\);\s+await sendMail\(\{ to: rows\[0\]\.email/);
   });
   test('saved wording that fails the checks is never sent - the built-in wording goes instead', () => {
-    assert.match(read('server/services/emailWording.js'), /if \(rows\.length && !checkWording\(key, rows\[0\]\)\) return tidy\(rows\[0\]\);[\s\S]*?return \{ \.\.\.email\.builtIn \};/);
+    assert.match(read('server/services/emailWording.js'), /if \(rows\.length && !checkWording\(key, rows\[0\]\)\) return tidy\(rows\[0\], email\);[\s\S]*?return \{ \.\.\.email\.builtIn \};/);
   });
 });

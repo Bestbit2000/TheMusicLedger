@@ -21,7 +21,8 @@
 // (getOrCreateAccount). docs/password-login.md, "Changing your email address".
 import crypto from 'node:crypto';
 import pool from '../config/db.js';
-import { sendMail, emailBody, emailOutcome } from './mail.js';
+import { sendMail, emailOutcome } from './mail.js';
+import { emailFor, nameOrThere } from './emailWording.js';
 import { verifyPassword } from './passwords.js';
 import { deletedEmailHash, forgetTokenVersion } from './tokenVersions.js';
 import { limitCalls } from './passwordAuth.js';
@@ -76,16 +77,12 @@ async function start(account, newEmail, origin, { startedBy, byAdmin = false }) 
       `INSERT INTO auth_email_links (purpose, token_hash, email, for_account_id, created_by_account_id, expires_at)
        VALUES ($1, $2, $3, $4, $5, now() + make_interval(mins => $6))`,
       [PURPOSE, hash(secret), to, account.id, startedBy, CHANGE_MINUTES]);
-    const hello = `Hi${account.first_name ? ` ${account.first_name}` : ''},`;
-    const { text, html } = emailBody(
-      [hello,
-        byAdmin
-          ? `The Notably Better team has been asked to change the email address on your account (${maskEmail(account.email)}) to this one.`
-          : `You asked to use this address to sign in to Notably Better, in place of ${maskEmail(account.email)}.`,
-        'Nothing changes until you confirm it. When you do, you are signed out everywhere and sign in again with this address.'],
-      'Confirm my new email address', appLink(origin, `?change-email=${secret}`),
-      `The link works once, for ${CHANGE_MINUTES} minutes. If you didn't ask for this, ignore this email and nothing will change.`);
-    await sendMail({ to, subject: 'Confirm your new email address for Notably Better', text, html });
+    // ML-618: the words are on Admin -> Email wording - one email when the member asked, another when we did it for them
+    const { subject, text, html } = await emailFor(byAdmin ? 'email_change_confirm_admin' : 'email_change_confirm', {
+      'first name': nameOrThere(account.first_name), 'old address': maskEmail(account.email),
+      url: appLink(origin, `?change-email=${secret}`), minutes: CHANGE_MINUTES
+    });
+    await sendMail({ to, subject, text, html });
     await client.query('COMMIT');
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
@@ -184,13 +181,8 @@ export async function confirmEmailChange(secret, origin, signedInToken = null) {
 
   // The old address is told. If that email can't be sent the change still stands - it is logged.
   try {
-    const { text, html } = emailBody(
-      [`Hi${firstName ? ` ${firstName}` : ''},`,
-        `The email address for your Notably Better account has been changed to ${maskEmail(newEmail)}.`,
-        'You have been signed out everywhere. From now on, sign in with the new address.'],
-      'Open Notably Better', appLink(origin),
-      'If this wasn\'t you, reply to this email straight away so we can put it right.');
-    await sendMail({ to: oldEmail, subject: 'Your Notably Better email address has changed', text, html });
+    const { subject, text, html } = await emailFor('email_changed', { 'first name': nameOrThere(firstName), 'new address': maskEmail(newEmail), url: appLink(origin) });
+    await sendMail({ to: oldEmail, subject, text, html });
   } catch (error) {
     console.error('Email change: the old address could not be told:', error.message);
   }

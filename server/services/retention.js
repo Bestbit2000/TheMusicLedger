@@ -14,7 +14,8 @@
 import pool from '../config/db.js';
 import { sendMail, mailIsReal } from './mail.js';
 import { deleteMyAccount } from './accountDeletion.js';
-import { DEFAULT_RULE, tidyRule, nextStep, dueDates, removalDate, ruleInWords, retentionEmail, NOTICES_KEPT_MONTHS } from './retentionRules.js';
+import { DEFAULT_RULE, tidyRule, nextStep, dueDates, removalDate, ruleInWords, retentionEmail, RETENTION_EMAIL_KEYS, NOTICES_KEPT_MONTHS } from './retentionRules.js';
+import { wordingFor } from './emailWording.js';
 
 // The day last-seen recording began (migration 103, released in 0.45.0). Nobody is counted as unused
 // for any time before it.
@@ -83,7 +84,7 @@ export async function runRetention({ now = new Date(), appUrl = process.env.APP_
   const due = (await candidates()).filter((a) => !only || only.includes(a.id)).map((a) => ({ a, next: nextStep(a, rule, COUNTS_FROM) })).filter((x) => x.next.when <= now).slice(0, MAX_PER_RUN);
   for (const { a, next } of due) {
     try {
-      const mail = retentionEmail(next.step, { firstName: a.firstName, rule, removeOn: removalDate(a, rule, COUNTS_FROM, next.step, now), appUrl });
+      const mail = retentionEmail(next.step, { firstName: a.firstName, rule, removeOn: removalDate(a, rule, COUNTS_FROM, next.step, now), appUrl }, await wordingFor(RETENTION_EMAIL_KEYS[next.step]));
       if (next.step === 3) {
         // The two warnings were the notice (neither step happened unless its email was sent). The
         // account goes first, and only then is the member told it has gone - so the email is never untrue.

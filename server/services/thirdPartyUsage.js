@@ -13,6 +13,7 @@
 import pool from '../config/db.js';
 import { costSummary, periodFor, meterStatus, alertsDue, parseChargeLines, billingPeriod, spendBreakdown } from '../thirdParties/costs.js';
 import { sendMail } from './mail.js';
+import { emailFor } from './emailWording.js';
 import { costUsd } from './pieceReads.js';
 import { listRates, ratesForSums, refreshRatesIfNeeded } from './exchangeRates.js';
 
@@ -231,14 +232,13 @@ export async function sendUsageWarnings() {
     if (!due.length) continue;
     const top = Math.max(...due);
     if (to) {
-      const used = `${fmt(m.status.value)} of ${fmt(m.limit)} ${m.unit}`;
-      const text = [
-        `${m.name} is at ${m.status.percent}% of its limit: ${used}${m.per === 'total' ? '' : ` this ${m.per}`}.`,
-        m.status.reachesLimitOn ? `At this rate the limit is reached on ${m.status.reachesLimitOn}.` : '',
-        '',
-        'See Admin → Third parties for what happens past the limit and what the next plan costs.'
-      ].filter((line, i) => line || i === 2).join('\n');
-      await sendMail({ to, subject: `Notably Better: ${m.name} at ${Math.floor(m.status.percent)}% of its limit`, text, toOwner: true }); // ML-617: no signature
+      const used = `${fmt(m.status.value)} of ${fmt(m.limit)} ${m.unit}${m.per === 'total' ? '' : ` this ${m.per}`}`;
+      // ML-618: the words are on Admin -> Email wording (alert_usage)
+      const mail = await emailFor('alert_usage', {
+        service: m.name, percent: String(Math.floor(m.status.percent)), used,
+        'when it runs out': m.status.reachesLimitOn ? `At this rate the limit is reached on ${m.status.reachesLimitOn}.` : ''
+      });
+      await sendMail({ to, ...mail, toOwner: true }); // ML-617: no signature
     }
     // Recorded even with nobody to email, so turning the address on later doesn't send old news
     for (const t of due) await pool.query('INSERT INTO third_party_usage_alerts (meter_key, threshold, period_key) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [m.key, t, periodKey]);

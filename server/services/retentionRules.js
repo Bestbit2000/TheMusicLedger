@@ -7,6 +7,8 @@
 // so the whole thing can be watched working on sandbox in hours instead of years.
 
 import { appLink } from '../utils/appPath.js';
+import { buildEmail, nameOrThere } from './emailBuild.js';
+import { EMAILS } from './emailCatalogue.js';
 
 export const UNITS = ['hours', 'days', 'months', 'years'];
 
@@ -89,22 +91,14 @@ export const isDue = (account, rule, countsFrom, now = new Date()) => nextStep(a
 const span = (n, unit) => `${n} ${n === 1 ? unit.replace(/s$/, '') : unit}`;
 export const ruleInWords = (rule) => `An account not used for ${span(rule.first, rule.unit)} gets an email, another at ${span(rule.second, rule.unit)}, and is deleted at ${span(rule.remove, rule.unit)}.`;
 
-// The three emails. step 1 and 2 are warnings; step 3 says it has been done.
-export function retentionEmail(step, { firstName, rule, removeOn, appUrl }) {
-  const hello = `Hello${firstName ? ` ${firstName}` : ''},`;
+// The three emails. step 1 and 2 are warnings; step 3 says it has been done. ML-618: the words are on Admin -> Email
+// wording (retention_first, retention_last, retention_deleted); wording - the built-in wording if none. The warnings'
+// way back in is the email's button (with no appUrl, no button).
+export const RETENTION_EMAIL_KEYS = { 1: 'retention_first', 2: 'retention_last', 3: 'retention_deleted' };
+export function retentionEmail(step, { firstName, rule, removeOn, appUrl }, wording = EMAILS[RETENTION_EMAIL_KEYS[step]].builtIn) {
   const day = new Date(removeOn).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
-  const sign = 'Notably Better';
-  if (step === 3) {
-    return {
-      subject: 'Your Notably Better account has been deleted',
-      text: [hello, '', `Your Notably Better account had not been used for ${span(rule.remove, rule.unit)}, so, as we said we would, we have deleted it. Your name, email address, pieces and settings are gone.`,
-        '', 'You are welcome back at any time - signing up again starts a fresh account.', '', sign].join('\n')
-    };
-  }
-  return {
-    subject: step === 1 ? 'Your Notably Better account has not been used for a while' : 'Last reminder: your Notably Better account will be deleted soon',
-    text: [hello, '', `You have not used Notably Better for ${span(step === 1 ? rule.first : rule.second, rule.unit)}. We don't keep information about people who have stopped using the app, so your account will be deleted on ${day}.`,
-      '', `To keep it, just sign in before then${appUrl ? `: ${appLink(appUrl)}` : ''}. That is all you need to do.`,
-      '', 'If you no longer want it, you need do nothing.' + (step === 1 ? ' We will remind you once more before it goes.' : ' This is the last reminder.'), '', sign].join('\n')
-  };
+  const unused = span(step === 1 ? rule.first : step === 2 ? rule.second : rule.remove, rule.unit);
+  return buildEmail(RETENTION_EMAIL_KEYS[step], wording, {
+    'first name': nameOrThere(firstName), 'time unused': unused, 'deletion date': day, url: appUrl ? appLink(appUrl) : null
+  });
 }

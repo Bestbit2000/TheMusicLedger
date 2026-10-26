@@ -10,14 +10,14 @@ import crypto from 'node:crypto';
 import pool from '../config/db.js';
 import { signToken, verifyToken } from '../utils/authToken.js';
 import { hashPassword, verifyPassword, spendPasswordTime, passwordProblem } from './passwords.js';
-import { sendMail, mailIsReal, emailBody, emailOutcome } from './mail.js';
+import { sendMail, mailIsReal, emailOutcome } from './mail.js';
 import { isFeatureLive } from './features.js';
 import { deletedEmailHash, forgetTokenVersion, currentTokenVersion, emailIsShutOut, SHUT_OUT_MESSAGE } from './tokenVersions.js';
 import { twoStepStatus, beginSetup, confirmSetup, verifyLoginCode } from './twoStep.js';
 import { sendSignupAlert } from './signupAlert.js';
 import { appLink } from '../utils/appPath.js';
 import { signInWaysOn, waysInWords } from './signInWays.js';
-import { buildEmail, wordingFor, INVITATION_DAYS, EMAILS } from './emailWording.js';
+import { buildEmail, wordingFor, emailFor, nameOrThere, INVITATION_DAYS, EMAILS } from './emailWording.js';
 
 const INVITE_DAYS = INVITATION_DAYS;
 const RESET_MINUTES = 60;
@@ -169,20 +169,18 @@ async function liveLink(client, secret, purpose, lock = false) {
   return rows[0] || null;
 }
 
-// (the email layout is emailBody in mail.js)
+// (the emails' words are on Admin -> Email wording: emailWording.js, emailCatalogue.js)
 
 // ---- invites (super admin) ----
 // 26 Oct 2026 (the owner): an invitation lets them in whichever way is on here - Google, or choosing a password -
 // read from SIGN_IN_WAYS, so a way added later is offered too. The link carries who they are and the account type:
 // a password chosen through it (acceptInvite) or a first Google sign-in with the same address (getOrCreateAccount)
 // both take it, and use it up. Someone who already has an account can only gain a password from it.
-// ML-617: a newcomer's invitation says what Admin -> Email wording says (wording; the built-in wording if none).
-export function invitationEmail({ firstName, url, ways, existing, wording = EMAILS.invitation.builtIn }) {
-  if (existing) {
-    const hello = firstName ? `Hi ${String(firstName).trim()},` : 'Hi,';
-    return { subject: "You're invited to Notably Better", ...emailBody([hello, "You've been invited to log in to Notably Better with your email and a password, as well as Google. Choose a password to get started."], 'Get started', url, `This link works for ${INVITE_DAYS} days. If you weren't expecting it, you can ignore this email.`) };
-  }
-  return buildEmail('invitation', wording, { 'first name': String(firstName || '').trim() || 'there', 'ways in': waysInWords(ways), url });
+// ML-617/618: the invitation says what Admin -> Email wording says (wording; the built-in wording if none) - for
+// someone with an account already, its own email ("invitation_existing").
+export function invitationEmail({ firstName, url, ways, existing, wording }) {
+  const key = existing ? 'invitation_existing' : 'invitation';
+  return buildEmail(key, wording || EMAILS[key].builtIn, { 'first name': nameOrThere(firstName), 'ways in': waysInWords(ways), url });
 }
 export async function createInvite({ email, firstName, surname, accountLevel, createdBy, origin }) {
   const ways = await signInWaysOn();
@@ -202,7 +200,7 @@ export async function createInvite({ email, firstName, surname, accountLevel, cr
       purpose: 'invite', email: to, firstName: String(firstName || '').trim().slice(0, 80) || null,
       surname: String(surname || '').trim().slice(0, 80) || null, accountLevel: level, createdBy, minutes: INVITE_DAYS * 24 * 60
     });
-    const wording = existing ? undefined : await wordingFor('invitation');
+    const wording = await wordingFor(existing ? 'invitation_existing' : 'invitation');
     const { subject, text, html } = invitationEmail({ firstName, url: appLink(origin, `?invite=${secret}`), ways, existing: !!existing, wording });
     await sendMail({ to, subject, text, html });
     await client.query('COMMIT');
@@ -383,10 +381,11 @@ export async function forgotPassword(email, ip, origin) {
     if (account) {
       const secret = await newLink(client, { purpose: 'reset', email: account.email, minutes: RESET_MINUTES });
       const url = appLink(origin, `?reset=${secret}`);
-      const { text, html } = emailBody(
-        [`Hi${account.first_name ? ` ${account.first_name}` : ''},`, `Someone (hopefully you) asked to ${account.password_hash ? 'reset the password' : 'set a password'} for your Notably Better account.`],
-        'Choose a new password', url, `This link works once, for ${RESET_MINUTES} minutes. If it wasn't you, ignore this email - your password hasn't changed.`);
-      await sendMail({ to: account.email, subject: 'Your Notably Better password', text, html });
+      // ML-618: the words are on Admin -> Email wording
+      const { subject, text, html } = await emailFor('password_reset', {
+        'first name': nameOrThere(account.first_name), 'what they asked': account.password_hash ? 'reset the password' : 'set a password', url, minutes: RESET_MINUTES
+      });
+      await sendMail({ to: account.email, subject, text, html });
     }
     await client.query('COMMIT');
   } catch (e) {
@@ -464,10 +463,9 @@ export async function adminSendReset(accountId, origin) {
     await client.query('BEGIN');
     const secret = await newLink(client, { purpose: 'reset', email: account.email, minutes: RESET_MINUTES });
     const url = appLink(origin, `?reset=${secret}`);
-    const { text, html } = emailBody(
-      [`Hi${account.first_name ? ` ${account.first_name}` : ''},`, 'The Notably Better team has sent you a link to choose a new password for your account.'],
-      'Choose a new password', url, `This link works once, for ${RESET_MINUTES} minutes. If you weren't expecting it, you can ignore this email - your password hasn't changed.`);
-    await sendMail({ to: account.email, subject: 'Your Notably Better password', text, html });
+    // ML-618: the words are on Admin -> Email wording
+    const { subject, text, html } = await emailFor('password_link_admin', { 'first name': nameOrThere(account.first_name), url, minutes: RESET_MINUTES });
+    await sendMail({ to: account.email, subject, text, html });
     await client.query('COMMIT');
   } catch (e) {
     await client.query('ROLLBACK').catch(() => {});

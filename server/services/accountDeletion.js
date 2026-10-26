@@ -15,6 +15,9 @@ import pool from '../config/db.js';
 import { deletedEmailHash, forgetTokenVersion } from './tokenVersions.js';
 import { forgetAccountLevel } from './accounts.js';
 import { sendMail, emailOutcome } from './mail.js';
+import { buildEmail, nameOrThere } from './emailBuild.js';
+import { EMAILS } from './emailCatalogue.js';
+import { wordingFor } from './emailWording.js';
 import { sweepReadUploads, readUploadPrefix } from './pieceReads.js';
 
 // Tables whose rows stay attached to the anonymised account: the statistics, and the bands the
@@ -136,14 +139,9 @@ export async function deleteMyAccount(accountId) {
 // is written down - the request is the email in our own mailbox.
 // A local test address (dev's accounts, or one left on a live site by mistake) can't receive email.
 const canBeEmailed = (email) => !/\.(local|invalid|test)$/i.test(String(email || ''));
-export function deletedForYouEmail(firstName) {
-  return {
-    subject: 'Your Notably Better account has been deleted',
-    text: [`Hello${firstName ? ` ${firstName}` : ''},`, '',
-      'Your Notably Better account has been deleted, as we were asked. Your name, email address, pieces and settings are gone, and you have been signed out everywhere.',
-      '', 'If you did not ask for this, please tell us: hello@notablybetter.com.',
-      '', 'You are welcome back at any time - signing up again starts a fresh account.', '', 'Notably Better'].join('\n')
-  };
+// ML-618: the words are on Admin -> Email wording (account_deleted_for_you); wording - the built-in wording if none
+export function deletedForYouEmail(firstName, wording = EMAILS.account_deleted_for_you.builtIn) {
+  return buildEmail('account_deleted_for_you', wording, { 'first name': nameOrThere(firstName) });
 }
 export async function deleteAccountAsAdmin(adminAccountId, accountId) {
   const id = Number(accountId);
@@ -156,7 +154,7 @@ export async function deleteAccountAsAdmin(adminAccountId, accountId) {
   // The account goes first and the email after, so the email is never untrue. A failed email changes nothing.
   let emailed = false;
   if (canBeEmailed(email)) {
-    try { await sendMail({ to: email, ...deletedForYouEmail(firstName) }); emailed = emailOutcome().emailed; } catch (error) { console.error('Account deletion: the email to say so could not be sent:', error.message); }
+    try { await sendMail({ to: email, ...deletedForYouEmail(firstName, await wordingFor('account_deleted_for_you')) }); emailed = emailOutcome().emailed; } catch (error) { console.error('Account deletion: the email to say so could not be sent:', error.message); }
   }
   return { email, emailed };
 }

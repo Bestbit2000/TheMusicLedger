@@ -48,7 +48,7 @@ import { getBusinessCase, saveBusinessCase, resetBusinessCase } from '../service
 import { getAdminDashboard } from '../services/adminDashboard.js';
 import { listRecords, saveRecord, setAttentionDone, saveAgreement } from '../services/thirdPartyRecords.js';
 import { retentionStatus, saveRule, runRetention, clearOldRecords } from '../services/retention.js';
-import { listEmailWording, saveEmailWording, resetEmailWording, previewEmail } from '../services/emailWording.js';
+import { listEmailWording, saveEmailWording, resetEmailWording, previewEmail, isAlert } from '../services/emailWording.js';
 import { emailSignature, signatureForAdmin, saveSignature, setSignatureLogo, removeSignatureLogo, removeSignature, LOGO_FOLDER, MAX_LOGO_BYTES, LOGO_TYPES } from '../services/emailSignature.js';
 import { cleanSignatureHtml, htmlToText } from '../services/emailHtml.js';
 import { handleUpload } from '@vercel/blob/client';
@@ -1320,7 +1320,7 @@ router.post('/email-wording/:key/test', requireAuth, resolveAccount, requireSupe
   try {
     const { subject, text, html } = previewEmail(req.params.key, req.body || {}, await sampleValues(req));
     const { rows } = await pool.query('SELECT email FROM accounts WHERE id = $1', [req.accountId]);
-    await sendMail({ to: rows[0].email, subject: `Test: ${subject}`, text, html });
+    await sendMail({ to: rows[0].email, subject: `Test: ${subject}`, text, html, toOwner: isAlert(req.params.key) }); // an alert's test goes as the alert does - no signature
     res.json({ to: rows[0].email, ...emailOutcome() });
   } catch (error) {
     sendError(res, error);

@@ -72,6 +72,6 @@ describe('from the source', () => {
     assert.match(read('server/services/passwordAuth.js'), /purpose === 'invite' \? !ways\.length : !\(await passwordLoginEnabled\(\)\)/);
   });
   test('an invitation reads its wording from Admin -> Email wording', () => {
-    assert.match(read('server/services/passwordAuth.js'), /const wording = existing \? undefined : await wordingFor\('invitation'\);/);
+    assert.match(read('server/services/passwordAuth.js'), /const wording = await wordingFor\(existing \? 'invitation_existing' : 'invitation'\);/);
   });
 });

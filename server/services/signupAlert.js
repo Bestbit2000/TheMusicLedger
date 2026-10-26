@@ -2,6 +2,8 @@
 // accepted with a password. Who gets it is SIGNUP_ALERT_EMAIL (Vercel, Production only); unset = no
 // email. Sent through mail.js, so on dev (MAIL_PROVIDER=log) it lands in email_outbox. A failed alert
 // never stops the sign-up: it's logged and the request carries on.
+import { buildEmail } from './emailBuild.js';
+import { EMAILS } from './emailCatalogue.js';
 
 // "iPhone · iOS 17.4 · Safari", "Android phone (Pixel 8) · Android 14 · Chrome" - from the browser's
 // User-Agent. iPhones never say their model; Chrome on Android only does through the Sec-CH-UA-Model
@@ -36,20 +38,12 @@ export function describeDevice(userAgent = '', model = '') {
   return [device, system, browser].filter(Boolean).join(' · ');
 }
 
-// The email itself - pure, so it can be tested.
-export function signupAlertEmail({ firstName, surname, email, method, device, at = new Date() }) {
+// The email itself - pure, so it can be tested. ML-618: the words are on Admin -> Email wording (alert_signup);
+// wording - the built-in wording if none.
+export function signupAlertEmail({ firstName, surname, email, method, device, at = new Date() }, wording = EMAILS.alert_signup.builtIn) {
   const name = `${firstName || ''} ${surname || ''}`.trim() || '(no name given)';
   const when = at.toLocaleString('en-GB', { timeZone: 'Europe/London', dateStyle: 'full', timeStyle: 'short' });
-  const text = [
-    'Someone new has signed up to Notably Better.',
-    '',
-    `Name: ${name}`,
-    `Email: ${email}`,
-    `Signed up: ${when}`,
-    `How: ${method}`,
-    `Device: ${device}`,
-  ].join('\n');
-  return { subject: `New sign-up: ${name}`, text };
+  return buildEmail('alert_signup', wording, { name, email, when, how: method, device });
 }
 
 // Sends the alert, or does nothing when SIGNUP_ALERT_EMAIL isn't set. Never throws.
@@ -57,9 +51,10 @@ export async function sendSignupAlert({ firstName, surname, email, method, userA
   const to = process.env.SIGNUP_ALERT_EMAIL;
   if (!to) return false;
   try {
-    const { subject, text } = signupAlertEmail({ firstName, surname, email, method, device: describeDevice(userAgent, model) });
+    const { wordingFor } = await import('./emailWording.js'); // loaded here: it opens the database pool
+    const { subject, text, html } = signupAlertEmail({ firstName, surname, email, method, device: describeDevice(userAgent, model) }, await wordingFor('alert_signup'));
     const { sendMail } = await import('./mail.js'); // loaded here: it opens the database pool
-    await sendMail({ to, subject, text, toOwner: true }); // ML-617: an alert to the owner - no signature
+    await sendMail({ to, subject, text, html, toOwner: true }); // ML-617: an alert to the owner - no signature
     return true;
   } catch (error) {
     console.error('Sign-up alert not sent:', error.message);

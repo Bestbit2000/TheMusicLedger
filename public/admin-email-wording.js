@@ -1,5 +1,6 @@
-// ML-617: Admin -> Email wording. What the app's emails say - only the invitation so far - changed here without a
-// release: a subject, the words and the button's words, with {fill-ins} the app fills in when it sends. The words
+// ML-617 / ML-618: Admin -> Email wording. What every email the app sends says - listed in three groups (to members,
+// the words around messages you write, alerts to you) - changed here without a release: choose one, then its subject,
+// words and button (where it has one), with {fill-ins} the app fills in when it sends. The words
 // have formatting buttons (bold, italic, underline, a bulleted list) and an Edit as HTML switch. Below, the
 // signature at the bottom of every email a member gets: pasted or formatted, with links, and a logo uploaded here
 // (the one picture an email can carry). Preview shows the email as it will arrive, Send me a test emails it to you,
@@ -44,25 +45,47 @@
     const htmlMode = (id) => !$(`${id}Html`).classList.contains('hidden-group');
     const editorHtml = (id) => (htmlMode(id) ? $(`${id}Html`).value : $(id).innerHTML).trim();
     const remember = (id) => { baseline[id] = editorHtml(id); };
-    const draft = () => ({ subject: $('emailWordingSubject').value, body: editorHtml('emailWordingBody'), button: $('emailWordingButton').value });
+    const draft = () => ({ subject: $('emailWordingSubject').value, body: editorHtml('emailWordingBody'), button: current.hasButton ? $('emailWordingButton').value : null });
     const wordingChanged = () => $('emailWordingSubject').value.trim() !== current.wording.subject
-        || $('emailWordingButton').value.trim() !== current.wording.button
+        || (current.hasButton && $('emailWordingButton').value.trim() !== current.wording.button)
         || editorHtml('emailWordingBody') !== baseline.emailWordingBody;
+    const changedLine = (x) => (x.changedOn ? `Changed${x.changedBy ? ` by ${esc(x.changedBy)}` : ''} on ${esc(day(x.changedOn))}` : 'Built-in wording');
+
+    // ML-618: every email the app sends, in its group - choosing one opens it in the editor below
+    function emailList() {
+        return data.groups.map((g) => {
+            const rows = data.emails.filter((e) => e.group === g.key).map((e) => `
+                <tr>
+                    <td class="admin-bc-text"><strong>${esc(e.name)}</strong><div class="admin-stat-tile-sub">${esc(e.about)}</div></td>
+                    <td class="admin-bc-text">${changedLine(e)}</td>
+                    <td>${e.key === current.key ? '<span class="text-muted">Open below</span>' : `<button type="button" class="admin-stat-exclude-btn" data-email="${esc(e.key)}" aria-label="Change the words of ${esc(e.name)}">Change</button>`}</td>
+                </tr>`).join('');
+            return `<h2 class="admin-stat-section-title">${esc(g.name)}</h2><p class="admin-intro">${esc(g.about)}</p>
+                <div class="admin-stat-table-wrap"><table class="admin-stat-table admin-bc-table">
+                    <thead><tr><th class="admin-bc-text">Email</th><th class="admin-bc-text">Wording</th><th><span class="visually-hidden">Change</span></th></tr></thead>
+                    <tbody>${rows}</tbody>
+                </table></div>`;
+        }).join('');
+    }
 
     function render() {
         const e = current;
         const s = signature;
         const fillIns = e.fillIns.map((f) => `<li><code>{${esc(f.name)}}</code> - ${esc(f.what)}${f.required ? ' <strong>Must be in the words.</strong>' : ''}</li>`).join('');
+        const after = [e.hasButton ? 'The button\'s link is added by the app, so leave links out of the words.' : 'Leave links out of the words.',
+            e.footer ? `After ${e.hasButton ? 'the button' : 'the words'}, the app always adds: "${esc(e.footer)}"` : '',
+            e.toOwner ? 'This is an alert to you, so it has no signature.' : 'The signature goes at the bottom - links can go there.'].filter(Boolean).join(' ');
         $('adminEmailWording').innerHTML = `
-            <h2 class="admin-stat-section-title">${esc(e.name)}</h2>
+            ${emailList()}
+            <h2 class="admin-stat-section-title" id="emailWordingEditing">Changing: ${esc(e.name)}</h2>
             <p class="admin-intro">${esc(e.about)}</p>
-            <p class="admin-intro">${e.changed ? `Changed${e.changedBy ? ` by ${esc(e.changedBy)}` : ''} on ${esc(day(e.changedOn))}.` : 'This is the built-in wording.'}</p>
+            <p class="admin-intro">${e.changed ? `${changedLine(e)}.` : 'This is the built-in wording.'}</p>
             <div class="form-group"><label for="emailWordingSubject">Subject</label><input type="text" id="emailWordingSubject" maxlength="${e.limits.subject}" value="${esc(e.wording.subject)}"></div>
             ${editor('emailWordingBody', 'Words', e.wording.body, ['bold', 'italic', 'underline', 'list'])}
-            <div class="form-group"><label for="emailWordingButton">Button</label><input type="text" id="emailWordingButton" maxlength="${e.limits.button}" value="${esc(e.wording.button)}"></div>
+            ${e.hasButton ? `<div class="form-group"><label for="emailWordingButton">Button</label><input type="text" id="emailWordingButton" maxlength="${e.limits.button}" value="${esc(e.wording.button)}"></div>` : ''}
             <p class="admin-intro">Fill-ins - written in curly brackets, filled in when the email is sent:</p>
             <ul class="admin-intro">${fillIns}</ul>
-            <p class="admin-intro">After the button, the app always adds: "${esc(e.footer)}" The button's link is added by the app too, so leave links out of the words - they can go in the signature.</p>
+            <p class="admin-intro">${after}</p>
             <div class="admin-security-toolbar">
                 <button type="button" class="btn-submit no-margin" id="emailWordingSave" disabled>Save</button>
                 <button type="button" class="admin-stat-exclude-btn" id="emailWordingPreview">Preview</button>
@@ -111,6 +134,18 @@
         if (keepSig !== null) { $('emailSignatureBody').innerHTML = keepSig; $('emailSignatureSave').disabled = false; }
     }
 
+    // Another email into the editor - asking first if the words on the page haven't been saved
+    function choose(key) {
+        const go = () => {
+            current = data.emails.find((e) => e.key === key);
+            rerender();
+            $('emailWordingEditing').scrollIntoView({ block: 'start' });
+            $('emailWordingSubject').focus({ preventScroll: true });
+        };
+        if (!wordingChanged()) { go(); return; }
+        A.showConfirmModal(`Leave the ${current.name.toLowerCase()} without saving?`, 'The changes you made to its words are not kept.', go, true);
+    }
+
     const say = (id, words) => { $(id).textContent = words; };
     async function doPreview() {
         try { showPreview(await A.apiCall(`/api/admin/email-wording/${current.key}/preview`, 'POST', { ...draft(), signature: editorHtml('emailSignatureBody') })); say('emailWordingStatus', ''); } catch (error) { say('emailWordingStatus', error.message); }
@@ -119,7 +154,7 @@
         say('emailWordingStatus', 'Sending...');
         try {
             const out = await A.apiCall(`/api/admin/email-wording/${current.key}/test`, 'POST', draft());
-            say('emailWordingStatus', `${out.notSentHere ? `This site doesn't send emails - the test is in its outbox for ${out.to}.` : `Test sent to ${out.to}.`} It carries the saved signature.`);
+            say('emailWordingStatus', `${out.notSentHere ? `This site doesn't send emails - the test is in its outbox for ${out.to}.` : `Test sent to ${out.to}.`}${current.toOwner ? '' : ' It carries the saved signature.'}`);
         } catch (error) { say('emailWordingStatus', error.message); }
     }
     async function save() {
@@ -221,6 +256,7 @@
             const t = e.target.closest('button');
             if (!t || !current) return;
             if (t.dataset.format) { format(t); return; }
+            if (t.dataset.email) { choose(t.dataset.email); return; }
             if (t.id === 'emailWordingSave') save();
             if (t.id === 'emailWordingPreview') doPreview();
             if (t.id === 'emailWordingTest') sendTest();

@@ -102,7 +102,8 @@ describe('the emails', () => {
     assert.match(m.text, /^Hello Sam,/);
     assert.match(m.text, /not used Notably Better for 22 months/);
     assert.match(m.text, /deleted on 15 January 2029/);
-    assert.match(m.text, /just sign in before then: https:\/\/example\.test/);
+    assert.match(m.text, /just sign in before then\. That is all you need to do\./);
+    assert.match(m.text, /Open Notably Better: https:\/\/example\.test/, 'the way back in is the button (ML-618)');
     assert.match(m.text, /remind you once more/);
   });
   test('the second says it is the last reminder', () => {
@@ -114,7 +115,8 @@ describe('the emails', () => {
   test('the third says it has been done, and that they are welcome back', () => {
     const m = retentionEmail(3, { ...about, firstName: '' });
     assert.match(m.subject, /has been deleted/);
-    assert.match(m.text, /^Hello,/);
+    assert.match(m.text, /^Hello there,/); // ML-618: {first name} with no name
+    assert.doesNotMatch(m.text, /https?:/, 'nothing to click once it has gone');
     assert.match(m.text, /not been used for 24 months/);
     assert.match(m.text, /welcome back/);
   });

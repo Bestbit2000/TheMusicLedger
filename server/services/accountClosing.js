@@ -15,6 +15,7 @@ import pool from '../config/db.js';
 import { deletedEmailHash, forgetTokenVersion } from './tokenVersions.js';
 import { createTargetedNotification } from './notifications.js';
 import { sendMail, emailOutcome } from './mail.js';
+import { emailFor, nameOrThere } from './emailWording.js';
 
 const withStatus = (status, message) => Object.assign(new Error(message), { status });
 export const ACTION_REASONS = {
@@ -50,10 +51,13 @@ function checked({ reason, message }) {
   if (text.length > MAX_MESSAGE) throw withStatus(400, `The message can be up to ${MAX_MESSAGE} characters.`);
   return { reason, text };
 }
-async function email(account, subject, text) {
+// ML-618: the words around the message are on Admin -> Email wording (account_warning, account_closed,
+// account_reopened); the message is the one written in the pop-up (reopening has none).
+async function email(account, key, message = '') {
   if (!canBeEmailed(account.email)) return false;
   try {
-    await sendMail({ to: account.email, subject, text: `Hello${account.first_name ? ` ${account.first_name}` : ''},\n\n${text}\n\nNotably Better\n` });
+    const { subject, text, html } = await emailFor(key, { 'first name': nameOrThere(account.first_name), message });
+    await sendMail({ to: account.email, subject, text, html });
     return emailOutcome().emailed;
   } catch (error) {
     console.error('Account action: the email could not be sent:', error.message);
@@ -77,7 +81,7 @@ export async function warnAccount(adminAccountId, accountId, body = {}) {
   const account = await target(pool, adminAccountId, accountId);
   if (account.closed_at) throw withStatus(400, 'This account is closed - there is nobody to warn.');
   await createTargetedNotification(adminAccountId, { title: 'A warning about your account', body: text, urgent: true }, [account.id]);
-  const emailed = await email(account, 'Notably Better: a warning about your account', text);
+  const emailed = await email(account, 'account_warning', text);
   await pool.query(
     'INSERT INTO account_actions (account_id, kind, reason, message, by_name, emailed) VALUES ($1, $2, $3, $4, $5, $6)',
     [account.id, 'warning', reason, text, await byName(adminAccountId), emailed]);
@@ -109,7 +113,7 @@ export async function closeAccount(adminAccountId, accountId, body = {}) {
   }
   forgetTokenVersion(account.email);
   // Closed first and told after, so the email is never untrue. A failed email changes nothing.
-  const emailed = await email(account, 'Your Notably Better account has been closed', text);
+  const emailed = await email(account, 'account_closed', text);
   if (emailed) await pool.query('UPDATE account_actions SET emailed = true WHERE id = $1', [actionId]);
   return { email: account.email, emailed };
 }
@@ -137,7 +141,7 @@ export async function reopenAccount(adminAccountId, accountId) {
     client.release();
   }
   forgetTokenVersion(account.email);
-  const emailed = await email(account, 'Your Notably Better account is open again', REOPENED_TEXT);
+  const emailed = await email(account, 'account_reopened');
   if (emailed) await pool.query('UPDATE account_actions SET emailed = true WHERE id = $1', [actionId]);
   return { email: account.email, emailed };
 }

@@ -14,6 +14,7 @@ import pool from '../config/db.js';
 import { withStatus } from './flows.js';
 import { createTargetedNotification } from './notifications.js';
 import { sendMail } from './mail.js';
+import { emailFor, nameOrThere } from './emailWording.js'; // ML-618: the words around the message
 import { listReports } from './contentReports.js';
 
 const ORGANISER_ROLES = ['admin', 'owner']; // as bands.js
@@ -259,7 +260,7 @@ export async function removeRecordingOnRequest(adminAccountId, { kind, id, reaso
   let emailsSent = 0;
   for (const p of people) {
     if (!p.email) continue;
-    try { await sendMail({ to: p.email, subject: `Notably Better: ${subject.toLowerCase()}`, text: `Hello ${p.first_name || ''},\n\n${text}\n` }); emailsSent++; } catch (error) { console.error('Recording removal: an email could not be sent:', error.message); }
+    try { await sendMail({ to: p.email, ...(await emailFor('something_removed', { 'first name': nameOrThere(p.first_name), 'what was removed': subject.toLowerCase(), message: text })) }); emailsSent++; } catch (error) { console.error('Recording removal: an email could not be sent:', error.message); }
   }
 
   const by = (await pool.query('SELECT first_name, surname FROM accounts WHERE id = $1', [adminAccountId])).rows[0];
@@ -320,7 +321,7 @@ export async function renameBandOnRequest(adminAccountId, { id, name, reason, me
   let emailsSent = 0;
   for (const p of people) {
     if (!p.email) continue;
-    try { await sendMail({ to: p.email, subject: `Notably Better: ${subject.toLowerCase()}`, text: `Hello ${p.first_name || ''},\n\n${text}\n` }); emailsSent++; } catch (error) { console.error('Band rename: an email could not be sent:', error.message); }
+    try { await sendMail({ to: p.email, ...(await emailFor('band_renamed', { 'first name': nameOrThere(p.first_name), message: text })) }); emailsSent++; } catch (error) { console.error('Band rename: an email could not be sent:', error.message); }
   }
   const by = (await pool.query('SELECT first_name, surname FROM accounts WHERE id = $1', [adminAccountId])).rows[0];
   await pool.query(

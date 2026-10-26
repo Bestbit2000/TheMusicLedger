@@ -47,7 +47,7 @@ describe('the waiting list, from the source', () => {
   test('the form never emails the person asking - only the owner, at our own address', () => {
     const src = read('server/services/joinRequests.js');
     const sends = src.match(/sendMail\(\{[^}]*\}/g) || [];
-    assert.deepEqual(sends, ['sendMail({ to: process.env.JOIN_ALERT_EMAIL || JOIN_ALERT_TO, ...joinAlertEmail(request), toOwner: true }'], 'one email, to us');
+    assert.deepEqual(sends, ["sendMail({ to: process.env.JOIN_ALERT_EMAIL || JOIN_ALERT_TO, ...joinAlertEmail(request, await wordingFor('alert_join')), toOwner: true }"], 'one email, to us');
     assert.equal(JOIN_ALERT_TO, 'info@notablybetter.com');
     const submit = src.slice(src.indexOf('export async function submitJoinRequest'), src.indexOf('// ---- Admin'));
     assert.doesNotMatch(submit, /createInvite|createTargetedNotification/, 'only the owner\'s Let in or Pass on contacts anyone');

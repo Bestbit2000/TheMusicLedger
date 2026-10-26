@@ -11,7 +11,10 @@
 import pool from '../config/db.js';
 import { withStatus } from './flows.js';
 import { isFeatureEnabled, getLimit } from './features.js';
-import { emailBody, sendMailBatch } from './mail.js';
+import { sendMailBatch } from './mail.js';
+import { buildEmail } from './emailBuild.js';
+import { EMAILS } from './emailCatalogue.js';
+import { wordingFor } from './emailWording.js';
 import { appLink } from '../utils/appPath.js';
 
 const canBeEmailed = (email) => !/\.(local|invalid|test)$/i.test(String(email || ''));
@@ -23,18 +26,16 @@ export function emailCopyAllowed({ urgent, important } = {}) {
 }
 
 // Pure - unit tested. The email for one notice: its own words, why they are getting it, and a way into the app.
-export function noticeEmailWords({ title, body, important, policyLink }, origin) {
-  const paragraphs = String(body || '').split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+// ML-618: the words around the notice are on Admin -> Email wording (notice_urgent, notice_important); wording - the
+// built-in wording if none.
+export const noticeEmailKey = (important) => (important ? 'notice_important' : 'notice_urgent');
+export function noticeEmailWords({ title, body, important, policyLink }, origin, wording = EMAILS[noticeEmailKey(important)].builtIn) {
   const home = String(origin || '').replace(/\/+$/, '');
-  const why = important
-    ? 'You are getting this email because the notice is about how your information is used. We email a copy of notices like this to every member, and it is in the app too.'
-    : 'You are getting this email because it is an urgent notice from the Notably Better team, and it is in the app too. To stop email copies of urgent notices, open the app and go to Settings, Notifications.';
-  const lines = [...paragraphs];
-  if (important && policyLink) lines.push(`Read the privacy policy: ${home}/privacy.html`);
-  lines.push(why);
-  const { text, html } = emailBody(lines, 'Open Notably Better', appLink(home),
-    'This email comes from an address that does not take replies. To write to us, email hello@notablybetter.com.');
-  return { subject: String(title || '').trim(), text, html };
+  return buildEmail(noticeEmailKey(important), wording, {
+    'notice title': String(title || '').trim(), message: String(body || ''),
+    'privacy policy': important && policyLink ? `Read the privacy policy: ${home}/privacy.html` : '',
+    url: appLink(home)
+  });
 }
 
 // Who gets an email copy of a notice for this audience: still here and not closed, an address that can be emailed,
@@ -96,7 +97,7 @@ export async function sendEmailCopies(notificationId, origin) {
   const n = rows[0];
   const { rows: named } = await pool.query('SELECT account_id FROM notification_recipients WHERE notification_id = $1', [notificationId]);
   const targets = await emailCopyTargets({ audience: n.audience, accountLevel: n.audience_account_level, bandId: n.audience_band_id, accountIds: named.map(r => r.account_id) }, { important: n.important });
-  const words = noticeEmailWords({ title: n.title, body: n.body, important: n.important, policyLink: n.policy_link }, origin);
+  const words = noticeEmailWords({ title: n.title, body: n.body, important: n.important, policyLink: n.policy_link }, origin, await wordingFor(noticeEmailKey(n.important)));
   const { sent, failed } = await sendMailBatch(targets.map(t => ({ to: t.email, ...words })));
   await pool.query('UPDATE notifications SET emailed_count = $2, email_failed_count = $3 WHERE id = $1', [notificationId, sent, failed]);
   return { sent, failed };

@@ -20,6 +20,7 @@ const { default: pool } = await import('../config/db.js');
 const bands = await import('../services/bands.js');
 const auth = await import('../services/passwordAuth.js');
 const { emailOutcome, sentOrHeld } = await import('../services/mail.js');
+const { ownStoreHost } = await import('../services/blobUrls.js');
 
 // What a site that only keeps its emails answers (this one, with MAIL_PROVIDER=log)
 const HELD = { emailed: false, notSentHere: true };
@@ -83,12 +84,13 @@ test('an invitation into a band emails the address once: who, which band, and on
   assert.equal(sent.length, 1);
   assert.equal(sent[0].subject, `anna Test has invited you to join ML-473 Mail Band ${stamp}`);
   assert.match(sent[0].body_text, new RegExp(`sign in with this email address \\(${member.replace(/[.+]/g, '\\$&')}\\)`));
-  assert.match(sent[0].body_text, /Open Notably Better: https:\/\/app\.example\/\?band-invite=1\n/); // nothing about who or which band in the link
+  assert.match(sent[0].body_text, /Open Notably Better: https:\/\/app\.example\/app\?band-invite=1\n/); // nothing about who or which band in the link
   assert.match(sent[0].body_text, /waits for 30 days/);
   assert.doesNotMatch(sent[0].body_html, /<img/); // no logo, no picture
 
   // ML-534: a band with a logo has it at the top of the email (the HTML only), with the band's name as its text
-  const logoUrl = `https://abc123xyz.public.blob.vercel-storage.com/band-logos/${space}/logo-x.png`;
+  // (this app's own store when a store key is set - ML-551 refuses any other store's files)
+  const logoUrl = `https://${ownStoreHost() || 'abc123xyz.public.blob.vercel-storage.com'}/band-logos/${space}/logo-x.png`;
   await pool.query('UPDATE bands SET logo_url = $2 WHERE id = $1', [space, logoUrl]);
   const withLogo = address('withlogo');
   accounts.push(Number((await one(`INSERT INTO accounts (email, first_name, surname) VALUES ($1, 'Has', 'Logo') RETURNING id`, [withLogo])).id));
@@ -120,17 +122,19 @@ test('an invitation into a band emails the address once: who, which band, and on
   assert.deepEqual(await bands.inviteToBand(anna, space, newcomer, 'play', 'https://app.example'), HELD);
   sent = await outbox(newcomer);
   assert.equal(sent.length, 1);
+  // ML-618: every way in is offered - Google, or a password where that is on
   if (await auth.passwordLoginEnabled()) {
-    assert.match(sent[0].body_text, /You don't have an account yet\. Choose a password to make one/);
-    const link = /Choose a password: (https:\/\/app\.example\/\?invite=([\w-]+)&band-invite=1)\n/.exec(sent[0].body_text);
-    assert.ok(link, 'the link chooses a password and comes back to My bands');
-    assert.deepEqual(await auth.describeLink(link[2], 'invite', '127.0.0.1'), { email: newcomer, firstName: null });
+    assert.match(sent[0].body_text, /You don't have an account yet\. To get started, sign in with Google if this email address is a Google account, or choose a password - it takes a minute/);
+    const link = /Get started: (https:\/\/app\.example\/app\?invite=([\w-]+)&band-invite=1)\n/.exec(sent[0].body_text);
+    assert.ok(link, 'the link opens the screen with every way in, and comes back to My bands');
+    assert.deepEqual(await auth.describeLink(link[2], 'invite', '127.0.0.1'), { email: newcomer, firstName: null, ways: ['google', 'password'] });
     // It is nobody's own invite: not on the organiser's list, not one of their five a day
     assert.deepEqual(await auth.listMyInvites(anna), []);
     assert.equal(await auth.invitesSentToday(anna), 0);
     await pool.query('DELETE FROM auth_email_links WHERE lower(email) = $1', [newcomer]);
   } else {
-    assert.match(sent[0].body_text, /Open Notably Better: https:\/\/app\.example\/\?band-invite=1\n/);
+    assert.match(sent[0].body_text, /To get started, sign in with Google if this email address is a Google account - it takes a minute/);
+    assert.match(sent[0].body_text, /Get started: https:\/\/app\.example\/app\?band-invite=1\n/);
   }
 });
 

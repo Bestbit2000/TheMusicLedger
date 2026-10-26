@@ -14,6 +14,7 @@ import pool from '../config/db.js';
 import { withStatus, assertFlowReadAccess } from './flows.js';
 import { limitCalls } from './passwordAuth.js';
 import { sendMail } from './mail.js';
+import { emailFor } from './emailWording.js';
 
 const MAX_NOTE = 1000;
 const fullName = (r) => [r.first_name, r.surname].filter(Boolean).join(' ').trim() || 'A member';
@@ -80,10 +81,9 @@ export async function createReport(accountId, { kind, id, note }) {
   const to = process.env.USAGE_ALERT_EMAIL || process.env.SIGNUP_ALERT_EMAIL;
   if (to) {
     try {
-      await sendMail({
-        to, subject: 'Notably Better: something has been reported', toOwner: true, // ML-617: no signature
-        text: `A member has reported ${target.what}.\n\n${text ? `They wrote: ${text}\n\n` : ''}Open Admin, Shared music to look at it.`
-      });
+      // ML-618: the words are on Admin -> Email wording (alert_report)
+      const mail = await emailFor('alert_report', { what: target.what, 'what they wrote': text ? `They wrote: ${text}` : '' });
+      await sendMail({ to, ...mail, toOwner: true }); // ML-617: no signature
     } catch (error) { console.error('Report: the owner could not be emailed:', error.message); }
   }
   return { reported: true };

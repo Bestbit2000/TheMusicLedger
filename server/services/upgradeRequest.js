@@ -5,26 +5,18 @@
 
 // The database pool and mail.js (which opens it) are loaded inside requestUpgrade, so the email and
 // the recipient rule can be tested with no database.
+import { buildEmail } from './emailBuild.js';
+import { EMAILS } from './emailCatalogue.js';
 
 // What can be asked for from the app - a request names one of these, never free text.
 export const UPGRADE_FEATURES = { theory_smart_learn: 'SmartLearn' };
 
-// The email itself - pure, so it can be tested.
-export function upgradeRequestEmail({ firstName, surname, email, accountLevel, featureName, at = new Date() }) {
+// The email itself - pure, so it can be tested. ML-618: the words are on Admin -> Email wording (alert_upgrade);
+// wording - the built-in wording if none.
+export function upgradeRequestEmail({ firstName, surname, email, accountLevel, featureName, at = new Date() }, wording = EMAILS.alert_upgrade.builtIn) {
   const name = `${firstName || ''} ${surname || ''}`.trim() || '(no name given)';
   const when = at.toLocaleString('en-GB', { timeZone: 'Europe/London', dateStyle: 'full', timeStyle: 'short' });
-  const text = [
-    `${name} tapped "Upgrade now" for ${featureName} in Notably Better.`,
-    '',
-    `Name: ${name}`,
-    `Email: ${email}`,
-    `Account type: ${accountLevel || 'unknown'}`,
-    `Asked for: ${featureName}`,
-    `When: ${when}`,
-    '',
-    'To switch it on for them: Admin -> Feature access (for their account type), or change their account type in Admin -> Accounts.',
-  ].join('\n');
-  return { subject: `Upgrade request: ${name} - ${featureName}`, text };
+  return buildEmail('alert_upgrade', wording, { name, email, 'account type': accountLevel || 'unknown', feature: featureName, when });
 }
 
 export function upgradeRequestRecipient() {
@@ -42,13 +34,14 @@ export async function requestUpgrade(accountId, featureKey) {
   if (!to) throw withStatus(503, "Upgrade requests aren't set up yet.");
   const { default: pool } = await import('../config/db.js');
   const { sendMail } = await import('./mail.js');
+  const { wordingFor } = await import('./emailWording.js');
   const { rows } = await pool.query('SELECT first_name, surname, email, account_level FROM accounts WHERE id = $1', [accountId]);
   const a = rows[0];
   if (!a) throw withStatus(404, 'Account not found.');
-  const { subject, text } = upgradeRequestEmail({
+  const { subject, text, html } = upgradeRequestEmail({
     firstName: a.first_name, surname: a.surname, email: a.email, accountLevel: a.account_level,
     featureName: UPGRADE_FEATURES[featureKey],
-  });
-  await sendMail({ to, subject, text, toOwner: true }); // ML-617: an alert to the owner - no signature
+  }, await wordingFor('alert_upgrade'));
+  await sendMail({ to, subject, text, html, toOwner: true }); // ML-617: an alert to the owner - no signature
   return { sent: true };
 }

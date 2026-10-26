@@ -138,7 +138,7 @@ test('a super admin can delete an account for a member: the ordinary deletion, t
   assert.equal(sent[0].subject, 'Your Notably Better account has been deleted');
   assert.match(sent[0].body_text, /^Hello Mina,\n/);
   assert.match(sent[0].body_text, /If you did not ask for this, please tell us: hello@notablybetter\.com\./);
-  assert.deepEqual(deletedForYouEmail('').text.split('\n')[0], 'Hello,');
+  assert.deepEqual(deletedForYouEmail('').text.split('\n')[0], 'Hello there,'); // ML-618: {first name} with no name
   // twice is refused, and sends nothing more
   await assert.rejects(deleteAccountAsAdmin(admin, member), (e) => e.status === 404);
   assert.equal((await outbox(memberEmail)).length, 1);
