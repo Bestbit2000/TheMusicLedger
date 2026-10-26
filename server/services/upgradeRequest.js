@@ -49,6 +49,6 @@ export async function requestUpgrade(accountId, featureKey) {
     firstName: a.first_name, surname: a.surname, email: a.email, accountLevel: a.account_level,
     featureName: UPGRADE_FEATURES[featureKey],
   });
-  await sendMail({ to, subject, text });
+  await sendMail({ to, subject, text, toOwner: true }); // ML-617: an alert to the owner - no signature
   return { sent: true };
 }

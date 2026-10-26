@@ -500,3 +500,11 @@ body.admin-body { display: block; background: var(--bg-color); }
 /* A tool's buttons: how many presses, as a bar against the most-pressed button (the darkest heat step, so it
    reads against the card in both themes) */
 .usage-press-bar { display: block; width: var(--bar-w); min-width: var(--space-1); height: var(--space-2); margin-top: var(--space-1); border-radius: var(--radius-pill); background: var(--heat-time-4); }
+
+/* ML-617: Admin -> Email wording's editor - formatting buttons above a box to type in, which looks like the
+   panel's other text boxes. specs/components/admin-email-wording.md */
+.admin-rich-toolbar { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
+.admin-rich-text { min-height: calc(var(--touch-target) * 4); max-height: 60vh; overflow-y: auto; padding: var(--space-3) var(--space-4); border: 2px solid var(--control-border); border-radius: var(--radius-lg); background: var(--input-bg); color: var(--text-color); font-size: var(--font-base); overflow-wrap: anywhere; }
+.admin-rich-text:focus { outline: none; box-shadow: var(--focus-ring); }
+.admin-rich-text p { margin: 0 0 var(--space-3); }
+.admin-rich-text img { max-width: 100%; height: auto; }

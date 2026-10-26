@@ -59,7 +59,7 @@ export async function sendSignupAlert({ firstName, surname, email, method, userA
   try {
     const { subject, text } = signupAlertEmail({ firstName, surname, email, method, device: describeDevice(userAgent, model) });
     const { sendMail } = await import('./mail.js'); // loaded here: it opens the database pool
-    await sendMail({ to, subject, text });
+    await sendMail({ to, subject, text, toOwner: true }); // ML-617: an alert to the owner - no signature
     return true;
   } catch (error) {
     console.error('Sign-up alert not sent:', error.message);

@@ -108,7 +108,7 @@ async function tellTheOwner(request) {
   try {
     const { rows } = await pool.query("SELECT count(*)::int AS n FROM join_requests WHERE created_at > now() - interval '1 day'");
     if (rows[0].n > JOIN_ALERTS_A_DAY) return false;
-    await sendMail({ to: process.env.JOIN_ALERT_EMAIL || JOIN_ALERT_TO, ...joinAlertEmail(request) });
+    await sendMail({ to: process.env.JOIN_ALERT_EMAIL || JOIN_ALERT_TO, ...joinAlertEmail(request), toOwner: true }); // ML-617: no signature
     return true;
   } catch (error) {
     console.error('Waiting list: the owner could not be emailed:', error.message);

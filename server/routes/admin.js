@@ -25,9 +25,9 @@ import { getReviews, markReviewed } from '../services/reviews.js';
 import { adminRequestEmailChange } from '../services/emailChange.js';
 import { getFeatureAccess, saveFeatureAccess, clearFeatureCache } from '../services/features.js';
 import { listBandsForAdmin, createSharedBand, updateBandAdmin, deleteOrArchiveBandAdmin, setBandDetails } from '../services/bands.js';
-import { signInWaysOn } from '../services/signInWays.js';
+import { signInWaysOn, waysInWords } from '../services/signInWays.js';
 import { createInvite, listPendingInvites, cancelInvite, appUrl, adminSendReset, adminUnlock, adminSignOutEverywhere, adminTurnOffTwoStep } from '../services/passwordAuth.js';
-import { sentOrHeld, mailIsReal } from '../services/mail.js';
+import { sentOrHeld, mailIsReal, sendMail, emailOutcome } from '../services/mail.js';
 import { listDurationOptionsForAdmin, createDurationOption, updateDurationOption, deleteDurationOption, listDurationUsageStats, listSessionMinuteCounts } from '../services/durationOptions.js';
 import { listTimeSignatureOptionsForAdmin, createTimeSignatureOption, updateTimeSignatureOption, deleteOrArchiveTimeSignatureOption, listNoteValueUsage } from '../services/timeSignatures.js';
 import { listPlaybackSpeedsForAdmin, createPlaybackSpeedOption, updatePlaybackSpeedOption, deletePlaybackSpeedOption } from '../services/playbackSpeeds.js';
@@ -48,6 +48,11 @@ import { getBusinessCase, saveBusinessCase, resetBusinessCase } from '../service
 import { getAdminDashboard } from '../services/adminDashboard.js';
 import { listRecords, saveRecord, setAttentionDone, saveAgreement } from '../services/thirdPartyRecords.js';
 import { retentionStatus, saveRule, runRetention, clearOldRecords } from '../services/retention.js';
+import { listEmailWording, saveEmailWording, resetEmailWording, previewEmail } from '../services/emailWording.js';
+import { emailSignature, signatureForAdmin, saveSignature, setSignatureLogo, removeSignatureLogo, removeSignature, LOGO_FOLDER, MAX_LOGO_BYTES, LOGO_TYPES } from '../services/emailSignature.js';
+import { cleanSignatureHtml, htmlToText } from '../services/emailHtml.js';
+import { handleUpload } from '@vercel/blob/client';
+import { appLink } from '../utils/appPath.js';
 import { listJoinRequests, letInJoinRequest, passJoinRequest, dismissJoinRequest } from '../services/joinRequests.js';
 import { adminSupport, addBusiness, updateBusiness, removeBusiness } from '../services/instrumentSupport.js';
 import { listReads as listPieceReads, setChecked as setPieceReadChecked, rerunRead as rerunPieceRead, dropTestFiles as dropPieceReadTestFiles } from '../services/pieceReads.js';
@@ -1271,5 +1276,80 @@ router.post('/retention/run', requireAuth, resolveAccount, requireSuperAdmin, re
     sendError(res, error);
   }
 });
+
+// ML-617: Admin -> Email wording - what the app's emails say, changed without a release (services/emailWording.js,
+// docs/email-wording.md). A preview and a test use the ways in switched on here; a test goes to the super admin's
+// own address only, and its button just opens the app.
+router.get('/email-wording', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    res.json(await listEmailWording());
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.put('/email-wording/:key', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    res.json(await saveEmailWording(req.params.key, req.body || {}, req.accountId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.delete('/email-wording/:key', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    res.json(await resetEmailWording(req.params.key));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+const sampleValues = async (req) => ({ 'ways in': waysInWords(await signInWaysOn()), url: appLink(appUrl(req)) });
+// The preview shows the signature too: the one on the page if it was sent (not saved yet), cleaned as it would be
+const previewSignature = async (draft) => {
+  if (typeof draft !== 'string') return emailSignature();
+  const html = cleanSignatureHtml(draft, (await signatureForAdmin()).logoUrl);
+  return { html, text: htmlToText(html) };
+};
+router.post('/email-wording/:key/preview', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    const { subject, text, html } = previewEmail(req.params.key, req.body || {}, await sampleValues(req), await previewSignature((req.body || {}).signature));
+    res.json({ subject, text, html });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/email-wording/:key/test', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    const { subject, text, html } = previewEmail(req.params.key, req.body || {}, await sampleValues(req));
+    const { rows } = await pool.query('SELECT email FROM accounts WHERE id = $1', [req.accountId]);
+    await sendMail({ to: rows[0].email, subject: `Test: ${subject}`, text, html });
+    res.json({ to: rows[0].email, ...emailOutcome() });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// The signature at the bottom of every email a member gets (services/emailSignature.js): its HTML, the logo
+// (uploaded by the browser straight to the file store's email-signature/ folder, like a band's logo), and taking
+// either off.
+const signatureRoute = (fn) => async (req, res) => {
+  try {
+    res.json(await fn(req));
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+router.get('/email-signature', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, signatureRoute(() => signatureForAdmin()));
+router.put('/email-signature', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, signatureRoute((req) => saveSignature((req.body || {}).html, req.accountId)));
+router.delete('/email-signature', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, signatureRoute(() => removeSignature()));
+router.post('/email-signature/logo/upload-token', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, signatureRoute((req) => handleUpload({
+  body: req.body,
+  request: req,
+  onBeforeGenerateToken: async (pathname) => {
+    if (!String(pathname).startsWith(LOGO_FOLDER)) throw Object.assign(new Error('That is not the folder for the signature logo.'), { status: 400 });
+    return { maximumSizeInBytes: MAX_LOGO_BYTES, allowedContentTypes: LOGO_TYPES, addRandomSuffix: true };
+  },
+  onUploadCompleted: async () => {}
+})));
+router.put('/email-signature/logo', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, signatureRoute((req) => setSignatureLogo(req.body || {}, req.accountId)));
+router.delete('/email-signature/logo', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, signatureRoute((req) => removeSignatureLogo(req.accountId)));
 
 export default router;

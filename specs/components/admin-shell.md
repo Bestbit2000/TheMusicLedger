@@ -108,7 +108,7 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
 ### The menu in groups (ML-443)
 
 - **Four groups, by the job being done**, with the Dashboard above them: **Members** (Accounts, Bands, Feature
-  access, Notifications, Retention, Feedback), **Content** (Flows, Warm-ups, Rest messages, Theory grades, Metadata lists),
+  access, Notifications, Retention, Feedback), **Content** (Flows, Warm-ups, Rest messages, Email wording, Theory grades, Metadata lists),
   **Business** (Business case, Costs and usage, Usage) and **Release and checks** (Release tests, Photo reads,
   Security, My passkeys, Third parties, Design). A new page goes in the group whose job it does.
 - **A heading opens and closes its group.** It is a `<button>` with `aria-expanded` and `aria-controls`, at

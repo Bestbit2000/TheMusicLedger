@@ -16,9 +16,10 @@ import { deletedEmailHash, forgetTokenVersion, currentTokenVersion, emailIsShutO
 import { twoStepStatus, beginSetup, confirmSetup, verifyLoginCode } from './twoStep.js';
 import { sendSignupAlert } from './signupAlert.js';
 import { appLink } from '../utils/appPath.js';
-import { signInWaysOn, invitationWays } from './signInWays.js';
+import { signInWaysOn, waysInWords } from './signInWays.js';
+import { buildEmail, wordingFor, INVITATION_DAYS, EMAILS } from './emailWording.js';
 
-const INVITE_DAYS = 7;
+const INVITE_DAYS = INVITATION_DAYS;
 const RESET_MINUTES = 60;
 const LOCK_AFTER = 5;        // wrong passwords in a row
 const LOCK_MINUTES = 15;
@@ -175,12 +176,13 @@ async function liveLink(client, secret, purpose, lock = false) {
 // read from SIGN_IN_WAYS, so a way added later is offered too. The link carries who they are and the account type:
 // a password chosen through it (acceptInvite) or a first Google sign-in with the same address (getOrCreateAccount)
 // both take it, and use it up. Someone who already has an account can only gain a password from it.
-export function invitationEmail({ firstName, url, ways, existing }) {
-  const hello = firstName ? `Hi ${String(firstName).trim()},` : 'Hi,';
-  const lines = existing
-    ? [hello, "You've been invited to log in to Notably Better with your email and a password, as well as Google. Choose a password to get started."]
-    : [hello, "You've been invited to Notably Better.", invitationWays(ways)];
-  return { subject: "You're invited to Notably Better", ...emailBody(lines, 'Get started', url, `This link works for ${INVITE_DAYS} days. If you weren't expecting it, you can ignore this email.`) };
+// ML-617: a newcomer's invitation says what Admin -> Email wording says (wording; the built-in wording if none).
+export function invitationEmail({ firstName, url, ways, existing, wording = EMAILS.invitation.builtIn }) {
+  if (existing) {
+    const hello = firstName ? `Hi ${String(firstName).trim()},` : 'Hi,';
+    return { subject: "You're invited to Notably Better", ...emailBody([hello, "You've been invited to log in to Notably Better with your email and a password, as well as Google. Choose a password to get started."], 'Get started', url, `This link works for ${INVITE_DAYS} days. If you weren't expecting it, you can ignore this email.`) };
+  }
+  return buildEmail('invitation', wording, { 'first name': String(firstName || '').trim() || 'there', 'ways in': waysInWords(ways), url });
 }
 export async function createInvite({ email, firstName, surname, accountLevel, createdBy, origin }) {
   const ways = await signInWaysOn();
@@ -200,7 +202,8 @@ export async function createInvite({ email, firstName, surname, accountLevel, cr
       purpose: 'invite', email: to, firstName: String(firstName || '').trim().slice(0, 80) || null,
       surname: String(surname || '').trim().slice(0, 80) || null, accountLevel: level, createdBy, minutes: INVITE_DAYS * 24 * 60
     });
-    const { subject, text, html } = invitationEmail({ firstName, url: appLink(origin, `?invite=${secret}`), ways, existing: !!existing });
+    const wording = existing ? undefined : await wordingFor('invitation');
+    const { subject, text, html } = invitationEmail({ firstName, url: appLink(origin, `?invite=${secret}`), ways, existing: !!existing, wording });
     await sendMail({ to, subject, text, html });
     await client.query('COMMIT');
     return { email: to, existingAccount: !!existing, ...emailOutcome() }; // ML-479: emailed, or notSentHere

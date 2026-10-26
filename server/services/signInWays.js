@@ -7,7 +7,7 @@ import { isFeatureLive } from './features.js';
 
 export const SIGN_IN_WAYS = [
   // ML-42: always there - Google tells us the address is theirs, and a first sign-in makes the account
-  { key: 'google', on: async () => true, invite: 'sign in with Google (if this email address is a Google account)' },
+  { key: 'google', on: async () => true, invite: 'sign in with Google if this email address is a Google account' },
   // ML-355: only while its Live switch is on (read before anyone signs in, so only Live counts)
   { key: 'password', on: () => isFeatureLive('password_login'), invite: 'choose a password' }
 ];
@@ -18,11 +18,11 @@ export async function signInWaysOn() {
   return SIGN_IN_WAYS.filter((_, i) => on[i]).map((w) => w.key);
 }
 
-// Pure - unit tested. The sentence an invitation gives: "To get started, sign in with Google (...) or choose a
-// password." Only the ways named, in the list's order; '' for none.
-export function invitationWays(keys) {
+// Pure - unit tested. The ways in as an invitation says them - the {ways in} fill-in on Admin -> Email wording
+// (ML-617): "sign in with Google if this email address is a Google account, or choose a password". Only the ways
+// named, in the list's order; '' for none.
+export function waysInWords(keys) {
   const phrases = SIGN_IN_WAYS.filter((w) => keys.includes(w.key)).map((w) => w.invite);
-  if (!phrases.length) return '';
-  const list = phrases.length === 1 ? phrases[0] : `${phrases.slice(0, -1).join(', ')} or ${phrases[phrases.length - 1]}`;
-  return `To get started, ${list}.`;
+  if (phrases.length < 2) return phrases[0] || '';
+  return `${phrases.slice(0, -1).join(', ')}, or ${phrases[phrases.length - 1]}`;
 }

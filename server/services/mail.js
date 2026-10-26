@@ -6,6 +6,8 @@
 // MAIL_FROM is the sender: "Notably Better <noreply@notablybetter.com>".
 
 import pool from '../config/db.js';
+import { emailSignature } from './emailSignature.js';
+import { htmlToText } from './emailHtml.js';
 
 export function mailProvider() {
   return (process.env.MAIL_PROVIDER || 'log').toLowerCase();
@@ -44,12 +46,30 @@ async function logMail({ to, subject, text, html }) {
   if (process.env.NODE_ENV !== 'test') console.log(`[mail:log] to ${to}: ${subject}`);
 }
 
-export async function sendMail({ to, subject, text, html }) {
+// ML-617: the signature from Admin -> Email wording goes at the bottom of every email a member gets - where
+// emailBody marked its place (before the small print), or at the end. toOwner: an alert to the owner (a new
+// request to join, a report, a cost warning, a sign-up) - those go without it. An email with no HTML of its own
+// gets a plain one, so the signature's formatting shows.
+export const SIGNATURE_MARK = '<!--nb-signature-->';
+const signatureBlock = (sig) => `<div style="margin-top:24px">${sig.html}</div>`;
+export function withSignature({ text, html, ...rest }, sig) {
+  if (!sig || !sig.html) return { text, html, ...rest };
+  const paragraphs = String(text || '').split(/\n\s*\n/).map((p) => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`).join('\n');
+  const body = html || `<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.5;color:#222;max-width:520px">${paragraphs}${SIGNATURE_MARK}</div>`;
+  return {
+    ...rest,
+    text: `${text || ''}\n\n${sig.text}`,
+    html: body.includes(SIGNATURE_MARK) ? body.replace(SIGNATURE_MARK, signatureBlock(sig)) : `${body}${signatureBlock(sig)}`
+  };
+}
+
+export async function sendMail({ to, subject, text, html, toOwner = false }) {
   const provider = mailProvider();
-  if (provider === 'log') return logMail({ to, subject, text, html });
+  const signed = toOwner ? { text, html } : withSignature({ text, html }, await emailSignature());
+  if (provider === 'log') return logMail({ to, subject, ...signed });
   if (provider === 'smtp') {
     const transport = await smtpTransport();
-    await transport.sendMail({ from: mailFrom(), to, subject, text, html });
+    await transport.sendMail({ from: mailFrom(), to, subject, ...signed });
     return;
   }
   throw new Error(`Unknown MAIL_PROVIDER "${provider}".`);
@@ -61,10 +81,12 @@ export async function sendMailBatch(messages) {
   const provider = mailProvider();
   if (provider !== 'log' && provider !== 'smtp') throw new Error(`Unknown MAIL_PROVIDER "${provider}".`);
   const transport = provider === 'smtp' ? await smtpTransport({ pool: true, maxConnections: 1 }) : null;
+  const sig = await emailSignature();
   let sent = 0;
   let failed = 0;
   try {
-    for (const m of messages) {
+    for (const { toOwner, ...one } of messages) {
+      const m = toOwner ? one : withSignature(one, sig);
       try {
         if (transport) await transport.sendMail({ from: mailFrom(), ...m });
         else await logMail(m);
@@ -94,6 +116,20 @@ export function emailBody(lines, buttonText, url, footer, { image } = {}) {
 ${picture}${lines.map(l => `<p>${esc(l)}</p>`).join('\n')}
 <p><a href="${esc(url)}" style="display:inline-block;background:#c9a227;color:#111;padding:12px 20px;border-radius:6px;text-decoration:none;font-weight:bold">${esc(buttonText)}</a></p>
 <p style="font-size:13px;color:#555">Or copy this link: ${esc(url)}</p>
+${SIGNATURE_MARK}
+<p style="font-size:13px;color:#555">${esc(footer)}</p></div>`;
+  return { text, html };
+}
+
+// ML-617: the same layout for words that are already HTML - cleaned words from Admin -> Email wording (emailHtml.js).
+// The plain-text copy is made from them.
+export function emailBodyHtml(bodyHtml, buttonText, url, footer) {
+  const text = `${htmlToText(bodyHtml)}\n\n${buttonText}: ${url}\n\n${footer}`;
+  const html = `<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.5;color:#222;max-width:520px">
+${bodyHtml}
+<p><a href="${esc(url)}" style="display:inline-block;background:#c9a227;color:#111;padding:12px 20px;border-radius:6px;text-decoration:none;font-weight:bold">${esc(buttonText)}</a></p>
+<p style="font-size:13px;color:#555">Or copy this link: ${esc(url)}</p>
+${SIGNATURE_MARK}
 <p style="font-size:13px;color:#555">${esc(footer)}</p></div>`;
   return { text, html };
 }

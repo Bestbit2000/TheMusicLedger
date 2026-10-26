@@ -45,6 +45,10 @@ export const libraries = [
   npm('jszip', '(MIT OR GPL-3.0-or-later)', 'Stuart Knightley and contributors', 'Opens compressed MusicXML (.mxl) files.', LIVE, {
     says: ['Offered under either licence - we use it under the MIT licence, which asks only that the notice is kept.']
   }),
+  npm('sanitize-html', 'MIT', 'Apostrophe Technologies (ApostropheCMS)', 'Cleans the HTML of the words and the signature on Admin -> Email wording (ML-617) - only the allowed formatting, links and the uploaded logo are kept - before they are saved and before they go into an email.', LIVE, {
+    termsCheckedOn: '2026-10-26',
+    says: ['It brings in six packages of its own (htmlparser2, postcss, launder, parse-srcset, is-plain-object, escape-string-regexp) to read the HTML and its styles. All run on our server only; nothing is sent to their authors.', 'Version 2.18.0 had an advisory (deep nesting could crash it); 2.18.1 fixes it - keep it at 2.18.1 or later.']
+  }),
   npm('nodemailer', 'MIT-0', 'Andris Reinman', 'Sends email over SMTP, when MAIL_PROVIDER is "smtp".', LIVE),
   npm('@simplewebauthn/server', 'MIT', 'Matthew Miller', 'Checks a passkey\'s signed answer when a super admin opens the admin panel (ML-518). The browser half is our own file - nothing is loaded from anywhere else.', LIVE, {
     termsCheckedOn: '2026-10-10',

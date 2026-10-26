@@ -29,8 +29,8 @@ emails are sent by Brevo, from the app's own domain** - `docs/app-name.md`.
   one. Unused invites are listed there and can be cancelled.
 - **Ways in (26 Oct 2026).** An invitation offers every way of signing in that is on here, not only a password:
   `server/services/signInWays.js` (`SIGN_IN_WAYS`) lists them - Google always, a password while `password_login` is
-  Live - and the email ("To get started, sign in with Google (if this email address is a Google account) or choose a
-  password.", button **Get started**), the screen its link opens (`showInviteWays` in `app.js`: Google's button and/or
+  Live - and the email (its `{ways in}` fill-in, "sign in with Google if this email address is a Google account, or
+  choose a password"; button **Get started**; the words are on Admin → Email wording, `docs/email-wording.md`), the screen its link opens (`showInviteWays` in `app.js`: Google's button and/or
   the password boxes) and `GET /auth/methods` (`ways`) all read it. A first Google sign-in with the invited address
   takes the invitation as choosing a password would: the invite's account type, its name where Google gave none, and the
   link is used up (`getOrCreateAccount`). An address that already has an account is only offered a password. So the

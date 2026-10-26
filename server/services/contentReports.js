@@ -81,7 +81,7 @@ export async function createReport(accountId, { kind, id, note }) {
   if (to) {
     try {
       await sendMail({
-        to, subject: 'Notably Better: something has been reported',
+        to, subject: 'Notably Better: something has been reported', toOwner: true, // ML-617: no signature
         text: `A member has reported ${target.what}.\n\n${text ? `They wrote: ${text}\n\n` : ''}Open Admin, Shared music to look at it.`
       });
     } catch (error) { console.error('Report: the owner could not be emailed:', error.message); }
