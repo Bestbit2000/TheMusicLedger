@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.74.0",
+    "date": "2026-10-26",
+    "changes": [
+      {
+        "key": "ML-617",
+        "type": "New",
+        "summary": "We made the invitation email warmer and more welcoming."
+      }
+    ]
+  },
+  {
     "version": "0.73.0",
     "date": "2026-10-26",
     "changes": [
