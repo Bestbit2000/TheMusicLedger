@@ -1,5 +1,46 @@
 [
   {
+    "version": "0.75.0",
+    "date": "2026-10-27",
+    "changes": [
+      {
+        "key": "ML-625",
+        "type": "New",
+        "summary": "We now ask \"Did you mean one of these bands?\" when you type your band's name on the Ask to join form rather than picking it from the list."
+      },
+      {
+        "key": "ML-624",
+        "type": "New",
+        "summary": "We made the admin pages easy to read and use on a phone, and let them use the whole width of a big screen."
+      },
+      {
+        "key": "ML-623",
+        "type": "New",
+        "summary": "We fixed the band box going missing when you log another rehearsal or performance, so it's always there while one is picked."
+      },
+      {
+        "key": "ML-622",
+        "type": "New",
+        "summary": "We drew the notes in the Beat note pop-up, and everywhere a speed shows its note, in the same music font as the music itself."
+      },
+      {
+        "key": "ML-621",
+        "type": "New",
+        "summary": "We keep your headphones' sound switched on for the whole of a practice session, so Play and Stop on a piece are heard straight away rather than seconds later."
+      },
+      {
+        "key": "ML-620",
+        "type": "New",
+        "summary": "We added 40 concert, wind and brass bands across West Sussex and just over its borders to the list you choose your band from."
+      },
+      {
+        "key": "ML-619",
+        "type": "New",
+        "summary": "We updated the parts the app is built on that read web requests and send emails, to close security problems found in them."
+      }
+    ]
+  },
+  {
     "version": "0.74.1",
     "date": "2026-10-26",
     "changes": [
