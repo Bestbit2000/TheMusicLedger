@@ -2522,7 +2522,7 @@
         if (viewName === 'bandMembersView') { document.getElementById('topTitle').innerText = bandMembers.bandName || 'Members'; loadBandMembers(); } // ML-473
         if (viewName === 'bandWelcomeView') { document.getElementById('topTitle').innerText = 'Welcome'; renderBandWelcome(); } // ML-534
         if (viewName === 'tidyBandsView') { document.getElementById('topTitle').innerText = 'Tidy my bands'; loadAccountBands(); } // ML-478
-        if (viewName === 'entryForm') renderSessionInstrumentPicker('instrumentGroup', 'sessionInstrument', null);
+        if (viewName === 'entryForm') { renderSessionInstrumentPicker('instrumentGroup', 'sessionInstrument', null); syncWhoGroup(); } // ML-623
         if (viewName === 'accountTeachersView') { document.getElementById('topTitle').innerText = 'My teachers'; loadTeacherList(); }
         // ML-282: Settings is a list of groups, each its own screen. Every screen re-syncs its
         // controls from storage in case they were last changed elsewhere (the Tuner page itself).
@@ -3578,19 +3578,25 @@
     }
     document.querySelectorAll('.filter-strip-pills').forEach(enableDragScroll);
 
-    document.getElementById('categoryRadios')?.addEventListener('change', function(e) {
-        if(e.target.name === 'category') {
-            const cat = e.target.value;
-            const whoSelect = document.getElementById('who');
-            if(!whoSelect) return;
-            whoSelect.innerHTML = '';
-            if (cat === 'Practise') {
-                document.getElementById('whoGroup').classList.add('hidden-group');
-            } else {
-                document.getElementById('whoGroup').classList.remove('hidden-group');
-                whoSelect.innerHTML = buildWhoOptionsHtml(cat === 'Lesson' ? appData.teachers : appData.organisations);
-            }
+    // ML-623: the "Who with?" box follows whichever answer is ticked - set again every time the form opens, as well as
+    // on a change, because a phone's browser can bring back the ticked answer (Rehearsal) without the change that
+    // shows the box, leaving Rehearsal ticked and no band to pick.
+    function syncWhoGroup() {
+        const whoSelect = document.getElementById('who');
+        if (!whoSelect) return;
+        const cat = document.querySelector('input[name="category"]:checked')?.value || 'Practise';
+        const keep = whoSelect.value;
+        whoSelect.innerHTML = '';
+        if (cat === 'Practise') {
+            document.getElementById('whoGroup').classList.add('hidden-group');
+        } else {
+            document.getElementById('whoGroup').classList.remove('hidden-group');
+            whoSelect.innerHTML = buildWhoOptionsHtml(cat === 'Lesson' ? appData.teachers : appData.organisations);
+            if ([...whoSelect.options].some(o => o.value === keep)) whoSelect.value = keep; // the same band as last time
         }
+    }
+    document.getElementById('categoryRadios')?.addEventListener('change', function(e) {
+        if (e.target.name === 'category') syncWhoGroup();
     });
 
     document.getElementById('durationRadios')?.addEventListener('change', (e) => {
