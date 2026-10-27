@@ -61,7 +61,7 @@
                     <td>${e.key === current.key ? '<span class="text-muted">Open below</span>' : `<button type="button" class="admin-stat-exclude-btn" data-email="${esc(e.key)}" aria-label="Change the words of ${esc(e.name)}">Change</button>`}</td>
                 </tr>`).join('');
             return `<h2 class="admin-stat-section-title">${esc(g.name)}</h2><p class="admin-intro">${esc(g.about)}</p>
-                <div class="admin-stat-table-wrap"><table class="admin-stat-table admin-bc-table">
+                <div class="admin-stat-table-wrap"><table class="admin-stat-table admin-stack-table admin-bc-table">
                     <thead><tr><th class="admin-bc-text">Email</th><th class="admin-bc-text">Wording</th><th><span class="visually-hidden">Change</span></th></tr></thead>
                     <tbody>${rows}</tbody>
                 </table></div>`;
@@ -274,7 +274,7 @@
         $('adminPopupTexts').innerHTML = `
             <h2 class="admin-stat-section-title">Starting messages in pop-ups</h2>
             <p class="admin-intro">The message each of your pop-ups starts with when you warn a member, close an account, remove something or rename a band. It is what then goes in the email's {message} - and in the app.</p>
-            <div class="admin-stat-table-wrap"><table class="admin-stat-table admin-bc-table">
+            <div class="admin-stat-table-wrap"><table class="admin-stat-table admin-stack-table admin-bc-table">
                 <thead><tr><th class="admin-bc-text">Pop-up</th><th class="admin-bc-text">Wording</th><th><span class="visually-hidden">Change</span></th></tr></thead>
                 <tbody>${rows}</tbody>
             </table></div>

@@ -41,15 +41,22 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
   its tab to run the checks**. More than one entry: a `<details>` "Every time it was reviewed". The run
   toolbar is hidden on this tab. A review that is due counts on the menu (`#securityNavCount`) and is
   under "Needs you" on the Dashboard. No new classes.
-- **Full width.** Like Feature access, the Accounts and Flows pages drop `.admin-content`'s 900px cap so their
-  tables use the window; their intro text keeps it.
+- **Every page uses the window's width** (ML-624): `.admin-content` has no width cap, so a table has all the room
+  there is before it scrolls. Reading text, the boxes of settings and the stat tiles stay at 900px (`.admin-intro`,
+  `.admin-feature`, `.admin-stat-tiles`) so their lines don't run too long. (Feature access, Accounts, Flows, Third
+  parties, Costs, Usage and the Business case were widened one by one before this.)
 - **One line per row** in an `.admin-stat-table` (`.admin-accounts-table`: text columns read from the left;
-  `.admin-flows-table`), inside `.admin-stat-table-wrap` so it scrolls sideways on a phone.
-- **A list the owner acts on from his phone** (ML-624, Admin → Waiting list) adds `.admin-stack-table`: at 700px and
-  below each row is a card (1px `--input-border`, `--radius-md`), each cell on its own line under its column's name
-  (the cell's `data-label`, `--font-xs` semibold `--label-color`; a cell without one - the name, the buttons - has
-  none), the header row kept for a screen reader only, and the row's `.admin-stat-exclude-btn`s at
-  `--touch-target` height. Wider, it is the ordinary table. Use it where scrolling sideways would hide a row's buttons.
+  `.admin-flows-table`), inside `.admin-stat-table-wrap` (`position: relative`, so a header's screen-reader-only
+  words stay inside it - placed against the page they made the whole page as wide as the table on a phone).
+- **On a phone, a list is cards** (ML-624): a list the owner acts on adds `.admin-stack-table` - Accounts, Waiting list,
+  Flows, Instrument support, Shared music, Email wording, Photo reads, Retention. At 700px and below each row is a card
+  (1px `--input-border`, `--radius-md`), each cell on its own line under its column's name (`--font-xs` semibold
+  `--label-color`). The names are put on the cells by `labelStackTables` in admin.js from the headings, so a page only
+  adds the class (a cell can set its own `data-label`); the first cell (the row's name) and a cell whose heading is only
+  for a screen reader have none. The header row is kept for a screen reader only; a row whose only action is its ⋮ has
+  it in the card's top corner; `.admin-stat-exclude-btn`s are `--touch-target` tall. Wider, it is the ordinary table.
+  A grid of figures or switches (Feature access, Business case, Costs and usage, Usage) keeps scrolling sideways in
+  its box - a card would lose the columns. A row's buttons (`.admin-feature-actions`) wrap rather than run off a phone.
 - **A ⋮ on each row** (`.list-item-menu-btn`, the app's own) opens **one shared floating menu**
   (`#adminRowMenu`: `.dropdown-menu.account-band-menu` of `.dropdown-item`s with an icon - `openRowMenu` in
   admin.js). A link item (View, Edit) opens a new tab; a destructive one takes `.account-band-menu-delete`. It

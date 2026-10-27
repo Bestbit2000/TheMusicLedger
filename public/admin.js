@@ -15,6 +15,21 @@
         document.body.classList.add('dark-mode');
     }
 
+    // ML-624: a table that is a list of cards on a phone (.admin-stack-table) shows each cell under its column's
+    // name. Taken from the heading here, so a page only adds the class: every cell but the first (the row's own
+    // name) whose heading has words - not one that is only for a screen reader ("What to do"). A cell that sets
+    // its own data-label keeps it.
+    function labelStackTables() {
+        document.querySelectorAll('table.admin-stack-table').forEach((t) => {
+            const heads = [...t.querySelectorAll('thead th')].map((th) => (th.querySelector('.visually-hidden') ? '' : th.textContent.trim()));
+            t.querySelectorAll('tbody tr').forEach((tr) => [...tr.children].forEach((td, i) => {
+                if (i > 0 && heads[i] && !td.hasAttribute('data-label') && !td.hasAttribute('colspan')) td.dataset.label = heads[i];
+            }));
+        });
+    }
+    const adminContent = document.querySelector('.admin-content');
+    if (adminContent) new MutationObserver(labelStackTables).observe(adminContent, { childList: true, subtree: true });
+
     let token = localStorage.getItem('authToken');
     // ML-518: the admin panel's "prove it's you" check rides on the sign-in token, so the server hands
     // the token back when the check is made and as the panel is used. Kept where the app keeps it.
@@ -608,7 +623,7 @@
         if (!accounts.length && !invites.length) { el.innerHTML = '<p>No accounts match.</p>'; return; }
         el.innerHTML = `
             <div class="admin-stat-table-wrap">
-                <table class="admin-stat-table admin-accounts-table">
+                <table class="admin-stat-table admin-stack-table admin-accounts-table">
                     <thead><tr><th>Name</th><th>Email</th><th>Account type</th><th>Signs in with</th><th>Joined</th><th>Last seen</th><th><span class="visually-hidden">Options</span></th></tr></thead>
                     <tbody>${invites.map(i => `
                         <tr data-invite-row="${i.id}">
@@ -2042,7 +2057,7 @@
         const allSelected = flows.every(f => selectedFlowIds.has(f.id));
         el.innerHTML = `
             <div class="admin-stat-table-wrap">
-                <table class="admin-stat-table admin-flows-table">
+                <table class="admin-stat-table admin-stack-table admin-flows-table">
                     <thead><tr>
                         <th><input type="checkbox" id="flowsSelectAll" aria-label="Select all shown" ${allSelected ? 'checked' : ''}></th>
                         <th>Title</th><th>Owner</th><th>Blocks</th><th>Bars</th><th>Media</th><th>Created</th><th><span class="visually-hidden">Options</span></th>
@@ -2994,7 +3009,7 @@
     // One table shape for recordings and for shared pieces and documents (ML-507)
     function sharedTable(all, q, heading, empty) {
         const rows = all.filter(r => !q || [r.title, r.addedBy, piecesText(r.pieces)].join(' ').toLowerCase().includes(q));
-        return `<div class="admin-stat-table-wrap"><table class="admin-stat-table">
+        return `<div class="admin-stat-table-wrap"><table class="admin-stat-table admin-stack-table">
             <thead><tr><th>${heading}</th><th>Kind</th><th>Added by</th><th>On</th><th>Size</th><th>Added</th><th></th></tr></thead>
             <tbody>${rows.length ? rows.map(r => `
                 <tr>
@@ -3014,7 +3029,7 @@
         const d = adminRecordingsData;
         const open = d.reports.filter(r => r.open);
         setNavCount('reportsNavCount', open.length);
-        document.getElementById('adminReports').innerHTML = `<div class="admin-stat-table-wrap"><table class="admin-stat-table">
+        document.getElementById('adminReports').innerHTML = `<div class="admin-stat-table-wrap"><table class="admin-stat-table admin-stack-table">
             <thead><tr><th>When</th><th>What</th><th>Band</th><th>What they said</th><th>Reported by</th><th>Where it stands</th><th></th></tr></thead>
             <tbody>${d.reports.length ? d.reports.map(r => `
                 <tr>
@@ -3038,7 +3053,7 @@
         document.getElementById('adminShared').innerHTML = sharedTable(d.shared.filter(r => !bandThings(r)), q, 'Piece or document', 'No band shares a piece yet, and no document has been added.');
         document.getElementById('adminBandThings').innerHTML = sharedTable(d.shared.filter(bandThings), q, 'Band or practice list', 'Nobody has set up sharing for a band yet.');
         const rows = d.recordings.filter(r => !q || [r.title, r.addedBy, piecesText(r.pieces)].join(' ').toLowerCase().includes(q));
-        box.innerHTML = `<div class="admin-stat-table-wrap"><table class="admin-stat-table">
+        box.innerHTML = `<div class="admin-stat-table-wrap"><table class="admin-stat-table admin-stack-table">
             <thead><tr><th>Recording</th><th>Kind</th><th>Added by</th><th>On</th><th>Size</th><th>Added</th><th></th></tr></thead>
             <tbody>${rows.length ? rows.map(r => `
                 <tr>
@@ -3051,7 +3066,7 @@
                     <td><button class="admin-stat-exclude-btn" data-recording-remove="${r.kind}:${r.id}" type="button" aria-label="Remove ${escapeHtml(r.title)}">Remove</button></td>
                 </tr>`).join('') : `<tr><td colspan="7" class="admin-stat-empty">${d.recordings.length ? 'Nothing matches.' : 'No recordings or videos have been added.'}</td></tr>`}</tbody>
         </table></div>`;
-        document.getElementById('adminRecordingRemovals').innerHTML = `<div class="admin-stat-table-wrap"><table class="admin-stat-table">
+        document.getElementById('adminRecordingRemovals').innerHTML = `<div class="admin-stat-table-wrap"><table class="admin-stat-table admin-stack-table">
             <thead><tr><th>When</th><th>What</th><th>Why</th><th>Pieces</th><th>File deleted</th><th>People told</th><th>Emails</th><th>By</th></tr></thead>
             <tbody>${d.removals.length ? d.removals.map(x => `
                 <tr>

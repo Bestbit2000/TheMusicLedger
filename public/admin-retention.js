@@ -51,7 +51,7 @@
             <p class="admin-intro">${data.mailIsReal ? 'Emails from this site are really sent.' : 'On this site emails are not really sent - they are written to the test outbox, so the rule can be tried without emailing anyone.'} An account that has never been seen counts from ${esc(day(data.countsFrom))}, the day last-seen recording began. With hours, an account counts as unused from the start of the day it was last seen.</p>
             <h2 class="admin-stat-section-title">Who is next</h2>
             <p class="admin-intro">Every account the rule covers, soonest first. A step is taken only if its email could be sent, and never sooner after the one before than the rule's own gap.</p>
-            ${rows ? `<div class="admin-stat-table-wrap"><table class="admin-stat-table admin-bc-table">
+            ${rows ? `<div class="admin-stat-table-wrap"><table class="admin-stat-table admin-stack-table admin-bc-table">
                 <thead><tr><th class="admin-bc-text">Account</th><th>Last seen</th><th>Emails sent</th><th>Next</th><th>When</th></tr></thead>
                 <tbody>${rows}</tbody>
             </table></div>` : '<p class="admin-intro">No accounts are covered yet.</p>'}`;
