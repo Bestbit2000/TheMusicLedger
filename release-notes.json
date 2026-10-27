@@ -1,4 +1,5 @@
 {
+  "ML-619": "We updated the parts the app is built on that read web requests and send emails, to close security problems found in them.",
   "ML-618": "We made it possible to invite someone to a band with Google or a password, and tidied the wording of our emails.",
   "ML-617": "We made the invitation email warmer and more welcoming.",
   "ML-616": "We made invitations easier: the email now has a \"Get started\" button, and you can join with your Google account or by choosing a password.",
