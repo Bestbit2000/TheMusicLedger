@@ -18,7 +18,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TYPES = ['Brass Band', 'Concert Band', 'Wind Band', 'Youth Brass Band', 'Youth Wind Band', 'Training Band', 'Brass Ensemble', 'Massed Band'];
 const SECTIONS = ['Championship', 'First', 'Second', 'Third', 'Fourth', 'Non-contesting'];
 // Pages several bands share (a county music service's ensemble pages) - never a reason to merge two bands.
-const SHARED_HOSTS = ['surreycc.gov.uk', 'hants.gov.uk', 'hantsmusichub.org.uk', 'facebook.com', 'wordpress.com'];
+const SHARED_HOSTS = ['surreycc.gov.uk', 'hants.gov.uk', 'hantsmusichub.org.uk', 'westsussexmusic.co.uk', 'createmusic.org.uk', 'facebook.com', 'wordpress.com'];
 
 const args = process.argv.slice(2);
 const listPath = args.find(a => !a.startsWith('--'));

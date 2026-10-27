@@ -169,6 +169,7 @@ again: it only updates.
 | List | Area | Bands | Migration |
 |---|---|---|---|
 | `db/band-lists/2026-09-29-woking-guildford.json` | ~15 miles of Woking and Guildford, incl. just over the Hampshire, Berkshire and Greater London borders | 45 | `073_band_directory_details.sql` |
+| `db/band-lists/2026-10-27-west-sussex.json` | The whole of West Sussex, incl. just over the Brighton & Hove, Hampshire, Kent and Surrey borders; not the Lewes area of East Sussex (Lewes Brass was already listed). The bands held back (no website of their own, or a Salvation Army band) and those not confirmed are kept in the list file | 40 | `164_bands_west_sussex.sql` |
 
 ## Later (not built)
 
