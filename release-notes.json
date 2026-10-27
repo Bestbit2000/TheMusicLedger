@@ -1,4 +1,10 @@
 {
+  "ML-625": "We now ask \"Did you mean one of these bands?\" when you type your band's name on the Ask to join form rather than picking it from the list.",
+  "ML-624": "We made the admin pages easy to read and use on a phone, and let them use the whole width of a big screen.",
+  "ML-622": "We drew the notes in the Beat note pop-up, and everywhere a speed shows its note, in the same music font as the music itself.",
+  "ML-623": "We fixed the band box going missing when you log another rehearsal or performance, so it's always there while one is picked.",
+  "ML-621": "We keep your headphones' sound switched on for the whole of a practice session, so Play and Stop on a piece are heard straight away rather than seconds later.",
+  "ML-619": "We updated the parts the app is built on that read web requests and send emails, to close security problems found in them.",
   "ML-618": "We made it possible to invite someone to a band with Google or a password, and tidied the wording of our emails.",
   "ML-617": "We made the invitation email warmer and more welcoming.",
   "ML-616": "We made invitations easier: the email now has a \"Get started\" button, and you can join with your Google account or by choosing a password.",

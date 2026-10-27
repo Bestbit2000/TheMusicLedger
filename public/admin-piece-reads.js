@@ -61,13 +61,13 @@
             <p class="admin-intro">${many(s.reads, 'read', 'reads')}${s.failed ? ` (${s.failed} failed)` : ''}, ${many(s.pieces, 'piece', 'pieces')} found, ${s.saved} saved, ${many(s.tests, 'test kept', 'tests kept')}. ${s.costPerRead === null ? '' : `About ${money(s.costPerRead)} and ${s.seconds} seconds a read; ${money(s.costUsd)} in all at the model's list price - Vercel's AI Gateway page is the bill.`} Reading now with <strong>${esc(data.model)}</strong>, prompt <strong>${esc(data.promptVersion)}</strong>.</p>
             <h2 class="admin-stat-section-title">Is the rating right?</h2>
             <p class="admin-intro">Of the pieces saved after a read: how many had the right number of bars, and how many were saved with nothing changed. If High is no better than Medium, the rating needs work.</p>
-            <div class="admin-stat-table-wrap"><table class="admin-stat-table admin-bc-table">
+            <div class="admin-stat-table-wrap"><table class="admin-stat-table admin-stack-table admin-bc-table">
                 <thead><tr><th class="admin-bc-text">Rating</th><th>Saved</th><th>Bars right</th><th>Nothing changed</th></tr></thead>
                 <tbody>${ratingRows}</tbody>
             </table></div>
             <h2 class="admin-stat-section-title">Every read</h2>
             <p class="admin-intro">Newest first. "Changed" is what differed between what was read and the piece as saved - the saved piece is taken as right, so mark it as checked once you have looked at the page. A test can be read again: that costs about the same as the first read.</p>
-            ${data.reads.length ? `<div class="admin-stat-table-wrap"><table class="admin-stat-table admin-bc-table">
+            ${data.reads.length ? `<div class="admin-stat-table-wrap"><table class="admin-stat-table admin-stack-table admin-bc-table">
                 <thead><tr><th>When</th><th class="admin-bc-text">Piece</th><th>Rating</th><th>Bars</th><th class="admin-bc-text">Changed</th><th>Took</th><th>Cost</th><th class="admin-bc-text"></th></tr></thead>
                 <tbody>${data.reads.map(pieceRows).join('')}</tbody>
             </table></div>` : '<p class="admin-intro">Nothing has been read yet. Add a piece → From a photo or PDF.</p>'}

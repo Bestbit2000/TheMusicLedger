@@ -47,6 +47,10 @@ changed only on his say-so.
   `.public-form-optional` and `.public-form-hint` for the quieter words; `.public-check` is the age tick as a toggle
   switch with its words; `.public-trap` the field only robots fill in (off the page, never focused, hidden from a
   screen reader); `.public-join-status` says what happened (`.is-done`: the thanks, in place of the fields).
+  `.public-band-match` (ML-625) is "Did you mean one of these bands?" under the band box when a band was typed rather
+  than picked: `.public-band-match-title` (`--text-color`, semibold - the card is light) over the app's own choice rows
+  (`button.flow-choice-option`), the closest directory bands then "None of these, it's a different band". Hidden until
+  the form is sent; focus goes to the first row; `role="group"` named by the title.
 - `.public-foot` - small links and "Made in the UK".
 - Pricing: `.pricing-plans` holds two `.pricing-plan` cards - Standard, and Premium (`.is-premium`, dark, with a
   `.pricing-badge` "Coming"): a name, `.pricing-plan-price`, `.pricing-plan-list` with drawn ticks. Under them,

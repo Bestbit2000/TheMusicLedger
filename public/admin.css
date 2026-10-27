@@ -39,7 +39,7 @@ body.admin-body { display: block; background: var(--bg-color); }
   .admin-shell.is-nav-folded .admin-nav-fold { margin: 0; }
 }
 
-.admin-content { flex: 1; min-width: 0; padding: var(--space-6) var(--space-7); box-sizing: border-box; max-width: 900px; overflow-wrap: break-word; } /* min-width: 0 lets wide tables scroll inside .admin-stat-table-wrap instead of widening the page (ML-204) */
+.admin-content { flex: 1; min-width: 0; padding: var(--space-6) var(--space-7); box-sizing: border-box; overflow-wrap: break-word; } /* min-width: 0 lets wide tables scroll inside .admin-stat-table-wrap instead of widening the page (ML-204) */
 .admin-content h1 { margin-top: 0; color: var(--text-color); }
 .admin-intro { color: var(--label-color); font-size: var(--font-sm); margin: calc(-1 * var(--space-2)) 0 var(--space-3); }
 .admin-intro code { background: var(--input-bg); padding: var(--space-0-5) var(--space-1); border-radius: var(--radius-xs); }
@@ -90,7 +90,7 @@ body.admin-body { display: block; background: var(--bg-color); }
    which is very low-contrast against a dark background - every other in-app link already sets an
    explicit colour (e.g. .admin-test-case-meta a below), this one just hadn't yet. */
 .admin-feature-header p a { color: var(--info-text); }
-.admin-feature-actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
+.admin-feature-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); flex-shrink: 0; max-width: 100%; } /* wraps (ML-624): a notice's four buttons ran 10px off a phone */
 .admin-feature-actions .btn-icon-edit,
 .admin-feature-actions .btn-icon-delete { width: 30px; height: 30px; }
 .admin-feature-actions .material-symbols-outlined { font-size: var(--icon-sm); }
@@ -175,25 +175,17 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-who-list { margin: 0; padding-left: var(--space-5); color: var(--text-color); }
 .admin-who-list li { margin-bottom: var(--space-1); word-break: break-word; }
 .admin-stat-section-title { font-size: var(--font-md); font-weight: var(--font-weight-bold); color: var(--text-color); margin: var(--space-6) 0 var(--space-2) 0; }
-.admin-stat-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: var(--space-5); }
-/* Feature access's grid (7 columns) uses the whole width beside the menu, not the usual 900px reading width;
-   its intro stays at that width so the lines don't run too long. Still scrolls sideways when the window is narrower. */
-.admin-content:has(> #feature-access-section:not(.hidden-group)) { max-width: none; }
-/* ML-415 / ML-416: the Accounts and Flows tables use the window's width too */
-.admin-content:has(> #accounts-section:not(.hidden-group)), .admin-content:has(> #flows-section:not(.hidden-group)) { max-width: none; }
-#accounts-section .admin-intro, #flows-section .admin-intro { max-width: 900px; }
-/* ML-429: so do Third parties' cost and usage tables; the reading text stays at reading width */
-.admin-content:has(> #third-parties-section:not(.hidden-group)), .admin-content:has(> #costs-usage-section:not(.hidden-group)) { max-width: none; }
-#third-parties-section .admin-intro, #third-parties-section .admin-feature, #third-parties-section .admin-stat-tiles, #costs-usage-section .admin-intro, #costs-usage-section .admin-feature, #costs-usage-section .admin-stat-tiles { max-width: 900px; }
-/* ML-427: Usage's tables (Recent sessions has 15 columns) use the window's width as well */
-.admin-content:has(> #usage-section:not(.hidden-group)) { max-width: none; }
-#usage-section .admin-intro { max-width: 900px; }
+.admin-stat-table-wrap { position: relative; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: var(--space-5); } /* relative (ML-624): a header's screen-reader-only words (.visually-hidden, absolute) are kept inside the box - placed against the page they made the whole page as wide as the table on a phone */
+/* ML-624: every admin page uses the window's width, so a table has all the room there is before it scrolls (it was
+   900px wide on every page but a few). Reading text, the boxes of settings and the stat tiles stay at 900px so their
+   lines don't run too long. Feature access (ML-345), Accounts and Flows (ML-415/416), Third parties and Costs (ML-429),
+   Usage (ML-427) and the Business case (ML-443) were widened one by one before this. */
+.admin-intro, .admin-feature, .admin-stat-tiles { max-width: 900px; }
 #usage-section .admin-stat-table td:first-child { white-space: normal; } /* a long piece name wraps, so the other columns stay on screen */
 /* ML-415: one line per account - text columns read from the left, the ⋮ sits at the right */
 .admin-stat-table.admin-accounts-table th, .admin-stat-table.admin-accounts-table td { text-align: left; vertical-align: middle; }
 .admin-stat-table.admin-accounts-table td:last-child, .admin-flows-table td:last-child { text-align: right; width: 1%; }
 .admin-flows-table td:last-child { vertical-align: middle; }
-#feature-access-section .admin-intro { max-width: 900px; }
 .admin-stat-table { border-collapse: collapse; width: 100%; font-size: var(--font-sm); }
 .admin-stat-table th, .admin-stat-table td { padding: var(--space-2) var(--space-3); text-align: right; border-bottom: 1px solid var(--input-border); white-space: nowrap; }
 .admin-stat-table th { color: var(--label-color); font-weight: var(--font-weight-semibold); text-align: right; }
@@ -235,6 +227,28 @@ body.admin-body { display: block; background: var(--bg-color); }
    wrapper (.admin-stat-table-wrap) rather than crushing every column to unreadable width. */
 @media (max-width: 700px) {
   .admin-stat-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ML-624: a table that is a list of cards on a phone - for a list the owner acts on from his phone (Admin -> Waiting
+   list), where scrolling sideways hid the buttons. Each row its own card, each cell on its own line under its
+   column's name (the cell's data-label), the row's buttons along the bottom. A table of figures keeps scrolling
+   sideways inside .admin-stat-table-wrap. On a wider screen it is the ordinary .admin-stat-table. */
+/* Written as .admin-stat-table.admin-stack-table so a page's own table rules (.admin-accounts-table's narrow last
+   column, .admin-flows-table's widths) can't undo the card on a phone. The cells are named by admin.js
+   (labelStackTables) from the headings - a page only adds the class. */
+@media (max-width: 700px) {
+  .admin-stat-table.admin-stack-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } /* still read out */
+  .admin-stat-table.admin-stack-table, .admin-stat-table.admin-stack-table tbody, .admin-stat-table.admin-stack-table tr { display: block; width: 100%; box-sizing: border-box; }
+  .admin-stat-table.admin-stack-table tr { position: relative; border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); }
+  /* a row whose only action is its ⋮ (Accounts, Flows, Instrument support) has it in the card's top corner */
+  .admin-stat-table.admin-stack-table td:last-child:has(> .list-item-menu-btn:only-child) { position: absolute; top: var(--space-2); right: var(--space-2); width: auto; padding: 0; }
+  .admin-stat-table.admin-stack-table tr:has(> td:last-child > .list-item-menu-btn:only-child) > td:first-child { padding-right: var(--touch-target); }
+  .admin-stat-table.admin-stack-table tbody tr:hover { background: none; }
+  .admin-stat-table.admin-stack-table td, .admin-stat-table.admin-stack-table td:first-child, .admin-stat-table.admin-stack-table td:last-child { display: block; width: 100%; min-width: 0; box-sizing: border-box; border-bottom: none; padding: var(--space-1) 0; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+  .admin-stat-table.admin-stack-table td:empty { display: none; }
+  .admin-stat-table.admin-stack-table td[data-label]::before { content: attr(data-label); display: block; color: var(--label-color); font-size: var(--font-xs); font-weight: var(--font-weight-semibold); }
+  .admin-stat-table.admin-stack-table .admin-security-toolbar { margin: var(--space-2) 0 0; }
+  .admin-stat-table.admin-stack-table .admin-stat-exclude-btn { min-height: var(--touch-target); padding: 0 var(--space-4); } /* a thumb, not a mouse */
 }
 
 /* ML-201 - Notifications */
@@ -295,7 +309,7 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-design-example:first-of-type { border-top: none; }
 .admin-design-example-label { font-size: var(--font-sm); font-weight: var(--font-weight-semibold); color: var(--label-color); margin-bottom: var(--space-2); }
 /* App components are built for the 500px app column - show them at that width. */
-.admin-design-stage { max-width: var(--app-max-width); padding: var(--space-4); border-radius: var(--radius-sm); background: var(--bg-color); color: var(--text-color); }
+.admin-design-stage { position: relative; overflow-x: auto; max-width: var(--app-max-width); padding: var(--space-4); border-radius: var(--radius-sm); background: var(--bg-color); color: var(--text-color); } /* scrolls inside (ML-624): an example wider than a phone (the menu panel) made the whole page scroll sideways */
 .admin-design-stage-wide { max-width: none; }
 .admin-design-annotations { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-2); }
 .admin-design-annotation { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
@@ -392,7 +406,6 @@ body.admin-body { display: block; background: var(--bg-color); }
    own pieces - stat tiles, tables, the Save bar, switches, value boxes that open a pop-up. Only what is new
    to it is here. Like the other table pages it uses the window's width; its reading text keeps 900px. */
 .admin-content:has(> #business-case-section:not(.hidden-group)) { max-width: none; }
-#business-case-section .admin-intro, #business-case-section .admin-feature, #business-case-section .admin-stat-tiles { max-width: 900px; }
 /* The plan's settings: a row of value boxes (launch, years, the dollar rate, how it is counted) */
 .admin-bc-settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3); max-width: 900px; margin-bottom: var(--space-5); }
 .admin-bc-settings .metroBlk-ctrl-value-btn { width: 100%; }

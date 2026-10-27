@@ -40,7 +40,9 @@ export const libraries = [
   npm('pg', 'MIT', 'Brian Carlson', 'Talks to the Postgres database.', LIVE),
   npm('passport', 'MIT', 'Jared Hanson', 'Sign-in framework.', LIVE),
   npm('passport-google-oauth20', 'MIT', 'Jared Hanson', 'The Google part of sign-in.', LIVE),
-  npm('@vercel/blob', 'Apache-2.0', 'Vercel Inc.', 'Uploads, reads and deletes files in Vercel Blob. The browser half is loaded from jsDelivr.', LIVE),
+  npm('@vercel/blob', 'Apache-2.0', 'Vercel Inc.', 'Uploads, reads and deletes files in Vercel Blob. The browser half is loaded from jsDelivr.', LIVE, {
+    says: ['The zod it brings in (through @vercel/oidc and @vercel/cli-config) is held at 4.6.6 or later ("overrides" in server/package.json): 4.1 had an advisory (oversized lists could exhaust memory), and npm\'s own fix was to go back to @vercel/blob 2.4 (ML-619, 27 Oct 2026).']
+  }),
   npm('fast-xml-parser', 'MIT', 'Amit Gupta (NaturalIntelligence)', 'Reads MusicXML files.', LIVE),
   npm('jszip', '(MIT OR GPL-3.0-or-later)', 'Stuart Knightley and contributors', 'Opens compressed MusicXML (.mxl) files.', LIVE, {
     says: ['Offered under either licence - we use it under the MIT licence, which asks only that the notice is kept.']
@@ -49,7 +51,9 @@ export const libraries = [
     termsCheckedOn: '2026-10-26',
     says: ['It brings in six packages of its own (htmlparser2, postcss, launder, parse-srcset, is-plain-object, escape-string-regexp) to read the HTML and its styles. All run on our server only; nothing is sent to their authors.', 'Version 2.18.0 had an advisory (deep nesting could crash it); 2.18.1 fixes it - keep it at 2.18.1 or later.', 'Its htmlparser2 is held at version 10 ("overrides" in server/package.json): version 12 is ES-module only, which the loader on Vercel cannot require(), and it took the server down on sandbox (26 Oct 2026). server/test/vercelLoading.test.js checks it.']
   }),
-  npm('nodemailer', 'MIT-0', 'Andris Reinman', 'Sends email over SMTP, when MAIL_PROVIDER is "smtp".', LIVE),
+  npm('nodemailer', 'MIT-0', 'Andris Reinman', 'Sends email over SMTP, when MAIL_PROVIDER is "smtp".', LIVE, {
+    says: ['Versions before 10.1.4 read some unusual email addresses wrongly, so an email could go to an address the header does not show (three advisories) - keep it at 10.1.4 or later (ML-619).']
+  }),
   npm('@simplewebauthn/server', 'MIT', 'Matthew Miller', 'Checks a passkey\'s signed answer when a super admin opens the admin panel (ML-518). The browser half is our own file - nothing is loaded from anywhere else.', LIVE, {
     termsCheckedOn: '2026-10-10',
     says: ['It brings in about two dozen packages of its own (the @peculiar/asn1 family, tiny-cbor, tsyringe and others) to read the certificates and encodings a passkey uses. All run on our server only; nothing is sent to their authors.']

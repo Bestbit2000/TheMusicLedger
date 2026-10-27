@@ -9,6 +9,8 @@
 //    moment after the page opened, and a limit per sender keep robots out. The sender is counted by a scrambled
 //    copy of their address (a hash), never the address itself, and the count is gone within a day.
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import vm from 'node:vm';
 import pool from '../config/db.js';
 import { isFeatureLive } from './features.js';
 import { createInvite, normaliseEmail, limitJoinRequests } from './passwordAuth.js';
@@ -19,6 +21,12 @@ import { sendMail } from './mail.js';
 import { buildEmail } from './emailBuild.js';
 import { EMAILS } from './emailCatalogue.js';
 import { wordingFor } from './emailWording.js';
+
+// ML-625: "Did you mean...?" - the same rules the form uses (public/bandMatch.js), loaded with vm like flows.js loads
+// the journey engine
+const bandMatchSandbox = { self: {} };
+vm.runInNewContext(fs.readFileSync(new URL('../../public/bandMatch.js', import.meta.url), 'utf8'), bandMatchSandbox);
+const BandMatch = bandMatchSandbox.self.BandMatch;
 
 const fail = (status, message) => Object.assign(new Error(message), { status });
 const looksLikeEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length <= 254;
@@ -122,6 +130,9 @@ export async function listJoinRequests() {
        LEFT JOIN bands d ON d.id = r.directory_band_id
        LEFT JOIN instruments i ON i.id = r.instrument_id
       ORDER BY r.updated_at DESC`);
+  // ML-625: a band typed in that isn't in the directory gets the directory bands it most likely means
+  const labels = rows.some((r) => r.band_name && !r.directory_band_id)
+    ? (await pool.query(`SELECT name, town FROM bands WHERE kind = 'directory' AND active ORDER BY lower(name), town`)).rows.map(bandLabel) : [];
   const out = [];
   for (const r of rows) {
     // The shared spaces for the band they named, with how many organisers each has - where it can be passed on
@@ -132,6 +143,7 @@ export async function listJoinRequests() {
       id: Number(r.id), firstName: r.first_name, lastName: r.last_name, email: r.email,
       band: r.directory_name ? bandLabel({ name: r.directory_name, town: r.directory_town }) : r.band_name,
       fromDirectory: !!r.directory_name, instrument: r.instrument, askedOn: r.updated_at,
+      suggestions: r.band_name && !r.directory_band_id ? [...BandMatch.suggest(r.band_name, labels)] : [],
       isMember: r.is_member, closed: await emailIsShutOut(r.email),
       spaces: spaces.filter((s) => s.organisers > 0).map((s) => ({ id: Number(s.id), name: s.name, organisers: s.organisers }))
     });
@@ -139,6 +151,16 @@ export async function listJoinRequests() {
   // Let in is the ordinary invitation: Google, or a password where that is switched on (SIGN_IN_WAYS) - so it needs
   // a way in, and Google always is one
   return { requests: out, keptDays: JOIN_KEPT_DAYS, canLetIn: (await signInWaysOn()).length > 0 };
+}
+// ML-625: the band they typed is one of the directory's after all ("Cobham" - Cobham Brass Band): the owner ties the
+// request to it on Admin -> Waiting list, so it can be passed to that band's organiser. By the label the list shows.
+export async function matchJoinRequestBand(id, label) {
+  const r = await oneRequest(id);
+  const { rows } = await pool.query(
+    `SELECT id FROM bands WHERE kind = 'directory' AND active AND lower(name || coalesce(' (' || town || ')', '')) = lower($1)`, [String(label || '')]);
+  if (rows.length !== 1) throw fail(400, 'That band is not in the directory.');
+  await pool.query('UPDATE join_requests SET directory_band_id = $1, band_name = NULL WHERE id = $2', [rows[0].id, r.id]);
+  return listJoinRequests();
 }
 export const LET_IN_NEEDS = 'Let in sends an invitation, and no way of signing in is switched on on this site.';
 

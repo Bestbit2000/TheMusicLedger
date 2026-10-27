@@ -17,6 +17,40 @@
     }
     var CLOSED = 'Asking to join here is switched off for now. Write to us at hello@notablybetter.com and we’ll get back to you.';
 
+    // ML-625: "Did you mean one of these bands?" - a band typed rather than picked from the list ("Cobham") wasn't
+    // tied to the band. Before sending, the directory bands it most likely means (bandMatch.js, by spelling alone)
+    // show under the box; picking one, or "None of these", sends it. Asked once for what was typed.
+    var bands = [];
+    var settled = null;
+    var bandInput = document.getElementById('joinBand');
+    var matchBox = document.getElementById('joinBandMatch');
+    var matchList = document.getElementById('joinBandMatchOptions');
+    function sendNow() { if (form.requestSubmit) form.requestSubmit(); else send.click(); }
+    function closeMatch() { matchBox.hidden = true; matchList.textContent = ''; }
+    function matchOption(text, pick) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'flow-choice-option';
+        b.textContent = text;
+        b.addEventListener('click', pick);
+        return b;
+    }
+    function offerMatch() {
+        var typed = bandInput.value.trim();
+        if (!typed || typed === settled || !window.BandMatch) return false;
+        var found = window.BandMatch.suggest(typed, bands);
+        if (!found.length) return false;
+        matchList.textContent = '';
+        found.forEach(function (label) {
+            matchList.appendChild(matchOption(label, function () { bandInput.value = label; settled = label; closeMatch(); sendNow(); }));
+        });
+        matchList.appendChild(matchOption('None of these, it’s a different band', function () { settled = typed; closeMatch(); sendNow(); }));
+        matchBox.hidden = false;
+        matchList.firstChild.focus();
+        return true;
+    }
+    bandInput.addEventListener('input', closeMatch);
+
     // Back from a send without the script
     var params = new URLSearchParams(location.search);
     if (params.has('joined')) say("Thanks - we'll email you if we can let you in.", true);
@@ -28,6 +62,7 @@
             if (!o) return;
             if (!o.open) { say(CLOSED, true); return; }
             var list = document.getElementById('joinBandList');
+            bands = o.bands;
             o.bands.forEach(function (name) { var opt = document.createElement('option'); opt.value = name; list.appendChild(opt); });
             var select = document.getElementById('joinInstrument');
             o.instruments.forEach(function (i) { var opt = document.createElement('option'); opt.value = String(i.id); opt.textContent = i.name; select.appendChild(opt); });
@@ -37,6 +72,7 @@
     form.addEventListener('submit', function (e) {
         e.preventDefault();
         if (!form.reportValidity()) return;
+        if (offerMatch()) { say(''); return; }
         var body = {};
         new FormData(form).forEach(function (value, key) { body[key] = value; });
         body.ageConfirmed = document.getElementById('joinAge').checked;

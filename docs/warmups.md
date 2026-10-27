@@ -132,7 +132,9 @@ Three fixes, for every tool's player (`createMetronomePlayer` in app.js):
 - **The sound line is kept awake** while the Warm-ups screen is open with the metronome on (`keepAwake`): Bluetooth
   headphones, and Chrome's own power saving, switch the sound off when nothing plays, so the first second or two
   after Play was lost or held back. A signal far too quiet to hear (about -90 dB) - not silence, which is what switches
-  it off - keeps it open; it stops when you leave the screen.
+  it off - keeps it open; it stops when you leave the screen. Scales does the same (ML-589), and since ML-621 so do
+  the piece play screen and a whole practice session, rests included (docs/practice-sessions.md, "Running it") - the
+  session's is on the piece player, so leaving a Warm-up block doesn't switch it off.
 - **The browser's own figure for the delay** (`AudioContext.outputLatency` + `baseLatency`, where it gives one, up to
   half a second) is added to when the light comes on - only while no headphone delay has been set by hand in
   Settings → Metronome & playback (a delay set by hand already includes it).

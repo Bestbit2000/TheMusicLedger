@@ -40,13 +40,13 @@
             </tr>`).join('');
         $('adminSupport').innerHTML = `
             <button class="btn-submit no-margin admin-add-btn" data-support-add type="button">+ Add a business</button>
-            ${list.length ? `<div class="admin-stat-table-wrap"><table class="admin-stat-table admin-bc-table">
+            ${list.length ? `<div class="admin-stat-table-wrap"><table class="admin-stat-table admin-stack-table admin-bc-table">
                 <thead><tr><th class="admin-bc-text">Business</th><th class="admin-bc-text">Where</th><th class="admin-bc-text">From</th><th>Shown (30 days)</th><th><span class="visually-hidden">More</span></th></tr></thead>
                 <tbody>${rows}</tbody>
             </table></div>` : '<p class="admin-intro">No businesses yet.</p>'}
             <h2>What members looked for (last 30 days)</h2>
             <p class="admin-intro">Counted by what and where only - never who. "Found nothing nearby" is a look with nothing within about 45 minutes: somewhere to find more.</p>
-            ${data.searches.length ? `<div class="admin-stat-table-wrap"><table class="admin-stat-table admin-bc-table">
+            ${data.searches.length ? `<div class="admin-stat-table-wrap"><table class="admin-stat-table admin-stack-table admin-bc-table">
                 <thead><tr><th class="admin-bc-text">Looking for</th><th class="admin-bc-text">Near</th><th>Looks</th><th>Found nothing nearby</th></tr></thead>
                 <tbody>${searches}</tbody>
             </table></div>` : '<p class="admin-intro">Nobody has looked yet.</p>'}`;

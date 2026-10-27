@@ -2457,6 +2457,7 @@
         // carousel now (ML-166), not just the metronome - whichever slide was playing.
         if (viewStack[viewStack.length - 1] === 'flowPlayView' && viewName !== 'flowPlayView') {
             pauseAllFlowMedia();
+            sessionLineAwake(); // ML-621: off again - unless a practice session is running
         }
 
         // ML-199: leaving the Hub any way other than the two explicit success paths (Create's
@@ -2521,7 +2522,7 @@
         if (viewName === 'bandMembersView') { document.getElementById('topTitle').innerText = bandMembers.bandName || 'Members'; loadBandMembers(); } // ML-473
         if (viewName === 'bandWelcomeView') { document.getElementById('topTitle').innerText = 'Welcome'; renderBandWelcome(); } // ML-534
         if (viewName === 'tidyBandsView') { document.getElementById('topTitle').innerText = 'Tidy my bands'; loadAccountBands(); } // ML-478
-        if (viewName === 'entryForm') renderSessionInstrumentPicker('instrumentGroup', 'sessionInstrument', null);
+        if (viewName === 'entryForm') { renderSessionInstrumentPicker('instrumentGroup', 'sessionInstrument', null); syncWhoGroup(); } // ML-623
         if (viewName === 'accountTeachersView') { document.getElementById('topTitle').innerText = 'My teachers'; loadTeacherList(); }
         // ML-282: Settings is a list of groups, each its own screen. Every screen re-syncs its
         // controls from storage in case they were last changed elsewhere (the Tuner page itself).
@@ -2651,7 +2652,7 @@
             document.getElementById('flowPlayTitleLabel').innerText = currentFlowDetail?.title || 'Flow';
             renderFlowPlaySummary();
             updateFlowPlayIcon(); // ML-563: play when nothing is playing, whatever was showing last time
-            flowPlayer.prewarm();
+            flowPlayer.keepAwake(true); // ML-621: the headphones stay awake while it's open, so Play and Stop are heard at once
             loadFlowPlaybackSpeeds();
             // currentFlowBlocks/flowLeadInBlock were just re-fetched by goToFlowPlayView (or by
             // returning here after editing in the Blocks tab) - rebuild the queue fresh every entry,
@@ -3577,19 +3578,25 @@
     }
     document.querySelectorAll('.filter-strip-pills').forEach(enableDragScroll);
 
-    document.getElementById('categoryRadios')?.addEventListener('change', function(e) {
-        if(e.target.name === 'category') {
-            const cat = e.target.value;
-            const whoSelect = document.getElementById('who');
-            if(!whoSelect) return;
-            whoSelect.innerHTML = '';
-            if (cat === 'Practise') {
-                document.getElementById('whoGroup').classList.add('hidden-group');
-            } else {
-                document.getElementById('whoGroup').classList.remove('hidden-group');
-                whoSelect.innerHTML = buildWhoOptionsHtml(cat === 'Lesson' ? appData.teachers : appData.organisations);
-            }
+    // ML-623: the "Who with?" box follows whichever answer is ticked - set again every time the form opens, as well as
+    // on a change, because a phone's browser can bring back the ticked answer (Rehearsal) without the change that
+    // shows the box, leaving Rehearsal ticked and no band to pick.
+    function syncWhoGroup() {
+        const whoSelect = document.getElementById('who');
+        if (!whoSelect) return;
+        const cat = document.querySelector('input[name="category"]:checked')?.value || 'Practise';
+        const keep = whoSelect.value;
+        whoSelect.innerHTML = '';
+        if (cat === 'Practise') {
+            document.getElementById('whoGroup').classList.add('hidden-group');
+        } else {
+            document.getElementById('whoGroup').classList.remove('hidden-group');
+            whoSelect.innerHTML = buildWhoOptionsHtml(cat === 'Lesson' ? appData.teachers : appData.organisations);
+            if ([...whoSelect.options].some(o => o.value === keep)) whoSelect.value = keep; // the same band as last time
         }
+    }
+    document.getElementById('categoryRadios')?.addEventListener('change', function(e) {
+        if (e.target.name === 'category') syncWhoGroup();
     });
 
     document.getElementById('durationRadios')?.addEventListener('change', (e) => {
@@ -6507,8 +6514,8 @@
         // ML-586: keeping the sound line awake. Bluetooth headphones (and Chrome's own power saving) switch the sound
         // off when nothing is playing, so the first second or two after Play is lost or held back - and the gold
         // note runs ahead of what you hear. While a screen asks for it, a signal far too quiet to hear (about
-        // -90 dB, but not silence, which is what switches it off) keeps the line open. Only the Warm-ups screen
-        // with the metronome on asks.
+        // -90 dB, but not silence, which is what switches it off) keeps the line open. Warm-ups and Scales with the
+        // metronome on ask, and the piece play screen and a whole practice session (ML-621).
         let awake = null;
         function setAwake(on) {
             if (testClock) return;
@@ -9255,6 +9262,10 @@
     function stopSessionTimer() {
         if (timerState && timerState.forSession) finishTimerSession();
     }
+    // ML-621: the whole of a practice session keeps the sound line awake (rests included) - the rest before nearly
+    // every block let Bluetooth headphones sleep, so a piece's Play was heard seconds late and its Stop seconds after.
+    // On the piece player, so leaving a Warm-up or Scales block (their own players) doesn't switch it off.
+    function sessionLineAwake() { flowPlayer.keepAwake(!!(practiceRun && !practiceRun.done)); }
     function startPracticeRun() {
         if (practiceRun) { switchView('sessionRunView'); return; }
         const r = {
@@ -9263,6 +9274,7 @@
             open: sessPlan.open, template: sessPlan.template, focus: sessPlan.focus, auto: sessPlan.auto, source: sessPlan.source
         };
         practiceRun = r;
+        sessionLineAwake(); // ML-621: from the Start tap, so the sound is ready before the first block
         window.Usage?.begin('session'); // ML-22
         window.Usage?.mark(`plan:${typeof r.template === 'string' && ['standard', 'concert'].includes(r.template) ? r.template : 'own'}`);
         renderUpdateBanner(); // ML-564: no "new version" strip during a practice session
@@ -9594,6 +9606,7 @@
         if (early && r.phase !== 'rest') { const b = r.blocks[r.index]; b.seconds += runElapsed(); b.started = true; }
         if (!early || timeUp) window.Usage?.finish('session'); // ML-22: every block played, or the time was up
         r.done = true;
+        sessionLineAwake(); // ML-621: the session is over - the headphones can sleep
         renderUpdateBanner(); // ML-564: the session is over, so a waiting "new version" strip can show now
         clearInterval(practiceTick);
         stopSessionTimer(); // ML-421
@@ -9662,7 +9675,8 @@
     }
 
     document.getElementById('startPracticeSessionBtn')?.addEventListener('click', () => (practiceRun && !practiceRun.done ? switchView(practiceRun.phase === 'rest' ? 'sessionRestView' : 'sessionRunView') : openSessionSetup({})));
-    document.getElementById('sessRunGoBtn')?.addEventListener('click', () => { if (practiceRun && practiceRun.phase === 'rest') switchView('sessionRestView'); else startSessionBlock(); });
+    // ML-621: a session carried on after a reload had no tap to wake the sound with - this is the first one
+    document.getElementById('sessRunGoBtn')?.addEventListener('click', () => { sessionLineAwake(); if (practiceRun && practiceRun.phase === 'rest') switchView('sessionRestView'); else startSessionBlock(); });
     document.getElementById('sessRunNextBtn')?.addEventListener('click', () => sessionTimeUp());
     document.getElementById('sessRunEndBtn')?.addEventListener('click', () => finishPracticeRun(true));
     document.getElementById('sessRunDoneBtn')?.addEventListener('click', () => { practiceRun = null; renderPracticeRun(); switchView('mainView'); });
@@ -18474,8 +18488,8 @@
         });
     }
 
-    // --- Note-value icons (real vector glyphs, not unicode musical symbols - see the CSS comment
-    // on .metroBlk-note-picker for why). Shared with Quick Play's own per-block note picker
+    // --- Note-value icons (drawn in Bravura by notation.js since ML-622 - they were hand-drawn SVG before, so
+    // they didn't match the notes on the staves). Shared with Quick Play's own per-block note picker
     // (qpOpenNotePicker) - same eight note values throughout the app, shortest to longest. Fraction
     // is of a semibreve (quaver = 1/8 = 0.125, etc.) - see metroSegNoteFraction. ---
     const METRO_NOTE_TYPES = [
@@ -18488,32 +18502,9 @@
         { key: 'dotted-minim', label: 'Dotted minim', fraction: 0.75 },
         { key: 'semibreve', label: 'Semibreve', fraction: 1 }
     ];
-    // One shared viewBox/layout across all eight so they line up in a row regardless of whether a
-    // given note has a stem/flag(s)/dot - notehead centre and stem position are fixed constants.
+    // All eight share one box with the notehead in the same place, so they line up in a row (Notation.beatNote).
     function metroNoteIconSvg(key) {
-        const head = '<ellipse cx="13" cy="44" rx="7.5" ry="5.2" transform="rotate(-20 13 44)"';
-        const stem = '<rect x="19" y="6" width="2.6" height="38" fill="currentColor"/>';
-        const flag = '<path d="M21.6 6 C30 10 29 20 21 26" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>';
-        const flagLow = '<path d="M21.6 16 C30 20 29 30 21 36" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>';
-        const dot = '<circle cx="27" cy="42" r="2.2" fill="currentColor"/>';
-        switch (key) {
-            case 'semibreve':
-                return '<svg viewBox="0 0 32 56" class="metroBlk-note-svg"><ellipse cx="16" cy="28" rx="10" ry="6" fill="none" stroke="currentColor" stroke-width="3"/></svg>';
-            case 'dotted-minim':
-                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="none" stroke="currentColor" stroke-width="2.6"/>${stem}${dot}</svg>`;
-            case 'minim':
-                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="none" stroke="currentColor" stroke-width="2.6"/>${stem}</svg>`;
-            case 'dotted-crotchet':
-                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="currentColor"/>${stem}${dot}</svg>`;
-            case 'dotted-quaver':
-                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="currentColor"/>${stem}${flag}${dot}</svg>`;
-            case 'quaver':
-                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="currentColor"/>${stem}${flag}</svg>`;
-            case 'semiquaver':
-                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="currentColor"/>${stem}${flag}${flagLow}</svg>`;
-            default: // crotchet
-                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="currentColor"/>${stem}</svg>`;
-        }
+        return Notation.beatNote(key, { cls: 'metroBlk-note-svg' });
     }
 
     document.getElementById('metroSegCustomSigAddBtn')?.addEventListener('click', async () => {

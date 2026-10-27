@@ -95,6 +95,11 @@ agreed (30 September 2026) is on the ML-390 ticket; the rules are `public/practi
   ML-586: it's the Warm-ups screen as the tool has it (the bar at the bottom with the count-in, one music size, the
   line being played kept in view) and follows the member's **speed** and **play each one** settings (twice by
   default); it starts with the click on whatever the setting, and the switch in Settings turns it off for that block only.
+- **The sound is kept awake for the whole session** (ML-621): from the Start tap to the end, rests included, the piece
+  player keeps the headphones' sound line open (`sessionLineAwake`, the Warm-ups `keepAwake` - docs/warmups.md,
+  "Headphones"). Before it, the rest before nearly every block let Bluetooth headphones sleep, so a piece's Play was
+  heard seconds late and its Stop seconds after. A session carried on after a reload wakes it on the first tap of
+  "Start this block" / "Back to this block". The "last go" at a block's end (ML-541) is meant, and is not this.
 - **Logging:** a session that ends, or is ended early, is one `sessions` row plus a `session_segments` row per
   block (seconds - the rest counts with the block before it - chunk and tool), so Stats and history see it.
 - **Resume:** the running session is kept on the server (`active_practice_sessions`) whenever it changes,
