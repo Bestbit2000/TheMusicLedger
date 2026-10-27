@@ -178,9 +178,9 @@
     function lineEl(x1, y1, x2, y2, thickness) {
         return `<line x1="${r(x1)}" y1="${r(y1)}" x2="${r(x2)}" y2="${r(y2)}" stroke="currentColor" stroke-width="${r(thickness * S)}"/>`;
     }
-    function svgWrap(width, height, body, label, extra = '') {
+    function svgWrap(width, height, body, label, extra = '', cls = '') {
         const a11y = label ? `role="img" aria-label="${esc(label)}"` : 'aria-hidden="true" focusable="false"';
-        return `<svg class="notation" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${r(width)} ${r(height)}" width="${r(width)}" height="${r(height)}" fill="currentColor" ${a11y}${extra}>${body}</svg>`;
+        return `<svg class="notation${cls ? ' ' + esc(cls) : ''}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${r(width)} ${r(height)}" width="${r(width)}" height="${r(height)}" fill="currentColor" ${a11y}${extra}>${body}</svg>`;
     }
 
     // A staff with a clef, optional key signature and a row of items. Items, in order:
@@ -628,6 +628,21 @@
             `<text class="notation-text notation-text-bold" x="${r(pad + noteW + gap)}" y="${r(base)}" font-size="${r(fs)}">${esc(text)}</text>`;
         return svgWrap(pad * 2 + noteW + gap + textW, base + (-m.bottom * S * k) + pad, body, opts.label);
     }
+    // ML-622: the note a tempo counts, on its own - the Beat note pop-up, the value boxes and the bars' tempo (app.js
+    // metroNoteIconSvg). They were hand-drawn before, so they didn't match the notes on the staves. All eight share one
+    // box with the notehead in the same place, so a row of them lines up; a dot sits level with the notehead.
+    const BEAT_NOTES = {
+        semibreve: ['noteWhole', false], 'dotted-minim': ['noteHalfUp', true], minim: ['noteHalfUp', false],
+        'dotted-crotchet': ['noteQuarterUp', true], crotchet: ['noteQuarterUp', false],
+        'dotted-quaver': ['note8thUp', true], quaver: ['note8thUp', false], semiquaver: ['note16thUp', false]
+    };
+    function beatNote(key, opts = {}) {
+        const [name, dotted] = BEAT_NOTES[key] || BEAT_NOTES.crotchet;
+        const pad = 0.4 * S, top = 3.5, bottom = 0.6, wide = 2.4; // the tallest stem, the deepest notehead, the widest flag
+        const base = pad + top * S;
+        const body = glyphEl(name, pad, base) + (dotted ? glyphEl('augmentationDot', pad + 1.5 * S, base) : '');
+        return svgWrap(wide * S + 2 * pad, (top + bottom) * S + 2 * pad, body, opts.label, '', opts.cls);
+    }
     function textMark(text, opts = {}) {
         const w = Math.max(3, text.length * 1.1) * S, h = 2.4 * S;
         // Expression words (legato, rit., Fine) print italic; tempo words (Allegro) bold and upright.
@@ -639,6 +654,6 @@
     return {
         S, GLYPHS, CLEFS, ENGRAVING,
         glyphChar, metrics, parsePitch, diatonic, staffStep, pitchAtStep, ledgerSteps, keySignatureSteps,
-        staff, symbol, hairpin, textMark, tempoMark
+        staff, symbol, hairpin, textMark, tempoMark, beatNote
     };
 }));

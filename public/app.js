@@ -18488,8 +18488,8 @@
         });
     }
 
-    // --- Note-value icons (real vector glyphs, not unicode musical symbols - see the CSS comment
-    // on .metroBlk-note-picker for why). Shared with Quick Play's own per-block note picker
+    // --- Note-value icons (drawn in Bravura by notation.js since ML-622 - they were hand-drawn SVG before, so
+    // they didn't match the notes on the staves). Shared with Quick Play's own per-block note picker
     // (qpOpenNotePicker) - same eight note values throughout the app, shortest to longest. Fraction
     // is of a semibreve (quaver = 1/8 = 0.125, etc.) - see metroSegNoteFraction. ---
     const METRO_NOTE_TYPES = [
@@ -18502,32 +18502,9 @@
         { key: 'dotted-minim', label: 'Dotted minim', fraction: 0.75 },
         { key: 'semibreve', label: 'Semibreve', fraction: 1 }
     ];
-    // One shared viewBox/layout across all eight so they line up in a row regardless of whether a
-    // given note has a stem/flag(s)/dot - notehead centre and stem position are fixed constants.
+    // All eight share one box with the notehead in the same place, so they line up in a row (Notation.beatNote).
     function metroNoteIconSvg(key) {
-        const head = '<ellipse cx="13" cy="44" rx="7.5" ry="5.2" transform="rotate(-20 13 44)"';
-        const stem = '<rect x="19" y="6" width="2.6" height="38" fill="currentColor"/>';
-        const flag = '<path d="M21.6 6 C30 10 29 20 21 26" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>';
-        const flagLow = '<path d="M21.6 16 C30 20 29 30 21 36" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>';
-        const dot = '<circle cx="27" cy="42" r="2.2" fill="currentColor"/>';
-        switch (key) {
-            case 'semibreve':
-                return '<svg viewBox="0 0 32 56" class="metroBlk-note-svg"><ellipse cx="16" cy="28" rx="10" ry="6" fill="none" stroke="currentColor" stroke-width="3"/></svg>';
-            case 'dotted-minim':
-                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="none" stroke="currentColor" stroke-width="2.6"/>${stem}${dot}</svg>`;
-            case 'minim':
-                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="none" stroke="currentColor" stroke-width="2.6"/>${stem}</svg>`;
-            case 'dotted-crotchet':
-                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="currentColor"/>${stem}${dot}</svg>`;
-            case 'dotted-quaver':
-                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="currentColor"/>${stem}${flag}${dot}</svg>`;
-            case 'quaver':
-                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="currentColor"/>${stem}${flag}</svg>`;
-            case 'semiquaver':
-                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="currentColor"/>${stem}${flag}${flagLow}</svg>`;
-            default: // crotchet
-                return `<svg viewBox="0 0 32 56" class="metroBlk-note-svg">${head} fill="currentColor"/>${stem}</svg>`;
-        }
+        return Notation.beatNote(key, { cls: 'metroBlk-note-svg' });
     }
 
     document.getElementById('metroSegCustomSigAddBtn')?.addEventListener('click', async () => {

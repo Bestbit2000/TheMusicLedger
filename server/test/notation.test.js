@@ -208,3 +208,29 @@ describe('slurs (ML-361)', () => {
         assert.doesNotThrow(() => N.staff({ items: [{ type: 'note', pitch: 'G4', head: 'noteQuarterUp' }, { type: 'note', pitch: 'C5', head: 'noteQuarterDown' }], spans: [{ kind: 'slur', from: 0, to: 1, openEnd: true }] }));
     });
 });
+
+// ML-622: the Beat note pop-up's notes come from Bravura like the staves' - never hand-drawn shapes
+describe('beat notes', () => {
+    const KEYS = ['semiquaver', 'quaver', 'dotted-quaver', 'crotchet', 'dotted-crotchet', 'minim', 'dotted-minim', 'semibreve'];
+    const viewBox = (svg) => svg.match(/viewBox="([^"]+)"/)[1];
+    test('every one is Bravura glyphs - no ellipses, paths or rects', () => {
+        KEYS.forEach(k => {
+            const svg = N.beatNote(k);
+            assert.match(svg, /class="notation-glyph"/, k);
+            assert.doesNotMatch(svg, /<(ellipse|path|rect|circle)\b/, k);
+        });
+    });
+    test('all eight share one box, so a row of them lines up', () => {
+        assert.equal(new Set(KEYS.map(k => viewBox(N.beatNote(k)))).size, 1);
+    });
+    test('a dotted note has the dot, a plain one has none', () => {
+        const glyphs = (k) => (N.beatNote(k).match(/class="notation-glyph"/g) || []).length;
+        assert.equal(glyphs('dotted-crotchet'), 2);
+        assert.equal(glyphs('crotchet'), 1);
+        assert.equal(glyphs('dotted-minim'), 2);
+    });
+    test('an unknown key is a crotchet; a class goes on the svg', () => {
+        assert.equal(N.beatNote('nonsense'), N.beatNote('crotchet'));
+        assert.match(N.beatNote('minim', { cls: 'metroBlk-note-svg' }), /^<svg class="notation metroBlk-note-svg"/);
+    });
+});
