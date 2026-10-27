@@ -21,6 +21,19 @@ keeps one request (the latest answers).
 The form works without its script: it posts to `POST /api/join` and the page comes back with `?joined=1` or
 `?join-problem=`. `public/join.js` fills the lists, sends it in place and says thanks.
 
+### Did you mean (ML-625)
+
+Someone typed "Cobham" and never picked "The Cobham Band (Cobham)" from the list, so the request wasn't tied to the
+band. Now, when the form is sent with a band typed rather than picked, `join.js` first shows **"Did you mean one of
+these bands?"** under the band box: up to five directory bands it most likely means, as choice rows, then **"None of
+these, it's a different band"**. Picking one puts it in the box and sends; None sends what was typed. It is asked once
+for what was typed, and not at all when nothing is close or the name already is a directory band.
+
+The matching is `public/bandMatch.js` - spelling only, no AI: capitals, punctuation and accents don't count, nor the
+words that say what kind of band it is ("band", "brass", "silver", "concert", "the"...); a word can be the start of a
+longer one ("Cob") or a slip of a letter or two ("Cobam"); the town counts as much as the name; at least half the
+words typed must match. Tests: `server/test/bandMatch.test.js`. Without the script the form posts as typed, as before.
+
 ## What the form never does (the owner's decisions)
 
 - **No email to the person asking.** Sending the form emails nobody at the address typed in, so it can't be used to
@@ -52,7 +65,15 @@ earlier, before the admin check (ML-518), it was refused and never showed.
   and how to invite them from the band's Members page; nothing is sent to the person unless an organiser invites them.
   The notice shows for 30 days. Joining a band's shared space stays by an organiser's invitation (ML-473); the owner
   chose this over putting people in himself.
+- **Match to a band** (ML-625) - shows when a band typed in looks like directory bands (the same `bandMatch.js`, run
+  by the server in `listJoinRequests`). It opens "Which band did they mean?" with those bands; picking one ties the
+  request to it (`POST /api/admin/join-requests/:id/band`, by the label shown), so Pass to the organiser can show.
+  Nobody is told.
 - **Not now** - the request goes. Nobody is told.
+
+On a phone (700px and below) each request is a card - the band, what they play and when they asked each under its
+name, the buttons along the bottom at a thumb's height (`.admin-stack-table`, ML-624) - instead of a table that
+scrolled sideways and hid the buttons.
 
 ## Keeping it
 

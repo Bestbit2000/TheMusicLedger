@@ -202,6 +202,11 @@
                         <input id="joinBand" name="band" list="joinBandList" autocomplete="off" maxlength="120" aria-describedby="joinBandHint">
                         <datalist id="joinBandList"></datalist>
                         <p class="public-form-hint" id="joinBandHint">Start typing to pick it from our list. Not there? Just type its name.</p>
+                        <!-- ML-625: a band typed rather than picked - the directory bands it most likely means (bandMatch.js) -->
+                        <div class="public-band-match" id="joinBandMatch" role="group" aria-labelledby="joinBandMatchTitle" hidden>
+                            <p class="public-band-match-title" id="joinBandMatchTitle">Did you mean one of these bands?</p>
+                            <div id="joinBandMatchOptions"></div>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="joinInstrument">What you play <span class="public-form-optional">(optional)</span></label>
@@ -231,6 +236,7 @@
         <span>Made in the UK</span>
     </div>
 </footer>
+<script src="bandMatch.js"></script>
 <script src="join.js"></script>
 <script src="analytics.js"></script>
 </body>

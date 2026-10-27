@@ -54,7 +54,7 @@ import { cleanSignatureHtml, htmlToText } from '../services/emailHtml.js';
 import { listPopupTexts, savePopupTexts, resetPopupTexts } from '../services/popupTexts.js';
 import { handleUpload } from '@vercel/blob/client';
 import { appLink } from '../utils/appPath.js';
-import { listJoinRequests, letInJoinRequest, passJoinRequest, dismissJoinRequest } from '../services/joinRequests.js';
+import { listJoinRequests, letInJoinRequest, passJoinRequest, dismissJoinRequest, matchJoinRequestBand } from '../services/joinRequests.js';
 import { adminSupport, addBusiness, updateBusiness, removeBusiness } from '../services/instrumentSupport.js';
 import { listReads as listPieceReads, setChecked as setPieceReadChecked, rerunRead as rerunPieceRead, dropTestFiles as dropPieceReadTestFiles } from '../services/pieceReads.js';
 import { applyRecords } from '../thirdParties/records.js';
@@ -1241,6 +1241,14 @@ router.post('/join-requests/:id/let-in', requireAuth, resolveAccount, requireSup
 router.post('/join-requests/:id/pass', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
     res.json(await passJoinRequest(req.params.id, (req.body || {}).groupId, req.accountId));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+// ML-625: tie a request's typed band to the directory band it means
+router.post('/join-requests/:id/band', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    res.json(await matchJoinRequestBand(req.params.id, (req.body || {}).label));
   } catch (error) {
     sendError(res, error);
   }

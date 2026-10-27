@@ -1,4 +1,6 @@
 {
+  "ML-625": "We now ask \"Did you mean one of these bands?\" when you type your band's name on the Ask to join form rather than picking it from the list.",
+  "ML-624": "We made the waiting list easy to read and act on from a phone.",
   "ML-622": "We drew the notes in the Beat note pop-up, and everywhere a speed shows its note, in the same music font as the music itself.",
   "ML-623": "We fixed the band box going missing when you log another rehearsal or performance, so it's always there while one is picked.",
   "ML-621": "We keep your headphones' sound switched on for the whole of a practice session, so Play and Stop on a piece are heard straight away rather than seconds later.",

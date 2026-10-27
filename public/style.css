@@ -3328,6 +3328,11 @@
     .public-join-form a:not([class]) { color: var(--link-color); } /* the card is light: not the dark band's gold */
     .public-join-form p.public-join-status:empty { display: none; }
     .public-join-form p.public-join-status.is-done { margin: 0; font-size: var(--font-lg); }
+    /* ML-625: "Did you mean one of these bands?" under the band box when one was typed rather than picked - the
+       directory bands it most likely means as the app's own choice rows (.flow-choice-option), then "None of these" */
+    .public-band-match { margin: var(--space-3) 0 0; }
+    .public-band-match[hidden] { display: none; }
+    .public-join-form p.public-band-match-title { margin: 0 0 var(--space-2); color: var(--text-color); font-weight: var(--font-weight-semibold); } /* the card is light: not the dark band's words */
     /* The field only robots fill in: off the page, never focused, hidden from a screen reader */
     .public-trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; } /* token-audit-ignore: the standard off-screen pattern */
     @media (min-width: 700px) {

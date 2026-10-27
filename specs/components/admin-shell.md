@@ -45,6 +45,11 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
   tables use the window; their intro text keeps it.
 - **One line per row** in an `.admin-stat-table` (`.admin-accounts-table`: text columns read from the left;
   `.admin-flows-table`), inside `.admin-stat-table-wrap` so it scrolls sideways on a phone.
+- **A list the owner acts on from his phone** (ML-624, Admin → Waiting list) adds `.admin-stack-table`: at 700px and
+  below each row is a card (1px `--input-border`, `--radius-md`), each cell on its own line under its column's name
+  (the cell's `data-label`, `--font-xs` semibold `--label-color`; a cell without one - the name, the buttons - has
+  none), the header row kept for a screen reader only, and the row's `.admin-stat-exclude-btn`s at
+  `--touch-target` height. Wider, it is the ordinary table. Use it where scrolling sideways would hide a row's buttons.
 - **A ⋮ on each row** (`.list-item-menu-btn`, the app's own) opens **one shared floating menu**
   (`#adminRowMenu`: `.dropdown-menu.account-band-menu` of `.dropdown-item`s with an icon - `openRowMenu` in
   admin.js). A link item (View, Edit) opens a new tab; a destructive one takes `.account-band-menu-delete`. It

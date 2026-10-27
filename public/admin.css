@@ -237,6 +237,21 @@ body.admin-body { display: block; background: var(--bg-color); }
   .admin-stat-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+/* ML-624: a table that is a list of cards on a phone - for a list the owner acts on from his phone (Admin -> Waiting
+   list), where scrolling sideways hid the buttons. Each row its own card, each cell on its own line under its
+   column's name (the cell's data-label), the row's buttons along the bottom. A table of figures keeps scrolling
+   sideways inside .admin-stat-table-wrap. On a wider screen it is the ordinary .admin-stat-table. */
+@media (max-width: 700px) {
+  .admin-stack-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } /* still read out */
+  .admin-stack-table, .admin-stack-table tbody, .admin-stack-table tr, .admin-stack-table td { display: block; width: 100%; box-sizing: border-box; }
+  .admin-stack-table tr { border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); }
+  .admin-stack-table tbody tr:hover { background: none; }
+  .admin-stack-table td, .admin-stack-table td:first-child { border-bottom: none; padding: var(--space-1) 0; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+  .admin-stack-table td[data-label]::before { content: attr(data-label); display: block; color: var(--label-color); font-size: var(--font-xs); font-weight: var(--font-weight-semibold); }
+  .admin-stack-table .admin-security-toolbar { margin: var(--space-2) 0 0; }
+  .admin-stack-table .admin-stat-exclude-btn { min-height: var(--touch-target); padding: 0 var(--space-4); } /* a thumb, not a mouse */
+}
+
 /* ML-201 - Notifications */
 .admin-notification-body { white-space: pre-wrap; margin: var(--space-2) 0 0 !important; color: var(--text-color) !important; }
 .admin-feature-actions .btn-edit, .admin-feature-actions .btn-delete { min-height: 36px; padding: var(--space-1) var(--space-3); }
