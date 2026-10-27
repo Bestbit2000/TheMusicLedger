@@ -2457,6 +2457,7 @@
         // carousel now (ML-166), not just the metronome - whichever slide was playing.
         if (viewStack[viewStack.length - 1] === 'flowPlayView' && viewName !== 'flowPlayView') {
             pauseAllFlowMedia();
+            sessionLineAwake(); // ML-621: off again - unless a practice session is running
         }
 
         // ML-199: leaving the Hub any way other than the two explicit success paths (Create's
@@ -2651,7 +2652,7 @@
             document.getElementById('flowPlayTitleLabel').innerText = currentFlowDetail?.title || 'Flow';
             renderFlowPlaySummary();
             updateFlowPlayIcon(); // ML-563: play when nothing is playing, whatever was showing last time
-            flowPlayer.prewarm();
+            flowPlayer.keepAwake(true); // ML-621: the headphones stay awake while it's open, so Play and Stop are heard at once
             loadFlowPlaybackSpeeds();
             // currentFlowBlocks/flowLeadInBlock were just re-fetched by goToFlowPlayView (or by
             // returning here after editing in the Blocks tab) - rebuild the queue fresh every entry,
@@ -6507,8 +6508,8 @@
         // ML-586: keeping the sound line awake. Bluetooth headphones (and Chrome's own power saving) switch the sound
         // off when nothing is playing, so the first second or two after Play is lost or held back - and the gold
         // note runs ahead of what you hear. While a screen asks for it, a signal far too quiet to hear (about
-        // -90 dB, but not silence, which is what switches it off) keeps the line open. Only the Warm-ups screen
-        // with the metronome on asks.
+        // -90 dB, but not silence, which is what switches it off) keeps the line open. Warm-ups and Scales with the
+        // metronome on ask, and the piece play screen and a whole practice session (ML-621).
         let awake = null;
         function setAwake(on) {
             if (testClock) return;
@@ -9255,6 +9256,10 @@
     function stopSessionTimer() {
         if (timerState && timerState.forSession) finishTimerSession();
     }
+    // ML-621: the whole of a practice session keeps the sound line awake (rests included) - the rest before nearly
+    // every block let Bluetooth headphones sleep, so a piece's Play was heard seconds late and its Stop seconds after.
+    // On the piece player, so leaving a Warm-up or Scales block (their own players) doesn't switch it off.
+    function sessionLineAwake() { flowPlayer.keepAwake(!!(practiceRun && !practiceRun.done)); }
     function startPracticeRun() {
         if (practiceRun) { switchView('sessionRunView'); return; }
         const r = {
@@ -9263,6 +9268,7 @@
             open: sessPlan.open, template: sessPlan.template, focus: sessPlan.focus, auto: sessPlan.auto, source: sessPlan.source
         };
         practiceRun = r;
+        sessionLineAwake(); // ML-621: from the Start tap, so the sound is ready before the first block
         window.Usage?.begin('session'); // ML-22
         window.Usage?.mark(`plan:${typeof r.template === 'string' && ['standard', 'concert'].includes(r.template) ? r.template : 'own'}`);
         renderUpdateBanner(); // ML-564: no "new version" strip during a practice session
@@ -9594,6 +9600,7 @@
         if (early && r.phase !== 'rest') { const b = r.blocks[r.index]; b.seconds += runElapsed(); b.started = true; }
         if (!early || timeUp) window.Usage?.finish('session'); // ML-22: every block played, or the time was up
         r.done = true;
+        sessionLineAwake(); // ML-621: the session is over - the headphones can sleep
         renderUpdateBanner(); // ML-564: the session is over, so a waiting "new version" strip can show now
         clearInterval(practiceTick);
         stopSessionTimer(); // ML-421
@@ -9662,7 +9669,8 @@
     }
 
     document.getElementById('startPracticeSessionBtn')?.addEventListener('click', () => (practiceRun && !practiceRun.done ? switchView(practiceRun.phase === 'rest' ? 'sessionRestView' : 'sessionRunView') : openSessionSetup({})));
-    document.getElementById('sessRunGoBtn')?.addEventListener('click', () => { if (practiceRun && practiceRun.phase === 'rest') switchView('sessionRestView'); else startSessionBlock(); });
+    // ML-621: a session carried on after a reload had no tap to wake the sound with - this is the first one
+    document.getElementById('sessRunGoBtn')?.addEventListener('click', () => { sessionLineAwake(); if (practiceRun && practiceRun.phase === 'rest') switchView('sessionRestView'); else startSessionBlock(); });
     document.getElementById('sessRunNextBtn')?.addEventListener('click', () => sessionTimeUp());
     document.getElementById('sessRunEndBtn')?.addEventListener('click', () => finishPracticeRun(true));
     document.getElementById('sessRunDoneBtn')?.addEventListener('click', () => { practiceRun = null; renderPracticeRun(); switchView('mainView'); });
