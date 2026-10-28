@@ -244,6 +244,12 @@
       "use": "ML-647: the filled Reload button against its strip"
     },
     {
+      "kind": "non-text",
+      "fg": "--primary-action-strong",
+      "bg": "--input-border",
+      "use": "ML-645: the photo-read waiting bar's fill against its track"
+    },
+    {
       "kind": "text",
       "fg": "--status-grey-fg",
       "bg": "--status-grey-bg",

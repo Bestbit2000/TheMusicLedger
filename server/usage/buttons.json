@@ -4630,6 +4630,20 @@
   },
   {
    "group": "Menu, notices and the rest",
+   "where": "pieceReadWaitModal",
+   "name": "#pieceReadWaitX",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "pieceReadWaitModal",
+   "name": "#pieceReadWaitCancel",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
    "where": "confirmModal",
    "name": "close (X)",
    "label": "Close",

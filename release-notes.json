@@ -156,5 +156,6 @@
   "ML-648": "We tell you, in the app and by email, when you are made a band leader and what that lets you see.",
   "ML-651": "We keep the app's fonts on your device between updates, so it opens faster after each one.",
   "ML-647": "We made the strips at the top of the screen run the full width on a computer, and made Reload easier to spot.",
-  "ML-646": "We put people who ask to join on our website straight into the band they named, once we let them in."
+  "ML-646": "We put people who ask to join on our website straight into the band they named, once we let them in.",
+  "ML-645": "We show a waiting screen while a photo or PDF is read - what it's doing, how long it usually takes, and a way to stop that doesn't use up a read."
 }

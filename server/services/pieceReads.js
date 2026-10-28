@@ -30,7 +30,8 @@ export function costUsd(model, unitsIn, unitsOut) {
 
 // The allowance: how many reads one person can have a quarter, by account type (the feature limit
 // photo_reads_per_quarter - Admin -> Feature access). A quarter is a calendar quarter in UK time, and only a
-// read that gave an answer counts: not one that failed, and not a "Read again" of a kept test.
+// read that gave an answer counts: not one that failed, not a "Read again" of a kept test, and (ML-645, the owner
+// 28 Oct 2026) not one the member stopped waiting for - only when a result is returned.
 const QUARTER_START = "date_trunc('quarter', now() AT TIME ZONE 'Europe/London')";
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const sayDay = (iso) => { const [y, m, d] = iso.split('-').map(Number); return `${d} ${MONTHS[m - 1]} ${y}`; };
@@ -39,7 +40,7 @@ export async function readAllowance(accountId) {
     getLimit('photo_reads_per_quarter', 0),
     pool.query(
       `SELECT count(*)::int AS used, to_char(${QUARTER_START} + interval '3 months', 'YYYY-MM-DD') AS next
-         FROM piece_reads WHERE account_id = $1 AND status = 'read' AND created_at >= ${QUARTER_START} AT TIME ZONE 'Europe/London'`, [accountId])
+         FROM piece_reads WHERE account_id = $1 AND status = 'read' AND cancelled_at IS NULL AND created_at >= ${QUARTER_START} AT TIME ZONE 'Europe/London'`, [accountId])
   ]);
   const allowed = Number.isFinite(limit) && limit >= 0 ? limit : 0;
   return { limit: allowed, used: rows[0].used, left: Math.max(0, allowed - rows[0].used), startsAgainOn: rows[0].next };
@@ -132,12 +133,63 @@ export function outlineWithKeys(o, keys) {
   return { o: { ...o, mainSig: main, time }, lost };
 }
 
+// ---- ML-645: the waiting screen ----
+// How many pages a PDF has, as well as can be told without a PDF library: each page object says "/Type /Page"
+// (the tree of them "/Pages"); where those are packed away, the page tree's "/Count n". Null when it can't tell.
+export function countPdfPages(buffer) {
+  const text = Buffer.from(buffer).toString('latin1');
+  const pages = (text.match(/\/Type\s*\/Page(?![A-Za-z])/g) || []).length;
+  if (pages) return pages;
+  const counts = [...text.matchAll(/\/Count\s+(\d+)/g)].map((m) => Number(m[1]));
+  return counts.length ? Math.max(...counts) : null;
+}
+// How long a read like this usually takes, in seconds: the middle of the last successful reads with the same model and
+// prompt, the same kind of file and about the same size (photos: how many; a PDF: its pages, or else its size). With
+// fewer than 5 of those to go on, a starting guess - a photo about 45 s, a PDF about a minute, plus some for each extra
+// photo, page or MB. Never more than the reader is given (PIECE_READER_TIMEOUT_MS, 270 s).
+const LIKE_READS = 5;
+export function estimateFrom(rows, { kind, files = 1, bytes = 0, pages = null }) {
+  const similar = kind === 'photos' ? rows.filter((r) => r.file_count === files)
+    : pages ? rows.filter((r) => r.pages && Math.abs(r.pages - pages) <= 1)
+    : rows.filter((r) => bytes && r.file_bytes >= bytes / 2 && r.file_bytes <= bytes * 2);
+  if (similar.length >= LIKE_READS) {
+    const ms = similar.map((r) => Number(r.ms)).sort((a, b) => a - b);
+    return { seconds: Math.min(270, Math.round(ms[Math.floor(ms.length / 2)] / 1000)), from: 'reads' };
+  }
+  const guess = kind === 'photos' ? 45 + 30 * (Math.max(1, files) - 1)
+    : pages ? 60 + 30 * (pages - 1) : 60 + 40 * Math.max(0, bytes / (1024 * 1024) - 0.5);
+  return { seconds: Math.min(270, Math.round(guess)), from: 'guess' };
+}
+export async function readEstimate(ask) {
+  const kind = ask.kind === 'pdf' ? 'pdf' : 'photos';
+  const { rows } = await pool.query(
+    `SELECT ms, file_count, file_bytes, pages FROM piece_reads
+      WHERE status = 'read' AND cancelled_at IS NULL AND model = $1 AND prompt_version = $2 AND file_kind = $3
+      ORDER BY created_at DESC LIMIT 200`, [readerModel(), READ_VERSION, kind]);
+  const n = (v) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : null);
+  return estimateFrom(rows, { kind, files: n(ask.files) || 1, bytes: n(ask.bytes) || 0, pages: n(ask.pages) });
+}
+// The member stopped waiting - while sending (nothing is read) or while reading (the read may still finish here: it
+// is then marked, and doesn't count). Every stop is kept, so Admin -> Photo reads can count them.
+const REF = /^[A-Za-z0-9-]{8,64}$/;
+export async function stopRead(accountId, { ref, stage, waitedMs } = {}) {
+  if (!REF.test(String(ref || ''))) throw withStatus(400, 'Which read?');
+  const at = stage === 'sending' ? 'sending' : 'reading';
+  await pool.query('INSERT INTO piece_read_stops (account_id, client_ref, stage, waited_ms) VALUES ($1, $2, $3, $4)',
+    [accountId, ref, at, Math.max(0, Math.min(3600000, Math.round(Number(waitedMs) || 0)))]);
+  await pool.query('UPDATE piece_reads SET cancelled_at = now() WHERE client_ref = $1 AND account_id = $2 AND cancelled_at IS NULL', [ref, accountId]);
+  return { stopped: true };
+}
+
 // Reads the uploaded pages for an account. Returns { readId, ms, pieces: [{ index, about, outline, rating }] }.
+// ML-645: clientRef - the browser's reference for this read (to stop it); estimateMs - what its waiting screen said.
 // ML-529: with joinMovements, the movements of one work also come as one piece in movements - the last entry,
 // with `whole: true` and its own index (it is logged as a piece found, like the others).
 // The pages are deleted from the file store whatever happens. A failure is logged too - a read that the
 // gateway refused or that found no music is part of how well this works.
-export async function readForAccount(accountId, rawFiles, { joinMovements = false } = {}) {
+export async function readForAccount(accountId, rawFiles, { joinMovements = false, clientRef = null, estimateMs = null } = {}) {
+  const ref = REF.test(String(clientRef || '')) ? String(clientRef) : null;
+  const estimate = Number.isFinite(Number(estimateMs)) && Number(estimateMs) > 0 ? Math.round(Number(estimateMs)) : null;
   const files = checkedFiles(rawFiles, readUploadPrefix(accountId));
   let buffers = [];
   let result;
@@ -155,10 +207,13 @@ export async function readForAccount(accountId, rawFiles, { joinMovements = fals
   }
 
   const kind = mediaTypeOf(buffers[0]) === 'application/pdf' ? 'pdf' : 'photos';
+  const pages = kind === 'pdf' ? countPdfPages(buffers[0]) : files.length; // ML-645: for the next estimates
+  // ML-645: stopped before it got here - logged, and marked so it doesn't count
+  const stopped = ref ? (await pool.query('SELECT 1 FROM piece_read_stops WHERE client_ref = $1 AND account_id = $2', [ref, accountId])).rows.length > 0 : false;
   const { rows } = await pool.query(
-    `INSERT INTO piece_reads (account_id, status, model, prompt_version, file_kind, file_count, file_bytes, units_in, units_out, ms)
-     VALUES ($1, 'read', $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-    [accountId, result.model, READ_VERSION, kind, files.length, buffers.reduce((n, b) => n + b.length, 0), result.usage.inputTokens, result.usage.outputTokens, result.ms]);
+    `INSERT INTO piece_reads (account_id, status, model, prompt_version, file_kind, file_count, file_bytes, units_in, units_out, ms, pages, estimate_ms, client_ref, cancelled_at)
+     VALUES ($1, 'read', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CASE WHEN $13 THEN now() END) RETURNING id`,
+    [accountId, result.model, READ_VERSION, kind, files.length, buffers.reduce((n, b) => n + b.length, 0), result.usage.inputTokens, result.usage.outputTokens, result.ms, pages, estimate, ref, stopped]);
   const readId = Number(rows[0].id);
 
   const pieces = [];
@@ -217,15 +272,37 @@ export async function listReads() {
     id: Number(r.id), at: r.created_at, who: r.account_name, status: r.status, failure: r.failure, model: r.model, promptVersion: r.prompt_version,
     fileKind: r.file_kind, fileCount: r.file_count, unitsIn: r.units_in, unitsOut: r.units_out, seconds: Math.round(r.ms / 1000),
     costUsd: costUsd(r.model, r.units_in, r.units_out), isTest: !!r.test_files,
+    pages: r.pages, estimateSeconds: r.estimate_ms ? Math.round(r.estimate_ms / 1000) : null, stoppedAt: r.cancelled_at, // ML-645
     pieces: pieces.filter(p => String(p.read_id) === String(r.id)).map(pieceRow),
     reruns: reruns.filter(x => String(x.read_id) === String(r.id)).map(x => ({ id: Number(x.id), at: x.created_at, status: x.status, failure: x.failure, model: x.model, promptVersion: x.prompt_version, seconds: Math.round(x.ms / 1000), costUsd: costUsd(x.model, x.units_in, x.units_out), pieces: x.pieces }))
   }));
-  return { reads: list, summary: summarise(list), model: readerModel(), promptVersion: READ_VERSION };
+  // ML-645: every stop (the owner, 28 Oct 2026: measure how often it happens)
+  const stops = (await pool.query(
+    `SELECT stage, waited_ms, created_at,
+            created_at >= date_trunc('month', now() AT TIME ZONE 'Europe/London') AT TIME ZONE 'Europe/London' AS this_month,
+            created_at >= date_trunc('quarter', now() AT TIME ZONE 'Europe/London') AT TIME ZONE 'Europe/London' AS this_quarter
+       FROM piece_read_stops ORDER BY created_at DESC LIMIT 2000`)).rows;
+  return { reads: list, summary: summarise(list, stops), model: readerModel(), promptVersion: READ_VERSION };
+}
+// ML-645: stops this month, this quarter and in all - while sending and while reading - how long people had waited
+// (the middle one), and what the reads that were stopped but still finished cost
+export function summariseStops(stops, reads) {
+  const middle = (xs) => { const s = xs.slice().sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
+  const of = (list) => ({
+    sending: list.filter((s) => s.stage === 'sending').length,
+    reading: list.filter((s) => s.stage === 'reading').length,
+    waitedSeconds: list.length ? Math.round(middle(list.map((s) => Number(s.waited_ms))) / 1000) : null
+  });
+  const stoppedCosts = reads.filter((r) => r.stoppedAt && r.costUsd !== null).map((r) => r.costUsd);
+  return {
+    month: of(stops.filter((s) => s.this_month)), quarter: of(stops.filter((s) => s.this_quarter)), all: of(stops),
+    costUsd: stoppedCosts.reduce((n, c) => n + c, 0)
+  };
 }
 
 // How it is doing: reads and what they cost, then - of the pieces saved - how many needed no change, and
 // how many had the right number of bars, for each rating. That last table is whether the rating is useful.
-export function summarise(reads) {
+export function summarise(reads, stops = []) {
   const done = reads.filter(r => r.status === 'read');
   const saved = done.flatMap(r => r.pieces).filter(p => p.savedAt && p.changes);
   const byRating = ['high', 'medium', 'low'].map(level => {
@@ -236,7 +313,8 @@ export function summarise(reads) {
   return {
     reads: reads.length, failed: reads.length - done.length, pieces: done.reduce((n, r) => n + r.pieces.length, 0), saved: saved.length, tests: reads.filter(r => r.isTest).length,
     costUsd: costs.reduce((n, c) => n + c, 0), costPerRead: costs.length ? costs.reduce((n, c) => n + c, 0) / costs.length : null,
-    seconds: done.length ? Math.round(done.reduce((n, r) => n + r.seconds, 0) / done.length) : null, byRating
+    seconds: done.length ? Math.round(done.reduce((n, r) => n + r.seconds, 0) / done.length) : null, byRating,
+    stopped: summariseStops(stops, reads) // ML-645
   };
 }
 

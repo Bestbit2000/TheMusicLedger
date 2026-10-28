@@ -3333,3 +3333,20 @@
     @media (min-width: 700px) {
         .public-h2 { font-size: var(--font-3xl); }
     }
+
+    /* ML-645: the waiting screen while a photo or PDF is read - a turning ring with the camera in it, what it is doing, a
+       bar (the upload's own % while sending; an estimate while reading), the time so far and how long it usually takes,
+       the member's reads left and when they start again, and Cancel. In the app's own gold (owner, 28 Oct 2026). Reduce
+       motion stops the ring like every animation (html[data-motion]). specs/components/read-wait.md */
+    .read-wait { text-align: center; }
+    .read-wait-ring { position: relative; width: var(--read-wait-ring); height: var(--read-wait-ring); margin: var(--space-4) auto var(--space-5); }
+    .read-wait-ring::before { content: ''; position: absolute; inset: 0; border-radius: var(--radius-circle); border: var(--space-2) solid var(--primary-action-tint); border-top-color: var(--primary-action); animation: read-wait-turn var(--duration-pulse) var(--ease-linear) infinite; }
+    .read-wait-ring .material-symbols-outlined { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; width: auto; font-size: var(--icon-xl); color: var(--primary-action-strong); }
+    @keyframes read-wait-turn { to { transform: rotate(360deg); } }
+    .read-wait-stage { font-size: var(--font-lg); font-weight: var(--font-weight-bold); margin: 0 0 var(--space-1); }
+    .read-wait-sub { font-size: var(--font-sm); color: var(--label-color); margin: 0 0 var(--space-5); }
+    .read-wait-bar { height: var(--space-3); border-radius: var(--radius-pill); background: var(--input-border); overflow: hidden; }
+    .read-wait-bar-fill { display: block; height: 100%; width: var(--read-wait-done, 0%); background: var(--primary-action-strong); border-radius: var(--radius-pill); transition: width var(--duration-slow) var(--ease-standard); }
+    .read-wait-nums { display: flex; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; font-size: var(--font-sm); margin: var(--space-2) 0 var(--space-5); font-variant-numeric: tabular-nums; }
+    .read-wait-allow { font-size: var(--font-sm); background: var(--input-bg); border: 1px solid var(--control-border); border-radius: var(--radius-md); padding: var(--space-3); text-align: left; margin: 0 0 var(--space-4); }
+    .read-wait-stay { font-size: var(--font-xs); color: var(--label-color); margin: 0 0 var(--space-4); }

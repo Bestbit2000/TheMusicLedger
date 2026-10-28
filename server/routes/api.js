@@ -42,7 +42,7 @@ import { assertRangeEnabled, getRange, setRange, recordGo, moveRange } from '../
 import { createFlow, listFlows, getFlowDetail, savePlaySettings, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, setFlowArchived, setFlowsArchived, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, setRecordingClip, setRecordingMarks, setRecordingMovement, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus, assertCanAddFiles } from '../services/flows.js';
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks, replaceAllFlowBlocks } from '../services/flowBlocks.js';
 import { importMusicXmlFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/musicXmlImport.js';
-import { readForAccount, discardReadFiles, sweepReadUploads, markSaved as markPieceReadSaved, readUploadPrefix, testUploadPrefix, READ_CONTENT_TYPES, readAllowance, assertReadLeft } from '../services/pieceReads.js';
+import { readForAccount, discardReadFiles, sweepReadUploads, markSaved as markPieceReadSaved, readUploadPrefix, testUploadPrefix, READ_CONTENT_TYPES, readAllowance, assertReadLeft, readEstimate, stopRead } from '../services/pieceReads.js';
 import { MAX_READ_BYTES } from '../services/pieceReader.js';
 import { MAX_PIECE_FILE_BYTES, MAX_BAND_LOGO_BYTES, BAND_LOGO_TYPES } from '../services/blobUrls.js';
 import { isFeatureEnabled, listEnabledFeatureKeys, getLimit, listLimits } from '../services/features.js';
@@ -2185,9 +2185,26 @@ router.post('/piece-read', requireAuth, resolveAccount, requireFeature('piece_fr
   try {
     await limitCalls('piece-read', req.accountId);
     await assertReadLeft(req.accountId);
-    res.json(await readForAccount(req.accountId, req.body?.files, { joinMovements: await isFeatureEnabled('piece_movements') }));
+    res.json(await readForAccount(req.accountId, req.body?.files, { joinMovements: await isFeatureEnabled('piece_movements'), clientRef: req.body?.ref, estimateMs: req.body?.estimateMs }));
   } catch (error) {
     await discardReadFiles(req.accountId, req.body?.files); // ML-553: refused or failed - the pages still go
+    sendError(res, error);
+  }
+});
+
+// ML-645: how long a read like this usually takes (kind, files, bytes, pages - nothing about the file itself), and
+// "stop" - the member stopped waiting, while sending or while reading. Neither touches anyone else's reads.
+router.get('/piece-read/estimate', requireAuth, resolveAccount, requireFeature('piece_from_photo'), async (req, res) => {
+  try {
+    res.json(await readEstimate({ kind: req.query.kind, files: req.query.files, bytes: req.query.bytes, pages: req.query.pages }));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+router.post('/piece-read/stop', requireAuth, resolveAccount, requireFeature('piece_from_photo'), async (req, res) => {
+  try {
+    res.json(await stopRead(req.accountId, req.body || {}));
+  } catch (error) {
     sendError(res, error);
   }
 });

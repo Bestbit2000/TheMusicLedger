@@ -337,6 +337,8 @@ body.admin-body { display: block; background: var(--bg-color); }
 /* Overlays render in place here rather than floating over the page. */
 .admin-design-static .modal { position: relative; inset: auto; display: flex; z-index: auto; padding: var(--space-6) var(--space-4); border-radius: var(--radius-sm); }
 .admin-design-static .toast { position: relative; left: auto; bottom: auto; transform: none; display: inline-flex; z-index: auto; }
+/* ML-645: the Design page's example of the read waiting screen, its bar at 60% (the app sets --read-wait-done as it goes) */
+.read-wait-example-60 { --read-wait-done: 60%; }
 .admin-design-static .dropdown-menu { position: relative; top: auto; right: auto; z-index: auto; max-width: 240px; }
 .admin-design-static .dropdown-menu.nav-menu { position: static; }
 /* The phone-width admin head row, shown at desktop width - the same rules as the 700px media query. */

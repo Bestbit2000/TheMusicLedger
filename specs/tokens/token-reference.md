@@ -255,6 +255,7 @@ edge, icon/text and fill
 | `--icon-md` | `20px` | default Material Symbols size |
 | `--icon-lg` | `24px` | icon-only buttons |
 | `--icon-xl` | `32px` | tool tiles, hero icons |
+| `--read-wait-ring` | `96px` | ML-645 the turning ring on the photo-read waiting screen |
 
 ## Practice Levels heat map (ML-316)
 

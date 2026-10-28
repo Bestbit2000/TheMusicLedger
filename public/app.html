@@ -4730,6 +4730,23 @@
     </div>
 </div>
 
+<!-- ML-645: the waiting screen while a photo or PDF is read (pieceReadStart, app.js). A must-answer pop-up: only
+     Cancel or the X close it, and while reading they ask first (Stop reading? - Keep waiting / Stop). The owner, 28 Oct
+     2026: a read counts only when it gives a result. specs/components/read-wait.md -->
+<div class="modal" data-no-dismiss id="pieceReadWaitModal" role="dialog" aria-modal="true" aria-labelledby="pieceReadWaitStage">
+    <div class="modal-content read-wait">
+        <button type="button" class="modal-close-x" id="pieceReadWaitX" aria-label="Cancel">&times;</button>
+        <div class="read-wait-ring" aria-hidden="true"><span class="material-symbols-outlined" id="pieceReadWaitIcon">upload</span></div>
+        <p class="read-wait-stage" id="pieceReadWaitStage" aria-live="polite">Sending your PDF</p>
+        <p class="read-wait-sub" id="pieceReadWaitSub"></p>
+        <div class="read-wait-bar" id="pieceReadWaitBar" role="progressbar" aria-labelledby="pieceReadWaitStage" aria-valuemin="0" aria-valuemax="100"><span class="read-wait-bar-fill"></span></div>
+        <div class="read-wait-nums"><span id="pieceReadWaitDone"></span><span id="pieceReadWaitTime"></span></div>
+        <p class="read-wait-allow" id="pieceReadWaitAllow"></p>
+        <p class="read-wait-stay">Stay on this screen until it's done.</p>
+        <button type="button" class="btn-cancel btn-nav no-margin w-full" id="pieceReadWaitCancel">Cancel</button>
+    </div>
+</div>
+
 <div class="modal" data-no-dismiss id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
     <div class="modal-content"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button><h2 id="confirmTitle">Confirm</h2><p id="confirmMessage" class="mb-6 leading-base"></p><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" id="confirmCancelBtn" data-act="confirm-close">Cancel</button><button class="btn-submit no-margin" id="confirmActionBtn">Confirm</button></div></div>
 </div>

@@ -438,6 +438,7 @@
     --icon-md: var(--ds-size-20, 20px);                          /* default Material Symbols size */
     --icon-lg: var(--ds-size-24, 24px);                          /* icon-only buttons */
     --icon-xl: var(--ds-size-32, 32px);                          /* tool tiles, hero icons */
+    --read-wait-ring: var(--ds-size-96, 96px);                   /* ML-645 the turning ring on the photo-read waiting screen */
 
     /* Practice Levels heat map (ML-316) */
     --band-logo-sm: var(--ds-size-32, 32px);                     /* ML-534 a band's logo on its My bands row */

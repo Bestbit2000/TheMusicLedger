@@ -24576,7 +24576,7 @@
             const blob = await uploadToStore(`${folder}/${accountProfile.id}/${Date.now()}-${i + 1}${ext}`, files[i], {
                 access: 'public',
                 handleUploadUrl: `${API_BASE_URL}/api/piece-read/upload-token`,
-                onUploadProgress: (progress) => say(`Sending ${files.length > 1 ? `${i + 1} of ${files.length}` : 'it'}: ${Math.round(progress.percentage)}%`)
+                onUploadProgress: (progress) => say(`Sending ${files.length > 1 ? `${i + 1} of ${files.length}` : 'it'}: ${Math.round(progress.percentage)}%`, (i + progress.percentage / 100) / files.length * 100)
             });
             sent.push({ blobUrl: blob.url, blobPathname: blob.pathname });
         }
@@ -24593,39 +24593,143 @@
             return;
         }
         const target = addPieceTakeTarget();
-        const help = pieceReadBtn.querySelector('.metro-help-text');
-        const was = help.textContent;
-        const say = (text) => { help.textContent = text; };
-        let ticking = null;
         pieceReadBusy = true;
         pieceReadBtn.disabled = true;
         pieceReadBtn.setAttribute('aria-busy', 'true');
+        const isPdf = files.length === 1 && /pdf/i.test(files[0].type + files[0].name);
+        const wait = pieceReadWaitOpen(files, isPdf, allowance);
         try {
             if (!accountProfile) accountProfile = await API.account.get();
-            const sent = await pieceReadUpload(files, 'piece-read', say);
-            // A long part can take a few minutes: the line counts up, so it is plain it hasn't stopped
-            const began = Date.now();
-            const tick = () => { const s = Math.round((Date.now() - began) / 1000); say(`Reading the music: ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} so far`); };
-            tick();
-            ticking = setInterval(tick, 1000);
-            showInfoToast('Reading the music. A short piece takes about a minute, a long one a few - stay on this screen.');
-            const result = await apiCall('/api/piece-read', 'POST', { files: sent });
-            const read = { id: result.readId, files, kind: files.length === 1 && /pdf/i.test(files[0].type + files[0].name) ? 'PDF' : (files.length > 1 ? 'photos' : 'photo') };
+            const sent = await pieceReadUpload(files, 'piece-read', (text, pct) => wait.sending(pct));
+            if (wait.stopped) { pieceReadWaitStop(wait, 'sending'); return; } // stopped while sending: nothing is read
+            wait.reading();
+            const result = await apiCall('/api/piece-read', 'POST', { files: sent, ref: wait.ref, estimateMs: wait.estimateMs() });
+            if (wait.stopped) return; // stopped while reading: the answer is let go, and the read doesn't count
+            wait.close();
+            const read = { id: result.readId, files, kind: isPdf ? 'PDF' : (files.length > 1 ? 'photos' : 'photo') };
             pieceReadChoose(read, result.pieces, target);
         } catch (error) {
+            if (wait.stopped) return;
+            wait.close();
             // Said in a pop-up that stays, not a toast: after minutes of waiting, a message that has gone
             // by the time you look back is the same as nothing happening (owner, 12 Oct 2026)
             showConfirmModal("The music couldn't be read", error.offline ? 'Reading a piece from a photo needs a connection.' : (error.message || 'Something went wrong while it was being read.'),
                 () => withUploadRights(() => pieceReadInput.click()), false, 'Choose again', 'Close');
         } finally {
-            if (ticking) clearInterval(ticking);
+            wait.close();
             pieceReadBusy = false;
             pieceReadBtn.disabled = false;
             pieceReadBtn.removeAttribute('aria-busy');
-            say(was);
-            pieceReadShowAllowance(); // one fewer left
+            pieceReadShowAllowance(); // one fewer left - or not, if it was stopped
         }
     }
+
+    // ---------- ML-645: the waiting screen while a photo or PDF is read ----------
+    // A turning ring, what it is doing, a bar - the upload's own % while sending, then an estimate while reading (how
+    // long reads like this usually take: GET /api/piece-read/estimate) - the time so far, the member's reads left and
+    // when they start again, and Cancel. The bar never reaches 100% before the answer and holds at 95%; past the
+    // estimate it says so. With no estimate there is no % - just the time. The owner, 28 Oct 2026: a read counts only
+    // when a result is returned, so stopping (while sending or reading) never uses one up - and every stop is counted
+    // (POST /api/piece-read/stop) for Admin -> Photo reads.
+    const READ_WAIT_HOLD = 95;
+    const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    const aboutMinutes = (s) => s < 50 ? 'under a minute' : s < 75 ? 'about 1 minute' : `about ${Math.round(s / 30) / 2} minutes`.replace('.5 minutes', '½ minutes');
+    // A PDF's pages, as well as the browser can tell from the file (the server counts them again when it reads)
+    async function pieceReadPdfPages(file) {
+        try {
+            const text = new TextDecoder('latin1').decode(await file.arrayBuffer());
+            const pages = (text.match(/\/Type\s*\/Page(?![A-Za-z])/g) || []).length;
+            if (pages) return pages;
+            const counts = [...text.matchAll(/\/Count\s+(\d+)/g)].map((m) => Number(m[1]));
+            return counts.length ? Math.max(...counts) : null;
+        } catch (e) { return null; }
+    }
+    function pieceReadWaitOpen(files, isPdf, allowance) {
+        const el = (id) => document.getElementById(id);
+        const bar = el('pieceReadWaitBar');
+        const began = Date.now();
+        const w = {
+            ref: (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`),
+            stage: 'sending', stopped: false, estimate: null, readingFrom: null, timer: null, open: true
+        };
+        const setBar = (pct) => {
+            if (pct === null) { bar.removeAttribute('aria-valuenow'); bar.style.setProperty('--read-wait-done', '0%'); return; }
+            const p = Math.max(0, Math.min(100, Math.round(pct)));
+            bar.setAttribute('aria-valuenow', String(p));
+            bar.style.setProperty('--read-wait-done', `${p}%`);
+        };
+        const stageText = (t) => { if (el('pieceReadWaitStage').textContent !== t) el('pieceReadWaitStage').textContent = t; };
+        const tick = () => {
+            const s = Math.round((Date.now() - began) / 1000);
+            const usual = w.estimate ? ` · usually ${aboutMinutes(w.estimate)}` : '';
+            el('pieceReadWaitTime').textContent = `${mmss(s)} so far${w.stage === 'reading' ? usual : ''}`;
+            if (w.stage !== 'reading') return;
+            if (!w.estimate) { el('pieceReadWaitDone').textContent = ''; setBar(null); return; }
+            const t = (Date.now() - w.readingFrom) / 1000;
+            const pct = Math.min(READ_WAIT_HOLD, 100 * (1 - Math.exp(-2.3 * t / w.estimate)));
+            setBar(pct);
+            el('pieceReadWaitDone').textContent = `About ${Math.round(pct)}%`;
+            if (t > w.estimate) stageText('Taking a little longer than usual - still reading');
+        };
+        const kindWord = isPdf ? 'your PDF' : files.length > 1 ? 'your photos' : 'your photo';
+        el('pieceReadWaitIcon').textContent = 'upload';
+        stageText(`Sending ${kindWord}`);
+        el('pieceReadWaitSub').textContent = 'Nothing is read until it has all arrived.';
+        el('pieceReadWaitDone').textContent = '0% sent';
+        setBar(0);
+        const a = allowance;
+        el('pieceReadWaitAllow').textContent = a && a.limit
+            ? `This read is ${a.used + 1} of your ${a.limit} this quarter - ${a.left - 1} left after it. They reset on ${new Date(`${a.startsAgainOn}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} at 00:00. A read only counts when it gives a result.`
+            : 'A read only counts when it gives a result.';
+        setShown('pieceReadWaitAllow', !!a);
+        // How long reads like this take - from the size now, and from the PDF's pages when they have been counted
+        const bytes = files.reduce((n, f) => n + f.size, 0);
+        const ask = (pages) => apiCall(`/api/piece-read/estimate?kind=${isPdf ? 'pdf' : 'photos'}&files=${files.length}&bytes=${bytes}${pages ? `&pages=${pages}` : ''}`)
+            .then((e) => { if (e && e.seconds) w.estimate = e.seconds; }).catch(() => { /* no estimate: just the time */ });
+        ask(null).then(() => (isPdf ? pieceReadPdfPages(files[0]) : null)).then((pages) => { if (pages) ask(pages); });
+        w.sending = (pct) => {
+            if (w.stopped || w.stage !== 'sending') return;
+            setBar(pct);
+            el('pieceReadWaitDone').textContent = `${Math.round(pct)}% sent`;
+        };
+        w.reading = () => {
+            w.stage = 'reading';
+            w.readingFrom = Date.now();
+            el('pieceReadWaitIcon').textContent = 'photo_camera';
+            stageText('Reading the music');
+            el('pieceReadWaitSub').textContent = 'It looks for the bars, time signatures, speeds, rehearsal marks, repeats and signs.';
+            tick();
+        };
+        w.estimateMs = () => (w.estimate ? w.estimate * 1000 : null);
+        w.waited = () => Date.now() - began;
+        w.close = () => {
+            if (!w.open) return;
+            w.open = false;
+            clearInterval(w.timer);
+            hideModal('pieceReadWaitModal');
+        };
+        w.timer = setInterval(tick, 1000);
+        tick();
+        pieceReadWait = w;
+        showModal('pieceReadWaitModal');
+        return w;
+    }
+    let pieceReadWait = null;
+    // Cancel (or the X). While sending it stops at once; while reading it asks first, as the read is on its way.
+    function pieceReadWaitCancel() {
+        const w = pieceReadWait;
+        if (!w || !w.open || w.stopped) return;
+        if (w.stage === 'sending') { w.stopped = true; w.close(); showInfoToast("Stopped - it doesn't count as one of your reads."); return; }
+        showConfirmModal('Stop reading?', "It won't count as one of your reads.", () => pieceReadWaitStop(w, 'reading'), false, 'Stop', 'Keep waiting');
+    }
+    function pieceReadWaitStop(w, stage) {
+        w.stopped = true;
+        w.close();
+        apiCall('/api/piece-read/stop', 'POST', { ref: w.ref, stage, waitedMs: w.waited() }).catch(() => { /* counted when it can be */ });
+        if (stage === 'reading') showInfoToast("Stopped - it doesn't count as one of your reads.");
+    }
+    document.getElementById('pieceReadWaitCancel')?.addEventListener('click', pieceReadWaitCancel);
+    document.getElementById('pieceReadWaitX')?.addEventListener('click', pieceReadWaitCancel);
     const pieceReadLevelWord = (level) => ({ high: 'High', medium: 'Medium', low: 'Low' }[level] || 'Medium');
     // One piece: straight into Quick entry. Several (movements, or two pieces on one PDF): which one first -
     // the rest are offered again after each is saved, so the file is only read (and paid for) once.

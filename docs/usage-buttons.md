@@ -3,7 +3,7 @@
 **Made by `node scripts/usage-buttons.mjs` - don't edit it by hand.** What counts as a use, and how a tap is
 counted, is in [usage-stats.md](usage-stats.md) ("Every button").
 
-885 buttons: 885 have a name a tap can be counted by, 0 need one.
+887 buttons: 887 have a name a tap can be counted by, 0 need one.
 A button on a screen is listed under the screen or pop-up it is on; one the app builds as it goes, under
 the function that builds it (shown with ()). The words are only to help find it - a tap is never counted by
 its words.
@@ -31,7 +31,7 @@ its words.
 | My bands | 25 | 0 |
 | My account, instruments, settings | 58 | 0 |
 | Signing in | 15 | 0 |
-| Menu, notices and the rest | 99 | 0 |
+| Menu, notices and the rest | 101 | 0 |
 
 ## Practice session
 
@@ -975,6 +975,8 @@ its words.
 | top bar | `#cancelAddBtn` | Cancel |
 | levelRateModal | `#levelRateCloseBtn` | Close without answering |
 | levelRateModal | `#levelRateMoreBtn` | Move up even further |
+| pieceReadWaitModal | `#pieceReadWaitX` | Cancel |
+| pieceReadWaitModal | `#pieceReadWaitCancel` | Cancel |
 | confirmModal | `close (X)` | Close |
 | confirmModal | `#confirmCancelBtn` | Cancel |
 | confirmModal | `#confirmActionBtn` | Confirm |

@@ -305,13 +305,27 @@ one-time "I have the right to upload it" (ML-278) comes first, as for any music.
    Usage sets it beside Quick entry and bar by bar, release by release. Then `PUT /api/piece-read/:id/saved`
    puts the outline as saved in the log beside what was read.
 
+**Waiting for the read** (ML-645, owner 28 Oct 2026): from the moment the files are chosen, a pop-up
+(`#pieceReadWaitModal`, `specs/components/read-wait.md`) shows a turning ring, what it is doing ("Sending your PDF",
+"Reading the music", "Taking a little longer than usual - still reading"), a bar - the upload's own % while sending,
+then an estimate that holds at 95% - the time so far and how long reads like it usually take, the member's reads left
+and when they start again, and **Cancel**. The estimate is `GET /api/piece-read/estimate` (`readEstimate`: the middle of
+the last 5+ successful reads with the same model, prompt, kind and about the same size - photos by how many, a PDF by
+its pages (counted as well as can be, `countPdfPages`) or else its size - and otherwise a starting guess). Each read
+logs its `pages` and `estimate_ms` beside `ms`. **Cancel** while sending stops at once; while reading it asks ("Stop
+reading?" - Keep waiting / Stop) and the answer, when it comes, is let go. **A read counts against the allowance only
+when a result is returned** (the owner: even if it was paid for) - so a stopped read never counts: every stop goes in
+`piece_read_stops` (`POST /api/piece-read/stop`, by the browser's `client_ref` for the read) and a read stopped while
+reading is marked `cancelled_at`. **Admin → Photo reads** counts the stops this month, this quarter and in all, while
+sending and while reading, how long people waited and what the stopped reads cost; each read shows its estimate.
+
 Limits: 20 reads an hour per account (`CALL_LIMITS['piece-read']`), on top of the feature's gate, and **the
 allowance** (built 21 Oct 2026, ready for the feature to be opened up): `photo_reads_per_quarter` on Admin →
 Feature access, Limits - 0 for Standard, 30 for everyone else, Super admin included (the owner, 22 Oct 2026:
 raise it there if testing needs more). The Add a piece tile shows the count for everyone - "Uses AI to import
 the piece. 12 of 30 reads remaining which reset on 1 July" - and is disabled when none are left. A quarter is a calendar quarter in UK time (from 1 January, 1 April, 1 July,
-1 October). Only a read that gave an answer counts (`piece_reads.status = 'read'`) - not a failed one, and not
-a "Read again" of a kept test. `readAllowance` / `assertReadLeft` in `pieceReads.js`: the upload token refuses
+1 October). Only a read that gave an answer counts (`piece_reads.status = 'read'`, not `cancelled_at`) - not a failed one, not one
+the member stopped (ML-645), and not a "Read again" of a kept test. `readAllowance` / `assertReadLeft` in `pieceReads.js`: the upload token refuses
 when none are left (before the pages go up), `POST /api/piece-read` refuses again, and
 `GET /api/piece-read/allowance` lets the tile say so as soon as the files are chosen. Two reads at the same
 moment can both pass the last one left - the hourly limit keeps that small.
