@@ -16692,8 +16692,32 @@
         alongRestLastClick = null;
         alongCancelJoin();
         pauseFlowMediaSlide(slide);
-        if (recCanMoveNow(slide)) { try { player.seek(loop.startMs); } catch (error) { /* not ready yet */ } }
+        if (recCanMoveNow(slide)) { try { player.seek(loop.startMs); } catch (error) { /* not ready yet */ } } else alongWarm(slide, loop.startMs);
         alongSetSpeed(map.places[loop.fromPlace], recSpeedOf(slide));
+        return true;
+    }
+    // ML-637: a video that hasn't played yet only starts loading when it is first played - at the end of the count-in
+    // that was too late: the clicks waited for it and joined at the second beat. So during the count-in it is loaded:
+    // moved to the repeat's start (which plays a video not played yet), silenced, and paused there as soon as it plays -
+    // then the count-in ends with it ready, as between goes.
+    let alongWarming = null; // { id, ms } while a video loads silently during the count-in
+    function alongWarm(slide, ms) {
+        const yt = flowYtPlayers[slide.data.id];
+        if (!yt || slide.type !== 'video') return;
+        alongWarming = { id: slide.data.id, ms };
+        try { yt.mute(); yt.seekTo(ms / 1000, true); } catch (error) { alongWarming = null; }
+    }
+    function alongWarmStop(yt) {
+        alongWarming = null;
+        try { yt.unMute(); } catch (error) { /* the player went away */ }
+    }
+    // A video's state change while it loads silently: paused at the repeat's start once playing. true = handled here.
+    function alongWarmed(slide, yt, state) {
+        if (!alongWarming || alongWarming.id !== slide.data.id) return false;
+        if (state === window.YT.PlayerState.PLAYING) {
+            try { yt.pauseVideo(); yt.seekTo(alongWarming.ms / 1000, true); } catch (error) { /* the player went away */ }
+            alongWarmStop(yt);
+        }
         return true;
     }
     // Each click while resting: on the last rest click, the recording starts again
@@ -16718,6 +16742,7 @@
         const map = slide ? recMapFor(slide.data) : null;
         const loop = map && flowLoopPlan ? FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, 0) : null;
         if (!player || !loop || !loop.ok) return;
+        if (alongWarming) alongWarmStop(flowYtPlayers[alongWarming.id]); // still loading - it starts as it is
         flowPlayer.pause();
         const speed = recSpeedOf(slide);
         const firstMs = map.places[loop.fromPlace].startMs;
@@ -17460,6 +17485,7 @@
                             try { e.target.setVolume(flowVolume); e.target.setPlaybackRate(recSpeedOf(slide) / 100); } catch (error) { /* not ready yet */ }
                         },
                         onStateChange: (e) => {
+                            if (alongWarmed(slide, e.target, e.data)) return; // ML-637: loaded during the count-in
                             if (e.data === YT.PlayerState.PLAYING) {
                                 // ML-312: YouTube starts at the clip itself (start/end on the frame's address); this covers
                                 // Play pressed after the slider was dragged outside it.
