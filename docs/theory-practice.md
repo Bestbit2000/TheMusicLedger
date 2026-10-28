@@ -20,7 +20,7 @@ Related tickets:
 | File | What |
 |---|---|
 | `public/notation.js` | **Notation**: the app's one notation renderer (SVG, Bravura glyphs). Pure, no DOM. |
-| `public/fonts/bravura.woff2` + `Bravura-LICENSE.txt` | Bravura 1.x (Steinberg, SMuFL, SIL OFL 1.1), from npm `@vexflow-fonts/bravura@1.0.2`. Self-hosted, in the service-worker app shell. |
+| `public/fonts/bravura.<fingerprint>.woff2` + `Bravura-LICENSE.txt` | Bravura 1.x (Steinberg, SMuFL, SIL OFL 1.1), from npm `@vexflow-fonts/bravura@1.0.2`. Self-hosted, in the service-worker app shell. |
 | `public/theoryEngine.js` | **TheoryEngine**: quizzes, options, question dealing, scoring. Pure, no DOM. |
 | `public/app.js`, THEORY PRACTICE section | The four screens: the round's clock, taps, feedback, saving, history. |
 | `server/services/theoryPractice.js` | Saves rounds (re-scoring them from their answers with the same engine), history, bests. |

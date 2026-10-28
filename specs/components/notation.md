@@ -11,7 +11,7 @@ naturals, key signatures, barlines and repeats, articulations, fermatas, breath 
 note values with flags and dots, rests, time signatures, ties and slurs, dynamics, segno/coda,
 D.C./D.S., 1st-time-bar and intro brackets, hairpins, and words printed in music. **It must look like
 printed music, so it's always drawn by `Notation` with the Bravura font** (Steinberg's SMuFL reference
-font, SIL OFL - `public/fonts/bravura.woff2`). **Don't** hand-draw notation paths, and don't use
+font, SIL OFL - `public/fonts/bravura.<fingerprint>.woff2`). **Don't** hand-draw notation paths, and don't use
 Unicode music characters (𝄞 𝄐 ♯) for notation - they depend on the phone's fonts. (Plain ♯/♭ in a
 button *label*, like "C♯" or "B♭ major", is text, not notation, and stays in the UI font.)
 

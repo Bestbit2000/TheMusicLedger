@@ -32,7 +32,7 @@ export const assets = [
       { text: 'Keep the copyright notice and licence with the font.', check: { path: 'public/fonts/Bravura-LICENSE.txt' } },
       { text: 'Use the published file unchanged.' }
     ],
-    files: ['public/fonts/bravura.woff2']
+    files: ['public/fonts/bravura.5c25278c.woff2']
   },
   {
     key: 'font-opendyslexic',
@@ -52,7 +52,7 @@ export const assets = [
       { text: 'Keep the copyright notice and licence with the font.', check: { path: 'public/fonts/OpenDyslexic-LICENSE.txt' } },
       { text: 'Use the published files unchanged (downloaded 29 Sep 2026 from the official repo).' }
     ],
-    files: ['public/fonts/opendyslexic-regular.woff2', 'public/fonts/opendyslexic-bold.woff2']
+    files: ['public/fonts/opendyslexic-regular.0441bc21.woff2', 'public/fonts/opendyslexic-bold.b534a0b8.woff2']
   },
   {
     key: 'font-lexend',
@@ -72,7 +72,7 @@ export const assets = [
       { text: 'Keep the copyright notice and licence with the font.', check: { path: 'public/fonts/Lexend-LICENSE.txt' } },
       { text: 'Use the published files unchanged (Google Fonts\' own Latin files, downloaded 29 Sep 2026).' }
     ],
-    files: ['public/fonts/lexend-latin.woff2', 'public/fonts/lexend-latin-ext.woff2']
+    files: ['public/fonts/lexend-latin.ebfa2276.woff2', 'public/fonts/lexend-latin-ext.84050809.woff2']
   },
   {
     key: 'font-inter',
@@ -92,7 +92,7 @@ export const assets = [
       { text: 'Keep the copyright notice and licence with the font.', check: { path: 'public/fonts/Inter-LICENSE.txt' } },
       { text: 'Use the published files unchanged (Google Fonts\' own Latin files, downloaded 4 Oct 2026).' }
     ],
-    files: ['public/fonts/inter-latin.woff2', 'public/fonts/inter-latin-ext.woff2']
+    files: ['public/fonts/inter-latin.3100e775.woff2', 'public/fonts/inter-latin-ext.34b9c504.woff2']
   },
   {
     key: 'font-noto-music',
@@ -112,7 +112,7 @@ export const assets = [
       { text: 'Keep the copyright notice and licence with the font.', check: { path: 'public/fonts/NotoMusic-LICENSE.txt' } },
       { text: 'Use the published files unchanged (Google Fonts\' own files, downloaded 4 Oct 2026).' }
     ],
-    files: ['public/fonts/noto-music.woff2', 'public/fonts/noto-music-latin.woff2', 'public/fonts/noto-music-latin-ext.woff2']
+    files: ['public/fonts/noto-music.20881b15.woff2', 'public/fonts/noto-music-latin.d4b7113f.woff2', 'public/fonts/noto-music-latin-ext.de2c73d9.woff2']
   },
   {
     key: 'icons-material-symbols',
@@ -140,7 +140,7 @@ export const assets = [
       { text: 'Use the published file unchanged (Google Fonts\' own file, made by Google for just the icons we name - icon_names - by npm run icon-font; ML-650, 28 Oct 2026). A changed file would have to be marked as changed.' }
     ],
     watch: ['Since ML-650 the file holds only the icons the app names (about 500, 454 KB - it was every icon, 4 MB, slow enough that members saw the icons\' names). A new icon needs npm run icon-font; server/test/iconFont.test.js fails until it is in (specs/components/utilities-and-states.md, "Icons while the icon font loads"). Google Fonts is only asked when that script runs - visitors load nothing from Google.'],
-    files: ['public/fonts/material-symbols-outlined.woff2', 'public/fonts/icons.json'],
+    files: ['public/fonts/material-symbols-outlined.56764a27.woff2', 'public/fonts/icons.json'],
     hosts: ['fonts.google.com', 'fonts.googleapis.com', 'fonts.gstatic.com']
   }
 ];

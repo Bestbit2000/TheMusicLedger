@@ -22,7 +22,8 @@
     "third-party-audit": "node scripts/third-party-audit.mjs",
     "sync-vercel-headers": "node scripts/sync-vercel-headers.mjs",
     "third-party-licences": "node scripts/third-party-licences.mjs",
-    "icon-font": "node scripts/icon-font.mjs"
+    "icon-font": "node scripts/icon-font.mjs",
+    "font-names": "node scripts/font-names.mjs"
   },
   "engines": {
     "node": "24.x"

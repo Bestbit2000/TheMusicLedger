@@ -115,8 +115,8 @@ const pieces = {
 };
 
 const fontCss = `
-  @font-face { font-family: Lexend; src: url('../public/fonts/lexend-latin.woff2') format('woff2'); font-weight: 100 900; }
-  @font-face { font-family: Bravura; src: url('../public/fonts/bravura.woff2') format('woff2'); }
+  @font-face { font-family: Lexend; src: url('../public/fonts/lexend-latin.ebfa2276.woff2') format('woff2'); font-weight: 100 900; }
+  @font-face { font-family: Bravura; src: url('../public/fonts/bravura.5c25278c.woff2') format('woff2'); }
   html, body { margin: 0; background: ${BG}; }
   svg { display: block; }`;
 

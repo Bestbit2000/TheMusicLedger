@@ -23,6 +23,12 @@ the owner's attention, and the plan's limits. The field list is at the top of `r
 0.41, which sent each visitor's IP address to Google. Don't add a font, script or stylesheet loaded from someone
 else's server without the owner's say-so - it has to go in the privacy policy.
 
+**A font file is named after its contents** (ML-651): `name.<first 8 hex of its SHA-256>.woff2`, so browsers keep fonts
+for a year (`vercel.json`, `/fonts/(.*)`: `immutable`) and a changed font is simply a new address. After adding or
+changing a font, run `npm run font-names`: it renames each to its fingerprint and puts the new name in `style.css`,
+`app.html`, `sw.js`, the register and `brand-trials/build.mjs` (`npm run icon-font` runs it for the icon font).
+`server/test/fontNames.test.js` fails a release with a font that isn't named after its contents.
+
 **Our own artwork** isn't in the register: the icons in `public/icons/` and the avatars are drawn for the app, and
 the sign-in picture and the mark (`public/images/brands/`, `public/icons/`) are drawn by `brand-trials/build.mjs` (`docs/app-name.md`).
 

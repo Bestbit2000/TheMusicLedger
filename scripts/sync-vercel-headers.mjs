@@ -18,7 +18,9 @@ const file = new URL('../vercel.json', import.meta.url);
 const text = readFileSync(file, 'utf8');
 const config = JSON.parse(text);
 const headers = Object.entries(securityHeaders({ enforceCsp: !process.argv.includes('--report-only') })).map(([key, value]) => ({ key, value }));
-const others = (config.headers || []).filter((h) => h.source !== SOURCE);
+// ML-651: fonts are named after their contents (scripts/font-names.mjs), so a browser may keep one for a year
+const FONTS = { source: '/fonts/(.*)', headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }] };
+const others = [...(config.headers || []).filter((h) => h.source !== SOURCE && h.source !== FONTS.source), FONTS];
 const { rewrites, ...rest } = config;
 const out = JSON.stringify({ ...rest, headers: [{ source: SOURCE, headers }, ...others], ...(rewrites ? { rewrites } : {}) }, null, 2) + '\n';
 writeFileSync(file, text.includes('\r\n') ? out.replace(/\n/g, '\r\n') : out);

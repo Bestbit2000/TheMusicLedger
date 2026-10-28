@@ -7,6 +7,7 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { usedIconNames } from './icon-names.mjs';
+import { nameFonts } from './font-names.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 // Google Fonts sends each browser the format it can read; this asks as a current browser, for woff2
@@ -26,4 +27,6 @@ writeFileSync(join(root, 'public/fonts/icons.json'), `${JSON.stringify({
   axes: 'opsz 24, wght 400, GRAD 0, FILL 0..1',
   icons
 }, null, 2)}\n`);
-console.log(`${icons.length} icons, ${Math.round(font.length / 1024)} KB -> public/fonts/material-symbols-outlined.woff2`);
+// ML-651: named after its contents, and the new name put everywhere the old one was (scripts/font-names.mjs)
+const renamed = nameFonts();
+console.log(`${icons.length} icons, ${Math.round(font.length / 1024)} KB -> public/fonts/${renamed.length ? renamed.join(', ') : 'unchanged'}`);

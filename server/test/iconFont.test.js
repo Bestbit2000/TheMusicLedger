@@ -19,14 +19,18 @@ test('the icon font list holds only real icon names', () => {
 });
 
 test('the icon font is the small one', () => {
-  const font = fs.readFileSync(new URL('../../public/fonts/material-symbols-outlined.woff2', import.meta.url));
+  // ML-651: named after its contents - material-symbols-outlined.<fingerprint>.woff2
+  const dir = new URL('../../public/fonts/', import.meta.url);
+  const name = fs.readdirSync(dir).find((f) => /^material-symbols-outlined\.[0-9a-f]{8}\.woff2$/.test(f));
+  assert.ok(name, 'the icon font is in public/fonts/');
+  const font = fs.readFileSync(new URL(name, dir));
   assert.equal(font.subarray(0, 4).toString(), 'wOF2');
   assert.ok(font.length < 1024 * 1024, `the icon font is ${Math.round(font.length / 1024)} KB - it should be the small one from npm run icon-font`);
 });
 
 test('the app page asks for the icon font straight away, and icons stay blank until it is here', () => {
   const app = fs.readFileSync(new URL('../../public/app.html', import.meta.url), 'utf8');
-  assert.match(app, /<link rel="preload" href="\/fonts\/material-symbols-outlined\.woff2" as="font" type="font\/woff2" crossorigin>/);
+  assert.match(app, /<link rel="preload" href="\/fonts\/material-symbols-outlined\.[0-9a-f]{8}\.woff2" as="font" type="font\/woff2" crossorigin>/);
   const css = fs.readFileSync(new URL('../../public/style.css', import.meta.url), 'utf8');
   assert.match(css, /html\[data-icons\] \.material-symbols-outlined \{ visibility: hidden;/);
   const prefs = fs.readFileSync(new URL('../../public/display-prefs.js', import.meta.url), 'utf8');
