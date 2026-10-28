@@ -68,7 +68,9 @@ async function whoGets(accountIds, kind) {
   return out;
 }
 
-async function send(accountIds, kind, { title, body, details = null, groupKey = null }) {
+// expiresAt: when it goes, if not the kind's usual days from now (ML-649: an invitation's notice made late still
+// goes when the invitation does)
+async function send(accountIds, kind, { title, body, details = null, groupKey = null, expiresAt = null }) {
   const to = await whoGets(accountIds, kind);
   if (!to.length) return null;
   const client = await pool.connect();
@@ -76,8 +78,8 @@ async function send(accountIds, kind, { title, body, details = null, groupKey = 
     await client.query('BEGIN');
     const { rows } = await client.query(
       `INSERT INTO notifications (title, body, audience, publish_at, expires_at, kind, details, group_key)
-       VALUES ($1, $2, 'accounts', now(), now() + make_interval(days => $3), $4, $5, $6) RETURNING id`,
-      [clip(title), body, KEEP_DAYS[kind] || 90, kind, details, groupKey]);
+       VALUES ($1, $2, 'accounts', now(), COALESCE($7::timestamptz, now() + make_interval(days => $3)), $4, $5, $6) RETURNING id`,
+      [clip(title), body, KEEP_DAYS[kind] || 90, kind, details, groupKey, expiresAt]);
     await client.query('INSERT INTO notification_recipients (notification_id, account_id) SELECT $1, unnest($2::bigint[])', [rows[0].id, to]);
     await client.query('COMMIT');
     return Number(rows[0].id);
@@ -105,6 +107,35 @@ export function noticeBandInvite(bandId, email) {
     const band = await bandName(bandId);
     await send([rows[0].account_id], 'band_invite', { title: `You're invited to join ${band}`, body: 'See My bands to say yes or no.', details: { bandId: Number(bandId) }, groupKey: key });
   })().catch(log('band invite'));
+}
+// ML-649: an invitation sent before the address had an account made no notice (there was nobody to give it to).
+// This makes the notice for every invitation still waiting for the account's address that has no live notice -
+// when an account is made, when its address changes, and for everyone in the daily job (which also catches the
+// ones missed before this). Each goes when its invitation would (30 days from when it was sent).
+const INVITE_DAYS = KEEP_DAYS.band_invite;
+export function noticeWaitingBandInvites(accountId) {
+  return (async () => {
+    const { rows } = await pool.query(
+      `SELECT i.id, i.band_id, i.created_at + make_interval(days => $2) AS goes FROM band_invites i
+         JOIN accounts a ON lower(a.email) = lower(i.email) AND a.deleted_at IS NULL
+        WHERE a.id = $1 AND i.created_at > now() - make_interval(days => $2)
+          AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.group_key = 'band_invite:' || i.id AND n.withdrawn_at IS NULL
+                            AND (n.expires_at IS NULL OR n.expires_at > now()))`, [accountId, INVITE_DAYS]);
+    for (const r of rows) {
+      const band = await bandName(r.band_id);
+      await send([accountId], 'band_invite', { title: `You're invited to join ${band}`, body: 'See My bands to say yes or no.', details: { bandId: Number(r.band_id) }, groupKey: `band_invite:${r.id}`, expiresAt: r.goes });
+    }
+  })().catch(log('waiting band invites'));
+}
+// The daily job's catch-up: every account with an invitation waiting and no notice about it.
+export async function noticeAllWaitingBandInvites() {
+  const { rows } = await pool.query(
+    `SELECT DISTINCT a.id FROM band_invites i JOIN accounts a ON lower(a.email) = lower(i.email) AND a.deleted_at IS NULL
+      WHERE i.created_at > now() - make_interval(days => $1)
+        AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.group_key = 'band_invite:' || i.id AND n.withdrawn_at IS NULL
+                          AND (n.expires_at IS NULL OR n.expires_at > now()))`, [INVITE_DAYS]);
+  for (const r of rows) await noticeWaitingBandInvites(r.id);
+  return rows.length;
 }
 // ...and once it has been answered (or cancelled) the notice goes.
 export function withdrawBandInviteNotice(inviteId) {

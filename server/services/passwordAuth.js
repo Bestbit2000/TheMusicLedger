@@ -15,6 +15,7 @@ import { isFeatureLive } from './features.js';
 import { deletedEmailHash, forgetTokenVersion, currentTokenVersion, emailIsShutOut, SHUT_OUT_MESSAGE } from './tokenVersions.js';
 import { twoStepStatus, beginSetup, confirmSetup, verifyLoginCode } from './twoStep.js';
 import { sendSignupAlert } from './signupAlert.js';
+import { noticeWaitingBandInvites } from './autoNotices.js';
 import { appLink } from '../utils/appPath.js';
 import { signInWaysOn, waysInWords } from './signInWays.js';
 import { buildEmail, wordingFor, emailFor, nameOrThere, INVITATION_DAYS, EMAILS } from './emailWording.js';
@@ -331,6 +332,7 @@ export async function acceptInvite(secret, password, ip, device = {}) {
     await client.query('UPDATE auth_email_links SET used_at = now() WHERE id = $1', [link.id]);
     await client.query('UPDATE account_passwords SET last_login_at = now() WHERE account_id = $1', [account.id]);
     await client.query('COMMIT');
+    if (isNew) await noticeWaitingBandInvites(account.id); // ML-649: a band invitation sent before they signed up
     if (isNew) await sendSignupAlert({ firstName: link.first_name, surname: link.surname, email: link.email, method: 'Email and password (invite)', ...device });
     return completeLogin(account);
   } catch (e) {

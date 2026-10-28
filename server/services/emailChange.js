@@ -26,6 +26,7 @@ import { emailFor, nameOrThere } from './emailWording.js';
 import { verifyPassword } from './passwords.js';
 import { deletedEmailHash, forgetTokenVersion } from './tokenVersions.js';
 import { limitCalls } from './passwordAuth.js';
+import { noticeWaitingBandInvites } from './autoNotices.js';
 import { verifyToken } from '../utils/authToken.js';
 import { appLink } from '../utils/appPath.js';
 
@@ -136,14 +137,14 @@ export async function describeEmailChange(secret) {
 // to say whether that device was signed in as this account (so it can keep its offline copy).
 export async function confirmEmailChange(secret, origin, signedInToken = null) {
   const client = await pool.connect();
-  let oldEmail; let newEmail; let firstName;
+  let oldEmail; let newEmail; let firstName; let accountId;
   try {
     await client.query('BEGIN');
     const link = await liveLink(client, secret, true);
     if (!link) throw fail(404, GONE);
     const account = await accountFor(client, link.for_account_id, true).catch(() => null);
     if (!account) throw fail(404, GONE);
-    oldEmail = account.email; newEmail = link.email; firstName = account.first_name;
+    oldEmail = account.email; newEmail = link.email; firstName = account.first_name; accountId = account.id;
     if (await taken(client, newEmail)) throw fail(409, 'That address now has an account of its own, so it can\'t be used. Nothing has changed.');
 
     // Signed out everywhere. The new address may itself carry a marker (an account deleted from it
@@ -178,6 +179,7 @@ export async function confirmEmailChange(secret, origin, signedInToken = null) {
   }
   forgetTokenVersion(oldEmail);
   forgetTokenVersion(newEmail);
+  await noticeWaitingBandInvites(accountId); // ML-649: an invitation that was waiting for the new address
 
   // The old address is told. If that email can't be sent the change still stands - it is logged.
   try {

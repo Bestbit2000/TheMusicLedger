@@ -2,6 +2,7 @@ import pool from '../config/db.js';
 import { getAccountBands } from './bands.js';
 import { sendSignupAlert } from './signupAlert.js';
 import { deletedEmailHash } from './tokenVersions.js';
+import { noticeWaitingBandInvites } from './autoNotices.js';
 
 // The whole app has only ever dealt in email strings - this is the one place
 // that resolves one to a real accounts.id, creating the row on first sight.
@@ -45,6 +46,7 @@ export async function getOrCreateAccount(email, firstName = '', surname = '', cl
   if (inserted.rows.length) await pool.query('DELETE FROM deleted_account_markers WHERE email_hash = $1', [marker]);
   if (!inserted.rows.length) return (await pool.query('SELECT id FROM accounts WHERE email = $1', [email])).rows[0].id;
   if (invite) await pool.query("UPDATE auth_email_links SET used_at = now() WHERE purpose = 'invite' AND used_at IS NULL AND lower(email) = lower($1)", [email]);
+  await noticeWaitingBandInvites(inserted.rows[0].id); // ML-649: a band invitation sent before they signed up
   await sendSignupAlert({ firstName: name.first, surname: name.last, email, method: invite ? 'Google (invite)' : 'Google', ...client });
   return inserted.rows[0].id;
 }

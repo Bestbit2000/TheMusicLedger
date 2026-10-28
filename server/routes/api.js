@@ -54,7 +54,7 @@ import { startAuthoringSession, updateAuthoringSession, currentAppVersion } from
 import { exportFlowForUser } from '../services/flowTransfer.js';
 import { submitFeedback } from '../services/feedback.js';
 import { requestUpgrade } from '../services/upgradeRequest.js';
-import { getNoticePreferences, setNoticePreference } from '../services/autoNotices.js';
+import { getNoticePreferences, setNoticePreference, noticeAllWaitingBandInvites } from '../services/autoNotices.js';
 import { bandNoticesForMember, sendBandNotice } from '../services/bandNotices.js';
 import { listBannerNotices, listNotificationsForAccount, markNotificationRead, markAllNotificationsRead, clearNotification, clearAllNotifications, listClearedNotifications, restoreNotifications, listImportantNotices, acknowledgeImportantNotice } from '../services/notifications.js';
 import { saveTheoryAttempt, getTheoryHistory, getTheorySummary, getTheoryLevels, getTheoryWeights, getTheoryPlayed } from '../services/theoryPractice.js';
@@ -1083,7 +1083,9 @@ router.get('/cron/usage-readings', async (req, res) => {
     const cleared = await clearOldRecords().catch((error) => { console.error('Daily job: old records not cleared:', error.message); return null; });
     // ML-553: the pages of a photo or PDF read that were never read (or never deleted) go after a day
     const readPages = await sweepReadUploads().catch((error) => { console.error('Daily job: photo read pages not cleared:', error.message); return null; });
-    res.json({ read: results.filter((r) => r.ok).length, notRead: results.filter((r) => !r.ok).map((r) => r.key), warnings: warnings.length, rates, retention, cleared, readPages });
+    // ML-649: a band invitation waiting for someone who signed up after it was sent gets its notice
+    const inviteNotices = await noticeAllWaitingBandInvites().catch((error) => { console.error('Daily job: band invitation notices not made:', error.message); return null; });
+    res.json({ read: results.filter((r) => r.ok).length, notRead: results.filter((r) => !r.ok).map((r) => r.key), warnings: warnings.length, rates, retention, cleared, readPages, inviteNotices });
   } catch (error) {
     sendError(res, error);
   }
