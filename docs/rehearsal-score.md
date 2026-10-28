@@ -123,6 +123,9 @@ recording takes to get going is learnt as it goes (`alongLag`, starting at 60 ms
 its clock moves, the start is checked (`alongWatchStart`): out by more than half the drift allowance, the clicks are
 re-timed from their next beat. A click once sounded is never sounded again (`alongHeard`) - not when the recording
 stops to load and goes again, nor when the clicks are re-timed - unless the recording has been moved back before it.
+While a start is made, and until the recording reaches the bar it waits a little before (often in the block before),
+the tile of the bar started at stays lit and the bar line says it straight away (`alongHoldTile`, ML-641) - lighting
+the block before looked as if the tap had missed (the owner, 28 Oct 2026).
 Measured on dev (28 Oct 2026), every first click and the recording within 40 ms, every click heard: after the
 count-in, with no count-in, a tile, Reset, a practice's count-in, each go round with and without rest bars, and with
 bar 1 at 0:00 and marked.

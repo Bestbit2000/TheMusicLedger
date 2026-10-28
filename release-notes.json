@@ -144,6 +144,7 @@
   "ML-633": "We start the clicks on the first beat when you tap a bar to play from there with a video or recording.",
   "ML-634": "We pause a video or recording for a repeat's rest bars, so the rest clicks as rest and the music comes back in after it.",
   "ML-635": "We say in one short line when a video's timing is still to be confirmed, and make the line the link to set it.",
+  "ML-641": "We keep the bar you tap lit while it gets going with a video or recording, instead of the one before it.",
   "ML-640": "We start the clicks and a video or recording together on the first beat every time, even when the music starts at the very beginning.",
   "ML-638": "We count you in above the video, and in every rest between repeats, so nothing covers the video, the beats or the buttons.",
   "ML-637": "We get a video ready during the count-in, so the first click comes in with it the first time you play.",

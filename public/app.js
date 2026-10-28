@@ -16718,6 +16718,14 @@
     let alongStartTimer = null;
     let alongHeard = null;     // { place, click } - the last click sounded while following; a join never goes back over it
     let alongPreparing = null; // { slide, ms, then, timer, yt, stage } - a recording being loaded and put in place
+    // ML-641: { k, blockId } - the bar a start is made at. Its tile stays lit while the start is made and until the
+    // recording reaches it: the recording waits a little before the bar, often in the block before, and lighting that
+    // looked as if the tap had missed (the owner, 28 Oct 2026)
+    let alongHoldTile = null;
+    function alongHoldAt(map, k) {
+        alongHoldTile = { k, blockId: map.places[k].blockId };
+        if (recTileBlockId !== alongHoldTile.blockId) { recTileBlockId = alongHoldTile.blockId; renderFlowPlaybackTiles(); }
+    }
     const perfAtCtx = (ctx, t) => performance.now() + (t - ctx.currentTime) * 1000;
     // Where the recording waits to start at place k: a little before the bar when it has that, so the first note is
     // caught whole - never before its start mark (it would be moved back to the mark as it plays)
@@ -16820,6 +16828,7 @@
         alongResting = false;
         alongHeard = null;
         alongDriftHits = 0;
+        if (!jump) alongHoldAt(map, k); // ML-641
         if (c0Perf === null) c0Perf = performance.now() + Math.max(120, preMs + lag + 40);
         if (alongClicks() && !metronomeOn) {
             const idx = alongPassageIndex(place);
@@ -16895,6 +16904,7 @@
         alongCancelJoin();
         alongResting = true;
         alongHeard = null;
+        alongHoldAt(map, loop.fromPlace); // ML-641: the rest leads to the repeat's first bar - its tile is lit
         const pos = alongStartPos(slide, map, loop.fromPlace);
         // A video not played yet is loaded and put in place during the rest (ML-637); one that has played, or an upload,
         // is paused and moved
@@ -16977,6 +16987,10 @@
         alongStartCancel();
         alongCancelJoin();
         if (flowPlayer.isPlaying()) flowPlayer.pause();
+        // ML-641: the tile tapped lights, and the bar line says where it starts, straight away - not once it has loaded
+        alongHoldAt(map, k);
+        const idx = alongClicks() ? alongPassageIndex(map.places[k]) : -1;
+        if (idx !== -1) { flowStartSequenceAt(idx, map.places[k].bar - flowPlayQueue[idx].fromBar, 0); renderFlowPlaybackRow(); }
         alongPrepare(slide, alongStartPos(slide, map, k), () => alongStartAt(slide, k));
         updateFlowPlayIcon();
     }
@@ -17044,9 +17058,11 @@
             }
         }
         if (map) {
-            // The bar tile for where the recording is lights up - the same tile the metronome would light
+            // The bar tile for where the recording is lights up - the same tile the metronome would light. ML-641: while a
+            // start is made, and until the recording reaches the bar it waits a little before, the bar started at stays lit
             const k = FlowJourney.placeAt(map, at);
-            const blockId = k === -1 ? null : map.places[k].blockId;
+            if (alongHoldTile && !alongStart && !alongPreparing && k !== -1 && k >= alongHoldTile.k) alongHoldTile = null;
+            const blockId = alongHoldTile ? alongHoldTile.blockId : k === -1 ? null : map.places[k].blockId;
             if (blockId !== recTileBlockId) { recTileBlockId = blockId; renderFlowPlaybackTiles(); }
             // ML-627: with the clicks not following (none wanted, or its bars aren't set up), the bar line follows it
             if (!alongClicks() && playing && k !== -1) {
@@ -18073,6 +18089,7 @@
         alongStartCancel(); // ML-640
         alongPrepareCancel();
         alongHeard = null;
+        alongHoldTile = null; // ML-641
         alongCancelJoin();
         if (recCounting) recCountInStop();
         flowPlayer.pause();
