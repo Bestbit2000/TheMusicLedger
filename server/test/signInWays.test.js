@@ -72,6 +72,7 @@ describe('from the source', () => {
     assert.match(read('server/services/passwordAuth.js'), /purpose === 'invite' \? !ways\.length : !\(await passwordLoginEnabled\(\)\)/);
   });
   test('an invitation reads its wording from Admin -> Email wording', () => {
-    assert.match(read('server/services/passwordAuth.js'), /const wording = await wordingFor\(existing \? 'invitation_existing' : 'invitation'\);/);
+    // ML-646: or "Invitation - with their band" when they are let in from the waiting list into a band
+    assert.match(read('server/services/passwordAuth.js'), /const wording = await wordingFor\(existing \? 'invitation_existing' : bands \? 'invitation_band' : 'invitation'\);/);
   });
 });
