@@ -152,5 +152,6 @@
   "ML-637": "We get a video ready during the count-in, so the first click comes in with it the first time you play.",
   "ML-636": "We show the person who runs the app how many accounts there are, how many invitations are waiting, and how many members are active or dormant.",
   "ML-650": "We made the app's icons much quicker to load, and you never see their names while they arrive.",
-  "ML-649": "We now tell you in Notifications about a band invitation even if you were invited before you had an account."
+  "ML-649": "We now tell you in Notifications about a band invitation even if you were invited before you had an account.",
+  "ML-648": "We tell you, in the app and by email, when you are made a band leader and what that lets you see."
 }

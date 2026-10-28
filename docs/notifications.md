@@ -31,6 +31,7 @@ The app sends a notice itself when something happens to a member's things (`serv
 | `band_invite` | An organiser invites someone. Someone already using the app gets it at once; someone invited **before they had an account** gets it when the account is made, or their address changes to the invited one (ML-649: `noticeWaitingBandInvites`), and the daily job's catch-up (`noticeAllWaitingBandInvites`) makes any still missing | "You're invited to join The Cobham Band" / "See My bands to say yes or no." - withdrawn once it is answered or cancelled, and gone when the invitation's 30 days are up |
 | `band_level` | An organiser changes what a member can do (not stepping down yourself) | "What you can do in The Cobham Band has changed" / "You can now change music." |
 | `band_removed` | An organiser takes a member out | "You're no longer in The Cobham Band's shared space" / "It's still on your list of bands." |
+| `band_leader` | ML-648: an organiser makes a member a band leader, or takes it away (not their own) | "You're now a band leader of The Cobham Band" / "The band's Members page says what a band leader can do." - or "You're no longer a band leader of ..." / "You're still in the band." Made one, they are also emailed ("Made a band leader" on Admin → Email wording: the Band summary and band notices, each only when switched on for them, and where players switch sharing on) |
 | `band_news` | A piece or practice list is added to a band - **one notice a day per band** for each member but the one who added it, added to while it is unread | "New in The Cobham Band: Abide with Me", "3 new pieces in The Cobham Band", "2 new pieces and a practice list in ..." - the names in the message, **worked out again when it is read** (`bandNewsWords`), so a piece renamed after it was added shows its new name |
 | `piece_deleted` | Someone else deletes a piece a member added to a band | "Abide with Me, which you added to The Cobham Band, has been deleted" |
 
@@ -43,7 +44,7 @@ The app sends a notice itself when something happens to a member's things (`serv
   someone who couldn't see it.
 - Sending never gets in the way: a failure is logged, and what caused it carries on.
 - **Choosing (ML-501):** Settings -> **Notifications** has a toggle switch for each of four kinds - Invitations to a
-  band, Changes in a band (`band_level` and `band_removed`), New music in your bands, A piece you added is deleted.
+  band, Changes in a band (`band_level`, `band_leader` and `band_removed`), New music in your bands, A piece you added is deleted.
   **All on** until switched off (the owner's choice); saved on the account (`notice_preferences`, no row = on),
   deleted with it and in the data download. Notices from the Notably Better team always come. Two more switches sit
   in the same list, each shown only with its own feature: **Notices from my bands** (`band_notice`, ML-498) and

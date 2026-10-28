@@ -15,7 +15,7 @@ import { isFeatureEnabled } from './features.js';
 // (band_notices, ML-498) and email copies of urgent notices (notice_emails, ML-499).
 export const NOTICE_KINDS = [
   { key: 'band_invite', title: 'Invitations to a band', sub: 'When an organiser invites you to join a band.', feature: 'auto_notices' },
-  { key: 'band_change', title: 'Changes in a band', sub: 'When what you can do in a band changes, or you are taken out of it.', feature: 'auto_notices' },
+  { key: 'band_change', title: 'Changes in a band', sub: 'When what you can do in a band changes, you are made its band leader, or you are taken out of it.', feature: 'auto_notices' },
   { key: 'band_news', title: 'New music in your bands', sub: 'New pieces and practice lists - one notice a day for each band.', feature: 'auto_notices' },
   { key: 'piece_deleted', title: 'A piece you added is deleted', sub: 'When someone else deletes a piece you added to a band.', feature: 'auto_notices' },
   { key: 'band_notice', title: 'Notices from my bands', sub: 'When someone who runs one of your bands sends the band a notice.', feature: 'band_notices' },
@@ -26,7 +26,7 @@ async function kindsOnHere() {
   for (const k of NOTICE_KINDS) if (await isFeatureEnabled(k.feature)) out.push(k);
   return out;
 }
-const CHOICE_OF = { band_invite: 'band_invite', band_level: 'band_change', band_removed: 'band_change', band_news: 'band_news', piece_deleted: 'piece_deleted' };
+const CHOICE_OF = { band_invite: 'band_invite', band_level: 'band_change', band_removed: 'band_change', band_leader: 'band_change', band_news: 'band_news', piece_deleted: 'piece_deleted' };
 // How long each stays: an invitation as long as one waits (30 days, ML-473), the rest 90 days; then the 12-month
 // clear-up (ML-494) takes them.
 const KEEP_DAYS = { band_invite: 30 };
@@ -150,6 +150,17 @@ export function noticeBandLevel(bandId, memberId, level, actorId) {
     const band = await bandName(bandId);
     await send([memberId], 'band_level', { title: `What you can do in ${band} has changed`, body: `${LEVEL_WORDS[level] ? LEVEL_WORDS[level].charAt(0).toUpperCase() + LEVEL_WORDS[level].slice(1) : 'It has changed'}.`, details: { bandId: Number(bandId), level } });
   })().catch(log('band level'));
+}
+// ML-648: made a band leader, or not any more (not when an organiser changes it for themselves). Its email is
+// sent by setBandLeader (bands.js); this is the notice in the app.
+export function noticeBandLeader(bandId, memberId, on, actorId) {
+  if (Number(memberId) === Number(actorId)) return Promise.resolve();
+  return (async () => {
+    const band = await bandName(bandId);
+    await send([memberId], 'band_leader', on
+      ? { title: `You're now a band leader of ${band}`, body: "The band's Members page says what a band leader can do.", details: { bandId: Number(bandId), on: true } }
+      : { title: `You're no longer a band leader of ${band}`, body: "You're still in the band.", details: { bandId: Number(bandId), on: false } });
+  })().catch(log('band leader'));
 }
 export function noticeBandRemoved(bandId, memberId) {
   return (async () => {

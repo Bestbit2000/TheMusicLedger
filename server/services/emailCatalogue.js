@@ -15,6 +15,9 @@ const FIRST_NAME = 'Their first name, or "there" when we don\'t have one.';
 const WAYS_IN = 'How they can get in - "sign in with Google if this email address is a Google account, or choose a password" - from the ways switched on here.';
 const MESSAGE = 'What you write in the pop-up each time. It goes in a paragraph of its own.';
 export const INVITATION_DAYS = 7; // how long an invitation's link works (passwordAuth.js)
+// ML-648: the band leader email's two paragraphs (the fill-ins' values - bands.js puts in the ones switched on)
+export const BAND_SUMMARY_WORDS = "Band summary: if players in the band choose to share their piece Levels with the band leader, you can see the average Level and the range for each band piece and for each of its bars - so you can see which bars need the most work. It's anonymous: it never shows who, and nothing shows until at least 3 players have shared on that piece. It's on a band piece's ⋮ menu. Sharing is each player's own choice, and they can switch it off at any time - players switch it on, if they want to, on the band's Members page.";
+export const BAND_NOTICES_WORDS = "Band notices: you can send everyone in the band a short notice, from the band's Members page.";
 
 export const GROUPS = [
   { key: 'members', name: 'Emails to members', about: 'Sent to a member when something happens. Each ends with the signature.' },
@@ -79,6 +82,29 @@ export const EMAILS = {
     },
     footer: (v) => `The invitation waits for ${v.days || 30} days. If you weren't expecting it, you can ignore this email and nothing will happen.`,
     sample: { 'invited by': 'Sue Brown', band: 'Cobham Band', email: 'bert@example.com' }
+  },
+  // ML-648: the owner's words, 28 Oct 2026. Each of the two paragraphs is there only when that feature is on for the
+  // band leader's account type - so nobody is promised what they can't see. Sharing stays each player's own choice:
+  // the email says where it is switched on, as information, never asking the leader to get players to share.
+  band_leader_made: {
+    group: 'members', name: 'Made a band leader',
+    about: 'An organiser makes a member a band leader of a band (the band\'s Members page). Not sent when an organiser makes themselves one.',
+    fillIns: {
+      'first name': FIRST_NAME, 'made by': 'The name of the organiser who made them band leader.', band: 'The band\'s name.',
+      'band summary': 'What the Band summary is - only when it is switched on for them, otherwise left out.',
+      'band notices': 'That they can send the band a notice - only when band notices are switched on for them, otherwise left out.'
+    },
+    required: [],
+    builtIn: {
+      subject: "You're now a band leader of {band}",
+      body: p('Hi {first name},', '{made by} has just made you a band leader of {band} on Notably Better.', '{band summary}', '{band notices}'),
+      button: 'Open Notably Better'
+    },
+    footer: () => null,
+    sample: {
+      'first name': 'Bert', 'made by': 'Sue Brown', band: 'Cobham Band',
+      'band summary': BAND_SUMMARY_WORDS, 'band notices': BAND_NOTICES_WORDS
+    }
   },
   password_reset: {
     group: 'members', name: 'Forgot your password',

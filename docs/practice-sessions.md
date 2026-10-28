@@ -312,7 +312,11 @@ Super admin only until switched on.
   their account.
 - **The band leader** is a permission an organiser gives one or more members (`band_members.is_band_leader`) -
   not every organiser. On the Members page it shows as "· Band leader" beside what they can do, for everyone in
-  the band to see, so a player knows who would see their summary.
+  the band to see, so a player knows who would see their summary. **They are told** (ML-648, 28 Oct 2026): a notice
+  in the app and an email ("Made a band leader", Admin → Email wording) saying what the summary is - anonymous, never
+  who, nothing until 3 have shared - and that players switch sharing on, if they want to, on the band's Members page:
+  information, never a request to get players to share. Taken away, a notice only. Not when an organiser changes it
+  for themselves.
 - **What the band leader sees** - on a band piece's ⋮ menu, **Band summary**: for the piece, the average Level
   and the lowest to highest; for each bar, the same, as a picture (a column per bar: the range in the Level
   colours, a line at the average) with the bars that need the most work written out under it. Made only from

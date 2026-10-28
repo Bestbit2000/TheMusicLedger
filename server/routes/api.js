@@ -1326,7 +1326,7 @@ const requireFeature = (...keys) => async (req, res, next) => {
 // a player switches their own "share my piece levels anonymously ... only to the band leader" on or off, for one band.
 router.put('/account/bands/:id/members/:memberId/band-leader', requireAuth, resolveAccount, requireFeature('band_levels_summary'), async (req, res) => {
   try {
-    await setBandLeader(req.accountId, req.params.id, req.params.memberId, (req.body || {}).on === true);
+    await setBandLeader(req.accountId, req.params.id, req.params.memberId, (req.body || {}).on === true, appUrl(req));
     res.json(await listBandMembers(req.accountId, req.params.id));
   } catch (error) {
     sendError(res, error);

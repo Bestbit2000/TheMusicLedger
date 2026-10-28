@@ -26,11 +26,12 @@ import { isBandLogoFileUrl, MAX_BAND_LOGO_BYTES, BAND_LOGO_TYPES } from './blobU
 import { storedFileFacts } from './storedFiles.js';
 import { sendMail, emailOutcome } from './mail.js';
 import { passwordLinkForNewcomer } from './passwordAuth.js';
-import { emailFor } from './emailWording.js';
+import { emailFor, nameOrThere } from './emailWording.js';
+import { BAND_SUMMARY_WORDS, BAND_NOTICES_WORDS } from './emailCatalogue.js';
 import { signInWaysOn, waysInWords } from './signInWays.js';
 import { isFeatureEnabled } from './features.js';
 import { appLink } from '../utils/appPath.js';
-import { noticeBandInvite, withdrawBandInviteNotice, noticeBandLevel, noticeBandRemoved } from './autoNotices.js'; // ML-497
+import { noticeBandInvite, withdrawBandInviteNotice, noticeBandLevel, noticeBandRemoved, noticeBandLeader } from './autoNotices.js'; // ML-497
 
 const fail = (status, message) => Object.assign(new Error(message), { status });
 
@@ -889,10 +890,36 @@ export async function setBandMemberLevel(accountId, bandId, memberAccountId, lev
 // ML-581: an organiser makes a member the band leader, or not - the one who sees the summary of the Levels players
 // chose to share on the band's pieces (bandLevelsSummary.js). There may be more than one; an organiser may make
 // themselves one.
-export async function setBandLeader(accountId, bandId, memberAccountId, on) {
+// ML-648: the member is told when it changes - a notice in the app, and, when they are made one, an email saying what
+// a band leader can do (not when an organiser changes it for themselves).
+export async function setBandLeader(accountId, bandId, memberAccountId, on, origin = '') {
   await assertAdultOrganiser(pool, accountId, bandId);
+  const before = (await pool.query('SELECT is_band_leader FROM band_members WHERE band_id = $1 AND account_id = $2', [bandId, memberAccountId])).rows[0];
   const { rowCount } = await pool.query('UPDATE band_members SET is_band_leader = $1 WHERE band_id = $2 AND account_id = $3', [!!on, bandId, memberAccountId]);
   if (!rowCount) throw fail(404, 'They are not in this band.');
+  if (!before || !!before.is_band_leader === !!on || Number(memberAccountId) === Number(accountId)) return;
+  await noticeBandLeader(bandId, memberAccountId, !!on, accountId);
+  if (on) await emailNewBandLeader(accountId, bandId, memberAccountId, origin);
+}
+// What a band leader can do, said only where it is switched on for them. With neither switched on there is no email.
+async function emailNewBandLeader(accountId, bandId, memberAccountId, origin) {
+  try {
+    const { rows: [r] } = await pool.query(
+      `SELECT g.name AS band_name, m.email, m.first_name, m.account_level, a.display_name, a.first_name AS by_first, a.surname AS by_surname
+         FROM bands g, accounts m, accounts a WHERE g.id = $1 AND m.id = $2 AND a.id = $3 AND m.deleted_at IS NULL`, [bandId, memberAccountId, accountId]);
+    if (!r) return;
+    const summary = await isFeatureEnabled('band_levels_summary', r.account_level);
+    const notices = await isFeatureEnabled('band_notices', r.account_level);
+    if (!summary && !notices) return;
+    const { subject, text, html } = await emailFor('band_leader_made', {
+      'first name': nameOrThere(r.first_name), 'made by': nameOf({ display_name: r.display_name, first_name: r.by_first, surname: r.by_surname }),
+      band: r.band_name, 'band summary': summary ? BAND_SUMMARY_WORDS : '', 'band notices': notices ? BAND_NOTICES_WORDS : '',
+      url: appLink(String(origin).replace(/\/+$/, ''))
+    });
+    await sendMail({ to: r.email, subject, text, html });
+  } catch (error) {
+    console.error('Band leader: the email was not sent:', error.message); // the change stands
+  }
 }
 
 // ML-581: a player's own say-so, per band - "I'm happy to share my piece levels anonymously at a summary level only
