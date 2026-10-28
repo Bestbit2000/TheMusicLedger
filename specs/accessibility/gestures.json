@@ -32,11 +32,6 @@
       "alternative": "see wireQpBarGrabHandle / wireFlowBlockGrabHandle"
     },
     {
-      "id": "wireFlowMediaSwipe",
-      "gesture": "swipe the recordings/documents carousel",
-      "alternative": "carousel dot buttons (.flow-media-dot)"
-    },
-    {
       "id": "wireFlowPauseSwipe",
       "gesture": "swipe a fermata/pause row left to reveal Delete",
       "alternative": "Fermata row ⋮ menu > Delete (flowFermataRowMenu)"

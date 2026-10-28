@@ -2135,17 +2135,11 @@
          edited in Blocks Studio, same "engine supports it, this screen just doesn't expose creating
          it" relationship sub-beats/speed/volume no longer have now that this follow-up adds them. -->
     <div id="flowPlayView" class="hidden-group">
-        <!-- ML-166: swipeable media carousel - Metronome (always first, existing markup unchanged
-             below) plus one slide per attached audio track/video link (built by JS from
-             currentFlowDetail.recordings, same split Edit Flow's own Media tab uses - see
-             renderFlowMediaCarousel). Dots + swipe chrome only ever render when there's more than
-             the one metronome slide - a media-less flow looks exactly like it always has. -->
+        <!-- ML-627: one card - the bar line and the cog, the recording being played along to (#flowAlongHost), the
+             beats - then the four buttons. It replaced ML-166's swipeable carousel of metronome and recordings. -->
         <!-- ML-239: .play-side (the tuner, where you are, the controls) and .play-main (the piece) sit side by
              side when there is room; on a phone they are not boxes at all. The mini tuner is moved into .play-side. -->
         <div class="play-side" id="flowPlaySide">
-        <div class="flow-media-dots hidden-group" id="flowMediaDots"></div>
-        <div class="flow-media-carousel-viewport" id="flowMediaViewport">
-            <div class="flow-media-carousel-track" id="flowMediaTrack">
                 <div class="flow-media-slide" data-slide-type="metronome">
                     <!-- ML-542: the big count-in, over the controls (never the music) - showCountIn in app.js -->
                     <div class="count-in-cover hidden-group" id="flowCountIn" aria-hidden="true"><div class="rest-ring"><svg class="rest-ring-svg" viewBox="0 0 120 120"><circle class="rest-ring-track" cx="60" cy="60" r="52"></circle><circle class="rest-ring-left" cx="60" cy="60" r="52" pathLength="100"></circle></svg><div class="rest-ring-num"><strong>4</strong><span>get ready</span></div></div></div>
@@ -2153,8 +2147,11 @@
                         <div class="metroBlk-row metroBlk-row-current">
                             <div class="metroBlk-row-head">
                                 <span class="metroBlk-row-label" id="flowPlayRowLabel"></span>
-                                <button type="button" class="metroBlk-row-volume-btn" id="flowVolumeBtn" aria-label="Volume - tap to change" aria-haspopup="dialog" aria-expanded="false"><span class="material-symbols-outlined">volume_mute</span></button>
+                                <!-- ML-627: what to see and hear - the metronome, its clicks, a recording to play along to, the volume -->
+                                <button type="button" class="metroBlk-row-volume-btn" id="flowSeeHearBtn" aria-label="What to see and hear" aria-haspopup="dialog" aria-expanded="false"><span class="material-symbols-outlined" aria-hidden="true">settings</span></button>
                             </div>
+                            <!-- ML-627: the recording or video being played along to (renderFlowAlong) -->
+                            <div class="hidden-group mb-2" id="flowAlongHost"></div>
                             <div class="metro-display-viewport" id="flowPlayRowViewport">
                                 <div class="metro-display-content" id="flowPlayRowContent">
                                     <div class="metro-tier" id="flowPlayRowDots"></div>
@@ -2163,36 +2160,25 @@
                         </div>
                     </div>
 
-                    <!-- ML-302: 5 controls, Play in the middle - where you are (reset, repeat) on the
-                         left, how it sounds (sub beats, speed) on the right. -->
-                    <div class="metro-transport-grid metro-transport-grid-5">
-                        <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="flowResetBtn" aria-label="Reset to start">
-                            <span class="material-symbols-outlined">restart_alt</span>
-                            <span class="metroBlk-ctrl-value-label">reset</span>
-                        </button>
+                    <!-- ML-627: four buttons, all the same size - the two settings (repeat, playback: the play speed and
+                         sub beats), then the two actions (reset, play). In a practice (flowSession, app.js) repeat gives
+                         way to Finish and the order is reset, playback, play, finish (ML-317/587 - renderFlowSessionControls). -->
+                    <div class="metro-transport-grid" id="flowTransport">
                         <button type="button" class="metroBlk-ctrl-value-btn" id="flowLoopBtn" aria-label="Repeat bars - off. Tap to set up" aria-haspopup="dialog" aria-expanded="false">
                             <strong id="flowLoopLbl">off</strong>
                             <span class="metroBlk-ctrl-value-label">repeat</span>
                         </button>
-                        <!-- ML-317: in a Levels practice (flowSession, app.js) Playback and Finish replace repeat, sub beats
-                             and play speed - the Level sets the speed and the loop, so you just play. ML-587: Playback is
-                             one button for the Level (or a Custom speed, ML-588), sub beats and the count-in, so a practice
-                             has 4 buttons here, not 5 (openFlowPlaybackModal). -->
-                        <button type="button" class="metroBlk-ctrl-value-btn hidden-group" id="flowPlaybackBtn" aria-haspopup="dialog" aria-label="Playback - Level 1 - tap to change">
-                            <strong id="flowPlaybackLbl">1</strong>
-                            <span class="metroBlk-ctrl-value-label" id="flowPlaybackSub">level</span>
+                        <button type="button" class="metroBlk-ctrl-value-btn" id="flowPlaybackBtn" aria-haspopup="dialog" aria-label="Playback - 100% speed - tap to change">
+                            <strong id="flowPlaybackLbl">100%</strong>
+                            <span class="metroBlk-ctrl-value-label" id="flowPlaybackSub">playback</span>
+                        </button>
+                        <button type="button" class="metro-play-grid-btn metro-play-grid-btn-reset" id="flowResetBtn" aria-label="Reset to start">
+                            <span class="material-symbols-outlined">restart_alt</span>
+                            <span class="metroBlk-ctrl-value-label">reset</span>
                         </button>
                         <button class="metro-play-grid-btn" id="flowPlayBtn" aria-label="Play - press and hold to reset to the start">
                             <span class="material-symbols-outlined" id="flowPlayIcon">play_arrow</span>
                             <span class="metroBlk-ctrl-value-label">play</span>
-                        </button>
-                        <button type="button" class="metroBlk-ctrl-value-btn" id="flowSubdivideBtn" aria-label="Sub beats - tap to change" aria-haspopup="dialog" aria-expanded="false">
-                            <strong id="flowSubdivideLbl">1</strong>
-                            <span class="metroBlk-ctrl-value-label" id="flowSubdivideUnitLbl">sub beats</span>
-                        </button>
-                        <button type="button" class="metroBlk-ctrl-value-btn" id="flowSpeedBtn" aria-label="Play speed - tap to change" aria-haspopup="dialog" aria-expanded="false">
-                            <strong id="flowSpeedLbl">100%</strong>
-                            <span class="metroBlk-ctrl-value-label">play speed</span>
                         </button>
                         <button type="button" class="metroBlk-ctrl-value-btn hidden-group" id="flowSessionFinishBtn" aria-label="Finish - say how it went" aria-haspopup="dialog" aria-expanded="false">
                             <span class="material-symbols-outlined" aria-hidden="true">flag</span>
@@ -2200,9 +2186,6 @@
                         </button>
                     </div>
                 </div>
-                <!-- Audio/video slides appended here by renderFlowMediaCarousel -->
-            </div>
-        </div>
 
         </div>
         <div class="play-main">
@@ -2216,6 +2199,9 @@
             <!-- position:relative wrapper anchors the dropdown under the button - same pattern as the
                  burger menu, needed because .section-title itself isn't positioned and
                  .dropdown-menu's top:100%/right:0 resolve against the nearest positioned ancestor. -->
+            <!-- ML-627: the piece's videos and recordings, as icons - it opens What to see and hear (renderFlowMediaHave) -->
+            <div class="flex-row gap-sm">
+            <button type="button" class="flow-media-have hidden-group" id="flowMediaHaveBtn" aria-haspopup="dialog" aria-label="Recordings to play along to"></button>
             <div class="pos-relative">
                 <button type="button" class="list-item-menu-btn" id="flowPlayMenuBtn" aria-label="Flow options" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
                 <div class="dropdown-menu align-edge" id="flowPlayMenu">
@@ -2229,6 +2215,7 @@
                     <!-- ML-510: the same Report as on the piece's menu in My music - a band's or a public piece Last on the menu. -->
                     <button type="button" class="dropdown-item hidden-group" id="flowPlayMenuReport" aria-haspopup="dialog"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">flag</span><span class="dropdown-item-text">Report</span></button>
                 </div>
+            </div>
             </div>
         </div>
         <!-- ML-209/ML-207: 1 / 2 / 4-column switch for the tiles below - same control and icons as the Bars
@@ -3908,8 +3895,12 @@
 <div class="modal" id="flowSubdivideModal" role="dialog" aria-modal="true" aria-labelledby="flowSubdivideModalTitle">
     <div class="modal-content">
         <button type="button" class="modal-close-x" data-act="hide-modal" data-arg="flowSubdivideModal" aria-label="Close">&times;</button>
-        <h2 id="flowSubdivideModalTitle">Sub beats</h2>
-        <div class="form-group no-margin">
+        <h2 id="flowSubdivideModalTitle">Playback</h2>
+        <!-- ML-627: the play speed and the sub beats in one pop-up, opened by the playback button. Every choice applies
+             straight away, as the speed boxes always did - so Done, not Cancel and Save. -->
+        <h3 class="warmups-settings-head mt-0" id="flowPlaybackSpeedHead">Play speed</h3>
+        <div class="metroBlk-speed-options" id="flowSpeedOptions" role="group" aria-labelledby="flowPlaybackSpeedHead"></div>
+        <div class="form-group no-margin mt-4">
             <label>Use sub beats</label>
             <div class="radio-group compact">
                 <input type="radio" name="flowSubdivideOnOff" id="flowSubdivideOff" value="off" checked>
@@ -3938,10 +3929,7 @@
                 <div class="slider-scale"><span>2</span><span id="flowSubdivideSliderMaxLbl">16</span></div>
             </div>
         </div>
-        <div class="flex-row gap-sm mt-5">
-            <button class="btn-cancel btn-nav no-margin" id="flowSubdivideCancelBtn">Cancel</button>
-            <button class="btn-submit no-margin" id="flowSubdivideSaveBtn">Save</button>
-        </div>
+        <button type="button" class="btn-submit mt-5" id="flowSubdivideDoneBtn" data-act="hide-modal" data-arg="flowSubdivideModal">Done</button>
     </div>
 </div>
 
@@ -4320,19 +4308,21 @@
     </div>
 </div>
 
-<div class="modal" id="flowSpeedModal" role="dialog" aria-modal="true" aria-labelledby="flowSpeedModalTitle">
+<!-- ML-627: the cog on the play screen's card. See and hear the metronome each on its own; play along to one of the
+     piece's recordings (a switch, then the list when there is more than one; a line when there is none); the
+     volume last - for everything on the screen, the clicks and the recording together. With nothing to play along
+     to, the last of see / hear still on is locked on, so the screen is never empty (renderFlowSeeHear, app.js). -->
+<div class="modal" id="flowSeeHearModal" role="dialog" aria-modal="true" aria-labelledby="flowSeeHearTitle">
     <div class="modal-content">
-        <button type="button" class="modal-close-x" data-act="hide-modal" data-arg="flowSpeedModal" aria-label="Close">&times;</button>
-        <h2 id="flowSpeedModalTitle">Play speed</h2>
-        <p class="metro-help-text">Tap a speed to apply it straight away.</p>
-        <div class="metroBlk-speed-options" id="flowSpeedOptions"></div>
-    </div>
-</div>
-
-<div class="modal" id="flowVolumeModal" role="dialog" aria-modal="true" aria-labelledby="flowVolumeModalTitle">
-    <div class="modal-content">
-        <button type="button" class="modal-close-x" id="flowVolumeCloseBtn" aria-label="Close">&times;</button>
-        <h2 id="flowVolumeModalTitle">Volume</h2>
+        <button type="button" class="modal-close-x" data-act="hide-modal" data-arg="flowSeeHearModal" aria-label="Close">&times;</button>
+        <h2 id="flowSeeHearTitle">What to see and hear</h2>
+        <h3 class="warmups-settings-head mt-0">Metronome</h3>
+        <div class="display-toggle-row warmups-settings-row"><span id="flowSeeMetroLbl">See the metronome<span class="display-toggle-help" id="flowSeeMetroHelp">The beats, the pauses and the bar</span></span><label class="toggle-switch"><input type="checkbox" id="flowSeeMetro" aria-labelledby="flowSeeMetroLbl" checked><span class="toggle-slider"></span></label></div>
+        <div class="display-toggle-row warmups-settings-row"><span id="flowHearClicksLbl">Hear the clicks<span class="display-toggle-help" id="flowHearClicksHelp">On their own, or with the recording</span></span><label class="toggle-switch"><input type="checkbox" id="flowHearClicks" aria-labelledby="flowHearClicksLbl" checked><span class="toggle-slider"></span></label></div>
+        <h3 class="warmups-settings-head">Recordings</h3>
+        <div id="flowAlongSection"></div>
+        <h3 class="warmups-settings-head">Volume</h3>
+        <p class="metro-help-text" id="flowVolumeHelp">The clicks and the recording together.</p>
         <div class="metro-speed-row no-margin">
             <button class="metro-bpm-step" id="flowVolumeMinus" type="button" aria-label="Decrease volume">&minus;</button>
             <div class="metro-speed-readout">

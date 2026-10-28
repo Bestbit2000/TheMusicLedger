@@ -3,7 +3,7 @@
 **Made by `node scripts/usage-buttons.mjs` - don't edit it by hand.** What counts as a use, and how a tap is
 counted, is in [usage-stats.md](usage-stats.md) ("Every button").
 
-890 buttons: 890 have a name a tap can be counted by, 0 need one.
+885 buttons: 885 have a name a tap can be counted by, 0 need one.
 A button on a screen is listed under the screen or pop-up it is on; one the app builds as it goes, under
 the function that builds it (shown with ()). The words are only to help find it - a tap is never counted by
 its words.
@@ -20,7 +20,7 @@ its words.
 | Theory | 25 | 0 |
 | Skills: Tempo, Pulse, Pitch, Rhythm | 38 | 0 |
 | Range | 14 | 0 |
-| Pieces: Rehearse, play, edit | 268 | 0 |
+| Pieces: Rehearse, play, edit | 263 | 0 |
 | Add a piece | 7 | 0 |
 | Recordings | 6 | 0 |
 | Practice lists | 16 | 0 |
@@ -456,14 +456,13 @@ its words.
 | flowDetailsHubView | `#flowEditStickyActionBtn` | Add bars |
 | flowDetailsHubView | `#flowEditCancelBtn` | Cancel |
 | flowDetailsHubView | `#flowEditSaveBtn` | Save |
-| flowPlayView | `#flowVolumeBtn` | Volume - tap to change |
-| flowPlayView | `#flowResetBtn` | reset |
+| flowPlayView | `#flowSeeHearBtn` | What to see and hear |
 | flowPlayView | `#flowLoopBtn` | off repeat |
-| flowPlayView | `#flowPlaybackBtn` | 1 level |
+| flowPlayView | `#flowPlaybackBtn` | 100% playback |
+| flowPlayView | `#flowResetBtn` | reset |
 | flowPlayView | `#flowPlayBtn` | play |
-| flowPlayView | `#flowSubdivideBtn` | 1 sub beats |
-| flowPlayView | `#flowSpeedBtn` | 100% play speed |
 | flowPlayView | `#flowSessionFinishBtn` | finish |
+| flowPlayView | `#flowMediaHaveBtn` |  |
 | flowPlayView | `#flowPlayMenuBtn` | Flow options |
 | flowPlayView | `#flowPlayMenuEditDetails` | Edit details |
 | flowPlayView | `#flowPlayMenuEditFlow` | Edit bars |
@@ -551,8 +550,7 @@ its words.
 | flowSubdivideModal | `hide-modal(flowSubdivideModal)` | Close |
 | flowSubdivideModal | `#flowSubdivideMinus` | Decrease sub beats |
 | flowSubdivideModal | `#flowSubdividePlus` | + |
-| flowSubdivideModal | `#flowSubdivideCancelBtn` | Cancel |
-| flowSubdivideModal | `#flowSubdivideSaveBtn` | Save |
+| flowSubdivideModal | `#flowSubdivideDoneBtn` | Done |
 | flowBulkDeleteModal | `close (X)` | Close |
 | flowBulkDeleteModal | `#flowBulkDeleteDoneBtn` | Delete |
 | flowBulkArchiveModal | `close (X)` | Close |
@@ -560,11 +558,10 @@ its words.
 | outlineExtraModal | `close (X)` | Close |
 | outlineExtraModal | `#outlineExtraSaveBtn` | Add it |
 | outlineExtraModal | `#outlineExtraRemoveBtn` | Remove this extra |
-| flowSpeedModal | `hide-modal(flowSpeedModal)` | Close |
-| flowVolumeModal | `#flowVolumeCloseBtn` | Close |
-| flowVolumeModal | `#flowVolumeMinus` | Decrease volume |
-| flowVolumeModal | `#flowVolumePlus` | + |
-| flowVolumeModal | `#flowMuteBtn` | Mute |
+| flowSeeHearModal | `hide-modal(flowSeeHearModal)` | Close |
+| flowSeeHearModal | `#flowVolumeMinus` | Decrease volume |
+| flowSeeHearModal | `#flowVolumePlus` | + |
+| flowSeeHearModal | `#flowMuteBtn` | Mute |
 | metroBlkMiniTunerInstrumentModal | `hide-modal(metroBlkMiniTunerInstrumentModal)` | Close |
 | metroSegNoteModal | `hide-modal(metroSegNoteModal)` | Close |
 | flowBarStartModal | `hide-modal(flowBarStartModal)` | Close |
@@ -653,12 +650,10 @@ its words.
 | renderFlowRampList() | `data-ramp-menu` | Ramp options |
 | renderFlowRampAddSection() | `data-ramp-target` |  |
 | flowShowCheckReview() | `data-check-block` |  |
-| recScoreControlsHtml() | `rec-loop` | off repeat |
-| recScoreControlsHtml() | `rec-play` | play |
-| recScoreControlsHtml() | `rec-speed` | 100% play speed |
 | renderBarMapModal() | `barmap-play` | Play |
 | renderBarMapModal() | `barmap-remove` | Remove |
-| renderFlowMediaDots() | `data-slide-index` |  |
+| renderFlowSeeHear() | `#flowAlongAddBtn` | Add a recording or video |
+| renderFlowSeeHear() | `data-along-rec` |  |
 | renderFlowLoopModal() | `data-rest` |  |
 | loadFlowPlaybackSpeeds() | `data-value` | …% |
 | renderMetroSegTimeSigPicker() | `data-value` |  |

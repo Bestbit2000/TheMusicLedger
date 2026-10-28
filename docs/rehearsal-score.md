@@ -54,30 +54,72 @@ and the file uploaded. The privacy policy's line that microphone sound is never 
 
 ## C: the bars mapped onto a recording (ML-488)
 
-### On the play screen
+### On the play screen: playing along (ML-627)
 
-A recording's or video's slide has three value boxes under the player and a line saying which bar it is on:
+Designed with the owner on 28 Oct 2026 (Claude Design canvas "Play flow: clicks with the video"). Until then the
+play screen was a swipeable carousel (ML-166): the metronome and each recording were slides, with a row of icons
+above them, and only one could play at a time. Members wanted the clicks and the recording together, so:
 
-- **repeat** - the piece's own repeat-bars setting, the one the metronome uses (ML-302). It opens the same
-  pop-up. With it on, the recording plays those bars and goes round again.
-- **play speed** - at the same pitch, from the app's one list of play speeds (Admin → Playback speeds, ML-596).
-  **It is the metronome's play speed** (ML-599): one speed for the visit, as repeat is one - change it on either
-  and the other follows. An upload plays at any speed on the list. A YouTube video only plays at its own speeds
-  (what `getAvailablePlaybackRates` says - usually 25% to 200% in 25s), so it offers the list's speeds it can play
-  and plays the nearest of them: 70% on the metronome is 75% on a video, and the metronome stays at 70%
-  (`recSpeedsFor` / `recSpeedOf`). In a practice, choosing a speed here is a Custom speed for that go (ML-588).
-- **No "bars marked" here (ML-597, owner 23 Oct 2026).** Marking the bars, and matching the piece's speeds to them,
-  is set up on the piece's **Edit → Media** tab only - it isn't changed while playing, and it was unclear whether marks
-  made here were saved on the piece (and so for everyone in a band). See "Marking" below.
-- **How long it takes (ML-598)** - a line under the boxes: the stretch the recording is in (between the start mark,
-  bar marks and the end mark) - its length on the recording against at the piece's speeds, and how much slower or
-  faster (`recStretchText`).
-- **In a practice (ML-587)** the slide gets its own **Play** - the practice's count-in, then the practised bars - and
-  its repeat is the practice's bars, shown but not changed.
-- Tapping a **bar tile** while a recording's slide is showing starts the recording at that bar.
-- **The bar tiles light up** for where the recording is, as they do for the metronome (the owner, 8 Oct
-  2026): `flowActiveTileBlockId` is where a recording is when its slide is showing and it has been played,
-  otherwise where the metronome is.
+- **The card** holds the bar line, the recording or video being played along to (`#flowAlongHost`, under the bar
+  line) and the beat dots, full size with room for the pauses above them. A video stays in full view and
+  uncovered - YouTube's terms - so it is never shrunk to a strip or covered by the dots.
+- **Four buttons, all the same size: repeat | playback | reset | play** - the two settings, then the two actions.
+  They work for the recording as for the metronome; the recording has no boxes of its own any more.
+  - **repeat** - the piece's own repeat-bars setting (ML-302). With it on, the recording plays those bars and goes
+    round again; the clicks join it at the start each time.
+  - **playback** shows the play speed; its pop-up (`#flowSubdivideModal`, "Playback") has the speeds as boxes - the
+    app's one list (Admin → Playback speeds, ML-596) - and today's sub beats controls (Off / Auto / Fixed and the
+    − 2 + card). Every choice applies straight away, so it has Done, not Cancel and Save. **It is the recording's
+    play speed too** (ML-599), at the same pitch: an upload plays at any speed on the list; a YouTube video only at
+    its own speeds (`getAvailablePlaybackRates` - usually 25% to 200% in 25s), so it plays the nearest of them -
+    70% is 75% on a video, and the clicks follow the video. In a practice the button is the practice's own Playback
+    (the Level or a Custom speed, sub beats, the count-in - ML-587/588) and the buttons are reset, playback, play,
+    finish.
+  - **reset** takes the recording back to the first bar (the repeat's first, when repeating) as well.
+  - **play** starts the recording where the metronome is (the repeat's start when repeating); the clicks join it
+    once it is playing. In a practice the practice's count-in comes first (ML-587). Pause stops both.
+- **The cog** at the top right of the card (where the speaker used to be) opens **What to see and hear**
+  (`#flowSeeHearModal`):
+  - **See the metronome** and **Hear the clicks**, each on its own - hear it and not see it, or the other way round.
+  - **Recordings** - "Play along to the video / recording" (a switch, with its name) when the piece has one; "Play
+    along to a recording" and then the list when it has more than one; "No recordings or videos for this piece" when
+    it has none, with **Add a recording or video** (to the piece's Edit → Media tab) for whoever can change the piece.
+  - **Volume**, last - today's volume controls, for everything on the screen: the clicks and the recording together.
+    Mute mutes both. "Hear the clicks" is the clicks alone.
+  - **Never an empty screen**: with nothing playing along, the last of See / Hear still on is locked on (greyed,
+    with "Stays on while there's nothing to hear / see"). With a recording playing along both may be off. Switching
+    play-along off with both off turns See the metronome back on.
+- **What the piece has** - its videos and recordings as icons ("×2" for more than one) on a button next to its
+  details (`.flow-media-have`); it opens the same pop-up. No dot and no one-off message (the owner).
+- **Each member's choices are remembered per piece** - see, hear, play along and which recording - in
+  `piece_play_settings` (the server, so they follow to other devices; `PUT /api/flows/:id/play-settings`, private to
+  the member) and in `tml.pieceView` on the device (offline - the write is a quiet one, `public/offline.js`; the
+  newer of the two wins). **No choice yet: the metronome seen and heard, and the piece's first YouTube video playing
+  along when it has one** (the owner, 28 Oct 2026) - that is what shows people a piece has a video. A remembered
+  recording that has gone (or isn't offered for the movement chosen) falls back to that video. The volume is not kept.
+
+**How the clicks follow the recording** (`alongJoin` / `alongOnBeat`, app.js). The recording leads. The clicks join
+it at its next beat: the place it is at on the map (`FlowJourney.recordingMap`), the click in that bar, and a start
+after exactly the wait that lands that click on time (the player's own leading silence). Each bar plays at the speed
+the recording takes it - the piece's speed for the bar times how long the bar should last over how long it lasts on
+the recording - so between two marks the clicks keep pace by themselves. At each bar's first click the screen works
+out where the recording was when that click sounded; further out than 70 ms for an upload or 140 ms for a video,
+twice running (or 400 ms once), the clicks join it again. A rest bar or the lead-in - the recording has neither -
+joins again straight away. YouTube only reports its time every so often, so between reports the time is carried on
+by the clock (`ytSmoothMs`). The clicks and the recording come out of the same speakers, so the headphone delay
+(Settings) needs no correction between them. **The clicks only follow a recording whose bars are set up** - a start
+mark or at least one marked bar (`alongMapped`); otherwise it plays without them, the pop-up says so, and the bar line
+follows the recording instead. Nothing listens to the sound.
+
+Unchanged from ML-488:
+
+- **No "bars marked" on the play screen (ML-597, owner 23 Oct 2026).** Marking the bars, and matching the piece's
+  speeds to them, is set up on the piece's **Edit → Media** tab only. See "Marking" below.
+- **Gone from the play screen with ML-627:** the line saying which bar the recording is on (the bar line says it) and
+  the "how long it takes" line (ML-598) - the stretches are still shown when marking on the Media tab.
+- Tapping a **bar tile** while playing along starts the recording at that bar, and the clicks join it there.
+- **The bar tiles light up** for where the recording is while it plays (`flowActiveTileBlockId`), otherwise where the
+  metronome is.
 - **The playing tile is kept at the top** - for a recording and for the metronome alike. Where you are and
   the controls (`.play-side`) stay pinned under the top bar, on a phone as on a wide screen (not on a screen
   under 600px tall), and when the lit tile changes while something is playing the tiles scroll so its row

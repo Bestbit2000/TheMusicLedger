@@ -65,9 +65,6 @@
         'clip-clear': () => clipClear(),
         'clip-save': () => saveClipModal(),
         // ML-488: the rehearsal score
-        'rec-loop': () => openFlowLoopModal(),
-        'rec-speed': () => openRecSpeedChoice(),
-        'rec-play': () => recPlayInPractice(), // ML-587
         'rec-map': (el) => openBarMapModal(actArg(el)),
         'barmap-close': () => closeBarMapModal(),
         'barmap-step': (el) => barMapStep(Number(actArg(el))),
@@ -521,6 +518,7 @@
             setArchivedMany: (items, archived) => apiCall('/api/flows/archive', 'PUT', { items, archived }), // ML-570: [{ id, forAll }]
             create: (data) => apiCall('/api/flows', 'POST', data),
             get: (id) => apiCall(`/api/flows/${id}`),
+            setPlaySettings: (id, settings) => apiCall(`/api/flows/${id}/play-settings`, 'PUT', settings), // ML-627
             update: (id, data) => apiCall(`/api/flows/${id}`, 'PUT', data),
             moveToBand: (id, bandId) => apiCall(`/api/flows/${id}/move-to-band`, 'PUT', { bandId }),
             removeFromBand: (id) => apiCall(`/api/flows/${id}/remove-from-band`, 'PUT'),
@@ -2659,10 +2657,11 @@
             // same "don't trust it's still current" caution as elsewhere.
             buildFlowPlayQueue();
             renderFlowPlaybackRow();
-            // Same freshness reasoning as buildFlowPlayQueue above, for the media carousel
-            // (ML-166) - currentFlowDetail.recordings was just re-fetched too.
+            // Same freshness reasoning as buildFlowPlayQueue above, for the recordings - currentFlowDetail was just
+            // re-fetched too. ML-627: what this member sees and hears on the piece, then the card to match.
             buildFlowMediaSlides();
-            renderFlowMediaCarousel();
+            flowLoadViewForPiece();
+            renderFlowAlong();
             renderFlowSessionControls(); // ML-317: Level / Level up / Finish while practising, else the usual tiles
         }
         // The mini tuner widget is a single shared element (one mic session, one renderer - see
@@ -8209,11 +8208,13 @@
     function renderFlowSessionControls() {
         const s = flowSession;
         renderFlowMovementButton(); // ML-530: a practice has its own bars - no Movement box
-        // ML-587: in a practice, Playback (Level or speed, sub beats, count-in) takes the place of repeat, sub beats and
-        // play speed - 4 buttons, on the plain 4-across grid
-        ['flowLoopBtn', 'flowSpeedBtn', 'flowSubdivideBtn'].forEach(id => setShown(id, !s));
-        ['flowPlaybackBtn', 'flowSessionFinishBtn'].forEach(id => setShown(id, !!s));
-        document.getElementById('flowPlayBtn')?.parentElement.classList.toggle('metro-transport-grid-5', !s);
+        // ML-587: in a practice, Playback (Level or speed, sub beats, count-in) and Finish - the practice sets the bars.
+        // ML-627: four buttons either way - repeat, playback, reset, play; in a practice reset, playback, play, finish.
+        setShown('flowLoopBtn', !s);
+        setShown('flowSessionFinishBtn', !!s);
+        const grid = document.getElementById('flowTransport');
+        const reset = document.getElementById('flowResetBtn');
+        if (grid && reset) grid.insertBefore(reset, document.getElementById(s ? 'flowPlaybackBtn' : 'flowPlayBtn'));
         renderFlowSubdivideLabel();
         if (!s) return;
         const word = levelWord(s.level).toLowerCase();
@@ -8349,7 +8350,7 @@
         box.querySelectorAll('[data-pb-count]').forEach(b => b.addEventListener('click', () => setCount(b.dataset.pbCount)));
     }
     function openFlowPlaybackModal() {
-        if (!flowSession) return;
+        if (!flowSession) { openFlowPlaybackNormal(); return; } // ML-627: the play speed and the sub beats
         document.getElementById('flowChoiceTitle').innerText = 'Playback';
         const inlineExtra = document.getElementById('flowChoiceInlineExtra');
         inlineExtra.classList.add('hidden-group');
@@ -16016,14 +16017,15 @@
         return metroBlkBeatsPerBarFor(b) * flowPassageSubFactor(p, b);
     }
     // The player settings for passage `index`, optionally starting part-way in (from bar
-    // `startBarInPassage`, used when sub-beats change mid-play).
-    function flowPassageConfig(index, startBarInPassage = 0) {
+    // `startBarInPassage`, used when sub-beats change mid-play; ML-627: and click `clickInBar` of
+    // it, when the clicks join a recording at its next beat).
+    function flowPassageConfig(index, startBarInPassage = 0, clickInBar = 0) {
         const p = flowPlayQueue[index];
         const b = flowPassageBlock(p);
         const sub = flowPassageSubFactor(p, b);
         const cpb = flowClicksPerBar(p);
         const bars = p.toBar - p.fromBar + 1;
-        const startClick = startBarInPassage * cpb;
+        const startClick = startBarInPassage * cpb + clickInBar;
         const boundaryClicks = bars * cpb;
         const fermatas = [];
         const gaps = new Map();
@@ -16071,10 +16073,10 @@
         return flowSchedIndex < flowPlayQueue.length ? flowPassageConfig(flowSchedIndex) : null;
     }
     // Puts both the scheduler and the screen at passage `index` (bar `startBarInPassage` of it).
-    function flowStartSequenceAt(index, startBarInPassage = 0) {
+    function flowStartSequenceAt(index, startBarInPassage = 0, clickInBar = 0) {
         if (!flowPlayQueue.length) return;
         flowPlayIndex = flowSchedIndex = index;
-        const cfg = flowPassageConfig(index, startBarInPassage);
+        const cfg = flowPassageConfig(index, startBarInPassage, clickInBar);
         flowPosClick = cfg.startClick - 1;
         flowCurrentBpm = cfg.bpm;
         flowPlayer.setSequence(cfg, flowNextPassageConfig);
@@ -16181,6 +16183,8 @@
         // ML-390: a Prepare run-through that has reached the end goes on to painting the bars.
         if (beatInfo.ended && flowSession && flowSession.mode === 'runthrough') { flowPlayer.stop(); updateFlowPlayIcon(); jumpFlowToStart(); runThroughDone(); return; }
         if (beatInfo.ended) window.Usage?.finish('rehearse'); // ML-22: played to the end
+        // ML-627: playing along, the clicks have reached the piece's end - the recording plays on to its own end
+        if (beatInfo.ended && recActiveSlide() && alongRecPlaying()) { flowPlayer.pause(); flowPlayer.setSpeedPercent(flowSpeedPercent); updateFlowPlayIcon(); return; }
         if (beatInfo.ended) {
             // ML-250: the end of the piece - stop and go back to the start, ready to play again.
             flowPlayer.stop();
@@ -16200,6 +16204,7 @@
         flowCurrentBpm = beatInfo.bpm;
         const pos = flowScreenPosition();
         if (!pos) return;
+        if (recActiveSlide() && alongRecPlaying() && alongOnBeat(beatInfo)) return; // ML-627: joined the recording again
         const block = flowPassageBlock(pos.p);
         const subFactor = flowPassageSubFactor(pos.p, block);
         // ML-542: the count-in (the rest bars before the first go - not the gap bars between goes) counts down big.
@@ -16238,23 +16243,17 @@
     flowPlayer.onBeat(onFlowBeat);
 
     // ========================================
-    // ML-166: swipeable media carousel (Metronome + one slide per attached audio track/video
-    // link). Slide 0 is always the metronome (the view's own always-present markup, app.html) -
-    // audio/video slides are built fresh from currentFlowDetail.recordings every time Play Flow
-    // loads (buildFlowMediaSlides, called from switchView's flowPlayView case, same "don't trust
-    // it's stale" reasoning as buildFlowPlayQueue). Dots + swipe chrome only ever render when
-    // there's more than the one metronome slide (renderFlowMediaDots) - a media-less flow looks
-    // exactly like it always has.
+    // ML-627: playing along. The play screen's card holds the bar line, the recording or video being played along
+    // to (when there is one) and the beat dots; the cog on the card opens What to see and hear: see the metronome,
+    // hear its clicks (each on its own), play along to one of the piece's recordings, and the volume. While a
+    // recording plays the clicks follow it - they join it at its next beat, from where its bars are marked
+    // (FlowJourney.recordingMap), and keep to it (alongJoin / alongOnBeat below). Each member's choices are kept per
+    // piece (piece_play_settings, and a copy on this device). It replaced ML-166's swipeable carousel, where the
+    // metronome and each recording were slides and only one could play. docs/rehearsal-score.md, "Playing along".
     // ========================================
-    let flowMediaSlides = [{ type: 'metronome' }];
-    let flowMediaActiveIndex = 0;
-    let flowYtPlayers = {}; // recording id -> YT.Player, video slides only
+    let flowMediaSlides = []; // the piece's recordings, audio first, then videos: { type: 'audio' | 'video', data }
+    let flowYtPlayers = {}; // recording id -> YT.Player (the one being played along to)
     let flowYtApiPromise = null;
-
-    // Same path data as the Home screen's own "Metronome" tool icon (public/icons/quick-play.svg) -
-    // used instead of a generic Material Symbol wherever this carousel represents the metronome
-    // slide (the dots row, and the decorative wrap-around preview below).
-    const FLOW_METRONOME_ICON_SVG = '<svg viewBox="0 0 883 1025" preserveAspectRatio="xMidYMid meet" aria-hidden="true" fill="currentColor"><g transform="translate(-2956 -1363)"><path d="M3299.02 1831.86 3528.57 1965.12 3299.02 2098.38ZM3329.89 1454.01 3064.12 2264.42 3731.24 2264.42 3465.47 1454.01ZM3297.05 1363 3499.94 1363C3518.77 1363 3534.93 1374.46 3541.83 1390.79L3544.05 1401.79 3839 2301.17 3837.74 2301.58 3839 2309.93C3839 2328.77 3827.55 2344.95 3811.23 2351.86L3795.05 2355.12 3795.05 2355.43 3793.53 2355.43 3793.53 2355.43 3793.53 2355.43 3702.53 2355.43 3701.57 2360.21C3694.67 2376.54 3678.51 2388 3659.68 2388 3640.84 2388 3624.68 2376.54 3617.78 2360.21L3616.82 2355.43 3186.33 2355.43 3185.37 2360.21C3178.47 2376.54 3162.31 2388 3143.47 2388 3124.64 2388 3108.48 2376.54 3101.58 2360.21L3100.62 2355.43 3008.1 2355.43 3008.1 2354.09 3001.47 2355.43C2976.36 2355.43 2956 2335.06 2956 2309.93L2957.68 2301.6 2956.37 2301.17 3254.77 1391.26 3255.04 1391.35 3255.16 1390.79C3262.06 1374.46 3278.22 1363 3297.05 1363Z" fill-rule="evenodd"/></g></svg>';
 
     function buildFlowMediaSlides() {
         Object.values(flowYtPlayers).forEach(player => { try { player.destroy(); } catch (error) { /* already gone */ } });
@@ -16265,16 +16264,52 @@
         const audioTracks = recordings.filter(r => r.type !== 'youtube');
         const videoLinks = recordings.filter(r => r.type === 'youtube');
         flowMediaSlides = [
-            { type: 'metronome' },
             ...audioTracks.map(r => ({ type: 'audio', data: r })),
             ...videoLinks.map(r => ({ type: 'video', data: r }))
         ];
-        flowMediaActiveIndex = 0;
         recTileBlockId = null; // ML-488: a new piece, or the play screen opened again - no recording has been played yet
     }
 
     function flowMediaSlideKey(slide) {
-        return slide.type === 'metronome' ? 'metronome' : `${slide.type}-${slide.data.id}`;
+        return `${slide.type}-${slide.data.id}`;
+    }
+
+    // What this member sees and hears on the open piece. No row on the server and nothing on this device: the
+    // metronome seen and heard, and the piece's first YouTube video playing along when it has one (the owner, 28 Oct
+    // 2026). A remembered recording that has gone - or isn't offered for the movement chosen - falls back to that video.
+    const FLOW_VIEW_KEY = 'tml.pieceView';
+    let flowView = { see: true, hear: true, along: false, recordingId: null };
+    function flowViewDefaults() {
+        const video = flowMediaSlides.find(s => s.type === 'video');
+        return { see: true, hear: true, along: !!video, recordingId: video ? video.data.id : null };
+    }
+    // Never an empty screen: with nothing playing along, the metronome is seen, heard, or both
+    function flowViewTidy(v) {
+        if (!(v.along && flowMediaSlides.some(s => String(s.data.id) === String(v.recordingId))) && !v.see && !v.hear) v.see = true;
+        return v;
+    }
+    function flowLoadViewForPiece() {
+        let local = null;
+        try { local = JSON.parse(localStorage.getItem(FLOW_VIEW_KEY) || '{}')[flowLoopPieceKey()] || null; } catch (e) { local = null; }
+        const server = currentFlowDetail ? currentFlowDetail.myPlaySettings : null;
+        const kept = !server ? local : !local ? server : (Date.parse(local.updatedAt) > Date.parse(server.updatedAt) ? local : server);
+        const v = { ...flowViewDefaults(), ...(kept ? { see: kept.see !== false, hear: kept.hear !== false, along: !!kept.along, recordingId: kept.recordingId ?? null } : {}) };
+        if (!flowMediaSlides.some(s => String(s.data.id) === String(v.recordingId))) {
+            const fallback = flowViewDefaults().recordingId ?? (flowMediaSlides[0] ? flowMediaSlides[0].data.id : null);
+            v.recordingId = fallback;
+            if (fallback === null) v.along = false;
+        }
+        flowView = flowViewTidy(v);
+    }
+    function flowSaveView() {
+        const v = { see: flowView.see, hear: flowView.hear, along: flowView.along, recordingId: flowView.recordingId, updatedAt: new Date().toISOString() };
+        try {
+            const all = JSON.parse(localStorage.getItem(FLOW_VIEW_KEY) || '{}');
+            all[flowLoopPieceKey()] = v;
+            localStorage.setItem(FLOW_VIEW_KEY, JSON.stringify(all));
+        } catch (e) { /* kept on the server alone - fine */ }
+        const id = currentFlowDetail ? currentFlowDetail.id : currentFlowId;
+        if (id) API.flows.setPlaySettings(id, v).catch(() => { /* offline: this device's copy stands until the next change */ });
     }
 
     // Loads the YouTube IFrame API script exactly once, only when a flow actually has a video
@@ -16300,109 +16335,47 @@
         return flowYtApiPromise;
     }
 
+    // The recording being played along to, in the card under the bar line. A video stays in full view and uncovered
+    // (YouTube's terms); the practice count-in ring (ML-587) covers it only while counting in.
     function flowMediaSlideHtml(slide) {
+        const r = slide.data;
         if (slide.type === 'audio') {
-            const r = slide.data;
             return `
-                <div class="flow-media-slide" data-slide-key="${flowMediaSlideKey(slide)}">
+                <div class="pos-relative" data-slide-key="${flowMediaSlideKey(slide)}">
                     ${recCountInCoverHtml(slide)}
-                    <div class="metroBlk-row">
-                        <div class="flow-media-slide-header">
-                            <span class="flow-media-icon type-audio"><span class="material-symbols-outlined icon-md">music_note</span></span>
-                            <div><strong>${escapeHtml(r.title)}</strong><span>${escapeHtml(recMovement(r) ? FlowJourney.movementLabel(recMovement(r), true) : (r.mimeType || 'Audio file'))}</span></div>
-                        </div>
-                        <audio class="flow-media-player-audio" controls preload="metadata" src="${escapeHtml(r.blobUrl)}" data-flow-media-key="${flowMediaSlideKey(slide)}"></audio>
-                        ${recScoreControlsHtml(slide)}
-                    </div>
-                </div>
-            `;
-        }
-        if (slide.type === 'video') {
-            const r = slide.data;
-            const origin = encodeURIComponent(location.origin);
-            return `
-                <div class="flow-media-slide" data-slide-key="${flowMediaSlideKey(slide)}">
-                    ${recCountInCoverHtml(slide)}
-                    <div class="metroBlk-row">
-                        <!-- No icon, title or "YouTube video" line above it (the owner, 12 Oct 2026): the video shows its own title, and the room is for the bars -->
-                        <div class="flow-media-player-video"><iframe id="flowYtFrame-${r.id}" src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(r.youtubeVideoId)}?enablejsapi=1&amp;origin=${origin}${youTubeClipQuery(recordingClip(r), "&amp;")}" title="${escapeHtml(r.title)}" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
-                        ${recScoreControlsHtml(slide)}
-                    </div>
-                </div>
-            `;
-        }
-        return '';
-    }
-
-    // Non-interactive stand-in for a slide (header only - icon/title/subtitle, no player) used to
-    // pad either end of the track so wrap-around swiping has something to animate into. Deliberately
-    // not a clone of the real slide's DOM: the real metronome slide's transport controls and a real
-    // video slide's YT iframe both rely on singular ids (flowPlayBtn, flowYtFrame-<id>, ...) that a
-    // true clone would duplicate. These previews are only ever on screen for the tail end of a single
-    // swipe gesture before goToFlowMediaSlide snaps the track back onto the real slide in its place.
-    function flowMediaSlidePreviewHtml(slide) {
-        let iconHtml, title, subtitle;
-        if (slide.type === 'metronome') {
-            iconHtml = `<span class="flow-media-icon type-metronome">${FLOW_METRONOME_ICON_SVG}</span>`;
-            title = 'Metronome';
-            subtitle = '';
-        } else {
-            const r = slide.data;
-            iconHtml = slide.type === 'audio'
-                ? '<span class="flow-media-icon type-audio"><span class="material-symbols-outlined icon-md">music_note</span></span>'
-                : '<span class="flow-media-icon type-youtube"><span class="material-symbols-outlined icon-md">smart_display</span></span>';
-            title = r.title;
-            subtitle = slide.type === 'audio' ? (recMovement(r) ? FlowJourney.movementLabel(recMovement(r), true) : (r.mimeType || 'Audio file')) : 'YouTube video'; // ML-531
-        }
-        return `
-            <div class="flow-media-slide flow-media-slide-preview" data-clone="true" aria-hidden="true">
-                <div class="metroBlk-row">
                     <div class="flow-media-slide-header">
-                        ${iconHtml}
-                        <div><strong>${escapeHtml(title)}</strong>${subtitle ? `<span>${escapeHtml(subtitle)}</span>` : ''}</div>
+                        <span class="flow-media-icon type-audio"><span class="material-symbols-outlined icon-md">music_note</span></span>
+                        <div><strong>${escapeHtml(r.title)}</strong><span>${escapeHtml(recMovement(r) ? FlowJourney.movementLabel(recMovement(r), true) : (r.mimeType || 'Audio file'))}</span></div>
                     </div>
-                </div>
-            </div>
-        `;
+                    <audio class="flow-media-player-audio" controls preload="metadata" src="${escapeHtml(r.blobUrl)}" data-flow-media-key="${flowMediaSlideKey(slide)}"></audio>
+                </div>`;
+        }
+        const origin = encodeURIComponent(location.origin);
+        // No icon, title or "YouTube video" line above it (the owner, 12 Oct 2026): the video shows its own title, and the room is for the bars
+        return `
+            <div class="pos-relative" data-slide-key="${flowMediaSlideKey(slide)}">
+                ${recCountInCoverHtml(slide)}
+                <div class="flow-media-player-video"><iframe id="flowYtFrame-${r.id}" src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(r.youtubeVideoId)}?enablejsapi=1&amp;origin=${origin}${youTubeClipQuery(recordingClip(r), "&amp;")}" title="${escapeHtml(r.title)}" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+            </div>`;
     }
 
-    // "Exclusive Playback" (ticket's own term) - called whenever any one source starts, whether
-    // that's the metronome's own Play button, an <audio> element's native play event, or a
-    // YT.Player moving into the PLAYING state. sourceKey is 'metronome', or flowMediaSlideKey's
-    // own 'audio-<id>'/'video-<id>' shape for whichever one just started.
-    function stopAllFlowMediaExcept(sourceKey) {
-        if (sourceKey !== 'metronome' && flowPlayer.isPlaying()) pauseFlow();
-        document.querySelectorAll('#flowMediaTrack audio[data-flow-media-key]').forEach(el => {
-            if (el.dataset.flowMediaKey !== sourceKey && !el.paused) el.pause();
-        });
-        Object.entries(flowYtPlayers).forEach(([id, player]) => {
-            if (`video-${id}` === sourceKey || !player || typeof player.pauseVideo !== 'function') return;
-            try {
-                if (player.getPlayerState && player.getPlayerState() === window.YT.PlayerState.PLAYING) player.pauseVideo();
-            } catch (error) { /* not ready yet - nothing playing to stop */ }
-        });
-    }
-
-    // Pauses whatever's active on one specific slide - used both when swiping/tapping away from it
-    // (the ticket's "swiping away... pause or mute the outgoing media") and when leaving Play Flow
-    // entirely (see switchView's own flowPlayView leave-check, pauseAllFlowMedia below).
+    // Pauses the recording being played along to (not the metronome - pauseFlow does both).
     function pauseFlowMediaSlide(slide) {
         if (!slide) return;
-        if (slide.type !== 'metronome' && recCounting && recCounting.slideKey === flowMediaSlideKey(slide)) recCountInStop(); // ML-587
-        if (slide.type === 'metronome') {
-            if (flowPlayer.isPlaying()) pauseFlow();
-        } else if (slide.type === 'audio') {
-            const el = document.querySelector(`audio[data-flow-media-key="${flowMediaSlideKey(slide)}"]`);
+        if (recCounting && recCounting.slideKey === flowMediaSlideKey(slide)) recCountInStop(); // ML-587
+        if (slide.type === 'audio') {
+            const el = document.querySelector(`#flowAlongHost audio[data-flow-media-key="${flowMediaSlideKey(slide)}"]`);
             if (el && !el.paused) el.pause();
-        } else if (slide.type === 'video') {
+        } else {
             const player = flowYtPlayers[slide.data.id];
             if (player && typeof player.pauseVideo === 'function') {
                 try { player.pauseVideo(); } catch (error) { /* not ready yet */ }
             }
         }
     }
+    // Leaving the play screen pauses everything in place (switchView).
     function pauseAllFlowMedia() {
-        flowMediaSlides.forEach(pauseFlowMediaSlide);
+        pauseFlow();
     }
 
     // ===== ML-488: the rehearsal score - a recording or video follows the piece's bars (step C) =====
@@ -16416,7 +16389,8 @@
     let recTicker = null;
     let recTileBlockId = null;         // the block the recording is in now - its tile lights up, as the metronome's does
     const recDroppedTold = new Set();  // ML-531: recordings whose left-out marks have been mentioned this visit
-    const recActiveSlide = () => { const s = flowMediaSlides[flowMediaActiveIndex]; return s && s.type !== 'metronome' ? s : null; };
+    // ML-627: the recording being played along to, or null
+    const recActiveSlide = () => (flowView.along ? flowMediaSlides.find(s => String(s.data.id) === String(flowView.recordingId)) || null : null);
     // ML-531: a recording of one movement is mapped onto that movement's bars - its start mark is the movement's first bar
     const recOpts = (r) => ({ leadIn: flowLeadInBlock, movement: r.movementNumber || null });
     const recMovement = (r) => (r.movementNumber ? FlowJourney.movements(currentFlowBlocks).find(m => m.number === r.movementNumber && FlowJourney.movements(currentFlowBlocks).length > 1) || null : null);
@@ -16425,21 +16399,35 @@
     function recPlayerOf(slide) {
         if (!slide) return null;
         if (slide.type === 'audio') {
-            const el = document.querySelector(`#flowMediaTrack audio[data-flow-media-key="${flowMediaSlideKey(slide)}"]`);
+            const el = document.querySelector(`#flowAlongHost audio[data-flow-media-key="${flowMediaSlideKey(slide)}"]`);
             if (!el) return null;
             return {
                 positionMs: () => el.currentTime * 1000, playing: () => !el.paused,
                 seek: (ms) => { el.currentTime = ms / 1000; }, play: () => el.play().catch(() => { /* wants a tap on the player first */ }),
-                setSpeed: (pct) => { el.playbackRate = pct / 100; }
+                setSpeed: (pct) => { el.playbackRate = pct / 100; },
+                setVolume: (pct) => { el.volume = Math.max(0, Math.min(1, pct / 100)); }
             };
         }
         const yt = flowYtPlayers[slide.data.id];
         if (!yt || typeof yt.getCurrentTime !== 'function') return null;
         return {
-            positionMs: () => yt.getCurrentTime() * 1000, playing: () => yt.getPlayerState() === window.YT.PlayerState.PLAYING,
-            seek: (ms) => yt.seekTo(ms / 1000, true), play: () => yt.playVideo(),
-            setSpeed: (pct) => yt.setPlaybackRate(pct / 100)
+            positionMs: () => ytSmoothMs(yt), playing: () => yt.getPlayerState() === window.YT.PlayerState.PLAYING,
+            seek: (ms) => { ytClock.raw = null; yt.seekTo(ms / 1000, true); }, play: () => yt.playVideo(),
+            setSpeed: (pct) => yt.setPlaybackRate(pct / 100),
+            setVolume: (pct) => yt.setVolume(Math.max(0, Math.min(100, Math.round(pct))))
         };
+    }
+    // ML-627: YouTube only says where it is every so often, so between its reports the time is carried on by the clock
+    // (at the speed it plays) - the clicks keep to it more closely than to the bare figure.
+    const ytClock = { raw: null, at: 0 };
+    function ytSmoothMs(yt) {
+        const raw = yt.getCurrentTime() * 1000;
+        const now = performance.now();
+        let rate = 1;
+        try { rate = yt.getPlaybackRate() || 1; } catch (error) { rate = 1; }
+        const playing = yt.getPlayerState() === window.YT.PlayerState.PLAYING;
+        if (ytClock.raw === null || raw !== ytClock.raw || !playing) { ytClock.raw = raw; ytClock.at = now; return raw; }
+        return raw + (now - ytClock.at) * rate;
     }
     // ML-596/599: a recording plays at the metronome's play speed (flowSpeedPercent) - one speed for the visit, as
     // repeat is one - from the one list of play speeds. An upload plays at any speed. A YouTube video only plays at its
@@ -16469,73 +16457,187 @@
         const player = recPlayerOf(slide);
         if (player) { try { player.setSpeed(recSpeedOf(slide)); } catch (error) { /* not ready yet */ } }
         renderRecScoreControls();
+        if (alongClicks() && alongRecPlaying()) alongJoinSoon(200); // ML-627: a new speed - the clicks join it again
     }
-    function recScoreControlsHtml(slide) {
-        if (!recScoreOn()) return '';
-        const key = flowMediaSlideKey(slide);
-        // ML-597: marking the bars (and matching the speeds) is on the piece's Edit -> Media tab only - set up there, not
-        // changed while playing. ML-587: in a practice, a Play of its own - it counts you in (the practice's count-in),
-        // then plays the bars being practised; the repeat is the practice's bars, shown but not changed here.
-        // ML-598: under the boxes, how long the stretch it's in takes on the recording against the piece's speeds.
-        return `
-            <div class="metro-transport-grid" data-rec-controls="${key}">
-                <button type="button" class="metroBlk-ctrl-value-btn" data-act="rec-loop" data-rec-loop-btn aria-haspopup="dialog"><strong data-rec-loop-lbl>off</strong><span class="metroBlk-ctrl-value-label">repeat</span></button>
-                <button type="button" class="metro-play-grid-btn hidden-group" data-act="rec-play" data-rec-play-btn aria-label="Count in, then play"><span class="material-symbols-outlined" data-rec-play-icon>play_arrow</span><span class="metroBlk-ctrl-value-label">play</span></button>
-                <button type="button" class="metroBlk-ctrl-value-btn" data-act="rec-speed" data-rec-speed-btn aria-haspopup="dialog"><strong data-rec-speed-lbl>100%</strong><span class="metroBlk-ctrl-value-label">play speed</span></button>
-            </div>
-            <p class="theory-best-line" data-rec-bar-line="${key}" role="status" aria-live="off"></p>
-            <p class="text-sm text-muted" data-rec-stretch-line="${key}"></p>`;
-    }
-    // ML-598: the stretch the recording is in (the first, before it's played) - on the recording and at the piece's speeds
-    function recStretchText(slide, atMs) {
-        const r = slide.data;
-        const stretches = FlowJourney.recordingStretches(currentFlowBlocks, recOpts(r), r.marks || [], recordingClip(r));
-        if (!stretches.length) return '';
-        const lines = recordingStretchLines(currentFlowBlocks, r, r.marks || [], recordingClip(r));
-        if (atMs === null) return lines[0];
-        const map = recMapFor(r);
-        const place = map ? FlowJourney.placeAt(map, atMs) : -1;
-        const k = stretches.findIndex(s => place >= s.fromPlace && place <= s.toPlace);
-        return lines[k === -1 ? 0 : k];
-    }
-    // What the three boxes say on every recording slide - after the repeat, the speed or a map changes.
+    // ML-531: the marks that still fit the piece - a change to its bars (or making it a piece in movements) can leave
+    // some that don't; they are left out, and whoever can change the piece is told once. (ML-627: the recording's own
+    // repeat, speed and Play boxes went - the play screen's four buttons work for it as for the metronome.)
     function renderRecScoreControls() {
         if (!recScoreOn()) return;
-        const loopOn = !!flowLoopPlan;
-        document.querySelectorAll('#flowMediaTrack [data-rec-controls]').forEach((box) => {
-            const slide = flowMediaSlides.find(s => s.type !== 'metronome' && flowMediaSlideKey(s) === box.dataset.recControls);
-            if (!slide) return;
-            const loopBtn = box.querySelector('[data-rec-loop-btn]');
-            setLoopLabel(box.querySelector('[data-rec-loop-lbl]'), loopOn);
-            loopBtn.classList.toggle('metroBlk-ctrl-value-btn-on', loopOn);
-            // ML-587: in a practice the repeat is the practice's own bars - shown, not changed here (nor on the metronome)
-            const practice = recInPractice();
-            loopBtn.disabled = practice;
-            loopBtn.setAttribute('aria-label', practice ? `Repeating the bars being practised - ${flowLoopRangeText()}` : loopOn ? `Repeat bars - ${flowLoopRangeText()}. Tap to change` : 'Repeat bars - off. Tap to set up');
-            const playBtn = box.querySelector('[data-rec-play-btn]');
-            if (playBtn) {
-                setShown(playBtn, practice);
-                let going = !!(recCounting && recCounting.slideKey === box.dataset.recControls);
-                if (!going && slide === recActiveSlide()) { try { going = !!recPlayerOf(slide)?.playing(); } catch (error) { going = false; } }
-                playBtn.querySelector('[data-rec-play-icon]').textContent = going ? 'pause' : 'play_arrow';
-                playBtn.setAttribute('aria-label', going ? 'Pause' : practiceCountInWhen() === 'off' ? 'Play the bars being practised' : 'Count in, then play the bars being practised');
-            }
-            const speed = recSpeedOf(slide);
-            box.querySelector('[data-rec-speed-lbl]').textContent = `${speed}%`;
-            box.querySelector('[data-rec-speed-btn]').setAttribute('aria-label', `Play speed - ${speed}%. Tap to change`);
-            // ML-531: the marks that still fit the piece - a change to its bars (or making it a piece in movements) can
-            // leave some that don't; they are left out, and whoever can change the piece is told once
-            const stored = (slide.data.marks || []).length;
-            const usable = stored ? FlowJourney.usableMarks(FlowJourney.journeyPlaces(currentFlowBlocks, recOpts(slide.data)), slide.data.marks).length : 0;
-            if (stored > usable && !recDroppedTold.has(slide.data.id) && currentFlowDetail && currentFlowDetail.canEdit) {
-                recDroppedTold.add(slide.data.id);
-                const k = stored - usable;
-                showWarningToast(`${k} bar mark${k === 1 ? '' : 's'} on ${slide.data.title} no longer fit${k === 1 ? 's' : ''} the piece's bars and ${k === 1 ? 'is' : 'are'} left out. Mark ${k === 1 ? 'it' : 'them'} again on the piece's Media tab if you need to.`);
-            }
-            const stretchLine = document.querySelector(`#flowMediaTrack [data-rec-stretch-line="${box.dataset.recControls}"]`);
-            if (stretchLine && !stretchLine.textContent) stretchLine.textContent = recStretchText(slide, null);
-        });
+        const slide = recActiveSlide();
+        if (!slide) return;
+        const stored = (slide.data.marks || []).length;
+        const usable = stored ? FlowJourney.usableMarks(FlowJourney.journeyPlaces(currentFlowBlocks, recOpts(slide.data)), slide.data.marks).length : 0;
+        if (stored > usable && !recDroppedTold.has(slide.data.id) && currentFlowDetail && currentFlowDetail.canEdit) {
+            recDroppedTold.add(slide.data.id);
+            const k = stored - usable;
+            showWarningToast(`${k} bar mark${k === 1 ? '' : 's'} on ${slide.data.title} no longer fit${k === 1 ? 's' : ''} the piece's bars and ${k === 1 ? 'is' : 'are'} left out. Mark ${k === 1 ? 'it' : 'them'} again on the piece's Media tab if you need to.`);
+        }
     }
+
+    // ===== ML-627: the clicks follow the recording =====
+    // While a recording plays along, the metronome is led by it. It joins at the recording's next beat - the bar the
+    // recording is in, worked out from its marked bars, and the click in that bar - after just the wait that lands it
+    // there (the player's own leading silence, so it starts on time to the millisecond). Each bar it plays at the speed
+    // the recording takes that bar (the piece's speed for the bar, scaled by how long the bar lasts on the recording),
+    // and at each bar's first click it checks where the recording was when that click sounded: further out than a
+    // little, twice running (or a lot once), it joins again. A rest bar or the lead-in (the recording has neither)
+    // joins again straight away. The clicks only follow a recording whose bars are set up - a start mark or a marked
+    // bar - and only with the metronome seen or heard. Nothing listens to the sound.
+    const ALONG_DRIFT_MS = { audio: 70, video: 140 };
+    let alongJoinTimer = null;
+    let alongDriftHits = 0;
+    const alongOn = () => !!recActiveSlide();
+    // The recording's bars are set up: a start mark (ML-312) or at least one marked bar (ML-488)
+    function alongMapped(slide) {
+        if (!slide || !recScoreOn()) return false;
+        const clip = recordingClip(slide.data);
+        if (clip && clip.startMs) return true;
+        return FlowJourney.usableMarks(FlowJourney.journeyPlaces(currentFlowBlocks, recOpts(slide.data)), slide.data.marks || []).length > 0;
+    }
+    const alongClicks = () => { const s = recActiveSlide(); return !!s && alongMapped(s) && (flowView.see || flowView.hear); };
+    function alongRecPlaying() {
+        const player = recPlayerOf(recActiveSlide());
+        try { return !!player && player.playing(); } catch (error) { return false; }
+    }
+    function alongCancelJoin() {
+        clearTimeout(alongJoinTimer);
+        alongJoinTimer = null;
+    }
+    function alongJoinSoon(ms = 150) {
+        alongCancelJoin();
+        alongJoinTimer = setTimeout(alongJoin, ms);
+    }
+    // The passage holding a place on the recording - from where the metronome is now, so a repeat's count goes on
+    function alongPassageIndex(pl) {
+        const fits = (p) => p.kind !== 'rest' && p.kind !== 'leadIn' && p.blockId === pl.blockId && p.kind === pl.kind && p.pass === pl.pass && pl.bar >= p.fromBar && pl.bar <= p.toBar;
+        for (let tries = 0; tries < 3; tries++) {
+            const k = flowPlayQueue.findIndex((p, i) => i >= flowPlayIndex && fits(p));
+            if (k !== -1) return k;
+            if (!flowLoopPlan) break;
+            flowAppendLoopPass();
+        }
+        return flowPlayQueue.findIndex(fits);
+    }
+    // The place on the recording of the bar the metronome is on (the first bar when it is at the lead-in)
+    function alongMetronomePlace(map) {
+        const pos = flowScreenPosition();
+        if (!pos) return 0;
+        const k = map.places.findIndex(x => x.blockId === pos.p.blockId && x.bar === pos.bar && x.pass === pos.p.pass && x.kind === pos.p.kind);
+        return k === -1 ? 0 : k;
+    }
+    function alongSetSpeed(place, speedPct) {
+        const recMs = Math.max(1, place.endMs - place.startMs);
+        flowPlayer.setSpeedPercent(speedPct * (place.seconds * 1000) / recMs);
+    }
+    function alongJoin() {
+        alongCancelJoin();
+        const slide = recActiveSlide();
+        const player = recPlayerOf(slide);
+        if (!slide || !player || !alongClicks()) { if (flowPlayer.isPlaying()) flowPlayer.pause(); return; }
+        let at = 0;
+        try { if (!player.playing()) return; at = player.positionMs(); } catch (error) { return; }
+        const map = recMapFor(slide.data);
+        if (!map) return;
+        const speed = recSpeedOf(slide);
+        let k = FlowJourney.placeAt(map, at);
+        if (k === -1) {
+            // still before the first bar (the recording's own intro): look again just before it starts
+            if (map.places.length && at < map.places[0].startMs) alongJoinTimer = setTimeout(alongJoin, Math.max(50, Math.min(1000, (map.places[0].startMs - at) / (speed / 100) - 150)));
+            else if (flowPlayer.isPlaying()) flowPlayer.pause(); // past the last bar
+            return;
+        }
+        let pl = map.places[k];
+        let idx = alongPassageIndex(pl);
+        if (idx === -1) return;
+        let cpb = flowClicksPerBar(flowPlayQueue[idx]);
+        let j = Math.ceil(((at - pl.startMs) / Math.max(1, pl.endMs - pl.startMs)) * cpb + 0.05); // the next click, a touch ahead
+        if (j >= cpb) {
+            pl = map.places[k + 1];
+            if (!pl) { if (flowPlayer.isPlaying()) flowPlayer.pause(); return; }
+            idx = alongPassageIndex(pl);
+            if (idx === -1) return;
+            cpb = flowClicksPerBar(flowPlayQueue[idx]);
+            j = 0;
+        }
+        const clickMs = pl.startMs + j * (pl.endMs - pl.startMs) / cpb;
+        const waitS = Math.max(0, (clickMs - at) / (speed / 100) / 1000);
+        flowPlayer.pause();
+        flowStartSequenceAt(idx, pl.bar - flowPlayQueue[idx].fromBar, j);
+        alongSetSpeed(pl, speed);
+        flowPlayer.play(Math.max(0, waitS - 0.05));
+        alongDriftHits = 0;
+        renderFlowPlaybackRow();
+        updateFlowPlayIcon();
+    }
+    // At each bar's first click while following: the bar's speed on the recording, and how far out the clicks are.
+    // true when the clicks are joining the recording again (the caller stops there).
+    function alongOnBeat(info) {
+        if (alongJoinTimer || info.clickIndexInBar !== 0 || !alongClicks()) return false;
+        const slide = recActiveSlide();
+        const player = recPlayerOf(slide);
+        const map = recMapFor(slide.data);
+        const pos = flowScreenPosition();
+        if (!player || !map || !pos) return false;
+        const k = map.places.findIndex(x => x.blockId === pos.p.blockId && x.bar === pos.bar && x.pass === pos.p.pass && x.kind === pos.p.kind);
+        if (k === -1) { alongJoinSoon(0); return true; } // a rest bar or the lead-in - the recording goes straight on
+        const speed = recSpeedOf(slide);
+        alongSetSpeed(map.places[k], speed);
+        let at = 0;
+        try { at = player.positionMs(); } catch (error) { return false; }
+        // where the recording was when this click sounded (the beat is shown a little after it is heard)
+        const ctx = flowPlayer.getAudioContext();
+        const sinceS = typeof info.time === 'number' ? Math.max(0, ctx.currentTime - info.time) : 0;
+        const drift = at - sinceS * 1000 * (speed / 100) - map.places[k].startMs;
+        if (Math.abs(drift) > ALONG_DRIFT_MS[slide.type]) {
+            alongDriftHits++;
+            if (alongDriftHits >= 2 || Math.abs(drift) > 400) { alongJoin(); return true; }
+        } else {
+            alongDriftHits = 0;
+        }
+        return false;
+    }
+    // The recording started (its Play, the play screen's Play, after buffering or a seek): the clicks join it
+    function alongOnRecPlay() {
+        if (alongClicks()) alongJoinSoon(60);
+        recStartTicker();
+        updateFlowPlayIcon();
+    }
+    // The recording stopped or is buffering: so do the clicks, until it plays again
+    function alongOnRecPause() {
+        alongCancelJoin();
+        if (flowPlayer.isPlaying()) flowPlayer.pause();
+        flowPlayer.setSpeedPercent(flowSpeedPercent);
+        updateFlowPlayIcon();
+    }
+    // Play with a recording: it starts where the metronome is (the repeat's start when repeating); the clicks join it
+    // once it is playing. In a practice, the practice's count-in first (ML-587).
+    function alongPlay(slide) {
+        if (recInPractice()) { recPlayInPractice(); return; }
+        const player = recPlayerOf(slide);
+        if (!player) { showWarningToast('The recording is still loading - try again in a moment.'); return; }
+        const map = recMapFor(slide.data);
+        let startMs = null;
+        if (map && flowLoopPlan) {
+            const loop = FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, REC_LOOP_LEAD_MS);
+            if (loop.ok) startMs = loop.startMs;
+        } else if (map && alongMapped(slide)) {
+            startMs = map.places[alongMetronomePlace(map)].startMs;
+        }
+        try {
+            player.setSpeed(recSpeedOf(slide));
+            player.setVolume(flowVolume);
+            if (startMs !== null) player.seek(startMs);
+            player.play();
+        } catch (error) { /* not ready yet */ }
+        recStartTicker();
+    }
+    // The volume is for everything on the screen - the clicks and the recording together
+    function alongApplyVolume() {
+        const player = recPlayerOf(recActiveSlide());
+        if (player) { try { player.setVolume(flowVolume); } catch (error) { /* not ready yet */ } }
+    }
+
     // While a recording plays, a few times a second: keep it inside the bars being repeated, and say
     // which bar it is on. Stops itself when nothing is playing.
     function recTick() {
@@ -16556,25 +16658,26 @@
                 renderRecScoreControls();
                 return;
             }
-            if (loop.ok && (at >= loop.endMs || at < loop.startMs - 300)) { player.seek(loop.startMs); at = loop.startMs; }
+            if (loop.ok && (at >= loop.endMs || at < loop.startMs - 300)) {
+                player.seek(loop.startMs);
+                at = loop.startMs;
+                if (alongClicks()) alongJoinSoon(200); // ML-627: round again - the clicks join it at the start
+            }
         }
-        const line = document.querySelector(`#flowMediaTrack [data-rec-bar-line="${flowMediaSlideKey(slide)}"]`);
         if (map) {
             // The bar tile for where the recording is lights up - the same tile the metronome would light
             const k = FlowJourney.placeAt(map, at);
             const blockId = k === -1 ? null : map.places[k].blockId;
             if (blockId !== recTileBlockId) { recTileBlockId = blockId; renderFlowPlaybackTiles(); }
-        }
-        const stretchLine = document.querySelector(`#flowMediaTrack [data-rec-stretch-line="${flowMediaSlideKey(slide)}"]`);
-        if (stretchLine && playing) { const t = recStretchText(slide, at); if (stretchLine.textContent !== t) stretchLine.textContent = t; } // ML-598
-        if (line && map) {
-            const place = FlowJourney.placeAt(map, at);
-            const mv = recMovement(slide.data);
-            const text = place === -1 ? '' : mv ? `${FlowJourney.placeLabel(map.places, place)} · ${FlowJourney.movementLabel(mv, false)}, bars ${mv.startBar}-${mv.endBar}` : `${FlowJourney.placeLabel(map.places, place)} of ${FlowJourney.totalBars(currentFlowBlocks)}`;
-            if (line.textContent !== text) line.textContent = text;
+            // ML-627: with the clicks not following (none wanted, or its bars aren't set up), the bar line follows it
+            if (!alongClicks() && playing && k !== -1) {
+                const label = document.getElementById('flowPlayRowLabel');
+                const text = FlowJourney.placeLabel(map.places, k);
+                if (label && label.textContent !== text) label.innerHTML = `<strong class="flow-bar-now">${escapeHtml(text)}</strong>`;
+            }
         }
         if (playing !== recWasPlaying) { if (playing) window.Usage?.begin('recording'); else window.Usage?.end('recording'); } // ML-22: finished after 30 seconds
-        if (playing !== recWasPlaying) { recWasPlaying = playing; if (recInPractice()) renderRecScoreControls(); } // ML-587: Play / Pause
+        if (playing !== recWasPlaying) { recWasPlaying = playing; updateFlowPlayIcon(); } // ML-587: Play / Pause
         if (!playing && recTicker) { clearInterval(recTicker); recTicker = null; }
     }
     let recWasPlaying = false;
@@ -16611,6 +16714,7 @@
         }
         try { player.seek(map.places[place].startMs); player.play(); } catch (error) { /* not ready yet */ }
         recStartTicker();
+        if (alongClicks()) alongJoinSoon(250); // ML-627: the clicks join it at that bar
         return true;
     }
     // ===== ML-587: a practice's count-in before a recording or video =====
@@ -16667,30 +16771,16 @@
         const slide = recActiveSlide();
         const player = recPlayerOf(slide);
         if (!slide || !player) return;
-        if (recCounting || player.playing()) { recCountInStop(); pauseFlowMediaSlide(slide); renderRecScoreControls(); return; }
-        if (flowPlayer.isPlaying()) pauseFlow();
+        if (recCounting || player.playing()) { recCountInStop(); pauseFlowMediaSlide(slide); alongOnRecPause(); return; }
+        if (flowPlayer.isPlaying()) flowPlayer.pause();
         const { startMs } = recPracticeStart(slide);
         if (startMs !== null) { try { player.seek(startMs); } catch (error) { /* not ready yet */ } }
         recCountInThen(slide, () => {
-            try { if (startMs !== null) player.seek(startMs); player.play(); } catch (error) { /* not ready yet */ }
+            try { if (startMs !== null) player.seek(startMs); player.setVolume(flowVolume); player.play(); } catch (error) { /* not ready yet */ }
             recStartTicker();
-            renderRecScoreControls();
+            updateFlowPlayIcon();
         });
-        renderRecScoreControls();
-    }
-
-    // Choosing here sets the one play speed - the metronome follows it too (ML-599)
-    async function openRecSpeedChoice() {
-        await ensurePlaySpeeds();
-        const slide = recActiveSlide();
-        const now = recSpeedOf(slide);
-        const word = (pct) => (pct === 100 ? 'as recorded' : pct < 100 ? 'slower, same pitch' : 'faster, same pitch');
-        openFlowChoiceModal('Play speed', recSpeedsFor(slide).map(pct => ({ label: `${pct}% - ${word(pct)}`, value: pct, selected: pct === now })), (opt) => {
-            // in a practice it's a Custom speed for this go, as the Level pop-up's (ML-588)
-            if (flowSession) { flowSession.custom = true; flowSession.customPercent = opt.value; }
-            setFlowSpeedPercent(opt.value);
-            if (flowSession) renderFlowSessionControls();
-        });
+        updateFlowPlayIcon();
     }
 
     // --- Marking a recording: its start, the bars and its end (ML-488; ML-597 made it one pop-up, on Edit -> Media) ---
@@ -17164,256 +17254,182 @@
         }
     });
 
-    // When there's more than one slide, renderFlowMediaCarousel pads the track with one preview
-    // slide on each end (a clone of the last slide up front, a clone of the first slide at the
-    // back - see flowMediaSlidePreviewHtml) so wrap-around swiping has something to animate into.
-    // That shifts every real slide's track position (data-track-slot) one place to the right - this
-    // is the shift amount, 0 when there's only the metronome slide and no padding was added.
-    function flowMediaTrackOffset() {
-        return flowMediaSlides.length > 1 ? 1 : 0;
-    }
-
-    // Pixels, not a percentage transform - .flow-media-slide's flex:0 0 100% makes the track's own
-    // rendered width N-times the viewport's (that's what makes it overflow rather than shrink to
-    // fit), so translateX(-slot*100%) would resolve against that N-times width, not the viewport -
-    // wrong distance for anything past the first slide. `slot` defaults to the active slide's own
-    // track position, but a wrap transition passes the padding slide's position explicitly.
-    function applyFlowMediaTrackPosition(slot) {
-        const viewport = document.getElementById('flowMediaViewport');
-        const track = document.getElementById('flowMediaTrack');
-        if (!viewport || !track) return;
-        if (slot === undefined) slot = flowMediaActiveIndex + flowMediaTrackOffset();
-        const width = viewport.getBoundingClientRect().width;
-        setMove(track, -(slot * width));
-    }
-
-    function updateFlowMediaViewportHeight() {
-        const viewport = document.getElementById('flowMediaViewport');
-        const track = document.getElementById('flowMediaTrack');
-        if (!viewport || !track) return;
-        const activeEl = track.children[flowMediaActiveIndex + flowMediaTrackOffset()];
-        if (activeEl) viewport.style.setProperty('--viewport-h', `${activeEl.scrollHeight}px`);
-    }
-
-    function renderFlowMediaDots() {
-        const dotsEl = document.getElementById('flowMediaDots');
-        if (!dotsEl) return;
-        if (flowMediaSlides.length <= 1) {
-            dotsEl.classList.add('hidden-group');
-            dotsEl.innerHTML = '';
-            return;
-        }
-        dotsEl.classList.remove('hidden-group');
-        dotsEl.innerHTML = flowMediaSlides.map((slide, i) => {
-            const iconHtml = slide.type === 'metronome' ? FLOW_METRONOME_ICON_SVG : `<span class="material-symbols-outlined">${slide.type === 'audio' ? 'music_note' : 'smart_display'}</span>`;
-            const label = slide.type === 'metronome' ? 'Metronome' : `${slide.type === 'audio' ? 'Audio' : 'Video'} - ${slide.data.title}`;
-            return `<button type="button" class="flow-media-dot${i === flowMediaActiveIndex ? ' active' : ''}" data-slide-index="${i}" aria-label="${escapeHtml(label)}">${iconHtml}</button>`;
-        }).join('');
-        dotsEl.querySelectorAll('[data-slide-index]').forEach(btn => {
-            btn.addEventListener('click', () => goToFlowMediaSlide(Number(btn.dataset.slideIndex)));
-        });
-    }
-
-    // Index sync (ticket's own term) - the active carousel slide and its indicator dot always
-    // move together, whichever one triggered the change (dot tap, swipe, or a no-op call that just
-    // needs to snap the track back to where it already was). Wraps round at either end, so
-    // continuing to swipe past the last slide lands back on the first (and vice versa) - `rawIndex`
-    // arriving as exactly -1 or exactly flowMediaSlides.length (one step past either end, only ever
-    // sent by the swipe handler below) is what triggers the wrap-through-the-padding-slide
-    // animation rather than a plain cut to the target slide.
-    function goToFlowMediaSlide(rawIndex) {
-        const count = flowMediaSlides.length;
-        const targetIndex = ((rawIndex % count) + count) % count;
-        const offset = flowMediaTrackOffset();
-        const isForwardWrap = offset && rawIndex === count;
-        const isBackwardWrap = offset && rawIndex === -1;
-        if (targetIndex === flowMediaActiveIndex && !isForwardWrap && !isBackwardWrap) {
-            applyFlowMediaTrackPosition();
-            return;
-        }
-        pauseFlowMediaSlide(flowMediaSlides[flowMediaActiveIndex]);
-        const track = document.getElementById('flowMediaTrack');
-        flowMediaActiveIndex = targetIndex;
-        const realSlot = flowMediaActiveIndex + offset;
-        if ((isForwardWrap || isBackwardWrap) && track) {
-            // Animate on into the padding slide at the far end (the "coming in" slide the user
-            // just swiped toward), then hop back onto the real slide sitting in its place with the
-            // transition switched off for that one frame - to the eye it's one continuous slide.
-            applyFlowMediaTrackPosition(isForwardWrap ? count + offset : 0);
-            track.addEventListener('transitionend', function onFlowMediaWrapEnd(e) {
-                if (e.propertyName && e.propertyName !== 'transform') return;
-                track.removeEventListener('transitionend', onFlowMediaWrapEnd);
-                track.classList.add('no-transition');
-                applyFlowMediaTrackPosition(realSlot);
-                void track.offsetWidth; // force reflow so the transition below doesn't apply to this jump
-                track.classList.remove('no-transition');
-            }, { once: true });
-        } else {
-            applyFlowMediaTrackPosition();
-        }
-        updateFlowMediaViewportHeight();
-        document.querySelectorAll('#flowMediaDots .flow-media-dot').forEach((btn, i) => {
-            btn.classList.toggle('active', i === flowMediaActiveIndex);
-        });
-    }
-
-    // Horizontal swipe on the carousel viewport - same lock/abandon technique as Quick Play's own
-    // swipe-to-delete (wireQpBarSwipe): nothing transforms until the gesture actually commits to
-    // "this is a horizontal swipe" (enough X travel while Y travel stays small), a clearly-vertical
-    // drag before that point is left alone entirely so touch-action:pan-y can still scroll the page.
-    const FLOW_MEDIA_SWIPE_LOCK_X_PX = 10;
-    const FLOW_MEDIA_SWIPE_LOCK_Y_MAX_PX = 15;
-    const FLOW_MEDIA_SWIPE_COMMIT_RATIO = 0.2;
-    function wireFlowMediaSwipe() {
-        const viewport = document.getElementById('flowMediaViewport');
-        const track = document.getElementById('flowMediaTrack');
-        if (!viewport || !track) return;
-        let startX = 0, startY = 0, tracking = false, locked = false, abandoned = false, baseOffsetPx = 0;
-
-        function onMove(e) {
-            if (!tracking || abandoned) return;
-            const dx = e.clientX - startX;
-            const dy = e.clientY - startY;
-            if (!locked) {
-                if (Math.abs(dx) > FLOW_MEDIA_SWIPE_LOCK_X_PX && Math.abs(dy) < FLOW_MEDIA_SWIPE_LOCK_Y_MAX_PX) {
-                    locked = true;
-                    track.classList.add('no-transition');
-                } else if (Math.abs(dy) >= FLOW_MEDIA_SWIPE_LOCK_Y_MAX_PX) {
-                    abandoned = true;
-                    return;
-                } else {
-                    return;
-                }
-            }
-            e.preventDefault();
-            const width = viewport.getBoundingClientRect().width;
-            // Bounds include the padding slides at each end (flowMediaTrackOffset) so the drag can
-            // continue past the last/first real slide onto whichever preview is coming in next.
-            const slotOffset = flowMediaTrackOffset();
-            const rightmostSlot = flowMediaSlides.length - 1 + 2 * slotOffset;
-            const min = -rightmostSlot * width;
-            const posPx = Math.min(0, Math.max(min, baseOffsetPx + dx));
-            setMove(track, posPx);
-        }
-        function onUp(e) {
-            if (!tracking) return;
-            tracking = false;
-            document.removeEventListener('pointermove', onMove);
-            document.removeEventListener('pointerup', onUp);
-            track.classList.remove('no-transition');
-            if (!locked) return;
-            const dx = e.clientX - startX;
-            const width = viewport.getBoundingClientRect().width;
-            if (Math.abs(dx) > width * FLOW_MEDIA_SWIPE_COMMIT_RATIO) {
-                goToFlowMediaSlide(flowMediaActiveIndex + (dx < 0 ? 1 : -1));
-            } else {
-                goToFlowMediaSlide(flowMediaActiveIndex);
-            }
-        }
-        // a11y: only records where a swipe/drag gesture starts - nothing activates on press (WCAG 2.5.2)
-        viewport.addEventListener('pointerdown', (e) => {
-            if (e.target.closest('audio, iframe, button, input')) return;
-            startX = e.clientX;
-            startY = e.clientY;
-            baseOffsetPx = -(flowMediaActiveIndex + flowMediaTrackOffset()) * viewport.getBoundingClientRect().width;
-            tracking = true;
-            locked = false;
-            abandoned = false;
-            document.addEventListener('pointermove', onMove);
-            document.addEventListener('pointerup', onUp);
-        });
-    }
-    let flowMediaSwipeWired = false;
-
-    // ML-600: the slides are in pixels (applyFlowMediaTrackPosition) and the viewport's height is the showing slide's
-    // (updateFlowMediaViewportHeight), so when the screen changes width - a window dragged narrower, the rail folded, a
-    // tablet turned - both are measured again, with no slide, along with the metronome row's width. Before, they kept
-    // the old size until you switched between the metronome and a recording.
+    // ML-600: when the screen changes width - a window dragged narrower, the rail folded, a tablet turned - the
+    // metronome row's width is measured again.
     var flowPlayRowClicks = 0; // var: renderFlowPlaybackRow can run before this line has
-    let flowMediaResizeFrame = 0;
+    let flowPlayResizeFrame = 0;
     if (typeof ResizeObserver !== 'undefined') {
-        const viewport = document.getElementById('flowMediaViewport');
+        const side = document.getElementById('flowPlaySide');
         let lastWidth = 0;
-        if (viewport) new ResizeObserver(() => {
-            const width = viewport.getBoundingClientRect().width;
+        if (side) new ResizeObserver(() => {
+            const width = side.getBoundingClientRect().width;
             if (!width || width === lastWidth) return; // hidden, or only its height changed
             lastWidth = width;
-            cancelAnimationFrame(flowMediaResizeFrame);
-            flowMediaResizeFrame = requestAnimationFrame(() => {
-                const track = document.getElementById('flowMediaTrack');
-                if (track) track.classList.add('no-transition');
-                applyFlowMediaTrackPosition();
-                if (track) { void track.offsetWidth; track.classList.remove('no-transition'); }
+            cancelAnimationFrame(flowPlayResizeFrame);
+            flowPlayResizeFrame = requestAnimationFrame(() => {
                 if (flowPlayRowClicks) metroApplyDisplayWidth('flowPlayRowViewport', 'flowPlayRowContent', flowPlayRowClicks);
-                updateFlowMediaViewportHeight();
             });
-        }).observe(viewport);
+        }).observe(side);
     }
 
-    // Renders the carousel for the flow that's just loaded (buildFlowMediaSlides already ran) -
-    // appends fresh audio/video slide markup after the always-present metronome slide, pads either
-    // end with a wrap-around preview slide (see flowMediaSlidePreviewHtml), wires the YT players
-    // for any video slides, and (re)measures the active slide's height.
-    function renderFlowMediaCarousel() {
-        const track = document.getElementById('flowMediaTrack');
-        if (!track) return;
-        // The metronome slide is the view's own static markup, kept by data-slide-type rather than
-        // by position - a previous render may have left a wrap-around preview clone in front of it
-        // (also data-slide-type="metronome", so excluded here by its own data-clone marker).
-        const metronomeEl = track.querySelector('.flow-media-slide[data-slide-type="metronome"]:not([data-clone])');
-        Array.from(track.children).forEach(child => { if (child !== metronomeEl) track.removeChild(child); });
-        flowMediaSlides.slice(1).forEach(slide => {
-            track.insertAdjacentHTML('beforeend', flowMediaSlideHtml(slide));
-        });
-        if (flowMediaSlides.length > 1) {
-            track.insertAdjacentHTML('afterbegin', flowMediaSlidePreviewHtml(flowMediaSlides[flowMediaSlides.length - 1]));
-            track.insertAdjacentHTML('beforeend', flowMediaSlidePreviewHtml(flowMediaSlides[0]));
+    // ML-627: the card as this member wants it - the recording being played along to (if any) under the bar line,
+    // the beat dots when the metronome is seen, the clicks when it is heard. Builds the recording's player afresh.
+    function renderFlowAlong() {
+        alongCancelJoin();
+        Object.values(flowYtPlayers).forEach(player => { try { player.destroy(); } catch (error) { /* already gone */ } });
+        flowYtPlayers = {};
+        ytClock.raw = null;
+        const host = document.getElementById('flowAlongHost');
+        const slide = recActiveSlide();
+        if (host) {
+            host.innerHTML = slide ? flowMediaSlideHtml(slide) : '';
+            setShown(host, !!slide);
         }
-
-        track.querySelectorAll('audio[data-flow-media-key]').forEach(el => {
-            el.addEventListener('play', () => stopAllFlowMediaExcept(el.dataset.flowMediaKey));
-            // ML-312: the recording starts at the piece and stops when it is over
-            const slide = flowMediaSlides.find(s => s.type === 'audio' && flowMediaSlideKey(s) === el.dataset.flowMediaKey);
-            if (slide) keepPlayerToClip(el, () => recordingClip(slide.data));
-            el.addEventListener('play', recStartTicker); // ML-488
-        });
-        renderRecScoreControls();
-
-        const videoSlides = flowMediaSlides.filter(s => s.type === 'video');
-        if (videoSlides.length) {
+        applyFlowView();
+        renderFlowMediaHave();
+        recTileBlockId = null;
+        if (!slide) { renderFlowPlaybackTiles(); return; }
+        if (slide.type === 'audio') {
+            const el = host && host.querySelector('audio[data-flow-media-key]');
+            if (el) {
+                keepPlayerToClip(el, () => recordingClip(slide.data)); // ML-312: the recording starts at the piece and stops when it is over
+                el.volume = flowVolume / 100;
+                el.addEventListener('playing', alongOnRecPlay); // started, or going again after a seek or buffering
+                el.addEventListener('pause', alongOnRecPause);
+                el.addEventListener('waiting', alongOnRecPause);
+                el.addEventListener('ended', alongOnRecPause);
+                el.addEventListener('ratechange', () => { if (alongClicks() && !el.paused) alongJoinSoon(150); });
+            }
+        } else {
+            const id = slide.data.id;
             ensureFlowYtApi().then((YT) => {
-                videoSlides.forEach(slide => {
-                    const id = slide.data.id;
-                    const frameEl = document.getElementById(`flowYtFrame-${id}`);
-                    if (!frameEl || flowYtPlayers[id]) return;
-                    flowYtPlayers[id] = new YT.Player(frameEl, {
-                        events: {
-                            onStateChange: (e) => {
-                                if (e.data !== YT.PlayerState.PLAYING) return;
-                                stopAllFlowMediaExcept(`video-${id}`);
-                                recStartTicker(); // ML-488
-                                // ML-312: YouTube starts at the clip itself (start/end on the frame's
-                                // address); this covers Play pressed after the slider was dragged outside it.
+                const frameEl = document.getElementById(`flowYtFrame-${id}`);
+                if (!frameEl || flowYtPlayers[id] || recActiveSlide() !== slide) return;
+                flowYtPlayers[id] = new YT.Player(frameEl, {
+                    events: {
+                        onReady: (e) => {
+                            try { e.target.setVolume(flowVolume); e.target.setPlaybackRate(recSpeedOf(slide) / 100); } catch (error) { /* not ready yet */ }
+                        },
+                        onStateChange: (e) => {
+                            if (e.data === YT.PlayerState.PLAYING) {
+                                // ML-312: YouTube starts at the clip itself (start/end on the frame's address); this covers
+                                // Play pressed after the slider was dragged outside it.
                                 const clip = recordingClip(slide.data);
                                 try {
                                     if ((clip.startMs || clip.endMs) && FlowJourney.clipAction(clip, e.target.getCurrentTime() * 1000, false) === 'seek') e.target.seekTo((clip.startMs || 0) / 1000, true);
                                 } catch (error) { /* the player went away */ }
+                                ytClock.raw = null;
+                                alongOnRecPlay();
+                            } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.BUFFERING || e.data === YT.PlayerState.ENDED) {
+                                alongOnRecPause();
                             }
                         }
-                    });
+                    }
                 });
             });
         }
-
-        applyFlowMediaTrackPosition();
-        renderFlowMediaDots();
-        updateFlowMediaViewportHeight();
-
-        if (!flowMediaSwipeWired) {
-            wireFlowMediaSwipe();
-            flowMediaSwipeWired = true;
-        }
+        renderRecScoreControls();
+        renderFlowPlaybackTiles();
     }
+    // See / hear on the card - the dots shown or not, the clicks heard or not - and the clicks with the recording
+    function applyFlowView() {
+        setShown('flowPlayRowViewport', flowView.see);
+        flowPlayer.setMuted(!flowView.hear);
+        if (!recActiveSlide()) return;
+        if (!alongClicks()) { alongCancelJoin(); if (flowPlayer.isPlaying()) flowPlayer.pause(); flowPlayer.setSpeedPercent(flowSpeedPercent); }
+        else if (alongRecPlaying() && !flowPlayer.isPlaying()) alongJoinSoon(60);
+    }
+
+    // What the piece has to play along to, as icons next to its details (the owner, 28 Oct 2026) - it opens the cog's pop-up
+    function renderFlowMediaHave() {
+        const btn = document.getElementById('flowMediaHaveBtn');
+        if (!btn) return;
+        const videos = flowMediaSlides.filter(s => s.type === 'video').length;
+        const audios = flowMediaSlides.length - videos;
+        setShown(btn, flowMediaSlides.length > 0);
+        const group = (icon, n) => (n ? `<span class="material-symbols-outlined" aria-hidden="true">${icon}</span>${n > 1 ? `<span aria-hidden="true">×${n}</span>` : ''}` : '');
+        btn.innerHTML = group('smart_display', videos) + group('music_note', audios);
+        const said = [videos && `${videos} video${videos === 1 ? '' : 's'}`, audios && `${audios} recording${audios === 1 ? '' : 's'}`].filter(Boolean).join(' and ');
+        btn.setAttribute('aria-label', `${said} - choose what to play along to`);
+    }
+
+    // The cog's pop-up. With nothing playing along, the last of see / hear still on is locked on (greyed, with a line
+    // saying why) - so the screen is never left with nothing to see or hear.
+    function renderFlowSeeHear() {
+        const slide = recActiveSlide();
+        const see = document.getElementById('flowSeeMetro');
+        const hear = document.getElementById('flowHearClicks');
+        if (!see || !hear) return;
+        see.checked = flowView.see;
+        hear.checked = flowView.hear;
+        see.disabled = !slide && flowView.see && !flowView.hear;
+        hear.disabled = !slide && flowView.hear && !flowView.see;
+        const unmapped = slide && !alongMapped(slide);
+        document.getElementById('flowSeeMetroHelp').textContent = see.disabled ? 'Stays on while there\'s nothing to hear' : unmapped ? 'Not with this recording - its bars aren\'t marked' : 'The beats, the pauses and the bar';
+        document.getElementById('flowHearClicksHelp').textContent = hear.disabled ? 'Stays on while there\'s nothing to see' : unmapped ? 'Not with this recording - its bars aren\'t marked' : 'On their own, or with the recording';
+        const box = document.getElementById('flowAlongSection');
+        const recs = flowMediaSlides;
+        if (!recs.length) {
+            box.innerHTML = `<p class="metro-help-text">No recordings or videos for this piece.</p>${currentFlowDetail && currentFlowDetail.canEdit ? '<button type="button" class="btn-text" id="flowAlongAddBtn">Add a recording or video</button>' : ''}`;
+        } else {
+            const one = recs.length === 1 ? recs[0] : null;
+            const title = one ? (one.type === 'video' ? 'Play along to the video' : 'Play along to the recording') : 'Play along to a recording';
+            const help = one ? escapeHtml(one.data.title) : `${recs.length} on this piece - pick one`;
+            const list = !one && flowView.along ? recs.map(s => {
+                const on = String(s.data.id) === String(flowView.recordingId);
+                const kind = s.type === 'video' ? 'Video' : 'Recording';
+                return `<button type="button" class="flow-choice-option${on ? ' selected' : ''}" data-along-rec="${escapeHtml(String(s.data.id))}" aria-pressed="${on}"><span>${escapeHtml(s.data.title)}<span class="display-toggle-help">${kind}</span></span>${on ? '<span class="material-symbols-outlined" aria-hidden="true">check</span>' : ''}</button>`;
+            }).join('') : '';
+            box.innerHTML = `<div class="display-toggle-row warmups-settings-row"><span id="flowAlongLbl">${title}<span class="display-toggle-help">${help}</span></span><label class="toggle-switch"><input type="checkbox" id="flowAlongToggle" aria-labelledby="flowAlongLbl"${flowView.along ? ' checked' : ''}><span class="toggle-slider"></span></label></div>${list}`;
+        }
+        document.getElementById('flowVolumeHelp').textContent = slide ? `The clicks and the ${slide.type === 'video' ? 'video' : 'recording'} together.` : 'The clicks, and a recording when one plays.';
+        renderFlowVolumeSlider();
+    }
+    function openFlowSeeHear() {
+        renderFlowSeeHear();
+        showModal('flowSeeHearModal');
+    }
+    // A change in the pop-up: kept, and the card follows at once
+    function setFlowView(changes, rebuild) {
+        const was = recActiveSlide();
+        const playing = flowAnyPlaying();
+        flowView = flowViewTidy({ ...flowView, ...changes });
+        if (rebuild || recActiveSlide() !== was) {
+            if (playing) pauseFlow();
+            renderFlowAlong();
+        } else {
+            applyFlowView();
+        }
+        flowSaveView();
+        renderFlowSeeHear();
+        updateFlowPlayIcon();
+    }
+    document.getElementById('flowSeeHearBtn')?.addEventListener('click', openFlowSeeHear);
+    document.getElementById('flowMediaHaveBtn')?.addEventListener('click', openFlowSeeHear);
+    document.getElementById('flowSeeMetro')?.addEventListener('change', (e) => setFlowView({ see: e.target.checked }));
+    document.getElementById('flowHearClicks')?.addEventListener('change', (e) => setFlowView({ hear: e.target.checked }));
+    document.getElementById('flowAlongSection')?.addEventListener('change', (e) => {
+        if (e.target.id !== 'flowAlongToggle') return;
+        const along = e.target.checked;
+        // Off with the metronome neither seen nor heard: it is seen again (never an empty screen)
+        setFlowView(along ? { along, recordingId: flowView.recordingId ?? flowMediaSlides[0]?.data.id ?? null } : { along, see: flowView.see || !flowView.hear }, true);
+    });
+    document.getElementById('flowAlongSection')?.addEventListener('click', (e) => {
+        const pick = e.target.closest('[data-along-rec]');
+        if (pick) {
+            const slide = flowMediaSlides.find(s => String(s.data.id) === pick.dataset.alongRec);
+            if (slide && String(slide.data.id) !== String(flowView.recordingId)) setFlowView({ recordingId: slide.data.id }, true);
+            return;
+        }
+        if (e.target.closest('#flowAlongAddBtn')) {
+            // Recordings are added on the piece's Edit -> Media tab
+            hideModal('flowSeeHearModal');
+            if (!currentFlowId) return;
+            flowEditRequestedTab = 'media';
+            flowEditMode = 'edit';
+            switchView('flowDetailsHubView');
+        }
+    });
 
     // The tiles, plus what the repeat control adds on top of them (ML-302).
     // Which block's tile is lit: where a recording is, when a recording's slide is showing and it has been
@@ -17592,9 +17608,13 @@
         renderFlowPlaybackTiles();
     }
 
+    // ML-627: something is going - the metronome, the recording being played along to, or a count-in before it
+    function flowAnyPlaying() {
+        return flowPlayer.isPlaying() || alongRecPlaying() || !!recCounting;
+    }
     function updateFlowPlayIcon() {
         const el = document.getElementById('flowPlayIcon');
-        if (el) el.innerText = flowPlayer.isPlaying() ? 'pause' : 'play_arrow';
+        if (el) el.innerText = flowAnyPlaying() ? 'pause' : 'play_arrow';
         if (!flowPlayer.isPlaying()) showCountIn('flowCountIn', 0);
     }
     // ML-542: the big count-in on the play screen, Warm-ups and Scales - the beats left as a number in a ring
@@ -17611,24 +17631,39 @@
 
     function playFlow() {
         if (!flowPlayQueue.length) return;
-        // ML-166 "Exclusive Playback" - starting the metronome stops any audio/video slide.
-        stopAllFlowMediaExcept('metronome');
-        flowPlayer.play();
         window.Usage?.begin('rehearse'); // ML-22: finished at the end, or after a minute
-        updateFlowPlayIcon();
         flowLastLitTileId = null; // pressing Play brings the bar that plays to the top, wherever you had scrolled to
+        // ML-627: playing along - the recording starts and the clicks join it once it is playing
+        const slide = recActiveSlide();
+        if (slide) { alongPlay(slide); updateFlowPlayIcon(); return; }
+        flowPlayer.play();
+        updateFlowPlayIcon();
         renderFlowPlaybackRow();
     }
     function pauseFlow() {
+        alongCancelJoin();
+        if (recCounting) recCountInStop();
         flowPlayer.pause();
+        pauseFlowMediaSlide(recActiveSlide());
+        flowPlayer.setSpeedPercent(flowSpeedPercent); // ML-627: the clicks were following the recording's speed
         window.Usage?.end('rehearse');
         updateFlowPlayIcon();
     }
     function resetFlow() {
         jumpFlowToStart();
+        // ML-627: playing along, the recording goes back to the first bar (the repeat's first, when repeating) too
+        const slide = recActiveSlide();
+        const player = recPlayerOf(slide);
+        if (slide && player) {
+            const map = recMapFor(slide.data);
+            const loop = map && flowLoopPlan ? FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, REC_LOOP_LEAD_MS) : null;
+            const startMs = loop && loop.ok ? loop.startMs : map && alongMapped(slide) ? map.places[0].startMs : (recordingClip(slide.data).startMs || 0);
+            try { player.seek(startMs); } catch (error) { /* not ready yet */ }
+            if (alongClicks() && alongRecPlaying()) alongJoinSoon(250);
+        }
         renderFlowPlaybackRow();
     }
-    setupPlayButtonHoldReset('flowPlayBtn', () => { if (flowPlayer.isPlaying()) pauseFlow(); else playFlow(); }, resetFlow);
+    setupPlayButtonHoldReset('flowPlayBtn', () => { if (flowAnyPlaying()) pauseFlow(); else playFlow(); }, resetFlow);
     document.getElementById('flowResetBtn')?.addEventListener('click', resetFlow);
 
     // ML-193 test hook - LOCAL DEVELOPMENT ONLY. Switched on by the back-test suite setting
@@ -17723,12 +17758,14 @@
     function flowSubdivideCurrentBlock() {
         return flowPlayQueue.length ? flowPassageBlock(flowPlayQueue[flowPlayIndex]) : null;
     }
+    // ML-627: the sub beats are in Playback now - the button says them for a screen reader (renderFlowSpeedLabel)
     function renderFlowSubdivideLabel() {
-        const block = flowSubdivideCurrentBlock();
-        const lbl = document.getElementById('flowSubdivideLbl');
-        if (lbl) lbl.innerText = metroBlkSubdivideDisplayValue(block ? flowSubFactorFor(block) : 1);
-        const unitLbl = document.getElementById('flowSubdivideUnitLbl');
-        if (unitLbl) unitLbl.innerText = flowSubBeatsMode === 'auto' ? 'auto sub beats' : 'sub beats';
+        renderFlowSpeedLabel();
+    }
+    function flowSubBeatsWords() {
+        if (flowSubBeatsMode === 'off') return 'sub beats off';
+        if (flowSubBeatsMode === 'fixed' && flowSubdivideOverride) return `${flowSubdivideOverride} sub beats`;
+        return 'auto sub beats';
     }
     function renderFlowSubdividePopupSlider() {
         const pct = ((flowSubdividePopupValue - FLOW_SUBDIVIDE_MIN) / (FLOW_SUBDIVIDE_MAX - FLOW_SUBDIVIDE_MIN)) * 100;
@@ -17740,9 +17777,15 @@
         document.getElementById('flowSubdivideSliderMaxLbl').innerText = FLOW_SUBDIVIDE_MAX;
         document.getElementById('flowSubdividePopupValue').innerText = flowSubdividePopupValue;
     }
+    let flowSubdivideApplyTimer = null;
     function setFlowSubdividePopupValue(v) {
         flowSubdividePopupValue = Math.min(FLOW_SUBDIVIDE_MAX, Math.max(FLOW_SUBDIVIDE_MIN, Math.round(v)));
         renderFlowSubdividePopupSlider();
+        // ML-627: applied as it changes - once the stepper or slider settles, so holding + doesn't restart the bar each step
+        if (document.getElementById('flowSubdivideFixed')?.checked && document.getElementById('flowSubdivideModal')?.classList.contains('show')) {
+            clearTimeout(flowSubdivideApplyTimer);
+            flowSubdivideApplyTimer = setTimeout(applyFlowSubBeats, 300);
+        }
     }
     setupHoldStepper(document.getElementById('flowSubdivideMinus'), -1, (amount) => setFlowSubdividePopupValue(flowSubdividePopupValue + amount));
     setupHoldStepper(document.getElementById('flowSubdividePlus'), 1, (amount) => setFlowSubdividePopupValue(flowSubdividePopupValue + amount));
@@ -17752,35 +17795,44 @@
     });
     makeSliderReadoutEditable('flowSubdividePopupValue', () => flowSubdividePopupValue, (v) => setFlowSubdividePopupValue(v), { label: 'Sub beats', min: FLOW_SUBDIVIDE_MIN, max: FLOW_SUBDIVIDE_MAX });
 
-    document.getElementById('flowSubdivideBtn')?.addEventListener('click', () => {
-        // ML-588: in a practice that still follows the Level ('session'), it opens on what's playing - Auto or Off
+    // ML-627: Playback (outside a practice) - the play speed as today's boxes, then today's sub beats controls. Every
+    // choice applies straight away, so the pop-up has Done and no Cancel / Save. A practice's Playback is its own
+    // (openFlowPlaybackModal: the Level, sub beats and the count-in).
+    function openFlowPlaybackNormal() {
         const sessionOn = flowSubBeatsMode === 'session' && flowSessionSubBeatsOn();
         document.getElementById('flowSubdivideOff').checked = flowSubBeatsMode === 'off' || (flowSubBeatsMode === 'session' && !sessionOn);
         document.getElementById('flowSubdivideAuto').checked = flowSubBeatsMode === 'auto' || sessionOn;
         document.getElementById('flowSubdivideFixed').checked = flowSubBeatsMode === 'fixed';
         document.getElementById('flowSubdivideBpmBox').classList.toggle('hidden-group', flowSubBeatsMode !== 'fixed');
-        setFlowSubdividePopupValue(flowSubdivideOverride || FLOW_SUBDIVIDE_MIN);
+        flowSubdividePopupValue = Math.min(FLOW_SUBDIVIDE_MAX, Math.max(FLOW_SUBDIVIDE_MIN, flowSubdivideOverride || FLOW_SUBDIVIDE_MIN));
+        renderFlowSubdividePopupSlider();
+        renderFlowSpeedLabel();
         showModal('flowSubdivideModal');
-    });
+    }
+    // Sub beats change how many clicks each bar has, so the passage starts again from the bar it's on, in the new
+    // click grid (ML-193) - or, playing along, the clicks join the recording again (ML-627).
+    function applyFlowSubBeats() {
+        clearTimeout(flowSubdivideApplyTimer);
+        const mode = document.querySelector('input[name="flowSubdivideOnOff"]:checked')?.value || 'off';
+        const override = mode === 'fixed' ? flowSubdividePopupValue : null;
+        if (mode === flowSubBeatsMode && override === flowSubdivideOverride) return;
+        flowSubBeatsMode = mode;
+        flowSubdivideOverride = override;
+        if (alongClicks() && alongRecPlaying()) alongJoinSoon(0);
+        else {
+            const pos = flowScreenPosition();
+            if (pos) flowStartSequenceAt(flowPlayIndex, pos.bar - pos.p.fromBar);
+        }
+        renderFlowPlaybackRow();
+        renderFlowSubdivideLabel();
+    }
     document.querySelectorAll('input[name="flowSubdivideOnOff"]').forEach(radio => {
         radio.addEventListener('change', () => {
             document.getElementById('flowSubdivideBpmBox').classList.toggle('hidden-group', radio.value !== 'fixed');
+            applyFlowSubBeats();
         });
     });
-    document.getElementById('flowSubdivideCancelBtn')?.addEventListener('click', () => {
-        hideModal('flowSubdivideModal');
-    });
-    document.getElementById('flowSubdivideSaveBtn')?.addEventListener('click', () => {
-        flowSubBeatsMode = document.querySelector('input[name="flowSubdivideOnOff"]:checked')?.value || 'off';
-        flowSubdivideOverride = flowSubBeatsMode === 'fixed' ? flowSubdividePopupValue : null;
-        hideModal('flowSubdivideModal');
-        // ML-193: sub-beats change how many clicks each bar has, so the current passage is restarted
-        // from the bar it's on, in the new click grid.
-        const pos = flowScreenPosition();
-        if (pos) flowStartSequenceAt(flowPlayIndex, pos.bar - pos.p.fromBar);
-        renderFlowPlaybackRow();
-        renderFlowSubdivideLabel();
-    });
+    document.getElementById('flowSubdivideDoneBtn')?.addEventListener('click', applyFlowSubBeats); // a stepper change not yet applied
 
     // --- Repeat bars (ML-302) ---
     // A playback setting, not part of the piece: plays a start..end bar range over and over, with 0-5
@@ -17851,7 +17903,8 @@
         buildFlowPlayQueue();
         renderFlowPlaybackRow();
         buildFlowMediaSlides(); // ML-531: the recordings offered follow the movement
-        renderFlowMediaCarousel();
+        flowLoadViewForPiece();
+        renderFlowAlong();
     }
     function openFlowMovementChoice() {
         const moves = FlowJourney.movements(currentFlowBlocks);
@@ -18075,8 +18128,20 @@
 
     // --- Play speed popup ("ported" from Quick Play's own - own state, admin-managed preset list) ---
     let flowSpeedPercent = 100;
+    // ML-627: the playback button shows the speed (a practice's shows its Level - renderFlowSessionControls); its
+    // pop-up's boxes show the speed chosen
     function renderFlowSpeedLabel() {
-        document.getElementById('flowSpeedLbl').innerText = `${flowSpeedPercent}%`;
+        document.querySelectorAll('#flowSpeedOptions .metroBlk-timesig-opt').forEach(btn => {
+            const on = Number(btn.dataset.value) === flowSpeedPercent;
+            btn.classList.toggle('selected', on);
+            btn.setAttribute('aria-pressed', String(on));
+        });
+        if (flowSession) return;
+        const lbl = document.getElementById('flowPlaybackLbl');
+        if (lbl) lbl.innerText = `${flowSpeedPercent}%`;
+        const sub = document.getElementById('flowPlaybackSub');
+        if (sub) sub.innerText = 'playback';
+        document.getElementById('flowPlaybackBtn')?.setAttribute('aria-label', `Playback - ${flowSpeedPercent}% speed, ${flowSubBeatsWords()} - tap to change`);
     }
     function setFlowSpeedPercent(p) {
         flowSpeedPercent = Math.min(1000, Math.max(1, p));
@@ -18101,24 +18166,16 @@
             flowPlaybackSpeeds = speeds;
             const container = document.getElementById('flowSpeedOptions');
             if (container) container.innerHTML = speeds.map(p => `<button type="button" class="metroBlk-timesig-opt" data-value="${p}">${p}%</button>`).join('');
-            document.querySelectorAll('#flowSpeedOptions .metroBlk-timesig-opt').forEach(btn => {
-                btn.classList.toggle('selected', Number(btn.dataset.value) === flowSpeedPercent);
-            });
+            renderFlowSpeedLabel();
         } catch (error) {
             showWarningToast('Error loading playback speeds: ' + error.message);
         }
     }
-    document.getElementById('flowSpeedBtn')?.addEventListener('click', () => {
-        document.querySelectorAll('#flowSpeedOptions .metroBlk-timesig-opt').forEach(btn => {
-            btn.classList.toggle('selected', Number(btn.dataset.value) === flowSpeedPercent);
-        });
-        showModal('flowSpeedModal');
-    });
+    // ML-627: in Playback - a speed applies straight away and the pop-up stays open for the sub beats
     document.getElementById('flowSpeedOptions')?.addEventListener('click', (e) => {
         const btn = e.target.closest('.metroBlk-timesig-opt');
         if (!btn) return;
         setFlowSpeedPercent(Number(btn.dataset.value));
-        hideModal('flowSpeedModal');
     });
     renderFlowSpeedLabel();
 
@@ -18145,8 +18202,9 @@
         flowVolume = Math.round(Math.min(100, Math.max(0, v)));
         if (flowVolume > 0) flowVolumeBeforeMute = flowVolume;
         flowPlayer.setVolume(flowVolume / 100);
+        alongApplyVolume(); // ML-627: the volume is for the recording too, and mute mutes both
         renderFlowVolumeSlider();
-        playVolumeTestClick(flowPlayer, force);
+        if (flowView.hear) playVolumeTestClick(flowPlayer, force);
     }
     setupSliderInteraction(document.getElementById('flowVolumeTrack'), document.getElementById('flowVolumeThumb'), {
         onDragRatio: (ratio) => setFlowVolume(ratio * 100),
@@ -18159,17 +18217,7 @@
     document.getElementById('flowMuteBtn')?.addEventListener('click', () => {
         setFlowVolume(flowVolume > 0 ? 0 : (flowVolumeBeforeMute || 80), true);
     });
-    document.getElementById('flowVolumeBtn')?.addEventListener('click', () => {
-        renderFlowVolumeSlider();
-        showModal('flowVolumeModal');
-    });
-    function closeFlowVolumePopup() {
-        hideModal('flowVolumeModal');
-    }
-    document.getElementById('flowVolumeCloseBtn')?.addEventListener('click', closeFlowVolumePopup);
-    document.getElementById('flowVolumeModal')?.addEventListener('click', (e) => {
-        if (e.target === e.currentTarget) closeFlowVolumePopup();
-    });
+    // (ML-627: the volume is the last part of What to see and hear, the cog on the play screen's card)
     renderFlowVolumeSlider();
 
     // --- Play Flow's own 3-dot menu (Edit details / Edit bars - ML-217: it opens the Bars tab) - replaces Quick Play's static

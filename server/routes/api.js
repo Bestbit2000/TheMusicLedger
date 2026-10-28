@@ -39,7 +39,7 @@ import { handleUpload } from '@vercel/blob/client';
 import { del } from '@vercel/blob';
 import { listInstruments, listAccountInstruments, setAccountInstruments, setAccountInstrumentClef, resolveSessionInstrument } from '../services/instruments.js';
 import { assertRangeEnabled, getRange, setRange, recordGo, moveRange } from '../services/range.js';
-import { createFlow, listFlows, getFlowDetail, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, setFlowArchived, setFlowsArchived, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, setRecordingClip, setRecordingMarks, setRecordingMovement, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus, assertCanAddFiles } from '../services/flows.js';
+import { createFlow, listFlows, getFlowDetail, savePlaySettings, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, setFlowArchived, setFlowsArchived, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, setRecordingClip, setRecordingMarks, setRecordingMovement, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus, assertCanAddFiles } from '../services/flows.js';
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks, replaceAllFlowBlocks } from '../services/flowBlocks.js';
 import { importMusicXmlFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/musicXmlImport.js';
 import { readForAccount, discardReadFiles, sweepReadUploads, markSaved as markPieceReadSaved, readUploadPrefix, testUploadPrefix, READ_CONTENT_TYPES, readAllowance, assertReadLeft } from '../services/pieceReads.js';
@@ -1702,6 +1702,15 @@ router.put('/flows/archive', requireAuth, resolveAccount, async (req, res) => {
 router.get('/flows/:id', requireAuth, resolveAccount, async (req, res) => {
   try {
     res.json(await getFlowDetail(req.accountId, req.params.id));
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ML-627: what this member sees and hears on the piece's play screen, remembered per piece (for them alone)
+router.put('/flows/:id/play-settings', requireAuth, resolveAccount, async (req, res) => {
+  try {
+    res.json(await savePlaySettings(req.accountId, req.params.id, req.body || {}));
   } catch (error) {
     sendError(res, error);
   }

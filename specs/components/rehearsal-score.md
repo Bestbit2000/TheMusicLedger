@@ -2,8 +2,8 @@
 
 ## 1. Metadata
 - **Name:** Rehearsal score - a recording's start and end (`#clipModal`), the bars on a recording (the play
-  screen's recording slides and `#barMapModal`), and the Recordings tool (`#recordingsView`). **No classes
-  of its own**: the value box `.metroBlk-ctrl-value-btn`, `.metro-transport-grid`, `.flow-action-btn`,
+  screen - playing along, ML-627 - and `#barMapModal`), and the Recordings tool (`#recordingsView`). **One class
+  of its own**, `.flow-media-have` (ML-627, the piece's recordings as icons on the play screen); otherwise the value box `.metroBlk-ctrl-value-btn`, `.metro-transport-grid`, `.flow-action-btn`,
   `.btn-text`, `.btn-submit`, `.section-title`, `.flow-card`, `.history-item`, `.flow-upload-progress`,
   `.flow-media-player-audio` / `.flow-media-player-video`, `.theory-best-line`, `.metro-help-text`.
 - **Category:** Flow / media
@@ -18,8 +18,9 @@ never changed: where things are in it is kept as numbers. Full description: `doc
 - **Which movement** (ML-531): on a piece in movements, a second value box under it (`.metroBlk-ctrl-value-btn.w-full.mt-2`),
   "all" or the movement's number over "movement", opening one pop-up (the whole piece, or each movement with the bar
   it starts at). The Recordings tool asks the same between the piece and its start and end; a cut's row adds "· Mvt 2".
-- **The bars on a recording** (ML-488, `rehearsal_score`): on the play screen, a recording's slide has three
-  value boxes - repeat, play speed, bars marked - and a line saying which bar is playing.
+- **The bars on a recording** (ML-488, `rehearsal_score`): on the play screen the recording being played along to
+  (ML-627) sits in the metronome's card under the bar line; the clicks follow it from its marked bars. Its repeat and
+  speed are the play screen's own four buttons - see "On the play screen" below.
 - **Match the piece's speeds** (ML-533): in "Mark the bars", a `.btn-nav` under Save, "Match the piece's speeds to these
   marks". It asks first in the shared confirm pop-up (what changes, how near the marks will be; "Change the speeds" /
   "Leave them"), then an Undo toast.
@@ -43,10 +44,24 @@ frame) › `.section-title` "Start" with the time on the right › **Starts here
 **On the Media tab** - under each recording's player, `button.metroBlk-ctrl-value-btn.w-full`: the answer
 over "start and end".
 
-**On a recording's slide (play screen)** - under the player, `.metro-transport-grid` with up to three
-`button.metroBlk-ctrl-value-btn`: "off" or "5–8" over **repeat** (`.metroBlk-ctrl-value-btn-on` while on);
-"100%" over **play speed**; a number or "none" over **bars marked** (only for someone who can change the
-piece). Then `p.theory-best-line`: "Bar 37 of 96".
+**On the play screen (ML-627)** - `.metroBlk-row-current` › `.metroBlk-row-head` (the bar line, then the cog
+`button.metroBlk-row-volume-btn#flowSeeHearBtn`, a `settings` icon) › `#flowAlongHost` (the recording: an `audio.flow-media-player-audio`
+under `.flow-media-slide-header`, or `.flow-media-player-video` with the YouTube frame; the count-in ring `.count-in-cover`
+over it in a practice) › the beat dots (hidden while the metronome isn't seen). Under the card the transport,
+`.metro-transport-grid#flowTransport`: four `button`s of one width - **repeat** and **playback** (`.metroBlk-ctrl-value-btn`:
+"off" or "5–8" over repeat, the speed over playback), **reset** and **play** (`.metro-play-grid-btn`). Beside the piece's
+details, `button.flow-media-have#flowMediaHaveBtn` - the piece's videos and recordings as icons ("×2" for more than one).
+
+**What to see and hear** - `#flowSeeHearModal.modal` › `.modal-close-x` › `h2` › `h3.warmups-settings-head` "Metronome" ›
+two `.display-toggle-row` (See the metronome, Hear the clicks - a `.toggle-switch` each; the last one on is `disabled` when
+nothing plays along) › `h3` "Recordings" › a `.display-toggle-row` "Play along to ..." and, with more than one recording
+and it on, a `.flow-choice-option` per recording (its title, and Video or Recording); or `p.metro-help-text` "No recordings
+or videos for this piece" and a `.btn-text` "Add a recording or video" › `h3` "Volume" › `p.metro-help-text` › today's
+volume controls (`.metro-speed-row` with − / + and `.metro-volume-row` with the mute button and the slider).
+
+**Playback** - `#flowSubdivideModal.modal` › `h2` "Playback" › `h3.warmups-settings-head` "Play speed" ›
+`.metroBlk-speed-options` (the speeds as `.metroBlk-timesig-opt` boxes, the one playing `.selected`) › "Use sub beats"
+(`.radio-group.compact` Off / Auto / Fixed) › the − 2 + card and slider when Fixed › `.btn-submit` Done.
 
 **Mark the bars pop-up** - `#barMapModal.modal` › `.modal-close-x` › `h2` › the recording's name › help ›
 `#barMapPlayerHost` › `.section-title` "Which bar" with the bar on the right › `.flex-row.gap-sm` with
@@ -95,8 +110,9 @@ players, the upload progress bar and the action button).
 | Only one end set | "From 0:12" or "Up to 3:40" |
 | A mark tapped past the other one | the other mark is let go - the one just tapped is the one meant |
 | A clip that can't be (under a second) | a warning toast saying why; nothing changes |
-| Repeat on (a recording's slide) | the repeat box is `.metroBlk-ctrl-value-btn-on` and shows the bars |
-| No bars marked | "none" over "bars marked"; the map follows the piece's own speeds from the start mark |
+| Repeat on | the repeat box is `.metroBlk-ctrl-value-btn-on` and shows the bars |
+| Playing along, bars not set up | the recording plays without clicks; See / Hear say "Not with this recording - its bars aren't marked"; the bar line follows the recording |
+| Nothing plays along, one of See / Hear left | that switch is `disabled` (greyed) and says it stays on |
 | A bar mark out of order | refused with a toast naming the mark it clashes with |
 | A bar outside the repeat tapped | a toast: turn repeat off to play from there |
 | Uploading | the upload button is off and the progress bar shows the file's name and percent |
@@ -134,9 +150,9 @@ docs/feature-access-plan.md.
   "tap to change", and carries `aria-haspopup="dialog"`.
 - The two nudges on each end are named for what they do ("Start 1 second earlier"), since their visible
   words are the same for the start and the end. Each Change, Remove and Play is named for its piece or bar.
-- The times in the pop-ups are `aria-live="polite"`, so a mark being set is announced. The bar line on a
-  recording's slide is `role="status"` with `aria-live="off"`: it changes every bar, which would talk over
-  the music; it can be read when wanted.
+- The times in the pop-ups are `aria-live="polite"`, so a mark being set is announced. The play screen's bar line changes every bar
+  and is not announced, which would talk over the music. The playback button and the media button say what
+  they hold ("Playback - 80% speed, auto sub beats", "1 video and 2 recordings - choose what to play along to").
 - Both pop-ups close on Escape and their X; the start-and-end pop-up also closes on a tap outside (it has
   no field to type into), the Mark the bars pop-up does not (it has one). Every way of closing stops the
   pop-up's player.

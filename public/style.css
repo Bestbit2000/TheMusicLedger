@@ -1141,12 +1141,6 @@
        and with the front page's own tool-icon-row, which uses the same equal-width-cells idea. */
     .metro-transport-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); margin: var(--space-2) 0 var(--space-4) 0; }
     .metro-transport-grid .metroBlk-ctrl-value-btn { width: 100%; min-width: 0; }
-    /* ML-302: Rehearse's 5 controls - Play in the middle, a little wider, with where-you-are controls
-       (reset, repeat) to its left and how-it-sounds ones (sub beats, speed) to its right. */
-    .metro-transport-grid-5 { grid-template-columns: 1fr 1fr 1.4fr 1fr 1fr; gap: var(--space-1); }
-    /* Narrower cells: less side padding, and a value like "12–16" stays on one line. */
-    .metro-transport-grid-5 .metroBlk-ctrl-value-btn { padding: 0 var(--space-1); }
-    .metro-transport-grid-5 .metroBlk-ctrl-value-btn strong { white-space: nowrap; }
     /* Two to a row - a Theory quiz's options (Content / Length), where a value can be words ("2 ledger lines"). */
     .metro-transport-grid-2 { grid-template-columns: repeat(2, 1fr); }
     /* A sign drawn in a value or a choice next to words (Theory's ♯ ♭): centred on the line, not sat on it. */
@@ -1743,6 +1737,9 @@
     .flow-visibility-value { margin: 0; font-size: var(--font-base); color: var(--text-color); }
     .flow-pill { flex-shrink: 0; font-size: var(--font-xs); font-weight: var(--font-weight-bold); color: var(--label-color); background: var(--input-bg); border: 1px solid var(--input-border); padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill); white-space: nowrap; }
     .flow-pill-accent { color: var(--primary-action-strong); border-color: var(--primary-action-strong); background: var(--primary-action-tint); }
+    /* ML-627: what a piece has to play along to - its videos and recordings as icons ("x2" for more than one), next to
+       its details on the play screen. A pill like .flow-pill, at full touch size; it opens What to see and hear. */
+    .flow-media-have { display: inline-flex; align-items: center; gap: var(--space-1); flex-shrink: 0; min-height: var(--touch-target); padding: 0 var(--space-3); border: 1px solid var(--input-border); border-radius: var(--radius-pill); background: var(--input-bg); color: var(--label-color); font-size: var(--font-sm); font-weight: var(--font-weight-bold); cursor: pointer; }
     .flow-required { color: var(--danger-text); }
     .flow-help-text { display: block; font-size: var(--font-xs); color: var(--label-color); margin-top: var(--space-1); }
 
@@ -1820,27 +1817,8 @@
     .flow-media-player-video { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: var(--radius-md); overflow: hidden; background: var(--media-bg); }
     .flow-media-player-video iframe, .flow-media-player-video video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 
-    /* ML-166: Play Flow's swipeable media carousel (Metronome + one slide per attached audio
-       track/video link) - a self-contained set of classes rather than reusing .history-item/
-       .flow-media-item, which are shaped for Edit Flow's list-of-rows context, not a single
-       full-width carousel slide. Mirrors .flow-edit-tab's active-state language for the dots. */
-    .flow-media-dots { display: flex; justify-content: center; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
-    .flow-media-dot { width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--radius-circle); border: 2px solid transparent; background: var(--input-bg); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--label-color); padding: 0; }
-    .flow-media-dot .material-symbols-outlined { font-size: var(--icon-md); }
-    .flow-media-dot svg { width: 18px; height: 18px; }
-    .flow-media-dot.active { border-color: var(--primary-action-strong); color: var(--primary-action-strong); background: var(--primary-action-tint); }
-    /* Height is set inline by JS (renderFlowMediaCarousel/goToFlowMediaSlide) to the active
-       slide's own measured scrollHeight - the transition here is what makes that change smooth
-       rather than an instant jump, same "measure, don't hardcode per type" reasoning as the plan. */
-    .flow-media-carousel-viewport { overflow: hidden; height: var(--viewport-h); transition: height var(--duration-base) ease; } /* --viewport-h: the showing slide's height (updateFlowMediaViewportHeight) */
-    /* touch-action:pan-y (not none) - vertical page scroll still works natively; only horizontal
-       drag is captured by JS (wireFlowMediaSwipe), same split Quick Play's own swipe-to-delete
-       relies on for its own gesture. */
-    /* align-items:flex-start (not the flex default of stretch) - otherwise every slide is
-       stretched to match the tallest sibling's height, which is exactly what the JS-measured
-       per-slide scrollHeight above is trying to avoid. */
-    .flow-media-carousel-track { display: flex; align-items: flex-start; transition: transform var(--duration-base) ease; touch-action: pan-y; }
-    .flow-media-slide { flex: 0 0 100%; width: 100%; box-sizing: border-box; }
+    /* The play screen's card (ML-166 made it the first of a swipeable carousel; ML-627 made it the only one). */
+    .flow-media-slide { width: 100%; box-sizing: border-box; }
     .flow-media-slide-header { display: flex; align-items: center; margin-bottom: var(--space-3); }
     .flow-media-slide-header > div { min-width: 0; }
     .flow-media-slide-header > div strong { display: block; font-size: var(--font-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2399,7 +2377,7 @@
     /* Intro modal's "End intro early?" row - grayed out and non-interactive until "Start intro?" is
        on, since an early end has no meaning without a start (#flowIntroModal). */
     .flow-volta-toggle-row.flow-toggle-row-disabled { opacity: 0.5; }
-    .toggle-switch input:disabled + .toggle-slider { cursor: not-allowed; }
+    .toggle-switch input:disabled + .toggle-slider { cursor: not-allowed; opacity: var(--opacity-disabled); } /* ML-627: greyed, as any disabled control */
     /* Intro modal's own stepper sections sit tighter to their neighbours than .flow-tile-section's
        default margin-bottom allows for - a bit more room below the Start bar stepper (before the
        End intro toggle row) and below the End bar stepper/toggle row (before Save/Cancel). */

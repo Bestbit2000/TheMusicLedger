@@ -2055,15 +2055,8 @@
   {
    "group": "Pieces: Rehearse, play, edit",
    "where": "flowPlayView",
-   "name": "#flowVolumeBtn",
-   "label": "Volume - tap to change",
-   "html": true
-  },
-  {
-   "group": "Pieces: Rehearse, play, edit",
-   "where": "flowPlayView",
-   "name": "#flowResetBtn",
-   "label": "reset",
+   "name": "#flowSeeHearBtn",
+   "label": "What to see and hear",
    "html": true
   },
   {
@@ -2077,7 +2070,14 @@
    "group": "Pieces: Rehearse, play, edit",
    "where": "flowPlayView",
    "name": "#flowPlaybackBtn",
-   "label": "1 level",
+   "label": "100% playback",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "#flowResetBtn",
+   "label": "reset",
    "html": true
   },
   {
@@ -2090,22 +2090,15 @@
   {
    "group": "Pieces: Rehearse, play, edit",
    "where": "flowPlayView",
-   "name": "#flowSubdivideBtn",
-   "label": "1 sub beats",
-   "html": true
-  },
-  {
-   "group": "Pieces: Rehearse, play, edit",
-   "where": "flowPlayView",
-   "name": "#flowSpeedBtn",
-   "label": "100% play speed",
-   "html": true
-  },
-  {
-   "group": "Pieces: Rehearse, play, edit",
-   "where": "flowPlayView",
    "name": "#flowSessionFinishBtn",
    "label": "finish",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
+   "name": "#flowMediaHaveBtn",
+   "label": "",
    "html": true
   },
   {
@@ -3882,15 +3875,8 @@
   {
    "group": "Pieces: Rehearse, play, edit",
    "where": "flowSubdivideModal",
-   "name": "#flowSubdivideCancelBtn",
-   "label": "Cancel",
-   "html": true
-  },
-  {
-   "group": "Pieces: Rehearse, play, edit",
-   "where": "flowSubdivideModal",
-   "name": "#flowSubdivideSaveBtn",
-   "label": "Save",
+   "name": "#flowSubdivideDoneBtn",
+   "label": "Done",
    "html": true
   },
   {
@@ -4280,35 +4266,28 @@
   },
   {
    "group": "Pieces: Rehearse, play, edit",
-   "where": "flowSpeedModal",
-   "name": "hide-modal(flowSpeedModal)",
+   "where": "flowSeeHearModal",
+   "name": "hide-modal(flowSeeHearModal)",
    "label": "Close",
    "html": true
   },
   {
    "group": "Pieces: Rehearse, play, edit",
-   "where": "flowVolumeModal",
-   "name": "#flowVolumeCloseBtn",
-   "label": "Close",
-   "html": true
-  },
-  {
-   "group": "Pieces: Rehearse, play, edit",
-   "where": "flowVolumeModal",
+   "where": "flowSeeHearModal",
    "name": "#flowVolumeMinus",
    "label": "Decrease volume",
    "html": true
   },
   {
    "group": "Pieces: Rehearse, play, edit",
-   "where": "flowVolumeModal",
+   "where": "flowSeeHearModal",
    "name": "#flowVolumePlus",
    "label": "+",
    "html": true
   },
   {
    "group": "Pieces: Rehearse, play, edit",
-   "where": "flowVolumeModal",
+   "where": "flowSeeHearModal",
    "name": "#flowMuteBtn",
    "label": "Mute",
    "html": true
@@ -5848,27 +5827,6 @@
   },
   {
    "group": "Pieces: Rehearse, play, edit",
-   "where": "recScoreControlsHtml()",
-   "name": "rec-loop",
-   "label": "off repeat",
-   "html": false
-  },
-  {
-   "group": "Pieces: Rehearse, play, edit",
-   "where": "recScoreControlsHtml()",
-   "name": "rec-play",
-   "label": "play",
-   "html": false
-  },
-  {
-   "group": "Pieces: Rehearse, play, edit",
-   "where": "recScoreControlsHtml()",
-   "name": "rec-speed",
-   "label": "100% play speed",
-   "html": false
-  },
-  {
-   "group": "Pieces: Rehearse, play, edit",
    "where": "renderBarMapModal()",
    "name": "barmap-play",
    "label": "Play",
@@ -5911,8 +5869,15 @@
   },
   {
    "group": "Pieces: Rehearse, play, edit",
-   "where": "renderFlowMediaDots()",
-   "name": "data-slide-index",
+   "where": "renderFlowSeeHear()",
+   "name": "#flowAlongAddBtn",
+   "label": "Add a recording or video",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderFlowSeeHear()",
+   "name": "data-along-rec",
    "label": "",
    "html": false
   },

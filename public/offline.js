@@ -45,7 +45,9 @@
     const QUIET = [
         [/^(PUT|DELETE)$/, /^\/api\/timer\/active$/],
         [/^(PUT|DELETE)$/, /^\/api\/practice\/active$/],
-        [/^POST$/, /^\/api\/notifications\/(read-all|\d+\/read)$/]
+        [/^POST$/, /^\/api\/notifications\/(read-all|\d+\/read)$/],
+        // ML-627: what a member sees and hears on a piece - this device keeps its own copy, sent with the next change
+        [/^PUT$/, /^\/api\/flows\/\d+\/play-settings$/]
     ];
     // Reads never answered from the device: what is running right now, and anything private or one-off.
     const NO_COPY = [/^\/api\/timer\/active$/, /^\/api\/practice\/active$/, /^\/api\/notifications/, /^\/api\/notices\//, /^\/api\/account\/export/, /^\/api\/account\/two-step/, /^\/api\/invites/, /^\/api\/admin\//];

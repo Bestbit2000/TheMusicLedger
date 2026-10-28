@@ -133,5 +133,7 @@
   "ML-589": "We made Scales work like the new Warm-ups: one Settings button saved on your account, and your own pace or the metronome moving on to the next scale.",
   "ML-588": "We let you change the sub-beats (off, auto or a set number) and set your own speed, as a percentage of the piece's speed, while you practise a piece in a session.",
   "ML-590": "We kept the menu's fold button in one place on a tablet or computer, open or folded, and put counts on the icons when it's folded so nothing shifts.",
-  "ML-591": "We made the Tuner's Transposition and Tuning reference open inside its settings, so closing them no longer closes the settings too."
+  "ML-591": "We made the Tuner's Transposition and Tuning reference open inside its settings, so closing them no longer closes the settings too.",
+  "ML-626": "We made the line above the beats simpler: the bars you are in, then the bar you are on, in bold.",
+  "ML-627": "We let you hear the clicks along with a piece's video or recording, gave the play screen four buttons and a settings cog, and remember what you chose for each piece."
 }

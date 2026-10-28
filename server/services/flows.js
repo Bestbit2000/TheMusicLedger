@@ -17,6 +17,7 @@ import vm from 'node:vm';
 import pool from '../config/db.js';
 import { del } from '@vercel/blob';
 import { listFlowBlocksUnchecked } from './flowBlocks.js'; // ML-488 (a cycle with flowBlocks.js, used only when called)
+import { cleanPlaySettings } from './playSettings.js'; // ML-627
 
 // ML-312: the rules for a recording's start and end are in public/flowJourney.js, loaded here with vm
 // (as practiceLevels.js does) so the server checks a clip with the same code the pop-up runs.
@@ -398,10 +399,30 @@ export async function getFlowDetail(accountId, scoreId) {
     isSuperAdmin(accountId)
   ]);
   const canDelete = canEdit && canDeleteFlow(score, accountId, superAdmin); // ML-411
-  const { rows: markRows } = recordingRows.length
-    ? await pool.query('SELECT recording_id, place, bar_number, pass, at_ms FROM score_recording_marks WHERE recording_id = ANY($1) ORDER BY place', [recordingRows.map((r) => r.id)])
-    : { rows: [] };
-  return toFlowDetailDto(score, recordingRows, documentRows, summaryRows[0], canEdit, canDelete, markRows);
+  const [{ rows: markRows }, { rows: playRows }] = await Promise.all([
+    recordingRows.length
+      ? pool.query('SELECT recording_id, place, bar_number, pass, at_ms FROM score_recording_marks WHERE recording_id = ANY($1) ORDER BY place', [recordingRows.map((r) => r.id)])
+      : { rows: [] },
+    pool.query('SELECT settings, updated_at FROM piece_play_settings WHERE account_id = $1 AND score_id = $2', [accountId, scoreId]) // ML-627
+  ]);
+  const dto = toFlowDetailDto(score, recordingRows, documentRows, summaryRows[0], canEdit, canDelete, markRows);
+  dto.myPlaySettings = playRows[0] ? { ...playRows[0].settings, updatedAt: playRows[0].updated_at } : null;
+  return dto;
+}
+
+// ML-627: what this member chose to see and hear on the piece's play screen - remembered per piece, for them alone.
+// Anyone who can open the piece can keep their own (cleanPlaySettings: the four known keys, one of its recordings).
+export async function savePlaySettings(accountId, scoreId, data) {
+  await assertFlowReadAccess(accountId, scoreId);
+  const { rows } = await pool.query('SELECT id FROM score_recordings WHERE score_id = $1', [scoreId]);
+  const settings = cleanPlaySettings(data, rows.map((r) => Number(r.id)));
+  const { rows: saved } = await pool.query(
+    `INSERT INTO piece_play_settings (account_id, score_id, settings) VALUES ($1, $2, $3)
+     ON CONFLICT (account_id, score_id) DO UPDATE SET settings = EXCLUDED.settings, updated_at = now()
+     RETURNING settings, updated_at`,
+    [accountId, scoreId, settings]
+  );
+  return { ...saved[0].settings, updatedAt: saved[0].updated_at };
 }
 
 export async function updateFlowMetadata(accountId, scoreId, data) {
