@@ -114,7 +114,9 @@ so the clicks join it on its first beat and the go's number carries on (`alongRe
 `alongRestEnd`, ML-634). Play at the count-in and Reset back to it do the same. A video not played yet only starts
 loading when it is first played - at the end of the count-in that was too late (the clicks joined at the second
 beat), so during the count-in it is loaded silently: moved to the repeat's start, muted, and paused there as soon as
-it plays (`alongWarm`, ML-637). Not with a practice's count-in every
+it plays (`alongWarm`, ML-637). The count-in and every rest count down in the bar line ("Count-in **3** get ready",
+`showFlowBarCount`, ML-638) - nothing may cover a YouTube video (its terms), and the beats and buttons stay in view
+(the owner, 28 Oct 2026); a practice's own count-in before a recording does the same. Not with a practice's count-in every
 time round, which has its own (ML-587). Starting (not catching up), a recording only just into a bar - one that can't
 start early, bar 1 at 0:00 - still gets the bar's first click, a moment late (`ALONG_LATE_START_MS`). Starting at a bar (a tile, Play, Reset), the recording starts 0.4 s before it
 (`ALONG_START_LEAD_MS`, as a repeat does) so the clicks are joined in time for the bar's first beat; a tile or Reset

@@ -220,7 +220,8 @@ opened from a practice list, Play Flow's menu (My Levels) and a session's Prepar
    through a go, the go is finished first and the bar says "Last go"; then it stops (ML-541, `sessionGoToFinish` in
    app.js). A go that has only just started - its gap bar or count-in, or its first bar - stops straight away. A
    warm-up block finishes the time through the exercise it's on the same way. Next block always stops at once. The
-   count-in before a block shows big, over the play screen's metronome (ML-542). On the play screen the
+   count-in before a block shows big, over the play screen's metronome (ML-542) - and the rest between goes too; with a
+   recording playing along, in the bar line, never over the video (ML-638). On the play screen the
    **Level** button picks a faster or slower Level while you play (ML-537 - it was a Level up button), saved as it
    happens; the **sub beats** switch starts the way the Level would set them (on when a bar's beat is slow at that
    speed) and turns them on or off for the rest of the block.

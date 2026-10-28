@@ -1382,6 +1382,8 @@
     .metroBlk-row-head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1); font-size: var(--font-sm); color: var(--label-color); font-weight: var(--font-weight-bold); }
     /* ML-626: the bar playing, last on the line - in the body text colour so it reads at a glance */
     .flow-bar-now { color: var(--text-color); font-weight: var(--font-weight-bold); }
+    /* ML-638: playing along, the count-down in the bar line - big, as the ring's number is, but on one line that fits the row (the cog sets its height), so nothing moves */
+    .flow-bar-count { font-size: var(--font-2xl); line-height: var(--line-height-tight); font-weight: var(--font-weight-bold); color: var(--text-color); font-variant-numeric: tabular-nums; vertical-align: middle; margin: 0 var(--space-1); }
     /* Reserved for a future rehearsal-mark readout (ML-35) - empty for now, but the layout leaves it
        room so that later addition doesn't reflow this row. */
     .metroBlk-row-mark { min-width: 28px; }

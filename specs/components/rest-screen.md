@@ -52,7 +52,7 @@ left - set by `renderRest`, read by `.rest-ring-left`). The count-in adds `--fon
 | Breathing message | `.rest-breath` grows and shrinks; the word flips "in" / "out" |
 | Reduced motion | the circle stays still at 1.6x; the ring doesn't animate |
 | Offline | a built-in breathing message is shown |
-| Count-in (ML-542) | `.count-in-cover` shown over the controls; hidden (`hidden-group`) when the count-in ends, on pause and on reset |
+| Count-in (ML-542) | `.count-in-cover` shown over the controls; hidden (`hidden-group`) when the count-in ends, on pause and on reset. On the play screen it shows in every rest between repeats too, and while a recording plays along it is not used at all - the count-down is in the bar line (`.flow-bar-count`, ML-638) |
 
 ## 7. Code example
 ```html

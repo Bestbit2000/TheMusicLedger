@@ -16101,6 +16101,7 @@
         if (flowSchedIndex >= flowPlayQueue.length && flowLoopPlan) flowAppendLoopPass();
         return flowSchedIndex < flowPlayQueue.length ? flowPassageConfig(flowSchedIndex) : null;
     }
+    let flowBarCount = 0; // ML-638: the count-down in the bar line while playing along (showFlowBarCount)
     // Puts both the scheduler and the screen at passage `index` (bar `startBarInPassage` of it).
     function flowStartSequenceAt(index, startBarInPassage = 0, clickInBar = 0) {
         if (!flowPlayQueue.length) return;
@@ -16111,6 +16112,7 @@
         flowPlayer.setSequence(cfg, flowNextPassageConfig);
     }
     function jumpFlowToStart() {
+        flowBarCount = 0; // ML-638: no count-down left over (the bar line is redrawn by whoever called)
         flowResetPlayQueue();
         flowStartSequenceAt(0);
     }
@@ -16188,6 +16190,11 @@
         const block = flowPassageBlock(p);
         // ML-302: "Repeat 3 · ..." while repeating; rest bars count in before the first pass.
         const loopPrefix = flowLoopPlan ? `Repeat ${p.loopPass} · ` : '';
+        // ML-638: playing along, the big count-down is here (showFlowBarCount)
+        if (flowBarCount > 0) {
+            const word = p.kind === 'rest' && p.loopPass > 1 && !flowCountInEveryGo() ? 'Rest' : 'Count-in';
+            return `${loopPrefix}${word} <strong class="flow-bar-count">${flowBarCount}</strong> get ready`;
+        }
         if (p.kind === 'rest') {
             // The first pass's clicking bars are the count-in (in a practice or run-through, the number you chose);
             // ML-587: every pass's, when the count-in comes every time round
@@ -16210,6 +16217,17 @@
         if (p.kind === 'main' && flowRepeatedBlockIds.has(p.blockId)) parts.push(`${FLOW_ORDINALS[p.pass - 1] || `${p.pass}th`} time`);
         parts.push(`<strong class="flow-bar-now">${startBar === null ? `${pos.bar + 1} of ${block.barCount} bar${block.barCount === 1 ? '' : 's'}` : `Bar ${startBar + pos.bar}`}</strong>`);
         return parts.join(' · ') + metroBlkFermataLabelSuffix(block);
+    }
+
+    // ML-638: playing along, the count-down (the count-in, and every rest between repeats) is in the bar line as a big
+    // number - nothing may cover a YouTube video (its terms), and the beats and buttons stay in view (the owner, 28 Oct
+    // 2026). Without a recording the cover over the card counts down, as before (ML-542). 0 = no count-down.
+    function showFlowBarCount(left) {
+        const n = left > 0 ? left : 0;
+        if (n === flowBarCount) return;
+        flowBarCount = n;
+        const label = document.getElementById('flowPlayRowLabel');
+        if (label) label.innerHTML = flowNowPlayingLabel();
     }
 
     function onFlowBeat(beatInfo) {
@@ -16241,16 +16259,17 @@
         else if (!isFermataRepeat && recActiveSlide() && alongRecPlaying() && alongOnBeat(beatInfo)) return; // ML-627: joined the recording again
         const block = flowPassageBlock(pos.p);
         const subFactor = flowPassageSubFactor(pos.p, block);
-        // ML-542: the count-in (the rest bars before the first go - not the gap bars between goes) counts down big.
-        // ML-587: in a practice with the count-in every time round, the bars between goes are a count-in too.
+        // ML-542: the count-in counts down big. ML-638: so does every rest between repeats (the owner, 28 Oct 2026 - the
+        // rest is there to bring you back in); playing along, in the bar line rather than over the card.
         const cp = pos.p;
-        if (cp.kind === 'rest' && (cp.loopPass === 1 || !flowLoopPlan || flowCountInEveryGo())) {
+        if (cp.kind === 'rest') {
             if (beatInfo.isConductorBeat) {
                 const bpb = beatInfo.conductorBeatsPerBar;
                 const total = flowPlayQueue.filter(q => q.kind === 'rest' && q.loopPass === cp.loopPass).length * bpb;
-                showCountIn('flowCountIn', total - (cp.restIndex * bpb + beatInfo.conductorBeatIndex), total);
+                const left = total - (cp.restIndex * bpb + beatInfo.conductorBeatIndex);
+                if (recActiveSlide()) { showCountIn('flowCountIn', 0); flowBarCount = left; } else { flowBarCount = 0; showCountIn('flowCountIn', left, total); }
             }
-        } else showCountIn('flowCountIn', 0);
+        } else { flowBarCount = 0; showCountIn('flowCountIn', 0); }
 
         // A new passage (a new block, a repeat, a jump) redraws the whole row; a new bar within the same
         // passage only refreshes its label and fermata/caesura glyphs - at the new bar's first click,
@@ -16372,13 +16391,12 @@
     }
 
     // The recording being played along to, in the card under the bar line. A video stays in full view and uncovered
-    // (YouTube's terms); the practice count-in ring (ML-587) covers it only while counting in.
+    // (YouTube's terms) - the count-in counts down in the bar line (ML-638).
     function flowMediaSlideHtml(slide) {
         const r = slide.data;
         if (slide.type === 'audio') {
             return `
                 <div class="pos-relative" data-slide-key="${flowMediaSlideKey(slide)}">
-                    ${recCountInCoverHtml(slide)}
                     <div class="flow-media-slide-header">
                         <span class="flow-media-icon type-audio"><span class="material-symbols-outlined icon-md">music_note</span></span>
                         <div><strong>${escapeHtml(r.title)}</strong><span>${escapeHtml(recMovement(r) ? FlowJourney.movementLabel(recMovement(r), true) : (r.mimeType || 'Audio file'))}</span></div>
@@ -16390,7 +16408,6 @@
         // No icon, title or "YouTube video" line above it (the owner, 12 Oct 2026): the video shows its own title, and the room is for the bars
         return `
             <div class="pos-relative" data-slide-key="${flowMediaSlideKey(slide)}">
-                ${recCountInCoverHtml(slide)}
                 <div class="flow-media-player-video"><iframe id="flowYtFrame-${r.id}" src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(r.youtubeVideoId)}?enablejsapi=1&amp;origin=${origin}${youTubeClipQuery(recordingClip(r), "&amp;")}" title="${escapeHtml(r.title)}" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
             </div>`;
     }
@@ -16897,7 +16914,6 @@
     const recCountPlayer = createMetronomePlayer();
     recCountPlayer.setVisualLatencyMs(metroState.latencyMs);
     let recCounting = null; // { slideKey, totalClicks, then }
-    const recCountInCoverHtml = (slide) => `<div class="count-in-cover hidden-group" id="recCountIn-${flowMediaSlideKey(slide)}" aria-hidden="true"><div class="rest-ring"><svg class="rest-ring-svg" viewBox="0 0 120 120"><circle class="rest-ring-track" cx="60" cy="60" r="52"></circle><circle class="rest-ring-left" cx="60" cy="60" r="52" pathLength="100"></circle></svg><div class="rest-ring-num"><strong>4</strong><span>get ready</span></div></div></div>`;
     const recInPractice = () => !!flowSession && flowSession.mode !== 'runthrough';
     // Where the practised bars start on the recording, and that bar's block
     function recPracticeStart(slide) {
@@ -16910,8 +16926,8 @@
         if (!recCounting) return;
         if (recCountPlayer.isPlaying()) recCountPlayer.pause();
         recCountPlayer.setClickFilter(null);
-        showCountIn(`recCountIn-${recCounting.slideKey}`, 0);
         recCounting = null;
+        showFlowBarCount(0);
     }
     // Counts the practice's count-in, then runs then() - straight away when the count-in is off
     function recCountInThen(slide, then) {
@@ -16934,7 +16950,7 @@
         const c = recCounting;
         if (!c || !info || info.ended) return;
         const left = c.totalClicks - info.clickIndex;
-        if (left > 0) { showCountIn(`recCountIn-${c.slideKey}`, left, c.totalClicks); return; }
+        if (left > 0) { showFlowBarCount(left); return; } // ML-638: in the bar line, never over the recording
         const then = c.then;
         recCountInStop();
         then();
@@ -17839,6 +17855,7 @@
         pauseFlowMediaSlide(recActiveSlide());
         flowPlayer.setSpeedPercent(flowSpeedPercent); // ML-627: the clicks were following the recording's speed
         window.Usage?.end('rehearse');
+        showFlowBarCount(0); // ML-638
         updateFlowPlayIcon();
     }
     function resetFlow() {
