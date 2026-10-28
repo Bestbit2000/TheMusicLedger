@@ -256,6 +256,8 @@ edge, icon/text and fill
 | `--icon-lg` | `24px` | icon-only buttons |
 | `--icon-xl` | `32px` | tool tiles, hero icons |
 | `--read-wait-ring` | `96px` | ML-645 the turning ring on the photo-read waiting screen |
+| `--step-mark-size` | `16px` | ML-639 the ? / tick over a Quick entry step's dash (a read's checks) |
+| `--read-open-list-max` | `50vh` | ML-639 the open checks listed in "save anyway?" scroll past half the screen |
 
 ## Practice Levels heat map (ML-316)
 

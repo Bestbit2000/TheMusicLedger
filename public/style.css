@@ -3350,3 +3350,34 @@
     .read-wait-nums { display: flex; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; font-size: var(--font-sm); margin: var(--space-2) 0 var(--space-5); font-variant-numeric: tabular-nums; }
     .read-wait-allow { font-size: var(--font-sm); background: var(--input-bg); border: 1px solid var(--control-border); border-radius: var(--radius-md); padding: var(--space-3); text-align: left; margin: 0 0 var(--space-4); }
     .read-wait-stay { font-size: var(--font-xs); color: var(--label-color); margin: 0 0 var(--space-4); }
+
+    /* ML-639: a piece read from a photo - its checks, each at the top of the step it is about, in the app's own gold
+       (no new colour - owner, 28 Oct 2026). The strip says how the read went and how many are checked; each check ends
+       in the yes/no switch (Checked / Agreed) - Next stays the only primary button; the progress dashes carry ? or a
+       tick. specs/components/piece-outline.md, "Checks from a read" */
+    .read-strip { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--primary-action-tint); color: var(--text-color); font-size: var(--font-sm); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-4); }
+    .read-strip .material-symbols-outlined { font-size: var(--icon-md); color: var(--primary-action-strong); }
+    .read-strip.is-low { background: var(--danger-tint); }
+    .read-strip.is-low .material-symbols-outlined { color: var(--danger-text); }
+    .read-strip-count { margin-left: auto; font-weight: var(--font-weight-normal); white-space: nowrap; display: inline-flex; align-items: center; gap: var(--space-1); }
+    .read-strip .read-strip-tick { color: var(--success-text); font-variation-settings: 'FILL' 1; }
+    .read-checks { border: 1px solid var(--primary-action-strong); border-radius: var(--radius-lg); padding: var(--space-3); margin-bottom: var(--space-5); }
+    .read-checks-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+    .read-checks-title { display: flex; align-items: center; gap: var(--space-1); font-size: var(--font-sm); font-weight: var(--font-weight-bold); color: var(--primary-action-strong); }
+    .read-agree-all { min-height: var(--touch-target); padding: 0 var(--space-1); background: none; border: none; color: var(--link-color); text-decoration: underline; font: inherit; font-size: var(--font-sm); font-weight: var(--font-weight-semibold); cursor: pointer; }
+    .read-check { border-radius: var(--radius-md); background: var(--primary-action-tint); padding: var(--space-3); margin-top: var(--space-2); border: 1px solid transparent; }
+    .read-check.is-done { background: none; border-color: var(--control-border); }
+    .read-check-text { font-size: var(--font-sm); line-height: var(--line-height-base); margin: 0 0 var(--space-2); }
+    .read-check-moved { display: flex; align-items: center; gap: var(--space-1); font-size: var(--font-xs); color: var(--label-color); margin: var(--space-2) 0 0; }
+    .read-check-toggle { font-weight: var(--font-weight-semibold); margin-top: var(--space-2); }
+    .read-also { font-size: var(--font-sm); color: var(--label-color); margin: var(--space-3) 0 0; }
+    .read-open-list { list-style: none; padding: 0; margin: 0 0 var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); max-height: var(--read-open-list-max); overflow: auto; }
+    .read-open-list li { background: var(--primary-action-tint); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); font-size: var(--font-sm); }
+    .read-open-list li strong { display: block; font-size: var(--font-xs); color: var(--primary-action-strong); }
+    /* the ? (checks still open) and tick (all done) over a step's dash */
+    .step-bar.has-marks { padding-top: var(--space-5); }
+    .step-bar.has-marks .step-bar-piece { position: relative; }
+    .step-mark { position: absolute; bottom: calc(100% + var(--space-1)); left: 50%; transform: translateX(-50%); width: var(--step-mark-size); height: var(--step-mark-size); border-radius: var(--radius-circle); display: flex; align-items: center; justify-content: center; font-size: var(--font-2xs); font-weight: var(--font-weight-bold); }
+    .step-mark.is-open { background: var(--primary-action-strong); color: var(--container-bg); }
+    .step-mark.is-done { background: var(--success-text); color: var(--container-bg); }
+    .step-mark .material-symbols-outlined { font-size: var(--font-2xs); width: auto; }

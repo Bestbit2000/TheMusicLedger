@@ -3,7 +3,7 @@
 **Made by `node scripts/usage-buttons.mjs` - don't edit it by hand.** What counts as a use, and how a tap is
 counted, is in [usage-stats.md](usage-stats.md) ("Every button").
 
-887 buttons: 887 have a name a tap can be counted by, 0 need one.
+892 buttons: 892 have a name a tap can be counted by, 0 need one.
 A button on a screen is listed under the screen or pop-up it is on; one the app builds as it goes, under
 the function that builds it (shown with ()). The words are only to help find it - a tap is never counted by
 its words.
@@ -20,7 +20,7 @@ its words.
 | Theory | 25 | 0 |
 | Skills: Tempo, Pulse, Pitch, Rhythm | 38 | 0 |
 | Range | 14 | 0 |
-| Pieces: Rehearse, play, edit | 263 | 0 |
+| Pieces: Rehearse, play, edit | 268 | 0 |
 | Add a piece | 7 | 0 |
 | Recordings | 6 | 0 |
 | Practice lists | 16 | 0 |
@@ -597,6 +597,9 @@ its words.
 | flowCheckModal | `#flowCheckCloseBtn` | Close |
 | flowCheckModal | `#flowCheckFixBtn` | Go back and fix |
 | flowCheckModal | `#flowCheckContinueBtn` | Save anyway |
+| outlineOpenChecksModal | `close (X)` | Close |
+| outlineOpenChecksModal | `#outlineOpenChecksNo` | No |
+| outlineOpenChecksModal | `#outlineOpenChecksYes` | Yes |
 | renderRehearseList() | `data-rehearse-id` |  |
 | renderFlowPlaybackModal() | `pb-option` |  |
 | renderFlowPlaybackModal() | `data-pb-level` |  |
@@ -645,7 +648,7 @@ its words.
 | flowGlyphPickerTileHtml() | `data-option` |  |
 | renderFlowFermataList() | `data-pause-edit` |  |
 | renderFlowFermataList() | `data-pause-menu` | Pause options |
-| renderFlowFermataAddSection() | `data-pause-kind` | … … … </bu |
+| renderFlowFermataAddSection() | `data-pause-kind` | … … … </button |
 | renderFlowRampList() | `data-ramp-edit` |  |
 | renderFlowRampList() | `data-ramp-menu` | Ramp options |
 | renderFlowRampAddSection() | `data-ramp-target` |  |
@@ -662,6 +665,7 @@ its words.
 | renderMetroSegCustomSigManageList() | `timesig-delete` |  |
 | renderMetroSegCustomSigManageList() | `timesig-archive` | Archive |
 | renderMetroBlkMiniTunerInstrumentOptions() | `data-value` |  |
+| renderOutline() | `data-outline=readIntroNext` | Next: … |
 | renderOutline() | `data-outline=back` | Back |
 | renderOutline() | `data-outline` |  |
 | outlineValueBtn() | `data-outline` |  |
@@ -671,14 +675,15 @@ its words.
 | outlineSpeedRowHtml() | `data-speed-note` |  |
 | outlineTableRowHtml() | `data-xkind` |  |
 | outlineTableRowHtml() | `data-xends` |  |
-| outlineExtrasStepHtml() | `data-outline-extra` | …</str |
+| outlineExtrasStepHtml() | `data-outline-extra` | …</stron |
 | outlineExtrasStepHtml() | `data-outline=addExtra` | + … |
 | outlineMediaStepHtml() | `data-outline-media-remove` |  |
 | outlineMediaStepHtml() | `data-outline=addVideo` | + Add the link |
 | outlineMediaStepHtml() | `data-outline=pickFile` | + … |
 | renderOutlineExtraForm() | `data-x-sign` |  |
 | renderOutlineEndingsForm() | `data-ends-add` | + Add another ending |
-| outlineReadPanelHtml() | `data-outline=readChecks` |  |
+| outlineReadCheckHtml() | `data-read-value` | … bpm speed at bar …… |
+| outlineReadChecksHtml() | `data-read-all` |  |
 
 ## Add a piece
 
@@ -1011,7 +1016,7 @@ its words.
 | renderHiddenBands() | `data-band-show` | Show again |
 | renderInvite() | `data-resend-invite` | Send again |
 | renderInvite() | `data-cancel-invite` |  |
-| renderBuild() | `data-slot` | …–… … |
+| renderBuild() | `data-slot` | …–… …</ |
 | renderBuild() | `data-add` |  |
 | openChooser() | `data-opt` |  |
 | openChooser() | `data-extra` |  |

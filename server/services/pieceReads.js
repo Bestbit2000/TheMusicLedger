@@ -239,7 +239,17 @@ async function ownRead(accountId, readId) {
 
 // The piece has been saved in Quick entry: keep the outline as saved and what differed from the read.
 // testFiles (the owner's "Keep this as a test"): the pages, uploaded again to the tests folder.
-export async function markSaved(accountId, readId, index, { flowId, saved, testFiles } = {}) {
+// ML-639: checkAnswers - what the member did with each check: agreed, agreedAll, changed, checked or open. Only those
+// states, and only as many as there are checks, are kept.
+const ANSWER_STATES = ['agreed', 'agreedAll', 'changed', 'checked', 'open'];
+export function cleanAnswers(answers) {
+  if (!Array.isArray(answers)) return null;
+  return answers.slice(0, 200).filter((a) => a && ANSWER_STATES.includes(a.state)).map((a) => ({
+    id: Number(a.id) || 0, kind: String(a.kind || '').slice(0, 30), step: String(a.step || '').slice(0, 30), state: a.state,
+    from: Number.isInteger(a.from) ? a.from : null, to: Number.isInteger(a.to) ? a.to : null
+  }));
+}
+export async function markSaved(accountId, readId, index, { flowId, saved, testFiles, checkAnswers = null } = {}) {
   await ownRead(accountId, readId);
   const { rows } = await pool.query('SELECT id, outline FROM piece_read_pieces WHERE read_id = $1 AND piece_index = $2', [readId, Number(index)]);
   if (!rows.length) throw withStatus(404, 'That read was not found.');
@@ -247,8 +257,9 @@ export async function markSaved(accountId, readId, index, { flowId, saved, testF
   await assertFlowAccess(accountId, flowId);
   let changes = null;
   try { changes = PieceRead.compare(rows[0].outline, saved); } catch { /* an outline the rules can't compare: kept, with no count */ }
-  await pool.query('UPDATE piece_read_pieces SET score_id = $1, saved = $2, saved_at = now(), changes = $3 WHERE id = $4',
-    [flowId, JSON.stringify(saved), changes ? JSON.stringify(changes) : null, rows[0].id]);
+  const answers = cleanAnswers(checkAnswers);
+  await pool.query('UPDATE piece_read_pieces SET score_id = $1, saved = $2, saved_at = now(), changes = $3, check_answers = $5 WHERE id = $4',
+    [flowId, JSON.stringify(saved), changes ? JSON.stringify(changes) : null, rows[0].id, answers ? JSON.stringify(answers) : null]);
   if (testFiles) {
     const kept = checkedFiles(testFiles, testUploadPrefix(accountId));
     await pool.query('UPDATE piece_reads SET test_files = $1, test_kept_at = now() WHERE id = $2', [JSON.stringify(kept), readId]);
@@ -259,7 +270,8 @@ export async function markSaved(accountId, readId, index, { flowId, saved, testF
 // ---------- Admin -> Photo reads ----------
 const pieceRow = (r) => ({
   id: Number(r.id), index: r.piece_index, title: r.title, bars: r.bars, rating: r.rating, checks: r.checks,
-  flowId: r.score_id ? Number(r.score_id) : null, savedAt: r.saved_at, savedBars: r.saved ? r.saved.bars : null, changes: r.changes, checkedAt: r.checked_at
+  flowId: r.score_id ? Number(r.score_id) : null, savedAt: r.saved_at, savedBars: r.saved ? r.saved.bars : null, changes: r.changes, checkedAt: r.checked_at,
+  answers: r.check_answers || null // ML-639
 });
 
 export async function listReads() {
@@ -302,6 +314,16 @@ export function summariseStops(stops, reads) {
 
 // How it is doing: reads and what they cost, then - of the pieces saved - how many needed no change, and
 // how many had the right number of bars, for each rating. That last table is whether the rating is useful.
+// ML-639: for each kind of check, how often it was agreed (one by one or with Agree all), changed, checked or left open -
+// whether the reader's guesses of that kind are any good
+export function summariseAnswers(savedPieces) {
+  const byKind = {};
+  for (const p of savedPieces) for (const a of p.answers || []) {
+    const k = byKind[a.kind] || (byKind[a.kind] = { kind: a.kind, agreed: 0, agreedAll: 0, changed: 0, checked: 0, open: 0 });
+    if (a.state in k) k[a.state] += 1;
+  }
+  return Object.values(byKind).sort((x, y) => x.kind.localeCompare(y.kind));
+}
 export function summarise(reads, stops = []) {
   const done = reads.filter(r => r.status === 'read');
   const saved = done.flatMap(r => r.pieces).filter(p => p.savedAt && p.changes);
@@ -314,7 +336,8 @@ export function summarise(reads, stops = []) {
     reads: reads.length, failed: reads.length - done.length, pieces: done.reduce((n, r) => n + r.pieces.length, 0), saved: saved.length, tests: reads.filter(r => r.isTest).length,
     costUsd: costs.reduce((n, c) => n + c, 0), costPerRead: costs.length ? costs.reduce((n, c) => n + c, 0) / costs.length : null,
     seconds: done.length ? Math.round(done.reduce((n, r) => n + r.seconds, 0) / done.length) : null, byRating,
-    stopped: summariseStops(stops, reads) // ML-645
+    stopped: summariseStops(stops, reads), // ML-645
+    answers: summariseAnswers(saved) // ML-639
   };
 }
 

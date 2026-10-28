@@ -301,6 +301,17 @@ one-time "I have the right to upload it" (ML-278) comes first, as for any music.
    typed, since that is what Quick entry works from. Every step has one button at the top - "Read from your
    PDF: Medium confidence · 2 things to check" - which opens the list of checks; tapping a check goes to the
    step it is about. A Low read's button is red.
+   **The checks** (ML-639, owner 28 Oct 2026; `specs/components/piece-outline.md`, "Checks from a read") are no
+   longer one button and a list: each sits at the top of the step it is about (`outlineCheckStep`: speeds on Speed, a
+   rall. left out on Gradual speed changes, the count and the last line on How long...), with a yes/no switch -
+   **Checked**, or **Agreed** for a speed, whose value box opens the Tempo pop-up; a changed value switches it on by
+   itself, and the later starting points from words that nobody has answered yet are worked out again from it
+   (`PieceRead.bpmForWords`, loaded on the app page for this). What has no step of its own (a page cut off, the end
+   not seen, a pickup...) is on an extra first step, "Here are your checks", shown only when it has something. A
+   strip at the top of every step counts them, the progress dashes carry ? or a tick, and **Save** asks "These are
+   still outstanding, save anyway?" if any are open. What was done with each goes in the log
+   (`piece_read_pieces.check_answers`), and Admin → Photo reads shows, for each kind of check, how often it was
+   agreed, changed or left open.
 5. **Save** is Quick entry's own. The stopwatch records the piece as `creation_source = 'photo'`, so Admin →
    Usage sets it beside Quick entry and bar by bar, release by release. Then `PUT /api/piece-read/:id/saved`
    puts the outline as saved in the log beside what was read.

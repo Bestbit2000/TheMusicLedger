@@ -5,7 +5,10 @@
   `.outline-field`, `.outline-field-label`, `.outline-th`, `.outline-list`, `.outline-chips`, `.outline-chip`,
   `.outline-table`, `.outline-row` with `.outline-row-marks` / `.outline-row-time` / `.outline-row-speed` / `.outline-row-repeat` / `.outline-row-pause`, `.outline-sig-cell`, `.outline-cell-fixed`,
   `.outline-cell-btn`, `.outline-sum`, `.outline-extra` with
-  `.has-clash`, `.outline-extra-text`, `.outline-extra-clash`, `.outline-add`)
+  `.has-clash`, `.outline-extra-text`, `.outline-extra-clash`, `.outline-add`; ML-639, a read's checks: `.read-strip` with
+  `.is-low`, `.read-strip-count`, `.read-strip-tick`, `.read-checks`, `.read-checks-head`, `.read-checks-title`,
+  `.read-agree-all`, `.read-check` with `.is-done`, `.read-check-text`, `.read-check-moved`, `.read-check-toggle`,
+  `.read-also`, `.read-open-list`, `.step-bar` with `.has-marks`, `.step-mark` with `.is-open` / `.is-done`)
 - **Category:** Form / stepped set-up
 - **Status:** New (ML-424)
 
@@ -108,13 +111,28 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
   outline `PieceOutline.buildBlocks` reads.
 - `PUT /api/flows/:id/blocks/all` saves the blocks in one request.
 
-**Opened from a photo or PDF (ML-246).** When the piece was read from a photo (`outline.read`), every step starts
-with **one button** - an `.outline-extra` (icon `photo_camera`, "Read from your PDF: Medium confidence" over "2
-things to check - tap to see them", a chevron; `.has-clash` when the rating is Low, and the word Low is in the
-text, so colour is not the only sign) - which opens `#flowChoiceModal` with a row per check (the check over "Look
-at this first" / "Worth a look" / "For you to decide"). Tapping a check goes to the step it is about. One button,
-one pop-up: the list is never laid out on the step. The check's words come from the reader, so they are escaped
-like member-typed text. On the last step a super admin also has a `.display-toggle-row` switch, **Keep this as a
+**Opened from a photo or PDF (ML-246; checks on their steps ML-639, design approved by the owner 28 Oct 2026).**
+When the piece was read from a photo (`outline.read`):
+- **Checks from a read** sit together at the top of the step they are about (`outlineCheckStep`), in `.read-checks`
+  (a gold outline; its heading `.read-checks-title` says how many are done). Each is a `.read-check` (the gold wash;
+  `.is-done` - a plain outline - once answered): the check's words, for a speed its value as the usual value box
+  (`.metroBlk-ctrl-value-btn`, opening the Tempo pop-up), and the yes/no switch (`.read-check-toggle`, a
+  `.display-toggle-row`, off to start with) - **Checked** where there's nothing to change, **Agreed** where there's a
+  value. A changed value turns the switch on by itself ("Changed", the box says "changed from 52"); later
+  starting-point speeds not yet answered are worked out again from it (`.read-check-moved` says so). **Agree all**
+  (on the first step **Check all**) is an underlined text link (`.read-agree-all`), shown with two or more open.
+  Next stays the only primary button on the page. No new colour: the app's gold, red for a Low read.
+- **The strip** at the top of every step (`.read-strip`, `.is-low` for a Low read): "Read from your PDF · High
+  confidence" and "3 of 9 checked" (`.read-strip-count`), "All 9 checked" with a tick once done. Not a button.
+- **The first step**, only when a check has no step of its own (a page cut off, the end not seen, a pickup...):
+  "Here are your checks", a small line ("Your piece was read in with High confidence. Look at these first, then the
+  rest of the steps."), those checks, and "Also to check: Speed (3) ..." (`.read-also`). Drawn before About
+  (`outline.readIntro`), not one of `OUTLINE_STEPS`.
+- **The progress dashes** (`.step-bar.has-marks`): a `.step-mark.is-open` ? over a step with checks open, a
+  `.step-mark.is-done` tick once they are all answered; the bar's label names the steps still to check.
+- **Save** with checks open asks "These are still outstanding, save anyway?" (`#outlineOpenChecksModal`): the open
+  ones listed with their step (`.read-open-list`), No / Yes. The answers go in the log (`check_answers`).
+The check's words come from the reader, so they are escaped like member-typed text. On the last step a super admin also has a `.display-toggle-row` switch, **Keep this as a
 test** (off to start with). No new classes. `docs/piece-from-photo.md`.
 
 ## 6. States

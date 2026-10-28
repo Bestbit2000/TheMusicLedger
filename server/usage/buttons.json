@@ -4643,6 +4643,27 @@
    "html": true
   },
   {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlineOpenChecksModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlineOpenChecksModal",
+   "name": "#outlineOpenChecksNo",
+   "label": "No",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlineOpenChecksModal",
+   "name": "#outlineOpenChecksYes",
+   "label": "Yes",
+   "html": true
+  },
+  {
    "group": "Menu, notices and the rest",
    "where": "confirmModal",
    "name": "close (X)",
@@ -5220,7 +5241,7 @@
    "group": "Menu, notices and the rest",
    "where": "renderBuild()",
    "name": "data-slot",
-   "label": "…–… …",
+   "label": "…–… …</",
    "html": false
   },
   {
@@ -5808,7 +5829,7 @@
    "group": "Pieces: Rehearse, play, edit",
    "where": "renderFlowFermataAddSection()",
    "name": "data-pause-kind",
-   "label": "… … … </bu",
+   "label": "… … … </button",
    "html": false
   },
   {
@@ -6101,6 +6122,13 @@
   {
    "group": "Pieces: Rehearse, play, edit",
    "where": "renderOutline()",
+   "name": "data-outline=readIntroNext",
+   "label": "Next: …",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "renderOutline()",
    "name": "data-outline=back",
    "label": "Back",
    "html": false
@@ -6165,7 +6193,7 @@
    "group": "Pieces: Rehearse, play, edit",
    "where": "outlineExtrasStepHtml()",
    "name": "data-outline-extra",
-   "label": "…</str",
+   "label": "…</stron",
    "html": false
   },
   {
@@ -6212,8 +6240,15 @@
   },
   {
    "group": "Pieces: Rehearse, play, edit",
-   "where": "outlineReadPanelHtml()",
-   "name": "data-outline=readChecks",
+   "where": "outlineReadCheckHtml()",
+   "name": "data-read-value",
+   "label": "… bpm speed at bar ……",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlineReadChecksHtml()",
+   "name": "data-read-all",
    "label": "",
    "html": false
   },

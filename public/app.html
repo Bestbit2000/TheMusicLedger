@@ -4747,6 +4747,17 @@
     </div>
 </div>
 
+<!-- ML-639: Save on a piece read from a photo while some of its checks are still open (owner, 28 Oct 2026) - they
+     don't all have to be signed off, but it asks. specs/components/piece-outline.md -->
+<div class="modal" id="outlineOpenChecksModal" role="dialog" aria-modal="true" aria-labelledby="outlineOpenChecksTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="outlineOpenChecksTitle">These are still outstanding, save anyway?</h2>
+        <ul class="read-open-list" id="outlineOpenChecksList"></ul>
+        <div class="flex-row gap-md"><button type="button" class="btn-cancel btn-nav no-margin" id="outlineOpenChecksNo">No</button><button type="button" class="btn-submit no-margin" id="outlineOpenChecksYes">Yes</button></div>
+    </div>
+</div>
+
 <div class="modal" data-no-dismiss id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
     <div class="modal-content"><button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button><h2 id="confirmTitle">Confirm</h2><p id="confirmMessage" class="mb-6 leading-base"></p><div class="flex-row gap-md"><button class="btn-cancel btn-nav no-margin" id="confirmCancelBtn" data-act="confirm-close">Cancel</button><button class="btn-submit no-margin" id="confirmActionBtn">Confirm</button></div></div>
 </div>
@@ -4842,6 +4853,7 @@
 <script src="practicePlan.js"></script>
 <script src="filters.js"></script>
 <script src="pieceOutline.js"></script>
+<script src="pieceRead.js"></script><!-- ML-639: bpmForWords - later starting-point speeds worked out again when an earlier one is changed -->
 <script src="notation.js"></script>
 <script src="range.js"></script>
 <script src="rangeBar.js"></script>

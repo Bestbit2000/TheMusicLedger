@@ -2223,7 +2223,7 @@ router.put('/piece-read/:id/saved', requireAuth, resolveAccount, requireFeature(
   try {
     const body = req.body || {};
     if (body.testFiles && req.realAccountLevel !== 'super_admin') throw withStatus(403, "This feature isn't available right now.");
-    res.json(await markPieceReadSaved(req.accountId, req.params.id, body.index, { flowId: body.flowId, saved: body.saved, testFiles: body.testFiles || null }));
+    res.json(await markPieceReadSaved(req.accountId, req.params.id, body.index, { flowId: body.flowId, saved: body.saved, testFiles: body.testFiles || null, checkAnswers: body.checkAnswers || null }));
   } catch (error) {
     sendError(res, error);
   }

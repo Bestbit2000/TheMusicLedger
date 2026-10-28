@@ -68,12 +68,25 @@
             </table></div>`;
     }
 
+    // ML-639: how each kind of check was answered when the piece was saved - a guess that is mostly changed needs work
+    function answersHtml(rows) {
+        if (!rows || !rows.length) return '';
+        return `
+            <h2 class="admin-stat-section-title">How the checks were answered</h2>
+            <p class="admin-intro">When a piece read from a photo is saved: for each kind of check, how often it was agreed (one by one, or with Agree all), changed, checked, or left open.</p>
+            <div class="admin-stat-table-wrap"><table class="admin-stat-table admin-stack-table admin-bc-table">
+                <thead><tr><th class="admin-bc-text">Check</th><th>Agreed</th><th>Agree all</th><th>Changed</th><th>Checked</th><th>Left open</th></tr></thead>
+                <tbody>${rows.map((r) => `<tr><td class="admin-bc-text">${esc(r.kind)}</td><td>${r.agreed}</td><td>${r.agreedAll}</td><td>${r.changed}</td><td>${r.checked}</td><td>${r.open}</td></tr>`).join('')}</tbody>
+            </table></div>`;
+    }
+
     function render() {
         const s = data.summary;
         const ratingRows = s.byRating.map(r => `<tr><td class="admin-bc-text">${badge(r.level)}</td><td>${r.saved}</td><td>${r.saved ? `${r.barsRight} of ${r.saved}` : '–'}</td><td>${r.saved ? `${r.same} of ${r.saved}` : '–'}</td></tr>`).join('');
         $('adminPieceReads').innerHTML = `
             <p class="admin-intro">${many(s.reads, 'read', 'reads')}${s.failed ? ` (${s.failed} failed)` : ''}, ${many(s.pieces, 'piece', 'pieces')} found, ${s.saved} saved, ${many(s.tests, 'test kept', 'tests kept')}. ${s.costPerRead === null ? '' : `About ${money(s.costPerRead)} and ${s.seconds} seconds a read; ${money(s.costUsd)} in all at the model's list price - Vercel's AI Gateway page is the bill.`} Reading now with <strong>${esc(data.model)}</strong>, prompt <strong>${esc(data.promptVersion)}</strong>.</p>
             ${stoppedHtml(s.stopped)}
+            ${answersHtml(s.answers)}
             <h2 class="admin-stat-section-title">Is the rating right?</h2>
             <p class="admin-intro">Of the pieces saved after a read: how many had the right number of bars, and how many were saved with nothing changed. If High is no better than Medium, the rating needs work.</p>
             <div class="admin-stat-table-wrap"><table class="admin-stat-table admin-stack-table admin-bc-table">
