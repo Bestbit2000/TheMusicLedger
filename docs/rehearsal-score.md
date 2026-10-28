@@ -106,7 +106,11 @@ the recording takes it - the piece's speed for the bar times how long the bar sh
 the recording - so between two marks the clicks keep pace by themselves. At each bar's first click the screen works
 out where the recording was when that click sounded; further out than 70 ms for an upload or 140 ms for a video,
 twice running (or 400 ms once), the clicks join it again. A rest bar or the lead-in - the recording has neither -
-joins again straight away. YouTube only reports its time every so often, so between reports the time is carried on
+joins again straight away. A fermata held on a bar's first beat repeats that beat for each beat of the hold - not a new bar,
+so it is never checked. When the clicks join again because they got ahead (a pause the band held longer than written),
+they never go back over a beat already heard - they wait, silent, for the recording to reach the next one; in a bar with
+a pause they join at the next bar line (its beats aren't evenly spaced). Pausing or joining again takes back any click
+already queued (`cancelPendingBlips`), so nothing from the old timing sounds beside the new. YouTube only reports its time every so often, so between reports the time is carried on
 by the clock (`ytSmoothMs`). The clicks and the recording come out of the same speakers, so the headphone delay
 (Settings) needs no correction between them. **A recording with nothing marked** - no start mark and no marked bar
 (`alongMapped`) - **is taken to start bar 1 at 0:00 and to keep to the piece's own speeds** (the owner, 28 Oct 2026), so

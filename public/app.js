@@ -6214,6 +6214,19 @@
         // Factored out of playClick so the fermata "Count Through" mode's pitch-shifted click and
         // the prep cue (ML-130) can reuse the same short percussive envelope at a different
         // frequency/waveform, rather than duplicating the oscillator/gain boilerplate.
+        // ML-627: clicks already handed to the audio clock (up to SCHEDULE_AHEAD_S ahead) but not heard yet. Pausing,
+        // stopping or a new sequence takes them back - otherwise a click queued under the old timing still sounded just
+        // before the first one of the new (a double click when the clicks joined a recording again at a bar line).
+        const pendingBlips = new Set();
+        function cancelPendingBlips() {
+            if (!audioCtx) { pendingBlips.clear(); return; }
+            const now = audioCtx.currentTime;
+            pendingBlips.forEach((b) => {
+                if (b.time <= now) return; // already sounding - let it finish
+                try { b.osc.stop(); b.g.disconnect(); } catch (error) { /* already stopped */ }
+            });
+            pendingBlips.clear();
+        }
         function fireOscillatorBlip(freq, peak, dur, time, waveform = 'square') {
             const osc = audioCtx.createOscillator();
             const g = audioCtx.createGain();
@@ -6226,6 +6239,9 @@
             g.connect(masterGain);
             osc.start(time);
             osc.stop(time + dur + 0.01);
+            const blip = { osc, g, time };
+            pendingBlips.add(blip);
+            osc.onended = () => pendingBlips.delete(blip);
         }
         function playClick(kind, time) {
             const freq = (kind === 'tick' ? 1760 : 650) * (lowPitch ? 0.5 : 1);
@@ -6575,6 +6591,7 @@
             pause() {
                 playing = false;
                 clearTimeout(schedulerId);
+                cancelPendingBlips(); // ML-627: nothing queued sounds after a pause
                 stopFermataToneImmediately();
                 activeFermata = null;
                 fermataPendingEndKind = null;
@@ -6583,6 +6600,7 @@
             stop() {
                 playing = false;
                 clearTimeout(schedulerId);
+                cancelPendingBlips(); // ML-627
                 clickIndex = 0;
                 stopFermataToneImmediately();
                 activeFermata = null;
@@ -6632,7 +6650,7 @@
                 sequenceGen++;
                 sequence = { onBoundary };
                 sequenceEnded = false;
-                if (!testClock) stopFermataToneImmediately();
+                if (!testClock) { stopFermataToneImmediately(); cancelPendingBlips(); } // ML-627: no click from the old place sounds
                 fermataPendingEndKind = null;
                 applySequenceConfig(first);
             },
@@ -16207,7 +16225,7 @@
         flowCurrentBpm = beatInfo.bpm;
         const pos = flowScreenPosition();
         if (!pos) return;
-        if (recActiveSlide() && alongRecPlaying() && alongOnBeat(beatInfo)) return; // ML-627: joined the recording again
+        if (!isFermataRepeat && recActiveSlide() && alongRecPlaying() && alongOnBeat(beatInfo)) return; // ML-627: joined the recording again
         const block = flowPassageBlock(pos.p);
         const subFactor = flowPassageSubFactor(pos.p, block);
         // ML-542: the count-in (the rest bars before the first go - not the gap bars between goes) counts down big.
@@ -16534,7 +16552,10 @@
         const recMs = Math.max(1, place.endMs - place.startMs);
         flowPlayer.setSpeedPercent(speedPct * (place.seconds * 1000) / recMs);
     }
-    function alongJoin() {
+    // heard: { place, click } - the click the metronome has just sounded, when it is joining again because it got ahead
+    // (a pause the band held longer than the piece says): it then never goes back over a beat already heard - it waits,
+    // silent, for the recording to reach the next one (otherwise that bar's first beat sounded twice).
+    function alongJoin(heard = null) {
         alongCancelJoin();
         const slide = recActiveSlide();
         const player = recPlayerOf(slide);
@@ -16560,7 +16581,14 @@
             const i = alongPassageIndex(place);
             if (i === -1) continue;
             const clicks = flowClicksPerBar(flowPlayQueue[i]);
-            const next = q === k ? Math.ceil(((at - place.startMs) / Math.max(1, place.endMs - place.startMs)) * clicks + 0.05) : 0; // a touch ahead
+            // A bar with a pause (fermata, caesura) doesn't share its time evenly between its beats, so the clicks don't
+            // join part-way through it - they join at the next bar line
+            if (q === k && FlowJourney.pausesInBar(flowPlayQueue[i].block, place.bar, clicks).length) continue;
+            let next = q === k ? Math.ceil(((at - place.startMs) / Math.max(1, place.endMs - place.startMs)) * clicks + 0.05) : 0; // a touch ahead
+            if (heard && (q < heard.place || (q === heard.place && next <= heard.click))) {
+                if (q < heard.place) continue; // that beat was heard - on to the bar after
+                next = heard.click + 1;
+            }
             if (next < clicks) target = { pl: place, idx: i, cpb: clicks, j: next };
         }
         if (!target) { if (flowPlayer.isPlaying()) flowPlayer.pause(); return; }
@@ -16579,6 +16607,9 @@
     // true when the clicks are joining the recording again (the caller stops there).
     function alongOnBeat(info) {
         if (alongJoinTimer || info.clickIndexInBar !== 0 || !alongClicks()) return false;
+        // A fermata held on the bar's first beat repeats that beat for every beat of the hold - not a new bar (taking it
+        // for one made the clicks join again part-way through the pause, and the next bar's first beat sound twice)
+        if (info.fermataHold && !info.fermataHold.isFirst) return false;
         const slide = recActiveSlide();
         const player = recPlayerOf(slide);
         const map = recMapFor(slide.data);
@@ -16596,7 +16627,8 @@
         const drift = at - sinceS * 1000 * (speed / 100) - map.places[k].startMs;
         if (Math.abs(drift) > ALONG_DRIFT_MS[slide.type]) {
             alongDriftHits++;
-            if (alongDriftHits >= 2 || Math.abs(drift) > 400) { alongJoin(); return true; }
+            // the clicks ahead of the recording (drift < 0): this bar's first beat has been heard - don't play it again
+            if (alongDriftHits >= 2 || Math.abs(drift) > 400) { alongJoin(drift < 0 ? { place: k, click: 0 } : null); return true; }
         } else {
             alongDriftHits = 0;
         }
