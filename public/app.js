@@ -16516,6 +16516,11 @@
     // piece's own speeds (the owner, 28 Oct 2026) - the clicks play at once, and the line under it says so and how to
     // set its start (renderFlowAlongHint). Only with the metronome seen or heard. Nothing listens to the sound.
     const ALONG_DRIFT_MS = { audio: 70, video: 140 };
+    // Starting at a bar (a tile, Play, Reset), the recording starts this much before it, so the clicks are joined in
+    // time for the bar's first beat (started exactly on it, the first beat had gone by the time the recording was
+    // playing - the owner, 28 Oct 2026). The same idea as a repeat's REC_LOOP_LEAD_MS.
+    const ALONG_START_LEAD_MS = 400;
+    const alongStartMs = (place) => Math.max(0, place.startMs - ALONG_START_LEAD_MS);
     let alongJoinTimer = null;
     let alongDriftHits = 0;
     const alongOn = () => !!recActiveSlide();
@@ -16575,11 +16580,15 @@
         if (!map) return;
         const speed = recSpeedOf(slide);
         let k = FlowJourney.placeAt(map, at);
+        let before = false; // still before the first bar: join on its first beat
         if (k === -1) {
-            // still before the first bar (the recording's own intro): look again just before it starts
-            if (map.places.length && at < map.places[0].startMs) alongJoinTimer = setTimeout(alongJoin, Math.max(50, Math.min(1000, (map.places[0].startMs - at) / (speed / 100) - 150)));
-            else if (flowPlayer.isPlaying()) flowPlayer.pause(); // past the last bar
-            return;
+            if (!map.places.length || at >= map.places[0].startMs) { if (flowPlayer.isPlaying()) flowPlayer.pause(); return; } // past the last bar
+            // the recording's own intro, or the moment before bar 1 it was started at (ALONG_START_LEAD_MS): close to bar
+            // 1, the clicks wait for its first beat; further off, look again nearer the time
+            const waitS = (map.places[0].startMs - at) / (speed / 100) / 1000;
+            if (waitS > 1.5) { alongJoinTimer = setTimeout(alongJoin, (waitS - 1) * 1000); return; }
+            k = 0;
+            before = true;
         }
         // The next click: in this bar, or at the start of the next bar the metronome plays here. A repeat (or a practice's
         // bars) starts the recording a touch before its first bar (REC_LOOP_LEAD_MS) - a bar the metronome doesn't play -
@@ -16592,8 +16601,8 @@
             const clicks = flowClicksPerBar(flowPlayQueue[i]);
             // A bar with a pause (fermata, caesura) doesn't share its time evenly between its beats, so the clicks don't
             // join part-way through it - they join at the next bar line
-            if (q === k && FlowJourney.pausesInBar(flowPlayQueue[i].block, place.bar, clicks).length) continue;
-            let next = q === k ? Math.ceil(((at - place.startMs) / Math.max(1, place.endMs - place.startMs)) * clicks + 0.05) : 0; // a touch ahead
+            if (q === k && !before && FlowJourney.pausesInBar(flowPlayQueue[i].block, place.bar, clicks).length) continue;
+            let next = q === k && !before ? Math.ceil(((at - place.startMs) / Math.max(1, place.endMs - place.startMs)) * clicks + 0.05) : 0; // a touch ahead
             if (heard && (q < heard.place || (q === heard.place && next <= heard.click))) {
                 if (q < heard.place) continue; // that beat was heard - on to the bar after
                 next = heard.click + 1;
@@ -16668,7 +16677,7 @@
             const loop = FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, REC_LOOP_LEAD_MS);
             if (loop.ok) startMs = loop.startMs;
         } else if (map) {
-            startMs = map.places[alongMetronomePlace(map)].startMs;
+            startMs = alongStartMs(map.places[alongMetronomePlace(map)]);
         }
         try {
             player.setSpeed(recSpeedOf(slide));
@@ -16758,9 +16767,11 @@
             const loop = FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, 0);
             if (loop.ok && (place < loop.fromPlace || place > loop.toPlace)) { showWarningToast(`${flowLoopRangeText()} are repeating - turn repeat off to play from there.`); return true; }
         }
-        try { player.seek(map.places[place].startMs); player.play(); } catch (error) { /* not ready yet */ }
+        // ML-627: the clicks stop at once (nothing more from where they were) and join the recording at that bar
+        if (alongClicks()) { alongCancelJoin(); if (flowPlayer.isPlaying()) flowPlayer.pause(); }
+        try { player.seek(alongClicks() ? alongStartMs(map.places[place]) : map.places[place].startMs); player.play(); } catch (error) { /* not ready yet */ }
         recStartTicker();
-        if (alongClicks()) alongJoinSoon(250); // ML-627: the clicks join it at that bar
+        if (alongClicks()) alongJoinSoon(600); // a backstop - the recording playing again after the move joins them first
         return true;
     }
     // ===== ML-587: a practice's count-in before a recording or video =====
@@ -17717,9 +17728,11 @@
         if (slide && player) {
             const map = recMapFor(slide.data);
             const loop = map && flowLoopPlan ? FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, REC_LOOP_LEAD_MS) : null;
-            const startMs = loop && loop.ok ? loop.startMs : map ? map.places[0].startMs : (recordingClip(slide.data).startMs || 0);
+            const startMs = loop && loop.ok ? loop.startMs : map ? alongStartMs(map.places[0]) : (recordingClip(slide.data).startMs || 0);
+            const following = alongClicks() && alongRecPlaying();
+            if (following && flowPlayer.isPlaying()) flowPlayer.pause(); // nothing more from where the clicks were
             try { player.seek(startMs); } catch (error) { /* not ready yet */ }
-            if (alongClicks() && alongRecPlaying()) alongJoinSoon(250);
+            if (following) alongJoinSoon(600); // a backstop, as for a tile
         }
         renderFlowPlaybackRow();
     }

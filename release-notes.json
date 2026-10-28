@@ -140,5 +140,6 @@
   "ML-629": "We start the clicks straight away with a video whose bars aren't marked yet, and say how to set where the music starts.",
   "ML-630": "We fold My music's list away while a piece plays on a wider screen, as Rehearse does, so the music has the room.",
   "ML-631": "We show a section's rehearsal mark and its bars together on the line above the beats.",
-  "ML-632": "We show a piece's videos and recordings as small icons beside its length and bars."
+  "ML-632": "We show a piece's videos and recordings as small icons beside its length and bars.",
+  "ML-633": "We start the clicks on the first beat when you tap a bar to play from there with a video or recording."
 }

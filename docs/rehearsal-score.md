@@ -107,7 +107,9 @@ the recording takes it - the piece's speed for the bar times how long the bar sh
 the recording - so between two marks the clicks keep pace by themselves. At each bar's first click the screen works
 out where the recording was when that click sounded; further out than 70 ms for an upload or 140 ms for a video,
 twice running (or 400 ms once), the clicks join it again. A rest bar or the lead-in - the recording has neither -
-joins again straight away. A fermata held on a bar's first beat repeats that beat for each beat of the hold - not a new bar,
+joins again straight away. Starting at a bar (a tile, Play, Reset), the recording starts 0.4 s before it
+(`ALONG_START_LEAD_MS`, as a repeat does) so the clicks are joined in time for the bar's first beat; a tile or Reset
+while playing silences the clicks at once until they join again (ML-633). A fermata held on a bar's first beat repeats that beat for each beat of the hold - not a new bar,
 so it is never checked. When the clicks join again because they got ahead (a pause the band held longer than written),
 they never go back over a beat already heard - they wait, silent, for the recording to reach the next one; in a bar with
 a pause they join at the next bar line (its beats aren't evenly spaced). Pausing or joining again takes back any click
