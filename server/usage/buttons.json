@@ -2098,7 +2098,7 @@
    "group": "Pieces: Rehearse, play, edit",
    "where": "flowPlayView",
    "name": "#flowMediaHaveBtn",
-   "label": "",
+   "label": "Recordings to play along to",
    "html": true
   },
   {

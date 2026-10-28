@@ -462,7 +462,7 @@ its words.
 | flowPlayView | `#flowResetBtn` | reset |
 | flowPlayView | `#flowPlayBtn` | play |
 | flowPlayView | `#flowSessionFinishBtn` | finish |
-| flowPlayView | `#flowMediaHaveBtn` |  |
+| flowPlayView | `#flowMediaHaveBtn` | Recordings to play along to |
 | flowPlayView | `#flowPlayMenuBtn` | Flow options |
 | flowPlayView | `#flowPlayMenuEditDetails` | Edit details |
 | flowPlayView | `#flowPlayMenuEditFlow` | Edit bars |
