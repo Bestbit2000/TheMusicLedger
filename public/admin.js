@@ -615,7 +615,24 @@
         box.innerHTML = pills.map(([key, label, n]) => `<button type="button" class="filter-pill${accountsFilter === key ? ' active' : ''}" data-accounts-filter="${key}" aria-pressed="${accountsFilter === key}">${escapeHtml(label)} <span class="filter-pill-count">${n}</span></button>`).join('');
         box.querySelectorAll('[data-accounts-filter]').forEach(b => b.addEventListener('click', () => { accountsFilter = b.dataset.accountsFilter; renderAccountsList(); }));
     }
+    // ML-636: the counts at the top. Active is an account used in the last 3 months (accounts.last_seen_on, kept
+    // since 6 Oct 2026 - one not seen since then counts as dormant); dormant is every other account; invited is the
+    // invitations not accepted yet. Total is every account, so active + dormant.
+    const ACTIVE_MONTHS = 3;
+    function renderAccountsCounts() {
+        const box = document.getElementById('accountsCounts');
+        if (!box) return;
+        const now = new Date();
+        const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - ACTIVE_MONTHS, now.getUTCDate())).toISOString().slice(0, 10);
+        const active = allAccounts.filter(a => a.lastSeenOn && String(a.lastSeenOn).slice(0, 10) >= from).length;
+        const tile = (label, n, sub) => `<div class="admin-stat-tile"><div class="admin-stat-tile-label">${escapeHtml(label)}</div><div class="admin-stat-tile-value">${n}</div><div class="admin-stat-tile-sub">${escapeHtml(sub)}</div></div>`;
+        box.innerHTML = tile('Total accounts', allAccounts.length, 'active + dormant')
+            + tile('Invited', allInvites.length, 'not accepted yet')
+            + tile('Active', active, `used in the last ${ACTIVE_MONTHS} months`)
+            + tile('Dormant', allAccounts.length - active, `not used for ${ACTIVE_MONTHS} months`);
+    }
     function renderAccountsList() {
+        renderAccountsCounts();
         renderAccountsFilter();
         const el = document.getElementById('accountsList');
         if (!allAccounts.length && !allInvites.length) { el.innerHTML = '<p>No accounts yet.</p>'; return; }

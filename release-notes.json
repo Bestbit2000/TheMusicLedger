@@ -143,5 +143,6 @@
   "ML-632": "We show a piece's videos and recordings as small icons beside its length and bars.",
   "ML-633": "We start the clicks on the first beat when you tap a bar to play from there with a video or recording.",
   "ML-634": "We pause a video or recording for a repeat's rest bars, so the rest clicks as rest and the music comes back in after it.",
-  "ML-635": "We say in one short line when a video's timing is still to be confirmed, and make the line the link to set it."
+  "ML-635": "We say in one short line when a video's timing is still to be confirmed, and make the line the link to set it.",
+  "ML-636": "We show the person who runs the app how many accounts there are, how many invitations are waiting, and how many members are active or dormant."
 }

@@ -61,6 +61,11 @@ It reuses `tokens.css` and the app's `style.css` components (buttons, modals, fo
   (`#adminRowMenu`: `.dropdown-menu.account-band-menu` of `.dropdown-item`s with an icon - `openRowMenu` in
   admin.js). A link item (View, Edit) opens a new tab; a destructive one takes `.account-band-menu-delete`. It
   closes on a pick, a click elsewhere, Escape (focus goes back to the ⋮) or the page scrolling.
+- **Accounts - the counts at the top (ML-636):** four `.admin-stat-tile`s in `.admin-stat-tiles` (`#accountsCounts`):
+  **Total accounts** (every account, active + dormant), **Invited** (invitations not accepted yet), **Active** (used the
+  app in the last 3 months, from `accounts.last_seen_on` - kept since 6 Oct 2026, so an account not seen since then is
+  dormant) and **Dormant** (every other account). Counts only - the filter strip below picks the lines. The Dashboard's
+  "active" stays the last 7 days.
 - **Accounts:** Name, Email, Account type, Signs in with, Joined, Last seen (ML-443: Today / Yesterday / N days
   ago, "Not yet" until the member next uses the app, and a "Lapsed" `.admin-feedback-badge` after 30 days; the
   filter strip has Seen this week and Not seen for 30 days). A search (name or email) and the standard
