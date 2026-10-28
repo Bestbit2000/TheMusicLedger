@@ -2152,6 +2152,11 @@
                             </div>
                             <!-- ML-627: the recording or video being played along to (renderFlowAlong) -->
                             <div class="hidden-group mb-2" id="flowAlongHost"></div>
+                            <!-- ML-627: a recording with nothing marked - the clicks take bar 1 to start at 0:00 (renderFlowAlongHint) -->
+                            <div class="hidden-group mb-2" id="flowAlongHint">
+                                <p class="metro-help-text no-margin" id="flowAlongHintText"></p>
+                                <button type="button" class="btn-text" id="flowAlongMarkBtn">Set the start on Edit → Media</button>
+                            </div>
                             <div class="metro-display-viewport" id="flowPlayRowViewport">
                                 <div class="metro-display-content" id="flowPlayRowContent">
                                     <div class="metro-tier" id="flowPlayRowDots"></div>

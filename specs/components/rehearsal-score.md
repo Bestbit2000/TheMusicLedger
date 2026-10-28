@@ -111,7 +111,7 @@ players, the upload progress bar and the action button).
 | A mark tapped past the other one | the other mark is let go - the one just tapped is the one meant |
 | A clip that can't be (under a second) | a warning toast saying why; nothing changes |
 | Repeat on | the repeat box is `.metroBlk-ctrl-value-btn-on` and shows the bars |
-| Playing along, bars not set up | the recording plays without clicks; See / Hear say "Not with this recording - its bars aren't marked"; the bar line follows the recording |
+| Playing along, nothing marked | the clicks take bar 1 at 0:00 at the piece's speeds; under the recording `#flowAlongHint`: `p.metro-help-text` "The clicks assume bar 1 starts at 0:00." and, for whoever can change the piece, a `.btn-text` "Set the start on Edit → Media" |
 | Nothing plays along, one of See / Hear left | that switch is `disabled` (greyed) and says it stays on |
 | A bar mark out of order | refused with a toast naming the mark it clashes with |
 | A bar outside the repeat tapped | a toast: turn repeat off to play from there |

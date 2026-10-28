@@ -108,9 +108,12 @@ out where the recording was when that click sounded; further out than 70 ms for 
 twice running (or 400 ms once), the clicks join it again. A rest bar or the lead-in - the recording has neither -
 joins again straight away. YouTube only reports its time every so often, so between reports the time is carried on
 by the clock (`ytSmoothMs`). The clicks and the recording come out of the same speakers, so the headphone delay
-(Settings) needs no correction between them. **The clicks only follow a recording whose bars are set up** - a start
-mark or at least one marked bar (`alongMapped`); otherwise it plays without them, the pop-up says so, and the bar line
-follows the recording instead. Nothing listens to the sound.
+(Settings) needs no correction between them. **A recording with nothing marked** - no start mark and no marked bar
+(`alongMapped`) - **is taken to start bar 1 at 0:00 and to keep to the piece's own speeds** (the owner, 28 Oct 2026), so
+the clicks play at once; nothing is saved on the piece. A line under it says so (`#flowAlongHint`, `renderFlowAlongHint`):
+"The clicks assume bar 1 starts at 0:00." with **Set the start on Edit → Media** for whoever can change the piece, or
+"... they'll fit better once the video's start is marked." for anyone else. It goes once a start or a bar is marked, and
+when the metronome is neither seen nor heard. Marking stays on Edit → Media (ML-597). Nothing listens to the sound.
 
 Unchanged from ML-488:
 

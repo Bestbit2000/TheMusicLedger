@@ -2062,6 +2062,13 @@
   {
    "group": "Pieces: Rehearse, play, edit",
    "where": "flowPlayView",
+   "name": "#flowAlongMarkBtn",
+   "label": "Set the start on Edit → Media",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "flowPlayView",
    "name": "#flowLoopBtn",
    "label": "off repeat",
    "html": true

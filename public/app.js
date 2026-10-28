@@ -16482,8 +16482,9 @@
     // the recording takes that bar (the piece's speed for the bar, scaled by how long the bar lasts on the recording),
     // and at each bar's first click it checks where the recording was when that click sounded: further out than a
     // little, twice running (or a lot once), it joins again. A rest bar or the lead-in (the recording has neither)
-    // joins again straight away. The clicks only follow a recording whose bars are set up - a start mark or a marked
-    // bar - and only with the metronome seen or heard. Nothing listens to the sound.
+    // joins again straight away. A recording with nothing marked is taken to start bar 1 at 0:00 and to keep to the
+    // piece's own speeds (the owner, 28 Oct 2026) - the clicks play at once, and the line under it says so and how to
+    // set its start (renderFlowAlongHint). Only with the metronome seen or heard. Nothing listens to the sound.
     const ALONG_DRIFT_MS = { audio: 70, video: 140 };
     let alongJoinTimer = null;
     let alongDriftHits = 0;
@@ -16495,7 +16496,7 @@
         if (clip && clip.startMs) return true;
         return FlowJourney.usableMarks(FlowJourney.journeyPlaces(currentFlowBlocks, recOpts(slide.data)), slide.data.marks || []).length > 0;
     }
-    const alongClicks = () => { const s = recActiveSlide(); return !!s && alongMapped(s) && (flowView.see || flowView.hear); };
+    const alongClicks = () => { const s = recActiveSlide(); return !!s && recScoreOn() && (flowView.see || flowView.hear); };
     function alongRecPlaying() {
         const player = recPlayerOf(recActiveSlide());
         try { return !!player && player.playing(); } catch (error) { return false; }
@@ -16622,7 +16623,7 @@
         if (map && flowLoopPlan) {
             const loop = FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, REC_LOOP_LEAD_MS);
             if (loop.ok) startMs = loop.startMs;
-        } else if (map && alongMapped(slide)) {
+        } else if (map) {
             startMs = map.places[alongMetronomePlace(map)].startMs;
         }
         try {
@@ -17334,10 +17335,31 @@
         renderRecScoreControls();
         renderFlowPlaybackTiles();
     }
+    // A recording with nothing marked: the clicks take bar 1 to start at 0:00, at the piece's speeds (the owner, 28 Oct
+    // 2026). The line under it says so - with the way to set its start for whoever can change the piece; marking stays on
+    // Edit -> Media (ML-597). It goes once a start or a bar is marked.
+    function renderFlowAlongHint() {
+        const slide = recActiveSlide();
+        const show = !!slide && alongClicks() && !alongMapped(slide);
+        setShown('flowAlongHint', show);
+        if (!show) return;
+        const canEdit = !!(currentFlowDetail && currentFlowDetail.canEdit);
+        document.getElementById('flowAlongHintText').textContent = canEdit
+            ? 'The clicks assume bar 1 starts at 0:00.'
+            : `The clicks assume bar 1 starts at 0:00 - they'll fit better once the ${slide.type === 'video' ? 'video' : 'recording'}'s start is marked.`;
+        setShown('flowAlongMarkBtn', canEdit);
+    }
+    document.getElementById('flowAlongMarkBtn')?.addEventListener('click', () => {
+        if (!currentFlowId) return;
+        flowEditRequestedTab = 'media';
+        flowEditMode = 'edit';
+        switchView('flowDetailsHubView');
+    });
     // See / hear on the card - the dots shown or not, the clicks heard or not - and the clicks with the recording
     function applyFlowView() {
         setShown('flowPlayRowViewport', flowView.see);
         flowPlayer.setMuted(!flowView.hear);
+        renderFlowAlongHint();
         if (!recActiveSlide()) return;
         if (!alongClicks()) { alongCancelJoin(); if (flowPlayer.isPlaying()) flowPlayer.pause(); flowPlayer.setSpeedPercent(flowSpeedPercent); }
         else if (alongRecPlaying() && !flowPlayer.isPlaying()) alongJoinSoon(60);
@@ -17367,9 +17389,8 @@
         hear.checked = flowView.hear;
         see.disabled = !slide && flowView.see && !flowView.hear;
         hear.disabled = !slide && flowView.hear && !flowView.see;
-        const unmapped = slide && !alongMapped(slide);
-        document.getElementById('flowSeeMetroHelp').textContent = see.disabled ? 'Stays on while there\'s nothing to hear' : unmapped ? 'Not with this recording - its bars aren\'t marked' : 'The beats, the pauses and the bar';
-        document.getElementById('flowHearClicksHelp').textContent = hear.disabled ? 'Stays on while there\'s nothing to see' : unmapped ? 'Not with this recording - its bars aren\'t marked' : 'On their own, or with the recording';
+        document.getElementById('flowSeeMetroHelp').textContent = see.disabled ? 'Stays on while there\'s nothing to hear' : 'The beats, the pauses and the bar';
+        document.getElementById('flowHearClicksHelp').textContent = hear.disabled ? 'Stays on while there\'s nothing to see' : 'On their own, or with the recording';
         const box = document.getElementById('flowAlongSection');
         const recs = flowMediaSlides;
         if (!recs.length) {
@@ -17660,7 +17681,7 @@
         if (slide && player) {
             const map = recMapFor(slide.data);
             const loop = map && flowLoopPlan ? FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, REC_LOOP_LEAD_MS) : null;
-            const startMs = loop && loop.ok ? loop.startMs : map && alongMapped(slide) ? map.places[0].startMs : (recordingClip(slide.data).startMs || 0);
+            const startMs = loop && loop.ok ? loop.startMs : map ? map.places[0].startMs : (recordingClip(slide.data).startMs || 0);
             try { player.seek(startMs); } catch (error) { /* not ready yet */ }
             if (alongClicks() && alongRecPlaying()) alongJoinSoon(250);
         }
