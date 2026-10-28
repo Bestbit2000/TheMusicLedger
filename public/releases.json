@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.76.1",
+    "date": "2026-10-28",
+    "changes": [
+      {
+        "key": "ML-650",
+        "type": "Fixes",
+        "summary": "We made the app's icons much quicker to load, and you never see their names while they arrive."
+      }
+    ]
+  },
+  {
     "version": "0.76.0",
     "date": "2026-10-28",
     "changes": [
