@@ -18,7 +18,9 @@ test('the register passes its own audit against this repo', () => {
 test('every package and outside host in the code is found; nothing is loaded from Google Fonts (ML-430)', () => {
   assert.ok(findPackages(ROOT).has('express'));
   assert.ok(findHosts(ROOT).has('cdn.jsdelivr.net'));
-  assert.equal(findHosts(ROOT).has('fonts.googleapis.com'), false);
+  // ML-650: only the script that makes the small icon font asks Google Fonts, when a developer runs it - nothing a
+  // visitor loads does
+  assert.deepEqual([...(findHosts(ROOT).get('fonts.googleapis.com') || [])], ['scripts/icon-font.mjs']);
   assert.equal(findGoogleFontFamilies(ROOT).size, 0);
 });
 

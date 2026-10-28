@@ -115,6 +115,13 @@ plus whatever the host component uses for each state.
 ## 6. States
 This spec *is* the state vocabulary. See each component spec for how it renders them.
 
+**Icons while the icon font loads (ML-650).** An icon (`.material-symbols-outlined`) is a word the icon font turns into
+a picture. While the font is on its way, `display-prefs.js` puts `data-icons="loading"` on `<html>` (`"none"` if it
+hasn't come after 10 seconds), and `html[data-icons] .material-symbols-outlined` keeps each icon's one-icon space but
+hidden - never its name. Usually the font is already here and nothing is set. The font holds only the icons the app
+names (`public/fonts/icons.json`, made by `npm run icon-font`): a new icon needs that script, and
+`server/test/iconFont.test.js` fails until it has been run.
+
 ## 7. Code example
 ```html
 <div class="flex-row gap-sm"><span class="text-muted">Tempo</span><strong>120</strong></div>

@@ -640,6 +640,10 @@
     .btn-delete { background: var(--danger-color); color: var(--text-on-accent); border: none; padding: var(--space-2) var(--space-3); min-height: 48px; border-radius: var(--radius-md); font-weight: var(--font-weight-bold); cursor: pointer; font-size: var(--font-base); box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; }
     .material-symbols-outlined { font-family: var(--font-icons); font-weight: var(--font-weight-normal); font-style: normal; letter-spacing: normal; text-transform: none; display: inline-block; white-space: nowrap; word-wrap: normal; direction: ltr; font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; }
     .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; font-size: var(--icon-md); line-height: var(--line-height-tight); vertical-align: middle; }
+    /* ML-650: an icon is a word the icon font turns into a picture - until the font is here (display-prefs.js sets
+       data-icons on <html> while it loads, and "none" if it never comes), each icon keeps its one-icon space and
+       shows nothing, never its name. Visibility, not colour: many icons set their own colour. */
+    html[data-icons] .material-symbols-outlined { visibility: hidden; width: 1em; overflow: hidden; }
     /* 48x48 touch target minimum - was 36x36. */
     /* Icon colour matches its own border (not the hardcoded white every other button on this page
        uses) because this is the one button style with a transparent fill - every other white icon/text

@@ -30,3 +30,24 @@
     if (deviceMotion && deviceMotion.addEventListener) deviceMotion.addEventListener('change', function () { window.applyDisplayPrefs(current); });
     window.applyDisplayPrefs(prefs);
 })();
+
+// ML-650: icons are words the icon font turns into pictures. While the font is still on its way, data-icons="loading"
+// on <html> keeps each icon blank (style.css) instead of showing its name; if it hasn't come after 10 seconds (a
+// very slow line, an old browser, Safari's Lockdown Mode), "none" keeps them blank for good. Usually it is already
+// here from the cache and nothing is set.
+(function () {
+    var root = document.documentElement;
+    var ICONS = '24px "Material Symbols Outlined"';
+    try {
+        if (!document.fonts || document.fonts.check(ICONS)) return;
+    } catch (e) { return; }
+    root.setAttribute('data-icons', 'loading');
+    var done = false;
+    var giveUp = setTimeout(function () { if (!done) root.setAttribute('data-icons', 'none'); }, 10000);
+    document.fonts.load(ICONS).then(function () {
+        done = true;
+        clearTimeout(giveUp);
+        if (document.fonts.check(ICONS)) root.removeAttribute('data-icons');
+        else root.setAttribute('data-icons', 'none');
+    }, function () { done = true; clearTimeout(giveUp); root.setAttribute('data-icons', 'none'); });
+})();

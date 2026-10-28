@@ -13,6 +13,9 @@ import { withStatus } from './flows.js';
 const sandbox = { self: {} };
 vm.runInNewContext(fs.readFileSync(new URL('../../public/practicePlan.js', import.meta.url), 'utf8'), sandbox);
 const PracticePlan = sandbox.self.PracticePlan;
+// ML-650: the icon font holds only the icons the app uses (public/fonts/icons.json), so a message's icon must be one
+// of them - any other would show as nothing.
+const FONT_ICONS = new Set(JSON.parse(fs.readFileSync(new URL('../../public/fonts/icons.json', import.meta.url), 'utf8')).icons);
 
 export const REST_KINDS = ['why', 'breathe', 'body', 'think', 'fact', 'care', 'kind'];
 export const REST_AUDIENCES = ['all', 'brass', 'wind'];
@@ -87,6 +90,7 @@ function validate(data) {
   if (!body || body.length > 240) throw withStatus(400, 'The words are 1-240 characters - short enough to read in a few seconds.');
   const icon = String(data.icon || '').trim() || 'self_improvement';
   if (!/^[a-z0-9_]{1,40}$/.test(icon)) throw withStatus(400, 'The icon is a Material Symbols name, like self_improvement.');
+  if (!FONT_ICONS.has(icon)) throw withStatus(400, `"${icon}" isn't in the app's icon font yet. Use one of the icons the other messages use, or add it with npm run icon-font in a release.`);
   const audience = REST_AUDIENCES.includes(data.audience) ? data.audience : 'all';
   return { kind, title, body, icon, audience, active: data.active !== false };
 }

@@ -137,11 +137,11 @@ export const assets = [
     ],
     asks: [
       { text: 'Keep a copy of the Apache 2.0 licence with the font.', check: { path: 'public/fonts/MaterialSymbols-LICENSE.txt' } },
-      { text: 'Use the published file unchanged (Google Fonts\' own file, every icon, downloaded 4 Oct 2026). A changed file would have to be marked as changed.' }
+      { text: 'Use the published file unchanged (Google Fonts\' own file, made by Google for just the icons we name - icon_names - by npm run icon-font; ML-650, 28 Oct 2026). A changed file would have to be marked as changed.' }
     ],
-    watch: ['The file holds every icon Google publishes (4 MB); the app uses about 100. A smaller file with only our icons is possible, but a missed icon would show as blank.'],
-    files: ['public/fonts/material-symbols-outlined.woff2'],
-    hosts: ['fonts.google.com']
+    watch: ['Since ML-650 the file holds only the icons the app names (about 500, 454 KB - it was every icon, 4 MB, slow enough that members saw the icons\' names). A new icon needs npm run icon-font; server/test/iconFont.test.js fails until it is in (specs/components/utilities-and-states.md, "Icons while the icon font loads"). Google Fonts is only asked when that script runs - visitors load nothing from Google.'],
+    files: ['public/fonts/material-symbols-outlined.woff2', 'public/fonts/icons.json'],
+    hosts: ['fonts.google.com', 'fonts.googleapis.com', 'fonts.gstatic.com']
   }
 ];
 
