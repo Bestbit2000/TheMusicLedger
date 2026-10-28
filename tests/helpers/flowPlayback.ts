@@ -10,6 +10,8 @@
 //  - openPlayFlow / openBarsTab   land on a seeded Flow's Play screen / Bars tab.
 //  - T.*                    thin wrappers round window.__flowTest (runToEnd, step, state, journey, issues).
 //  - deleteTestFlows(page)  removes every Flow this suite created (title prefix).
+//  - playAlong(page)        ML-627: on the play screen, switches "Play along to" on in the cog's pop-up, so the
+//                           piece's recording is in the card (an upload is off until chosen; a video is on).
 import { Page, expect } from '@playwright/test';
 
 export const TEST_FLOW_PREFIX = 'ML-193 test';
@@ -66,6 +68,16 @@ export async function openPlayFlow(page: Page, flowId: number, layout: '1' | '2'
     const btn = page.locator(`[data-flow-play-layout="${layout}"]`);
     if (await btn.getAttribute('aria-pressed') !== 'true') await btn.click();
     await expect(btn).toHaveAttribute('aria-pressed', 'true');
+}
+
+// ML-627: play along to the piece's (only, or first-listed) recording - the What to see and hear pop-up's switch
+export async function playAlong(page: Page) {
+    await page.locator('#flowSeeHearBtn').click();
+    await expect(page.locator('#flowSeeHearModal')).toBeVisible();
+    await page.locator('#flowAlongToggle').evaluate((el) => { const box = el as HTMLInputElement; if (!box.checked) box.click(); });
+    await page.locator('#flowSeeHearModal .modal-close-x').click();
+    await expect(page.locator('#flowSeeHearModal')).toBeHidden();
+    await expect(page.locator('#flowAlongHost audio, #flowAlongHost iframe')).toHaveCount(1);
 }
 
 // The Bars tab of a Flow - Edit mode (changes staged until Save) or Create mode (each change saved at
