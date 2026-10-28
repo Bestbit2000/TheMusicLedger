@@ -6583,6 +6583,18 @@
                     scheduler();
                 });
             },
+            // ML-640: as play(), with the first click at audio-clock time t (now, if t has gone) - for a start that has to
+            // land on a set moment (the clicks with a recording)
+            playAt(t) {
+                if (playing) return;
+                playing = true;
+                if (testClock) return;
+                ensureAudio().then(() => {
+                    if (!playing) return;
+                    nextClickTime = Math.max(t, audioCtx.currentTime + 0.005);
+                    scheduler();
+                });
+            },
             // Halts playback but leaves clickIndex where it is, so a subsequent play() continues
             // from this exact point in the bar rather than restarting it. Any fermata hold in
             // progress is abandoned (not resumed) - a sustained Tone+Cue drone left running while
@@ -16255,8 +16267,10 @@
         flowCurrentBpm = beatInfo.bpm;
         const pos = flowScreenPosition();
         if (!pos) return;
+        if (!isFermataRepeat && recActiveSlide()) alongNoteHeard(pos); // ML-640
         if (!isFermataRepeat && alongResting) alongRestBeat(beatInfo); // ML-634: the rest bars, with the recording waiting
         else if (!isFermataRepeat && recActiveSlide() && alongRecPlaying() && alongOnBeat(beatInfo)) return; // ML-627: joined the recording again
+        else if (!isFermataRepeat && recActiveSlide() && alongRecPlaying()) alongGoRound(beatInfo); // ML-640: round a repeat with no rest bars
         const block = flowPassageBlock(pos.p);
         const subFactor = flowPassageSubFactor(pos.p, block);
         // ML-542: the count-in counts down big. ML-638: so does every rest between repeats (the owner, 28 Oct 2026 - the
@@ -16455,7 +16469,7 @@
             const el = document.querySelector(`#flowAlongHost audio[data-flow-media-key="${flowMediaSlideKey(slide)}"]`);
             if (!el) return null;
             return {
-                positionMs: () => el.currentTime * 1000, playing: () => !el.paused,
+                positionMs: () => el.currentTime * 1000, rawMs: () => el.currentTime * 1000, playing: () => !el.paused,
                 seek: (ms) => { el.currentTime = ms / 1000; }, play: () => el.play().catch(() => { /* wants a tap on the player first */ }),
                 setSpeed: (pct) => { el.playbackRate = pct / 100; },
                 setVolume: (pct) => { el.volume = Math.max(0, Math.min(1, pct / 100)); }
@@ -16464,7 +16478,7 @@
         const yt = flowYtPlayers[slide.data.id];
         if (!yt || typeof yt.getCurrentTime !== 'function') return null;
         return {
-            positionMs: () => ytSmoothMs(yt), playing: () => yt.getPlayerState() === window.YT.PlayerState.PLAYING,
+            positionMs: () => ytSmoothMs(yt), rawMs: () => yt.getCurrentTime() * 1000, playing: () => yt.getPlayerState() === window.YT.PlayerState.PLAYING,
             seek: (ms) => { ytClock.raw = null; yt.seekTo(ms / 1000, true); }, play: () => yt.playVideo(),
             setSpeed: (pct) => yt.setPlaybackRate(pct / 100),
             setVolume: (pct) => yt.setVolume(Math.max(0, Math.min(100, Math.round(pct))))
@@ -16529,9 +16543,11 @@
     }
 
     // ===== ML-627: the clicks follow the recording =====
-    // While a recording plays along, the metronome is led by it. It joins at the recording's next beat - the bar the
-    // recording is in, worked out from its marked bars, and the click in that bar - after just the wait that lands it
-    // there (the player's own leading silence, so it starts on time to the millisecond). Each bar it plays at the speed
+    // While a recording plays along, the metronome is led by it. A start the app makes (Play, a tile, Reset, the end of
+    // a count-in or a rest, the next go round a repeat) is made with the clicks leading - see ML-640 below. Otherwise
+    // (the recording's own Play or slider, going again after loading, a new speed) the clicks join at the recording's next
+    // beat - the bar the recording is in, worked out from its marked bars, and the click in that bar - after just the wait
+    // that lands it there (the player's own leading silence, so it starts on time to the millisecond). Each bar it plays at the speed
     // the recording takes that bar (the piece's speed for the bar, scaled by how long the bar lasts on the recording),
     // and at each bar's first click it checks where the recording was when that click sounded: further out than a
     // little, twice running (or a lot once), it joins again. A rest bar or the lead-in (the recording has neither)
@@ -16539,9 +16555,8 @@
     // piece's own speeds (the owner, 28 Oct 2026) - the clicks play at once, and the line under it says so and how to
     // set its start (renderFlowAlongHint). Only with the metronome seen or heard. Nothing listens to the sound.
     const ALONG_DRIFT_MS = { audio: 70, video: 140 };
-    // Starting at a bar (a tile, Play, Reset), the recording starts this much before it, so the clicks are joined in
-    // time for the bar's first beat (started exactly on it, the first beat had gone by the time the recording was
-    // playing - the owner, 28 Oct 2026). The same idea as a repeat's REC_LOOP_LEAD_MS.
+    // Starting at a bar, the recording waits this much before it when it has that much (ML-633/639), so the first note is
+    // caught whole. The same idea as a repeat's REC_LOOP_LEAD_MS.
     const ALONG_START_LEAD_MS = 400;
     const alongStartMs = (place) => Math.max(0, place.startMs - ALONG_START_LEAD_MS);
     const ALONG_LATE_START_MS = 150;
@@ -16605,6 +16620,9 @@
         if (!map) return;
         const speed = recSpeedOf(slide);
         let k = FlowJourney.placeAt(map, at);
+        // ML-640: the last click sounded is never sounded again (a recording held up loading, then going again) - unless
+        // the recording has been moved back before it (its own slider)
+        if (!heard && alongHeard && k !== -1 && k >= alongHeard.place) heard = alongHeard;
         let before = false; // still before the first bar: join on its first beat
         // Starting (not catching up): a recording only just into a bar still gets the bar's first click, a moment late,
         // rather than none (one that can't start early - bar 1 at 0:00, nothing before it)
@@ -16653,7 +16671,7 @@
     // At each bar's first click while following: the bar's speed on the recording, and how far out the clicks are.
     // true when the clicks are joining the recording again (the caller stops there).
     function alongOnBeat(info) {
-        if (alongJoinTimer || info.clickIndexInBar !== 0 || !alongClicks()) return false;
+        if (alongJoinTimer || alongStart || info.clickIndexInBar !== 0 || !alongClicks()) return false;
         // A fermata held on the bar's first beat repeats that beat for every beat of the hold - not a new bar (taking it
         // for one made the clicks join again part-way through the pause, and the next bar's first beat sound twice)
         if (info.fermataHold && !info.fermataHold.isFirst) return false;
@@ -16685,109 +16703,285 @@
         }
         return false;
     }
+    // ===== ML-640: the clicks lead every start =====
+    // A recording says it is playing a while after it has started: a loaded YouTube video starts 40-70 ms after it is
+    // told to, or after it is moved while playing, and only says so 260-300 ms after (measured on 28 Oct 2026). Joining
+    // the clicks to it once it said so lost the bar's first beat whenever there was nothing before the bar to start it
+    // early on - bar 1 at 0:00, as for a recording with nothing marked - and the first circle never lit. So every start
+    // the app makes - Play, a bar tile, Reset, the end of a count-in or a rest, the next go round a repeat - puts the bar's
+    // first click at a set time on the metronome's clock, and starts the recording, loaded and waiting at the bar (or a
+    // little before it), so that it reaches the bar at that moment: the clicks never wait to be told it is playing. How
+    // long the recording takes to get going is learnt as it goes (alongLag). Once its clock moves the start is checked:
+    // out by more than a little, the clicks are re-timed from their next beat - never sounding a beat twice (alongHeard).
+    const alongLag = { audio: 30, video: 60 }; // ms from play (or a move while playing) to the recording moving
+    let alongStart = null;     // the start being made: { slide, k, place, startPos, preMs, speed, c0Perf, calledPerf, jump }
+    let alongStartTimer = null;
+    let alongHeard = null;     // { place, click } - the last click sounded while following; a join never goes back over it
+    let alongPreparing = null; // { slide, ms, then, timer, yt, stage } - a recording being loaded and put in place
+    const perfAtCtx = (ctx, t) => performance.now() + (t - ctx.currentTime) * 1000;
+    // Where the recording waits to start at place k: a little before the bar when it has that, so the first note is
+    // caught whole - never before its start mark (it would be moved back to the mark as it plays)
+    function alongStartPos(slide, map, k) {
+        return Math.max(recordingClip(slide.data).startMs || 0, map.places[k].startMs - ALONG_START_LEAD_MS);
+    }
+    function alongStartCancel() {
+        clearTimeout(alongStartTimer);
+        alongStartTimer = null;
+        alongStart = null;
+    }
+    // Loads the recording and leaves it paused at posMs, ready to start at once; then() when it is. A video not played
+    // yet only loads when it plays, so it is played silently and paused as soon as it is going (ML-637) - so is one moved
+    // far from where it is; one already playing near there is just paused and moved, as is an upload. Never waits more
+    // than 5 seconds.
+    function alongPrepare(slide, posMs, then) {
+        alongPrepareCancel();
+        if (slide.type === 'audio') {
+            const el = document.querySelector(`#flowAlongHost audio[data-flow-media-key="${flowMediaSlideKey(slide)}"]`);
+            if (!el) return false;
+            alongPreparing = { slide, ms: posMs, then, timer: null, yt: null, stage: 'loading' };
+            if (!el.paused) el.pause();
+            if (Math.abs(el.currentTime * 1000 - posMs) < 5 && el.readyState >= 3) setTimeout(alongPrepared, 0);
+            else {
+                const moved = () => { el.removeEventListener('seeked', moved); if (alongPreparing && alongPreparing.slide === slide) alongPrepared(); };
+                el.addEventListener('seeked', moved);
+                el.currentTime = posMs / 1000;
+            }
+        } else {
+            const yt = flowYtPlayers[slide.data.id];
+            if (!yt) return false;
+            const S = window.YT.PlayerState;
+            alongPreparing = { slide, ms: posMs, then, timer: null, yt, stage: 'loading' };
+            try {
+                const state = yt.getPlayerState();
+                const far = Math.abs(yt.getCurrentTime() * 1000 - posMs) > 30000; // probably not loaded there yet
+                if (state === -1 || state === S.CUED) { yt.mute(); yt.seekTo(posMs / 1000, true); yt.playVideo(); }
+                else if (far && [S.PLAYING, S.BUFFERING].includes(state)) { alongPreparing.stage = 'pausing'; yt.pauseVideo(); }
+                else if (far) { yt.mute(); yt.seekTo(posMs / 1000, true); yt.playVideo(); }
+                else {
+                    // played already, and loaded around there: paused and moved, ready in a moment
+                    alongPreparing.stage = 'settling';
+                    yt.pauseVideo();
+                    yt.seekTo(posMs / 1000, true);
+                    alongPreparing.timer = setTimeout(alongPrepared, 250);
+                    return true;
+                }
+            } catch (error) { alongPreparing = null; return false; }
+        }
+        alongPreparing.timer = setTimeout(alongPrepared, 5000);
+        return true;
+    }
+    function alongPrepared() {
+        const p = alongPreparing;
+        if (!p) return;
+        clearTimeout(p.timer);
+        alongPreparing = null;
+        if (p.yt) { try { p.yt.unMute(); } catch (error) { /* the player went away */ } }
+        if (p.then) p.then();
+    }
+    function alongPrepareCancel() {
+        const p = alongPreparing;
+        if (!p) return;
+        clearTimeout(p.timer);
+        alongPreparing = null;
+        if (p.yt) { try { p.yt.pauseVideo(); p.yt.unMute(); } catch (error) { /* the player went away */ } }
+    }
+    // A video's state change while it is being loaded (alongPrepare): handled here, not as playing or pausing. true = handled.
+    function alongWarmed(slide, yt, state) {
+        const p = alongPreparing;
+        if (!p || !p.yt || p.slide.data.id !== slide.data.id) return false;
+        const S = window.YT.PlayerState;
+        try {
+            if (p.stage === 'pausing' && state === S.PAUSED) { p.stage = 'loading'; yt.mute(); yt.seekTo(p.ms / 1000, true); yt.playVideo(); }
+            else if (p.stage === 'loading' && state === S.PLAYING) {
+                p.stage = 'settling';
+                yt.pauseVideo();
+                yt.seekTo(p.ms / 1000, true);
+                clearTimeout(p.timer);
+                p.timer = setTimeout(alongPrepared, 150);
+            }
+        } catch (error) { /* the player went away */ }
+        return true;
+    }
+    // The start at place k: the bar's first click at c0Perf (the page's clock) - or as soon as the recording can be there -
+    // and the recording, waiting at its start place, set going so that it reaches the bar then. metronomeOn: the clicks
+    // are already counting towards it (a rest, or the next go round a repeat) and play on into the bar by themselves.
+    // jump: the recording is playing and is moved to the bar itself (the next go of a repeat with no rest bars).
+    function alongStartAt(slide, k, { c0Perf = null, metronomeOn = false, jump = false } = {}) {
+        const player = recPlayerOf(slide);
+        const map = recMapFor(slide.data);
+        if (!player || !map || !map.places[k]) return;
+        const place = map.places[k];
+        const speed = recSpeedOf(slide);
+        const startPos = jump ? place.startMs : alongStartPos(slide, map, k);
+        const preMs = (place.startMs - startPos) / (speed / 100); // from the recording starting to the bar, in real time
+        const lag = alongLag[slide.type];
+        alongStartCancel();
+        alongCancelJoin();
+        alongResting = false;
+        alongHeard = null;
+        alongDriftHits = 0;
+        if (c0Perf === null) c0Perf = performance.now() + Math.max(120, preMs + lag + 40);
+        if (alongClicks() && !metronomeOn) {
+            const idx = alongPassageIndex(place);
+            if (idx !== -1) {
+                const ctx = flowPlayer.getAudioContext();
+                flowPlayer.pause();
+                flowStartSequenceAt(idx, place.bar - flowPlayQueue[idx].fromBar, 0);
+                alongSetSpeed(place, speed);
+                flowPlayer.playAt(ctx.currentTime + (c0Perf - performance.now()) / 1000);
+                renderFlowPlaybackRow();
+            }
+        }
+        alongStart = { slide, k, place, startPos, preMs, speed, c0Perf, calledPerf: null, jump };
+        try { player.setSpeed(speed); player.setVolume(flowVolume); } catch (error) { /* not ready yet */ }
+        alongStartTimer = setTimeout(() => {
+            alongStartTimer = null;
+            if (!alongStart) return;
+            alongStart.calledPerf = performance.now();
+            try { if (jump) player.seek(startPos); else player.play(); } catch (error) { /* not ready yet */ }
+            alongWatchStart(alongStart);
+            recStartTicker();
+            updateFlowPlayIcon();
+        }, Math.max(0, c0Perf - preMs - lag - performance.now()));
+        updateFlowPlayIcon();
+    }
+    // Once the recording is moving: when it really started (worked back from where its clock says it is), how long that
+    // took (learnt for the next start), and whether it reached the bar with the first click. Out by more than half the
+    // drift allowance, the clicks are re-timed from their next beat - one already heard is never sounded again.
+    function alongWatchStart(s) {
+        const player = recPlayerOf(s.slide);
+        if (!player) { alongStart = null; return; }
+        const t0 = performance.now();
+        let last = null;
+        let atStart = !s.jump; // a move while playing: wait until the clock shows it has moved
+        const iv = setInterval(() => {
+            if (alongStart !== s) { clearInterval(iv); return; }
+            let raw = 0;
+            try { raw = player.rawMs(); } catch (error) { clearInterval(iv); alongStart = null; return; }
+            if (Math.abs(raw - s.startPos) < 30) atStart = true;
+            const moved = atStart && last !== null && raw !== last && raw > s.startPos + 20 && raw < s.startPos + 3000;
+            last = raw;
+            if (moved) {
+                clearInterval(iv);
+                alongStart = null;
+                const startedPerf = performance.now() - (raw - s.startPos) / (s.speed / 100);
+                const type = s.slide.type;
+                alongLag[type] = Math.round(Math.max(0, Math.min(400, (alongLag[type] + (startedPerf - s.calledPerf)) / 2)));
+                const err = startedPerf + s.preMs - s.c0Perf; // more than 0: the recording reached the bar after the first click
+                if (alongClicks() && flowPlayer.isPlaying() && Math.abs(err) > ALONG_DRIFT_MS[type] / 2) alongJoin(alongHeard);
+                return;
+            }
+            if (performance.now() - t0 > 3000) { // still loading: the clicks join it once it plays
+                clearInterval(iv);
+                alongStart = null;
+                if (alongClicks() && alongRecPlaying()) alongJoin(alongHeard);
+            }
+        }, 5);
+    }
+
     // ===== ML-634: a repeat's rest bars with a recording =====
     // The rest bars between goes (and the count-in before the first) aren't on the recording. While they click - as
     // rest bars, on the metronome's own clock, at the speed the recording comes back in at - the recording waits at the
-    // repeat's start, paused; on the last rest click it starts again, just ahead of the repeat's first bar, and the
-    // clicks join it there. The go's number carries on (before, the clicks joined the recording straight away and
-    // skipped the rest - and a go). Not with a practice's count-in every time round, which has its own (ML-587).
+    // repeat's start, paused; as the rest ends it is set going to meet the clicks at the repeat's first bar (ML-640), so
+    // the go's number carries on. Not with a practice's count-in every time round, which has its own (ML-587).
     let alongResting = false;
-    let alongRestLastClick = null; // when the rest's last click sounded (audio clock), for how long a click lasts
     const alongRests = () => !!flowLoopPlan && alongClicks() && flowLoopPlan.between.some(s => s.kind === 'rest') && !(recInPractice() && flowCountInEveryGo());
-    // A video that hasn't played yet starts playing when it is moved (YouTube) - it is moved as it starts instead
-    function recCanMoveNow(slide) {
-        if (slide.type === 'audio') return true;
-        const yt = flowYtPlayers[slide.data.id];
-        try { return !!yt && ![-1, window.YT.PlayerState.CUED].includes(yt.getPlayerState()); } catch (error) { return false; }
-    }
     function alongRestBegin(slide) {
         const player = recPlayerOf(slide);
         const map = recMapFor(slide.data);
-        const loop = map ? FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, REC_LOOP_LEAD_MS) : null;
+        const loop = map ? FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, 0) : null;
         if (!player || !loop || !loop.ok) return false;
-        alongResting = true;
-        alongRestLastClick = null;
+        alongStartCancel();
         alongCancelJoin();
-        pauseFlowMediaSlide(slide);
-        if (recCanMoveNow(slide)) { try { player.seek(loop.startMs); } catch (error) { /* not ready yet */ } } else alongWarm(slide, loop.startMs);
+        alongResting = true;
+        alongHeard = null;
+        const pos = alongStartPos(slide, map, loop.fromPlace);
+        // A video not played yet is loaded and put in place during the rest (ML-637); one that has played, or an upload,
+        // is paused and moved
+        let state = 0;
+        if (slide.type === 'video') { try { state = flowYtPlayers[slide.data.id].getPlayerState(); } catch (error) { state = -1; } }
+        const notPlayed = slide.type === 'video' && (state === -1 || state === window.YT.PlayerState.CUED);
+        if (!(notPlayed && alongPrepare(slide, pos, null))) {
+            pauseFlowMediaSlide(slide);
+            try { player.seek(pos); } catch (error) { /* not ready yet */ }
+        }
         alongSetSpeed(map.places[loop.fromPlace], recSpeedOf(slide));
         return true;
     }
-    // ML-637: a video that hasn't played yet only starts loading when it is first played - at the end of the count-in
-    // that was too late: the clicks waited for it and joined at the second beat. So during the count-in it is loaded:
-    // moved to the repeat's start (which plays a video not played yet), silenced, and paused there as soon as it plays -
-    // then the count-in ends with it ready, as between goes.
-    let alongWarming = null; // { id, ms } while a video loads silently during the count-in
-    function alongWarm(slide, ms) {
-        const yt = flowYtPlayers[slide.data.id];
-        if (!yt || slide.type !== 'video') return;
-        alongWarming = { id: slide.data.id, ms };
-        try { yt.mute(); yt.seekTo(ms / 1000, true); } catch (error) { alongWarming = null; }
-    }
-    function alongWarmStop(yt) {
-        alongWarming = null;
-        try { yt.unMute(); } catch (error) { /* the player went away */ }
-    }
-    // A video's state change while it loads silently: paused at the repeat's start once playing. true = handled here.
-    function alongWarmed(slide, yt, state) {
-        if (!alongWarming || alongWarming.id !== slide.data.id) return false;
-        if (state === window.YT.PlayerState.PLAYING) {
-            try { yt.pauseVideo(); yt.seekTo(alongWarming.ms / 1000, true); } catch (error) { /* the player went away */ }
-            alongWarmStop(yt);
-        }
-        return true;
-    }
-    // Each click while resting: on the last rest click, the recording starts again
+    // Each click of the rest (and a lead-in after it): once the next click would be too late, the start is made for the
+    // repeat's first bar - its first click is where the clicks are counting to anyway
     function alongRestBeat(info) {
         const pos = flowScreenPosition();
-        if (!pos || pos.p.kind !== 'rest') return; // still finishing the go
-        const next = flowPlayQueue[flowPlayIndex + 1];
-        if ((!next || next.kind !== 'rest') && pos.clickInBar === pos.cpb - 1) {
-            const ctx = flowPlayer.getAudioContext();
-            const clickS = alongRestLastClick !== null && typeof info.time === 'number' ? info.time - alongRestLastClick : 60 / Math.max(1, info.bpm || 60);
-            const leftMs = ctx && typeof info.time === 'number' ? (info.time + clickS - ctx.currentTime) * 1000 : clickS * 1000;
-            alongRestEnd(Math.max(0, leftMs));
-        }
-        alongRestLastClick = typeof info.time === 'number' ? info.time : null;
-    }
-    // The rest is over in leftMs: the clicks stop (the recording leads again) and the recording starts so that it reaches
-    // the repeat's first bar just as the next click would have - a little before, so they join on its first beat
-    function alongRestEnd(leftMs) {
-        alongResting = false;
+        if (!pos || (pos.p.kind !== 'rest' && pos.p.kind !== 'leadIn')) return; // still finishing the go
+        if (alongStart || typeof info.time !== 'number' || !info.intervalSeconds) return;
         const slide = recActiveSlide();
-        const player = recPlayerOf(slide);
         const map = slide ? recMapFor(slide.data) : null;
         const loop = map && flowLoopPlan ? FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, 0) : null;
-        if (!player || !loop || !loop.ok) return;
-        if (alongWarming) alongWarmStop(flowYtPlayers[alongWarming.id]); // still loading - it starts as it is
-        flowPlayer.pause();
+        if (!loop || !loop.ok) return;
+        let left = pos.p.kind === 'leadIn' ? flowClicksPerBar(pos.p) - 1 - Math.max(0, flowPosClick) % flowClicksPerBar(pos.p) : pos.cpb - 1 - pos.clickInBar;
+        for (let i = flowPlayIndex + 1; flowPlayQueue[i] && (flowPlayQueue[i].kind === 'rest' || flowPlayQueue[i].kind === 'leadIn'); i++) left += flowClicksPerBar(flowPlayQueue[i]);
+        const ctx = flowPlayer.getAudioContext();
+        const c0Perf = perfAtCtx(ctx, info.time + (left + 1) * info.intervalSeconds);
         const speed = recSpeedOf(slide);
-        const firstMs = map.places[loop.fromPlace].startMs;
-        const leadMs = Math.min(firstMs, REC_LOOP_LEAD_MS, Math.max(200, leftMs) * speed / 100); // on the recording
-        alongCancelJoin();
-        alongJoinTimer = setTimeout(() => {
-            alongJoinTimer = null;
-            try { player.setSpeed(speed); player.setVolume(flowVolume); player.seek(firstMs - leadMs); player.play(); } catch (error) { /* not ready yet */ }
-            recStartTicker();
-        }, Math.max(0, leftMs - leadMs / (speed / 100)));
+        const need = (map.places[loop.fromPlace].startMs - alongStartPos(slide, map, loop.fromPlace)) / (speed / 100) + alongLag[slide.type] + 40;
+        if (left === 0 || c0Perf - info.intervalSeconds * 1000 - performance.now() < need) {
+            if (alongPreparing) alongPrepareCancel(); // still loading - it starts as it is, and the start is checked
+            alongStartAt(slide, loop.fromPlace, { c0Perf, metronomeOn: true });
+        }
     }
-    // The recording started (its Play, the play screen's Play, after buffering or a seek): the clicks join it
+    // The click just sounded, while following - a join never sounds it again
+    function alongNoteHeard(pos) {
+        if (pos.p.kind === 'rest' || pos.p.kind === 'leadIn') return;
+        const map = recMapFor(recActiveSlide().data);
+        const k = map ? map.places.findIndex(x => x.blockId === pos.p.blockId && x.bar === pos.bar && x.pass === pos.p.pass && x.kind === pos.p.kind) : -1;
+        alongHeard = k === -1 ? null : { place: k, click: pos.clickInBar };
+    }
+    // The next go of a repeat with no rest bars: on the last click of a go, the recording is moved back to the repeat's
+    // first bar so that it gets there with that bar's first click - the clicks go straight on
+    function alongGoRound(info) {
+        if (!flowLoopPlan || alongStart || alongResting || !alongClicks() || typeof info.time !== 'number' || !info.intervalSeconds) return;
+        if (flowLoopPlan.between.some(s => s.kind === 'rest')) return; // rest bars: the recording waits for them (ML-634)
+        const pos = flowScreenPosition();
+        const next = flowPlayQueue[flowPlayIndex + 1]; // the next go is only queued as the clicks reach it
+        if (!pos || (next && next.loopPass === pos.p.loopPass)) return;
+        if (pos.p.kind === 'rest' || pos.p.kind === 'leadIn' || pos.bar !== pos.p.toBar || pos.clickInBar !== pos.cpb - 1) return;
+        const slide = recActiveSlide();
+        const map = recMapFor(slide.data);
+        const loop = map ? FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, 0) : null;
+        if (!loop || !loop.ok || !alongRecPlaying()) return;
+        alongStartAt(slide, loop.fromPlace, { c0Perf: perfAtCtx(flowPlayer.getAudioContext(), info.time + info.intervalSeconds), metronomeOn: true, jump: true });
+    }
+    // The recording started (its Play, the play screen's Play, after buffering or a seek): the clicks join it - unless the
+    // app started it, when the clicks are already there (ML-640)
     function alongOnRecPlay() {
         alongResting = false;
-        if (alongClicks()) alongJoinSoon(60);
+        if (alongClicks() && !alongStart) alongJoinSoon(60);
         recStartTicker();
         updateFlowPlayIcon();
     }
-    // The recording stopped or is buffering: so do the clicks, until it plays again
-    function alongOnRecPause() {
-        if (alongResting) { updateFlowPlayIcon(); return; } // ML-634: waiting for the rest bars - the clicks go on
+    // The recording stopped or is buffering: so do the clicks, until it plays again. reason: 'paused', 'buffering', 'ended'.
+    function alongOnRecPause(reason = 'paused') {
+        if (alongResting || alongPreparing) { updateFlowPlayIcon(); return; } // ML-634/639: waiting for it - the clicks go on
+        if (alongStart && (reason === 'buffering' || !alongStart.calledPerf)) return; // ML-640: a start the app is making
+        alongStartCancel();
         alongCancelJoin();
         if (flowPlayer.isPlaying()) flowPlayer.pause();
         flowPlayer.setSpeedPercent(flowSpeedPercent);
         updateFlowPlayIcon();
     }
-    // Play with a recording: it starts where the metronome is (the repeat's start when repeating); the clicks join it
-    // once it is playing. In a practice, the practice's count-in first (ML-587).
+    // Starting where the recording has a place k: loaded and put in place first, then the clicks and the recording
+    // together (ML-640). Without the clicks wanted, the recording just plays from there.
+    function alongStartFrom(slide, k) {
+        const map = recMapFor(slide.data);
+        if (!map || !map.places[k]) return;
+        alongStartCancel();
+        alongCancelJoin();
+        if (flowPlayer.isPlaying()) flowPlayer.pause();
+        alongPrepare(slide, alongStartPos(slide, map, k), () => alongStartAt(slide, k));
+        updateFlowPlayIcon();
+    }
+    // Play with a recording: it starts where the metronome is (the repeat's start when repeating). In a practice, the
+    // practice's count-in first (ML-587).
     function alongPlay(slide) {
         if (recInPractice()) { recPlayInPractice(); return; }
         const player = recPlayerOf(slide);
@@ -16799,19 +16993,14 @@
             renderFlowPlaybackRow();
             return;
         }
-        let startMs = null;
-        if (map && flowLoopPlan) {
-            const loop = FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, REC_LOOP_LEAD_MS);
-            if (loop.ok) startMs = loop.startMs;
-        } else if (map) {
-            startMs = alongStartMs(map.places[alongMetronomePlace(map)]);
+        if (!map) { try { player.setSpeed(recSpeedOf(slide)); player.setVolume(flowVolume); player.play(); } catch (error) { /* not ready yet */ } recStartTicker(); return; }
+        let k = alongMetronomePlace(map);
+        if (flowLoopPlan) {
+            const loop = FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, 0);
+            if (loop.ok) k = loop.fromPlace;
         }
-        try {
-            player.setSpeed(recSpeedOf(slide));
-            player.setVolume(flowVolume);
-            if (startMs !== null) player.seek(startMs);
-            player.play();
-        } catch (error) { /* not ready yet */ }
+        if (alongClicks()) { alongStartFrom(slide, k); return; }
+        try { player.setSpeed(recSpeedOf(slide)); player.setVolume(flowVolume); player.seek(map.places[k].startMs); player.play(); } catch (error) { /* not ready yet */ }
         recStartTicker();
     }
     // The volume is for everything on the screen - the clicks and the recording together
@@ -16830,25 +17019,28 @@
         let at = 0;
         try { playing = player.playing(); at = player.positionMs(); } catch (error) { return; }
         const map = recMapFor(slide.data);
-        if (map && playing && flowLoopPlan) {
+        if (map && playing && flowLoopPlan && !alongStart) {
             const loop = FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, REC_LOOP_LEAD_MS);
             if (loop.ok && at >= loop.endMs && flowCountInEveryGo()) {
                 // ML-587: the count-in every time round - stop at the end of the go, count in, go again
                 pauseFlowMediaSlide(slide);
-                player.seek(loop.startMs);
-                recCountInThen(slide, () => { try { player.seek(loop.startMs); player.play(); } catch (error) { /* not ready yet */ } recStartTicker(); renderRecScoreControls(); });
+                recPracticeCountIn(slide);
                 renderRecScoreControls();
                 return;
             }
+            // ML-634: the go is over - the recording waits at the repeat's start while the clicks play the rest bars
+            // (normally the clicks get there first - alongOnBeat)
             if (loop.ok && at >= loop.endMs && alongRests() && flowPlayer.isPlaying()) {
-                // ML-634: the go is over - the recording waits at the repeat's start while the clicks play the rest bars
                 alongRestBegin(slide);
                 return;
             }
-            if (loop.ok && (at >= loop.endMs || at < loop.startMs - 300)) {
+            // Round again. With the clicks going, they move it as their go ends (alongGoRound) - this is for when they
+            // didn't (no clicks, or the recording was moved outside the repeat)
+            const following = alongClicks() && flowPlayer.isPlaying();
+            if (loop.ok && ((at >= loop.endMs + (following ? 400 : 0)) || at < loop.startMs - 300)) {
                 player.seek(loop.startMs);
                 at = loop.startMs;
-                if (alongClicks()) alongJoinSoon(200); // ML-627: round again - the clicks join it at the start
+                if (alongClicks()) { alongHeard = null; alongJoinSoon(200); } // the clicks join it at the start
             }
         }
         if (map) {
@@ -16899,28 +17091,28 @@
             const loop = FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, 0);
             if (loop.ok && (place < loop.fromPlace || place > loop.toPlace)) { showWarningToast(`${flowLoopRangeText()} are repeating - turn repeat off to play from there.`); return true; }
         }
-        // ML-627: the clicks stop at once (nothing more from where they were) and join the recording at that bar
-        if (alongClicks()) { alongCancelJoin(); if (flowPlayer.isPlaying()) flowPlayer.pause(); }
-        try { player.seek(alongClicks() ? alongStartMs(map.places[place]) : map.places[place].startMs); player.play(); } catch (error) { /* not ready yet */ }
+        // ML-640: the clicks and the recording start together at that bar's first beat
+        if (alongClicks()) { alongStartFrom(slide, place); return true; }
+        try { player.seek(map.places[place].startMs); player.play(); } catch (error) { /* not ready yet */ }
         recStartTicker();
-        if (alongClicks()) alongJoinSoon(600); // a backstop - the recording playing again after the move joins them first
         return true;
     }
     // ===== ML-587: a practice's count-in before a recording or video =====
     // In a practice a recording's slide has a Play of its own: the practice's count-in (off / first time only / every
     // time round, and how many bars) clicks on the metronome's sound at the speed of the bar it starts on, at the play
-    // speed, with the big count-down over the slide - then the recording plays from the bars being practised. With the
-    // count-in every time round, the recording stops at the end of each go and counts in again.
+    // speed, counting down in the bar line (ML-638) - then the recording plays from the bars being practised, the clicks
+    // with it from its first beat (ML-640). With the count-in every time round, the recording stops at the end of each go
+    // and counts in again.
     const recCountPlayer = createMetronomePlayer();
     recCountPlayer.setVisualLatencyMs(metroState.latencyMs);
-    let recCounting = null; // { slideKey, totalClicks, then }
+    let recCounting = null; // { slideKey, totalClicks, then, needMs, started }
     const recInPractice = () => !!flowSession && flowSession.mode !== 'runthrough';
-    // Where the practised bars start on the recording, and that bar's block
+    // Where the practised bars start on the recording (its place), and that bar's block
     function recPracticeStart(slide) {
         const map = recMapFor(slide.data);
-        const loop = map && flowLoopPlan ? FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, REC_LOOP_LEAD_MS) : null;
-        if (!loop || !loop.ok) return { startMs: null, block: currentFlowBlocks.find(b => b.barCount > 0) };
-        return { startMs: loop.startMs, block: currentFlowBlocks.find(b => b.id === map.places[loop.fromPlace].blockId) };
+        const loop = map && flowLoopPlan ? FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, 0) : null;
+        if (!loop || !loop.ok) return { k: null, block: currentFlowBlocks.find(b => b.barCount > 0) };
+        return { k: loop.fromPlace, block: currentFlowBlocks.find(b => b.id === map.places[loop.fromPlace].blockId) };
     }
     function recCountInStop() {
         if (!recCounting) return;
@@ -16929,14 +17121,15 @@
         recCounting = null;
         showFlowBarCount(0);
     }
-    // Counts the practice's count-in, then runs then() - straight away when the count-in is off
-    function recCountInThen(slide, then) {
+    // Counts the practice's count-in; then(c0Perf) as soon as the music's first beat is known in time to start the
+    // recording for it (needMs before) - or then(null) straight away when the count-in is off
+    function recCountInThen(slide, then, needMs = 0) {
         recCountInStop();
         const bars = practiceCountInWhen() === 'off' ? 0 : practiceCountInBars();
         const { block } = recPracticeStart(slide);
-        if (!bars || !block) { then(); return; }
+        if (!bars || !block) { then(null); return; }
         const beats = metroBlkBeatsPerBarFor(block);
-        recCounting = { slideKey: flowMediaSlideKey(slide), totalClicks: bars * beats, then };
+        recCounting = { slideKey: flowMediaSlideKey(slide), totalClicks: bars * beats, then, needMs, started: false };
         recCountPlayer.setConductorBpm(block.bpm * recSpeedOf(slide) / 100);
         recCountPlayer.setConductorBeatsPerBar(beats);
         recCountPlayer.setNotesPerBeat(1);
@@ -16950,26 +17143,54 @@
         const c = recCounting;
         if (!c || !info || info.ended) return;
         const left = c.totalClicks - info.clickIndex;
-        if (left > 0) { showFlowBarCount(left); return; } // ML-638: in the bar line, never over the recording
-        const then = c.then;
+        if (left > 0) {
+            showFlowBarCount(left); // ML-638: in the bar line, never over the recording
+            // ML-640: the music's first beat is where the count is heading - start for it once the next click is too late to
+            if (!c.started && typeof info.time === 'number' && info.intervalSeconds) {
+                const ctx = recCountPlayer.getAudioContext();
+                const c0Perf = perfAtCtx(ctx, info.time + left * info.intervalSeconds);
+                if (left === 1 || c0Perf - info.intervalSeconds * 1000 - performance.now() < c.needMs) { c.started = true; c.then(c0Perf); }
+            }
+            return;
+        }
+        const { then, started } = c;
         recCountInStop();
-        then();
+        if (!started) then(null);
     });
+    // The practice's count-in, then the recording and the clicks from the practised bars' first beat
+    function recPracticeCountIn(slide) {
+        const map = recMapFor(slide.data);
+        const { k } = recPracticeStart(slide);
+        const player = recPlayerOf(slide);
+        if (!player) return;
+        if (k === null || !map) {
+            recCountInThen(slide, () => { try { player.setVolume(flowVolume); player.play(); } catch (error) { /* not ready yet */ } recStartTicker(); updateFlowPlayIcon(); });
+            return;
+        }
+        if (practiceCountInWhen() === 'off' || !practiceCountInBars()) { alongStartFrom(slide, k); return; }
+        const pos = alongStartPos(slide, map, k);
+        alongPrepare(slide, pos, null); // loaded and in place during the count-in
+        const needMs = (map.places[k].startMs - pos) / (recSpeedOf(slide) / 100) + alongLag[slide.type] + 40;
+        recCountInThen(slide, (c0Perf) => {
+            if (alongPreparing) alongPrepareCancel(); // still loading - it starts as it is, and the start is checked
+            alongStartAt(slide, k, { c0Perf });
+        }, needMs);
+    }
     function recPlayInPractice() {
         const slide = recActiveSlide();
         const player = recPlayerOf(slide);
         if (!slide || !player) return;
-        if (recCounting || player.playing() || alongResting) { alongResting = false; recCountInStop(); pauseFlowMediaSlide(slide); alongOnRecPause(); return; }
+        if (recCounting || player.playing() || alongResting || alongStart || alongPreparing) {
+            alongResting = false;
+            alongStartCancel();
+            alongPrepareCancel();
+            recCountInStop();
+            pauseFlowMediaSlide(slide);
+            alongOnRecPause();
+            return;
+        }
         if (flowPlayer.isPlaying()) flowPlayer.pause();
-        const { startMs } = recPracticeStart(slide);
-        // An upload waits at the practised bars during the count-in. Not a video: YouTube starts playing when one that
-        // hasn't been played yet is moved (ML-627) - it is moved as the count-in ends.
-        if (startMs !== null && slide.type === 'audio') { try { player.seek(startMs); } catch (error) { /* not ready yet */ } }
-        recCountInThen(slide, () => {
-            try { if (startMs !== null) player.seek(startMs); player.setVolume(flowVolume); player.play(); } catch (error) { /* not ready yet */ }
-            recStartTicker();
-            updateFlowPlayIcon();
-        });
+        recPracticeCountIn(slide);
         updateFlowPlayIcon();
     }
 
@@ -17485,9 +17706,9 @@
                 keepPlayerToClip(el, () => recordingClip(slide.data)); // ML-312: the recording starts at the piece and stops when it is over
                 el.volume = flowVolume / 100;
                 el.addEventListener('playing', alongOnRecPlay); // started, or going again after a seek or buffering
-                el.addEventListener('pause', alongOnRecPause);
-                el.addEventListener('waiting', alongOnRecPause);
-                el.addEventListener('ended', alongOnRecPause);
+                el.addEventListener('pause', () => alongOnRecPause('paused'));
+                el.addEventListener('waiting', () => alongOnRecPause('buffering'));
+                el.addEventListener('ended', () => alongOnRecPause('ended'));
                 el.addEventListener('ratechange', () => { if (alongClicks() && !el.paused) alongJoinSoon(150); });
             }
         } else {
@@ -17512,7 +17733,7 @@
                                 ytClock.raw = null;
                                 alongOnRecPlay();
                             } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.BUFFERING || e.data === YT.PlayerState.ENDED) {
-                                alongOnRecPause();
+                                alongOnRecPause(e.data === YT.PlayerState.BUFFERING ? 'buffering' : e.data === YT.PlayerState.ENDED ? 'ended' : 'paused');
                             }
                         }
                     }
@@ -17817,7 +18038,7 @@
 
     // ML-627: something is going - the metronome, the recording being played along to, or a count-in before it
     function flowAnyPlaying() {
-        return flowPlayer.isPlaying() || alongRecPlaying() || !!recCounting;
+        return flowPlayer.isPlaying() || alongRecPlaying() || !!recCounting || !!alongStart || (!!alongPreparing && !!alongPreparing.then);
     }
     function updateFlowPlayIcon() {
         const el = document.getElementById('flowPlayIcon');
@@ -17849,6 +18070,9 @@
     }
     function pauseFlow() {
         alongResting = false;
+        alongStartCancel(); // ML-640
+        alongPrepareCancel();
+        alongHeard = null;
         alongCancelJoin();
         if (recCounting) recCountInStop();
         flowPlayer.pause();
@@ -17867,7 +18091,7 @@
             const map = recMapFor(slide.data);
             const loop = map && flowLoopPlan ? FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, REC_LOOP_LEAD_MS) : null;
             const startMs = loop && loop.ok ? loop.startMs : map ? alongStartMs(map.places[0]) : (recordingClip(slide.data).startMs || 0);
-            const following = alongClicks() && (alongRecPlaying() || alongResting);
+            const following = alongClicks() && (alongRecPlaying() || alongResting || !!alongStart || !!alongPreparing);
             if (following && flowPlayer.isPlaying()) flowPlayer.pause(); // nothing more from where the clicks were
             // ML-634: back to a repeat's count-in - the clicks play it and the recording waits for it
             if (following && flowPlayQueue[flowPlayIndex]?.kind === 'rest' && alongRests() && alongRestBegin(slide)) {
@@ -17875,9 +18099,17 @@
                 renderFlowPlaybackRow();
                 return;
             }
+            // ML-640: the clicks and the recording start together at the first bar
+            if (following && map && !recInPractice()) {
+                alongStartFrom(slide, loop && loop.ok ? FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, 0).fromPlace : 0);
+                renderFlowPlaybackRow();
+                return;
+            }
             alongResting = false;
+            alongStartCancel();
+            alongPrepareCancel();
             try { player.seek(startMs); } catch (error) { /* not ready yet */ }
-            if (following) alongJoinSoon(600); // a backstop, as for a tile
+            if (following) alongJoinSoon(600); // a backstop
         }
         renderFlowPlaybackRow();
     }

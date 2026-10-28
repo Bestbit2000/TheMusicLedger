@@ -100,27 +100,42 @@ above them, and only one could play at a time. Members wanted the clicks and the
   along when it has one** (the owner, 28 Oct 2026) - that is what shows people a piece has a video. A remembered
   recording that has gone (or isn't offered for the movement chosen) falls back to that video. The volume is not kept.
 
-**How the clicks follow the recording** (`alongJoin` / `alongOnBeat`, app.js). The recording leads. The clicks join
-it at its next beat: the place it is at on the map (`FlowJourney.recordingMap`), the click in that bar, and a start
-after exactly the wait that lands that click on time (the player's own leading silence). Each bar plays at the speed
-the recording takes it - the piece's speed for the bar times how long the bar should last over how long it lasts on
-the recording - so between two marks the clicks keep pace by themselves. At each bar's first click the screen works
-out where the recording was when that click sounded; further out than 70 ms for an upload or 140 ms for a video,
-twice running (or 400 ms once), the clicks join it again. The lead-in - not on the recording - joins again straight
-away. **A repeat's rest bars** (between goes, and the count-in before the first) aren't on the recording either: while
-they click - as rest bars, on the metronome's own clock, at the speed the recording comes back in at - the recording
-waits at the repeat's start, paused, and on the last rest click it starts again just ahead of the repeat's first bar,
-so the clicks join it on its first beat and the go's number carries on (`alongRestBegin` / `alongRestBeat` /
-`alongRestEnd`, ML-634). Play at the count-in and Reset back to it do the same. A video not played yet only starts
-loading when it is first played - at the end of the count-in that was too late (the clicks joined at the second
-beat), so during the count-in it is loaded silently: moved to the repeat's start, muted, and paused there as soon as
-it plays (`alongWarm`, ML-637). The count-in and every rest count down in the bar line ("Count-in **3** get ready",
+**How the clicks follow the recording** (`alongJoin` / `alongOnBeat`, app.js). The recording leads. Each bar plays
+at the speed the recording takes it - the piece's speed for the bar times how long the bar should last over how long it
+lasts on the recording - so between two marks the clicks keep pace by themselves. At each bar's first click the screen
+works out where the recording was when that click sounded; further out than 70 ms for an upload or 140 ms for a video,
+twice running (or 400 ms once), the clicks join it again: at its next beat - the place it is at on the map
+(`FlowJourney.recordingMap`), the click in that bar - after exactly the wait that lands that click on time. They join
+the same way when the recording starts by itself (its own Play or slider, going again after loading, a new speed).
+
+**Every start the app makes is led by the clicks (ML-640).** A recording says it is playing a while after it has
+started: a loaded YouTube video starts 40-70 ms after it is told to (or after it is moved while playing) and only says
+so 260-300 ms after (measured on 28 Oct 2026). Joining the clicks to it once it said so lost the bar's first beat
+whenever there was nothing before the bar to start it early on - bar 1 at 0:00, as for a recording with nothing marked
+- and the first circle never lit, after a count-in or without one (the owner, sandbox). So Play, a bar tile, Reset, the
+end of a count-in or a rest, a practice's count-in and the next go round a repeat with no rest bars all put the bar's
+first click at a set time on the metronome's clock (`playAt`), and set the recording going - loaded and waiting at the
+bar, or up to 0.4 s before it when it has that (`ALONG_START_LEAD_MS`, never before its start mark) - so that it
+reaches the bar at that moment (`alongStartAt`). The clicks never wait to be told it is playing. Loading first
+(`alongPrepare`): a video not played yet only loads when it plays, so it is played silently and paused as soon as it is
+going (also one moved far from where it is); one that has played is paused and moved; an upload is moved. How long the
+recording takes to get going is learnt as it goes (`alongLag`, starting at 60 ms for a video, 30 for an upload). Once
+its clock moves, the start is checked (`alongWatchStart`): out by more than half the drift allowance, the clicks are
+re-timed from their next beat. A click once sounded is never sounded again (`alongHeard`) - not when the recording
+stops to load and goes again, nor when the clicks are re-timed - unless the recording has been moved back before it.
+Measured on dev (28 Oct 2026), every first click and the recording within 40 ms, every click heard: after the
+count-in, with no count-in, a tile, Reset, a practice's count-in, each go round with and without rest bars, and with
+bar 1 at 0:00 and marked.
+
+**A repeat's rest bars** (between goes, and the count-in before the first) aren't on the recording: while they click -
+as rest bars, on the metronome's own clock, at the speed the recording comes back in at - the recording waits at the
+repeat's start, paused, and as the rest ends it is set going to meet the repeat's first click, so the go's number carries
+on (`alongRestBegin` / `alongRestBeat`, ML-634). A video not played yet is loaded silently during the count-in
+(ML-637). With no rest bars, on a go's last click the recording is moved back to the repeat's first bar to meet the next
+go's first click (`alongGoRound`). The count-in and every rest count down in the bar line ("Count-in **3** get ready",
 `showFlowBarCount`, ML-638) - nothing may cover a YouTube video (its terms), and the beats and buttons stay in view
-(the owner, 28 Oct 2026); a practice's own count-in before a recording does the same. Not with a practice's count-in every
-time round, which has its own (ML-587). Starting (not catching up), a recording only just into a bar - one that can't
-start early, bar 1 at 0:00 - still gets the bar's first click, a moment late (`ALONG_LATE_START_MS`). Starting at a bar (a tile, Play, Reset), the recording starts 0.4 s before it
-(`ALONG_START_LEAD_MS`, as a repeat does) so the clicks are joined in time for the bar's first beat; a tile or Reset
-while playing silences the clicks at once until they join again (ML-633). A fermata held on a bar's first beat repeats that beat for each beat of the hold - not a new bar,
+(the owner, 28 Oct 2026); a practice's own count-in before a recording does the same. Not with a practice's count-in
+every time round, which has its own (ML-587). A fermata held on a bar's first beat repeats that beat for each beat of the hold - not a new bar,
 so it is never checked. When the clicks join again because they got ahead (a pause the band held longer than written),
 they never go back over a beat already heard - they wait, silent, for the recording to reach the next one; in a bar with
 a pause they join at the next bar line (its beats aren't evenly spaced). Pausing or joining again takes back any click
