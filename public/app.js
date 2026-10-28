@@ -2145,14 +2145,17 @@
     // ML-601 (owner, 23 Oct 2026): playing a piece from Rehearse on a wide screen, the list folds away - the other pieces
     // are a distraction while you rehearse - and the music takes the room (.play-wide). Back brings the list back beside
     // the piece (goBack); picking a piece from it folds it again. The one list page that does this (layout.md).
+    // ML-627 (owner, 28 Oct 2026): My music folds away the same way - with a video playing along the play screen needs the
+    // room, and beside the list there was too little for the card and the tiles under it.
+    const PLAY_FOLDING_LISTS = ['rehearseView', 'metroBuilderView'];
     let rehearseListOpen = false;
-    const rehearsePlayFolded = (viewName) => PANES_QUERY.matches && viewName === 'flowPlayView' && paneListFor(viewName) === 'rehearseView' && !rehearseListOpen;
+    const rehearsePlayFolded = (viewName) => PANES_QUERY.matches && viewName === 'flowPlayView' && PLAY_FOLDING_LISTS.includes(paneListFor(viewName)) && !rehearseListOpen;
     function applyPanes(viewName) {
         const page = document.querySelector('#mainContainer > .container');
         if (!page) return;
         const folded = rehearsePlayFolded(viewName);
         page.classList.toggle('play-wide', folded);
-        if (folded) setShown('rehearseView', false);
+        if (folded) setShown(paneListFor(viewName), false);
         const list = PANES_QUERY.matches && !folded ? paneListFor(viewName) : null;
         page.querySelectorAll(':scope > .pane-list').forEach((el) => { if (el.id !== list) el.classList.remove('pane-list'); });
         page.classList.toggle('two-pane', !!list);

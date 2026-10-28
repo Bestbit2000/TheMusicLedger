@@ -3163,7 +3163,7 @@
         :is(.container.two-pane, .two-pane-demo).has-detail::after { content: none; }
         .pane-list .section-title:first-child { margin-top: 0; }
 
-        /* --- ML-601: playing a piece from Rehearse, the list folded away (.play-wide, set by applyPanes from 1000px):
+        /* --- ML-601: playing a piece from Rehearse (and, ML-627, My music), the list folded away (.play-wide, set by applyPanes from 1000px):
                the controls keep about one column's width, the piece's tiles get the other two - with more tiles across
                in every layout (small: as many as fit; detail: as many as fit; full: two when there is room) --- */
         body.app-shell .container.play-wide #flowPlayView { grid-template-columns: minmax(var(--play-col-min), 1fr) minmax(0, 2fr); }

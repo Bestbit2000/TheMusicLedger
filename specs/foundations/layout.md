@@ -42,12 +42,13 @@ Terms of use open in a pop-up (`#policyModal`) below 1000px and beside About's l
 read over the list, without leaving About, was what the owner asked for on a phone. Don't copy this for any other
 screen without his say-so.
 
-**A second exception (owner, 23 Oct 2026, ML-601): Rehearse's list folds away while a piece plays.** From 1000px,
+**A second exception (owner, 23 Oct 2026, ML-601): Rehearse's and My music's lists fold away while a piece plays.** From 1000px,
 opening a piece from Rehearse hides the list - the other pieces are a distraction while you rehearse - and the play
 screen takes the room (`.play-wide` on the card, set by `applyPanes`): the controls keep about one column's width and
 the piece's tiles get the other two, with more tiles across (`--play-tile-min`, `--play-tile-detail-min`; the full
 layout goes two across when there is room). **Back** brings the list back beside the piece; picking a piece from it
-folds it again; Back once more goes to the list. My music's pieces keep the two panes. Don't copy this for any other
+folds it again; Back once more goes to the list. **My music folds the same way** (owner, 28 Oct 2026, ML-627 - beside
+the list there was no room for a video playing along and the tiles under it). Don't copy this for any other
 screen without his say-so.
 
 A screen is **narrow unless it is listed as wide** in `style.css`
