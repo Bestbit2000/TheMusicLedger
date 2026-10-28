@@ -72,7 +72,8 @@ above them, and only one could play at a time. Members wanted the clicks and the
     − 2 + card). Every choice applies straight away, so it has Done, not Cancel and Save. **It is the recording's
     play speed too** (ML-599), at the same pitch: an upload plays at any speed on the list; a YouTube video only at
     its own speeds (`getAvailablePlaybackRates` - usually 25% to 200% in 25s), so it plays the nearest of them -
-    70% is 75% on a video, and the clicks follow the video. In a practice the button is the practice's own Playback
+    70% is 75% on a video, and the clicks follow the video. That holds in a practice too: a Level's speed with a
+    video is YouTube's nearest (65% plays at 75%) - the owner, 28 Oct 2026; an upload plays the Level's exact speed. In a practice the button is the practice's own Playback
     (the Level or a Custom speed, sub beats, the count-in - ML-587/588) and the buttons are reset, playback, play,
     finish.
   - **reset** takes the recording back to the first bar (the repeat's first, when repeating) as well.
