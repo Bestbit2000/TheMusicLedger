@@ -1742,6 +1742,8 @@
        choosing is the cog on the card). */
     .flow-media-have { display: inline-flex; align-items: center; gap: var(--space-1); vertical-align: middle; }
     .flow-media-have .material-symbols-outlined { font-size: var(--icon-sm); }
+    /* ML-635: under a recording with nothing marked, "Timing of the video still to be confirmed" - one line, the help text's size, and for whoever can change the piece itself the link to Edit -> Media */
+    .flow-along-hint-link { display: inline-flex; align-items: center; min-height: var(--touch-target); padding: 0; border: none; background: none; font: inherit; font-size: var(--font-sm); color: var(--link-color); text-decoration: underline; text-align: left; cursor: pointer; }
     .flow-required { color: var(--danger-text); }
     .flow-help-text { display: block; font-size: var(--font-xs); color: var(--label-color); margin-top: var(--space-1); }
 

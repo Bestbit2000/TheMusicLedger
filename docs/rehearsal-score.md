@@ -106,8 +106,14 @@ after exactly the wait that lands that click on time (the player's own leading s
 the recording takes it - the piece's speed for the bar times how long the bar should last over how long it lasts on
 the recording - so between two marks the clicks keep pace by themselves. At each bar's first click the screen works
 out where the recording was when that click sounded; further out than 70 ms for an upload or 140 ms for a video,
-twice running (or 400 ms once), the clicks join it again. A rest bar or the lead-in - the recording has neither -
-joins again straight away. Starting at a bar (a tile, Play, Reset), the recording starts 0.4 s before it
+twice running (or 400 ms once), the clicks join it again. The lead-in - not on the recording - joins again straight
+away. **A repeat's rest bars** (between goes, and the count-in before the first) aren't on the recording either: while
+they click - as rest bars, on the metronome's own clock, at the speed the recording comes back in at - the recording
+waits at the repeat's start, paused, and on the last rest click it starts again just ahead of the repeat's first bar,
+so the clicks join it on its first beat and the go's number carries on (`alongRestBegin` / `alongRestBeat` /
+`alongRestEnd`, ML-634). Play at the count-in and Reset back to it do the same. Not with a practice's count-in every
+time round, which has its own (ML-587). Starting (not catching up), a recording only just into a bar - one that can't
+start early, bar 1 at 0:00 - still gets the bar's first click, a moment late (`ALONG_LATE_START_MS`). Starting at a bar (a tile, Play, Reset), the recording starts 0.4 s before it
 (`ALONG_START_LEAD_MS`, as a repeat does) so the clicks are joined in time for the bar's first beat; a tile or Reset
 while playing silences the clicks at once until they join again (ML-633). A fermata held on a bar's first beat repeats that beat for each beat of the hold - not a new bar,
 so it is never checked. When the clicks join again because they got ahead (a pause the band held longer than written),
@@ -117,10 +123,11 @@ already queued (`cancelPendingBlips`), so nothing from the old timing sounds bes
 by the clock (`ytSmoothMs`). The clicks and the recording come out of the same speakers, so the headphone delay
 (Settings) needs no correction between them. **A recording with nothing marked** - no start mark and no marked bar
 (`alongMapped`) - **is taken to start bar 1 at 0:00 and to keep to the piece's own speeds** (the owner, 28 Oct 2026), so
-the clicks play at once; nothing is saved on the piece. A line under it says so (`#flowAlongHint`, `renderFlowAlongHint`):
-"The clicks assume bar 1 starts at 0:00." with **Set the start on Edit → Media** for whoever can change the piece, or
-"... they'll fit better once the video's start is marked." for anyone else. It goes once a start or a bar is marked, and
-when the metronome is neither seen nor heard. Marking stays on Edit → Media (ML-597). Nothing listens to the sound.
+the clicks play at once; nothing is saved on the piece. One line under it says "Timing of the video still to be
+confirmed" ("recording" for an upload; `#flowAlongHint`, `renderFlowAlongHint`) - for whoever can change the piece the
+line is itself the link to Edit → Media (`.flow-along-hint-link`), for anyone else plain help text; nobody needs telling
+it starts at the start (the owner, ML-635). It goes once a start or a bar is marked, and when the metronome is neither
+seen nor heard. Marking stays on Edit → Media (ML-597). Nothing listens to the sound.
 
 Unchanged from ML-488:
 
@@ -137,7 +144,8 @@ Unchanged from ML-488:
   is the first one under them (`flowKeepLitTileInView`; `--play-pin-h` is the top bar's height plus the pinned part's). Only
   while playing, so looking around the piece is never undone; pressing Play brings it back. Smooth unless
   the device asks for less motion.
-- **Rest bars are for the metronome only.** On a recording a repeat goes straight round; nothing waits.
+- **Rest bars are for the metronome only.** With the clicks seen or heard, the recording waits for them (ML-634, above);
+  with neither, a repeat on a recording goes straight round.
 
 ### Who can map a piece (the owner, 8 Oct 2026)
 
@@ -166,7 +174,8 @@ Unchanged from ML-488:
 `placeAt(map, ms)` is the bar playing at a time. `mapLoop(map, startBar, endBar, leadMs)` is the stretch
 of recording that a repeat is, by the same rule as `loopPlan` (from the first time the start bar plays to
 the next time the end bar plays). It starts 0.4 seconds early, never earlier than the bar before, so a map
-that is a touch out still catches the first note. **Rest bars are ignored on a recording.**
+that is a touch out still catches the first note. **Rest bars aren't on a recording** - the clicks play them while it
+waits (ML-634).
 
 ### Marking
 

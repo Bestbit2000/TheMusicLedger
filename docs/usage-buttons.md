@@ -457,7 +457,7 @@ its words.
 | flowDetailsHubView | `#flowEditCancelBtn` | Cancel |
 | flowDetailsHubView | `#flowEditSaveBtn` | Save |
 | flowPlayView | `#flowSeeHearBtn` | What to see and hear |
-| flowPlayView | `#flowAlongMarkBtn` | Set the start on Edit → Media |
+| flowPlayView | `#flowAlongMarkBtn` | Timing of the video still to be confirmed |
 | flowPlayView | `#flowLoopBtn` | off repeat |
 | flowPlayView | `#flowPlaybackBtn` | 100% playback |
 | flowPlayView | `#flowResetBtn` | reset |
