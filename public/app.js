@@ -16145,16 +16145,15 @@
         }
         return null;
     }
-    // "Intro · Bar 11 · [A] · 2nd time · 3/4 · 96 bpm · 𝄐" - HTML (the mark is boxed as on its tile; the
-    // fermata suffix is a glyph). The bar is the piece's own bar number, then which block it is in: its
-    // rehearsal mark, or "bars 33 to 40" when it has none (the owner, 12 Oct 2026).
+    // "Intro · [A] · 2nd time · Bar 11 · 𝄐" - HTML (the mark is boxed as on its tile; the fermata suffix is
+    // a glyph). Which block it is in - its rehearsal mark, or "Bars 33 to 40" when it has none (the owner,
+    // 12 Oct 2026) - then the piece's own bar number last and in bold, to read at a glance. No time
+    // signature or speed (ML-626): the dots show the beats, and a ramp or play speed changes the speed.
     function flowNowPlayingLabel() {
         const pos = flowScreenPosition();
         if (!pos) return '';
         const { p } = pos;
         const block = flowPassageBlock(p);
-        const bpm = Math.round(flowCurrentBpm ?? block.bpm);
-        const timeSig = escapeHtml(block.timeSignatureLabel || `${block.numerator}/${block.denominator}`); // HTML, so escaped like every other label
         // ML-302: "Repeat 3 · ..." while repeating; rest bars count in before the first pass.
         const loopPrefix = flowLoopPlan ? `Repeat ${p.loopPass} · ` : '';
         if (p.kind === 'rest') {
@@ -16162,23 +16161,19 @@
             // ML-587: every pass's, when the count-in comes every time round
             const first = p.loopPass === 1 || !flowLoopPlan || flowCountInEveryGo();
             const restBars = first && flowSession ? practiceCountInBars() : flowLoop ? flowLoop.restBars : 1;
-            return `${loopPrefix}${first ? 'Count-in' : 'Rest'} ${p.restIndex + 1} of ${restBars} · ${timeSig} · ${bpm} bpm`;
+            return `${loopPrefix}${first ? 'Count-in' : 'Rest'} <strong class="flow-bar-now">${p.restIndex + 1} of ${restBars}</strong>`;
         }
-        if (p.kind === 'leadIn') {
-            return `${loopPrefix}Lead-in · ${escapeHtml(block.timeSignatureLabel)} · ${bpm} bpm`;
-        }
+        if (p.kind === 'leadIn') return `${loopPrefix}<strong class="flow-bar-now">Lead-in</strong>`;
         const parts = [];
         if (flowLoopPlan) parts.push(`Repeat ${p.loopPass}`);
         if (p.kind === 'intro') parts.push('Intro');
         const startBar = flowBlockStartBar(p.blockId);
-        // ML-529: in a piece in movements, which movement this is ("Mvt 2 · Bar 93 · A")
+        // ML-529: in a piece in movements, which movement this is ("Mvt 2 · A · Bar 93")
         if (startBar !== null && FlowJourney.movements(currentFlowBlocks).length > 1) parts.push(FlowJourney.movementLabel(FlowJourney.movementOfBar(currentFlowBlocks, startBar), false));
-        if (startBar === null) parts.push(`${pos.bar + 1} of ${block.barCount} bar${block.barCount === 1 ? '' : 's'}`);
-        else parts.push(`Bar ${startBar + pos.bar}`);
         if (block.rehearsalMark) parts.push(`<span class="flow-bar-detail-mark">${escapeHtml(block.rehearsalMark)}</span>`);
-        else if (startBar !== null && block.barCount > 1) parts.push(`bars ${startBar} to ${startBar + block.barCount - 1}`);
+        else if (startBar !== null && block.barCount > 1) parts.push(`Bars ${startBar} to ${startBar + block.barCount - 1}`);
         if (p.kind === 'main' && flowRepeatedBlockIds.has(p.blockId)) parts.push(`${FLOW_ORDINALS[p.pass - 1] || `${p.pass}th`} time`);
-        parts.push(timeSig, `${bpm} bpm`);
+        parts.push(`<strong class="flow-bar-now">${startBar === null ? `${pos.bar + 1} of ${block.barCount} bar${block.barCount === 1 ? '' : 's'}` : `Bar ${startBar + pos.bar}`}</strong>`);
         return parts.join(' · ') + metroBlkFermataLabelSuffix(block);
     }
 

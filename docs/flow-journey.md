@@ -71,9 +71,10 @@ the pause lands exactly; with them off, on the conducted beat that contains it (
 are unchanged.
 
 **Screen.** A glyph above the dots (fermata or caesura) shows for the whole bar it's in and clears at
-the next bar's first beat. The top line ("Bar 36 · bars 33 to 40 · 4/4 · 112 bpm": the piece's own bar
-number, then the block it is in - its rehearsal mark, boxed, or its bars when it has none; nothing for a
-one-bar block), the highlighted bar and the bpm update from each click's own position, never early.
+the next bar's first beat. The top line ("Bars 33 to 40 · **Bar 36**": the block it is in - its rehearsal
+mark, boxed, or its bars when it has none; nothing for a one-bar block - then the piece's own bar number,
+last and in bold; no time signature or speed, ML-626) and the highlighted bar update from each click's own
+position, never early.
 
 ## Movements (ML-529)
 
