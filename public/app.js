@@ -16547,19 +16547,20 @@
             else if (flowPlayer.isPlaying()) flowPlayer.pause(); // past the last bar
             return;
         }
-        let pl = map.places[k];
-        let idx = alongPassageIndex(pl);
-        if (idx === -1) return;
-        let cpb = flowClicksPerBar(flowPlayQueue[idx]);
-        let j = Math.ceil(((at - pl.startMs) / Math.max(1, pl.endMs - pl.startMs)) * cpb + 0.05); // the next click, a touch ahead
-        if (j >= cpb) {
-            pl = map.places[k + 1];
-            if (!pl) { if (flowPlayer.isPlaying()) flowPlayer.pause(); return; }
-            idx = alongPassageIndex(pl);
-            if (idx === -1) return;
-            cpb = flowClicksPerBar(flowPlayQueue[idx]);
-            j = 0;
+        // The next click: in this bar, or at the start of the next bar the metronome plays here. A repeat (or a practice's
+        // bars) starts the recording a touch before its first bar (REC_LOOP_LEAD_MS) - a bar the metronome doesn't play -
+        // so the clicks then join at the first bar of the repeat.
+        let target = null;
+        for (let q = k; q < map.places.length && q <= k + 4 && !target; q++) {
+            const place = map.places[q];
+            const i = alongPassageIndex(place);
+            if (i === -1) continue;
+            const clicks = flowClicksPerBar(flowPlayQueue[i]);
+            const next = q === k ? Math.ceil(((at - place.startMs) / Math.max(1, place.endMs - place.startMs)) * clicks + 0.05) : 0; // a touch ahead
+            if (next < clicks) target = { pl: place, idx: i, cpb: clicks, j: next };
         }
+        if (!target) { if (flowPlayer.isPlaying()) flowPlayer.pause(); return; }
+        const { pl, idx, cpb, j } = target;
         const clickMs = pl.startMs + j * (pl.endMs - pl.startMs) / cpb;
         const waitS = Math.max(0, (clickMs - at) / (speed / 100) / 1000);
         flowPlayer.pause();
@@ -16774,7 +16775,9 @@
         if (recCounting || player.playing()) { recCountInStop(); pauseFlowMediaSlide(slide); alongOnRecPause(); return; }
         if (flowPlayer.isPlaying()) flowPlayer.pause();
         const { startMs } = recPracticeStart(slide);
-        if (startMs !== null) { try { player.seek(startMs); } catch (error) { /* not ready yet */ } }
+        // An upload waits at the practised bars during the count-in. Not a video: YouTube starts playing when one that
+        // hasn't been played yet is moved (ML-627) - it is moved as the count-in ends.
+        if (startMs !== null && slide.type === 'audio') { try { player.seek(startMs); } catch (error) { /* not ready yet */ } }
         recCountInThen(slide, () => {
             try { if (startMs !== null) player.seek(startMs); player.setVolume(flowVolume); player.play(); } catch (error) { /* not ready yet */ }
             recStartTicker();
