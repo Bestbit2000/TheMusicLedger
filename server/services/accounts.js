@@ -1,5 +1,5 @@
 import pool from '../config/db.js';
-import { getAccountBands } from './bands.js';
+import { getAccountBands, joinBandsAskedFor } from './bands.js';
 import { sendSignupAlert } from './signupAlert.js';
 import { deletedEmailHash } from './tokenVersions.js';
 import { noticeWaitingBandInvites } from './autoNotices.js';
@@ -46,6 +46,7 @@ export async function getOrCreateAccount(email, firstName = '', surname = '', cl
   if (inserted.rows.length) await pool.query('DELETE FROM deleted_account_markers WHERE email_hash = $1', [marker]);
   if (!inserted.rows.length) return (await pool.query('SELECT id FROM accounts WHERE email = $1', [email])).rows[0].id;
   if (invite) await pool.query("UPDATE auth_email_links SET used_at = now() WHERE purpose = 'invite' AND used_at IS NULL AND lower(email) = lower($1)", [email]);
+  await joinBandsAskedFor(inserted.rows[0].id).catch((e) => console.error('Sign-up: bands asked for not joined:', e.message)); // ML-646
   await noticeWaitingBandInvites(inserted.rows[0].id); // ML-649: a band invitation sent before they signed up
   await sendSignupAlert({ firstName: name.first, surname: name.last, email, method: invite ? 'Google (invite)' : 'Google', ...client });
   return inserted.rows[0].id;

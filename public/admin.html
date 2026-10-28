@@ -1107,6 +1107,26 @@
 </div>
 
 <!-- ML-443 Business case: a choice from a short list (years, how it is counted, how Premium is paid). It is made on a pick. -->
+<!-- ML-646: Let them in - and straight into the band they asked to join, with what they may do. Built from existing
+     pieces: a yes/no switch per band you organise, the segmented choice for the level. public/admin-join-requests.js -->
+<div class="modal" id="letInModal" role="dialog" aria-modal="true" aria-labelledby="letInTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="letInTitle">Let them in</h2>
+        <p class="admin-intro" id="letInIntro"></p>
+        <div id="letInBands"></div>
+        <div class="form-group hidden-group" id="letInLevelGroup" role="radiogroup" aria-labelledby="letInLevelLabel"><label id="letInLevelLabel">What they may do</label>
+            <div class="radio-group is-segmented">
+                <input type="radio" name="letInLevel" id="letInLevel-play" value="play" checked><label for="letInLevel-play">Can play</label>
+                <input type="radio" name="letInLevel" id="letInLevel-change" value="change"><label for="letInLevel-change">Can change music</label>
+                <input type="radio" name="letInLevel" id="letInLevel-organiser" value="organiser"><label for="letInLevel-organiser">Organiser</label>
+            </div>
+        </div>
+        <p class="admin-intro" id="letInAllowance"></p>
+        <div class="flex-row gap-md"><button type="button" class="btn-cancel btn-nav no-margin" id="letInCancel">Cancel</button><button type="button" class="btn-submit no-margin" id="letInGo">Let them in</button></div>
+    </div>
+</div>
+
 <div class="modal" id="bcChoiceModal" role="dialog" aria-modal="true" aria-labelledby="bcChoiceTitle">
     <div class="modal-content">
         <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>

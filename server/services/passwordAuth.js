@@ -179,11 +179,13 @@ async function liveLink(client, secret, purpose, lock = false) {
 // both take it, and use it up. Someone who already has an account can only gain a password from it.
 // ML-617/618: the invitation says what Admin -> Email wording says (wording; the built-in wording if none) - for
 // someone with an account already, its own email ("invitation_existing").
-export function invitationEmail({ firstName, url, ways, existing, wording }) {
-  const key = existing ? 'invitation_existing' : 'invitation';
-  return buildEmail(key, wording || EMAILS[key].builtIn, { 'first name': nameOrThere(firstName), 'ways in': waysInWords(ways), url });
+// bands (ML-646): the bands they are being put into, let in from the waiting list - the invitation says so
+export function invitationEmail({ firstName, url, ways, existing, wording, bands = '' }) {
+  const key = existing ? 'invitation_existing' : bands ? 'invitation_band' : 'invitation';
+  return buildEmail(key, wording || EMAILS[key].builtIn, { 'first name': nameOrThere(firstName), 'ways in': waysInWords(ways), bands, url });
 }
-export async function createInvite({ email, firstName, surname, accountLevel, createdBy, origin }) {
+// bands (ML-646): the names of the bands they will be in, said in the email; the link then opens My bands
+export async function createInvite({ email, firstName, surname, accountLevel, createdBy, origin, bands = '' }) {
   const ways = await signInWaysOn();
   if (!ways.length) throw fail(404, 'Not found');
   const to = normaliseEmail(email);
@@ -201,8 +203,8 @@ export async function createInvite({ email, firstName, surname, accountLevel, cr
       purpose: 'invite', email: to, firstName: String(firstName || '').trim().slice(0, 80) || null,
       surname: String(surname || '').trim().slice(0, 80) || null, accountLevel: level, createdBy, minutes: INVITE_DAYS * 24 * 60
     });
-    const wording = await wordingFor(existing ? 'invitation_existing' : 'invitation');
-    const { subject, text, html } = invitationEmail({ firstName, url: appLink(origin, `?invite=${secret}`), ways, existing: !!existing, wording });
+    const wording = await wordingFor(existing ? 'invitation_existing' : bands ? 'invitation_band' : 'invitation');
+    const { subject, text, html } = invitationEmail({ firstName, url: appLink(origin, `?invite=${secret}${bands ? '&band-invite=1' : ''}`), ways, existing: !!existing, wording, bands });
     await sendMail({ to, subject, text, html });
     await client.query('COMMIT');
     return { email: to, existingAccount: !!existing, ...emailOutcome() }; // ML-479: emailed, or notSentHere
@@ -332,6 +334,11 @@ export async function acceptInvite(secret, password, ip, device = {}) {
     await client.query('UPDATE auth_email_links SET used_at = now() WHERE id = $1', [link.id]);
     await client.query('UPDATE account_passwords SET last_login_at = now() WHERE account_id = $1', [account.id]);
     await client.query('COMMIT');
+    if (isNew) {
+      // ML-646: the bands they asked to join from the waiting list (imported when needed: bands.js imports this file)
+      const { joinBandsAskedFor } = await import('./bands.js');
+      await joinBandsAskedFor(account.id).catch((e) => console.error('Sign-up: bands asked for not joined:', e.message));
+    }
     if (isNew) await noticeWaitingBandInvites(account.id); // ML-649: a band invitation sent before they signed up
     if (isNew) await sendSignupAlert({ firstName: link.first_name, surname: link.surname, email: link.email, method: 'Email and password (invite)', ...device });
     return completeLogin(account);

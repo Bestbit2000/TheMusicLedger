@@ -56,8 +56,20 @@ account. The menu counts what is waiting, and so does the Dashboard ("people are
 asked for once the panel has loaded (`AdminJoinRequests.refreshCount`, from `load()` in `admin.js`) - asked any
 earlier, before the admin check (ML-518), it was refused and never showed.
 
-- **Let in** - the ordinary invitation email (`createInvite`, a Standard member). They add their band on My bands, or
-  in the set-up steps, once they are in. Since 26 Oct 2026 the invitation offers every way in that is on (Google always,
+- **Let in** - the invitation email (`createInvite`, a Standard member), in a pop-up (ML-646, owner 28 Oct 2026). It
+  also puts them **straight into a band**: a switch for each band the owner organises, the one they asked for already
+  on, and what they may do (Can play / Can change music / Organiser). A place is kept for each (`band_invites.from_request`,
+  no band email - the invitation says it, "Invitation - with their band" on Admin → Email wording) and **taken up at their
+  first sign-in** (`joinBandsAskedFor`, Google or a password), with a notice "You're now in ...". Someone who already
+  has an account gets **Add to band** instead: put in at once and told in the app. Only a band the owner organises -
+  any other band is Pass to the organiser. With no band picked it is the ordinary invitation, as before.
+- **Let in everyone asking for <band>** - above the list, for each of the owner's bands two or more are asking for: the
+  same, for all of them at one level (`letInAllForBand`); one that can't be let in (a closed address, none left of the
+  allowance) doesn't stop the rest, and the toast says which.
+- Each band counts as one **band invitation** against the owner's allowance - `band_invites_per_day` and
+  `band_invites_per_quarter` on Admin → Feature access, Limits (`bandInviteAllowance`, from `band_invite_sends`); an
+  organiser's own invitations count the same way, and the band's Members page says how many are left.
+- Earlier: the ordinary invitation only. They added their band on My bands, or in the set-up steps, once they were in. Since 26 Oct 2026 the invitation offers every way in that is on (Google always,
   a password while **Email and password login** is Live - "Ways in" in `docs/password-login.md`), so Let in works with
   password login off; only if no way in were on would the page say so and grey the button out.
 - **Pass to the organiser** - only for a band that shares its music here (a `group` for that directory entry) with an

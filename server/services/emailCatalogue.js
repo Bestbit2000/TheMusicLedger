@@ -43,6 +43,21 @@ export const EMAILS = {
     footer: () => `This link works for ${INVITATION_DAYS} days. If you weren't expecting it, you can ignore this email.`,
     sample: { 'first name': 'Bert' }
   },
+  // ML-646: let in from the waiting list and put straight into the band they asked to join (owner, 28 Oct 2026)
+  invitation_band: {
+    group: 'members', name: 'Invitation - with their band',
+    about: 'Let in on the Waiting list with a band: they are invited to Notably Better and will be in the band when they first sign in.',
+    fillIns: { 'first name': FIRST_NAME, 'ways in': WAYS_IN, bands: 'The band or bands they will be in, e.g. "The Cobham Band".' }, required: ['ways in', 'bands'],
+    builtIn: {
+      subject: "You're invited to Notably Better",
+      body: p('Hi {first name},', "Welcome to Notably Better! You've been invited to join, and we're really glad you're here.",
+        "You'll be in {bands} as soon as you sign in, with the band's music ready to play and practise at your own pace. Its members will see your name.",
+        'Getting in takes a minute: {ways in}.', 'See you there!'),
+      button: 'Get started'
+    },
+    footer: () => `This link works for ${INVITATION_DAYS} days. If you weren't expecting it, you can ignore this email.`,
+    sample: { 'first name': 'Bert', bands: 'The Cobham Band' }
+  },
   invitation_existing: {
     group: 'members', name: 'Invitation - already signs in with Google',
     about: 'An invitation to someone who already has an account with Google: it lets them add a password.',

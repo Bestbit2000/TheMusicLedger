@@ -51,6 +51,9 @@ confirms who runs a band, so nobody has to be).
 - Picking a band from the directory puts it on **your own list**, privately (ML-478). **Set up sharing**
   starts your own space for it; you are its first member and its first **organiser**. Neither ever puts you
   into a space someone else started.
+- **The one way in without a Join tap** (ML-646, owner 28 Oct 2026): someone who asked to join a band on the public
+  page, let in by the owner on Admin → Waiting list into a band **he organises**, is in it at their first sign-in - the
+  form told them its members would see their name. Every other invitation still waits for a yes (docs/waiting-list.md).
 - Two people who set up sharing for the same band get **two separate spaces** and neither can see the other.
   So claiming a band's name gains nothing: a space holds only the people its members invited.
 - The way into a space is an **invitation from one of its organisers**, addressed to the email address the

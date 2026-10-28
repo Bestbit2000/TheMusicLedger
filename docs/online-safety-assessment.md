@@ -1,6 +1,6 @@
 # Online Safety Act run-through (ML-507)
 
-**Version 5, 23 October 2026**, before ML-498 (version 4: 22 October 2026, ML-581; version 3: 22 October 2026, release 0.67.0; version 2: 19 October 2026, release 0.63.0; version 1: 8 October 2026, release 0.52.0). A first pass at what the Online Safety Act 2023
+**Version 7, 28 October 2026**, before ML-646 (version 6: 25 October 2026, ML-610; version 5: 23 October 2026, ML-498; version 4: 22 October 2026, ML-581; version 3: 22 October 2026, release 0.67.0; version 2: 19 October 2026, release 0.63.0; version 1: 8 October 2026, release 0.52.0). A first pass at what the Online Safety Act 2023
 asks of this app, done from Ofcom's published guidance. It is a careful reading by Claude, **not legal
 advice**, and **the owner should confirm it with Ofcom's own tools** (below) - they are the official
 route and they produce the records Ofcom expects.
@@ -146,6 +146,7 @@ are written to meet both.
 | 4 | The terms say what may not be shared (anything illegal, anything sexual, anything hateful or bullying, anything not yours to share), that it will be removed and the account may be closed, how to report it, and who is responsible | The owner (wording) | **Done 8 October 2026**, released in 0.53.0: in the terms' "What you put in", with a report looked at within two working days |
 | 5 | **"Report this"** on any piece, recording, document, video link or band a member can see: one tap, an optional line of text, sent to the owner with what it was about. Always there, whatever features an account type has | Claude | **Built 8 October 2026**, released in 0.53.0: "Report" on the menu of a band's or a public piece in My music - the piece is reported with its recordings, documents and links. **Finished 10 October 2026 (ML-510):** the same Report is on the play screen's menu, on a shared band in My bands ("Report the name", once someone else is in the band) and on a band's practice list ("Report this list"). A list or a band only the member can see has none |
 | 6 | **One place for the owner to take anything down**: extend Admin → Recordings to documents, pieces and practice lists. Each removal tells the people it belonged to and is kept on record, as recordings are now | Claude | **Built 8 October 2026**, released in 0.53.0: the page is now Admin → Shared music - members' reports, recordings and videos, documents, and the pieces a band shares or that are public. **Finished 10 October 2026 (ML-511):** the page also lists every band's practice lists (Remove - the pieces stay) and every band (Rename - a band can't be removed without its music, so a name that breaks the terms is changed). The band's organisers are told each time and both are on the same record |
+| 7 | 28 October 2026 | Claude, for Andrew Storey | Done again before ML-646: **let in from the waiting list straight into a band** - the first time someone is in a band without tapping Join (they asked for it on the form, which says so). See "Version 7" below. |
 | 7 | Add to the release process: "does this change what one member can show another, or let members contact each other?" - if so, this run-through is done again first | Claude | **Done 10 October 2026 (ML-512):** the question is in step 1 of `docs/release-process.md`, printed by `npm run cut-release`, and in CLAUDE.md |
 | 8 | Reports are answered: say in the terms how quickly, and keep a simple log of each report and what was done | The owner, Claude | The log is built (a report is closed with a line saying what was done). How quickly is for the terms (action 4). **10 October 2026 (ML-502):** the owner can also warn the member and close their account - `docs/account-closing.md` |
 | 9 | **A band's logo is covered by Report and take-down** (version 2): reported with the band, removed on Admin → Shared music with its file, the organisers told; only an organiser can add one; a picture only (never SVG, which can carry script); kept only in the band's own folder of the file store | Claude | **Built 19 October 2026 (ML-534)**, released in 0.63.0 |
@@ -311,6 +312,38 @@ agreeing. Members add nothing and see nothing about each other.
 
 **Result:** the service's risk levels are unchanged (low), and no new action. **A business adding or editing its own
 listing, or members reviewing or recommending businesses, would need this run again.**
+
+## Version 7: let in from the waiting list straight into a band (ML-646, 28 October 2026)
+
+**Why again:** it changes what one member is shown about another. Until now nobody was in a band's shared space
+without tapping Join after an invitation (ML-468: "the band will see your name" is said at that moment). Now the
+owner can let someone in from the waiting list **straight into the band they asked to join**, and the band's
+members see their name at their first sign-in, with no Join tap.
+
+**What it is** (docs/waiting-list.md): someone asks to join on the public page, naming their band. On Admin →
+Waiting list the owner lets them in and picks the band - **only a band he organises himself**; any other band is
+still "Pass to the organiser", where its own organiser decides. A place is kept for them (`band_invites.from_request`)
+and taken up when they first sign in, with what the owner chose they may do (Can play by default).
+
+**Against the questions above:**
+- **Consent to being seen:** the person named the band themselves, on a form that now says so: "If you tell us your
+  band and we let you in, we'll add you to it here, and its members will see your name." The privacy policy says the
+  same (28 October 2026). Their name only - never their email address - as for every member.
+- **Contact and grooming:** nothing new. In a band, members see names and the band's music, and get the band's
+  one-way notices (version 5). No member can message another.
+- **Who can put someone in a band:** only the owner, only into a band he organises, and only someone who asked for
+  it - never a band someone else runs. An organiser's own invitations still wait for a yes.
+- **Children:** the form's age tick still applies (13 or over, or a parent or carer filling it in). A young player
+  in a band is seen by name only, as with an invitation they accept; they can leave the band at any time (My bands).
+- **Limits:** the owner's band invitations count against an allowance by the day and the quarter (Admin → Feature
+  access, Limits), so a mistaken "Let in everyone" can't run on without end.
+
+**Children's Code self-assessment:** checked - standard 7 (default settings) and 9 (data sharing) are met by the
+form's line saying it before anything is sent: being in a band is what the person asked for, and nothing more than
+their name is shown. No change to the self-assessment's answers.
+
+**Result:** the service's risk levels are unchanged (low), and no new action. **Putting someone into a band they did
+not ask for, or letting an organiser other than the owner do this, would need this run again.**
 
 ## What would change the answer
 

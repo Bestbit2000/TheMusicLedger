@@ -4985,6 +4985,9 @@
         document.getElementById('bandInviteHelp').textContent = d.emailsAreSent === false
             ? "Type their email address. This site doesn't send emails, so tell them yourself: the invitation waits on their My bands page for 30 days. They sign in with that same address to join."
             : 'Type their email address. They are sent an email, and the invitation waits on their My bands page for 30 days. They sign in with that same address to join.';
+        // ML-646: how many invitations are left - today and this quarter - and when the quarter starts again
+        const ia = d.inviteAllowance;
+        if (ia) document.getElementById('bandInviteHelp').textContent += ` You can send ${ia.left} more ${ia.left === 1 ? 'invitation' : 'invitations'} (${ia.perDay} a day, ${ia.perQuarter} a quarter - the quarter starts again on ${new Date(`${ia.startsAgainOn}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}).`;
         const lv = bandLevel(bandMembers.inviteLevel);
         const levelBtn = document.getElementById('bandInviteLevelBtn');
         levelBtn.querySelector('strong').textContent = lv.label;

@@ -54,7 +54,7 @@ import { cleanSignatureHtml, htmlToText } from '../services/emailHtml.js';
 import { listPopupTexts, savePopupTexts, resetPopupTexts } from '../services/popupTexts.js';
 import { handleUpload } from '@vercel/blob/client';
 import { appLink } from '../utils/appPath.js';
-import { listJoinRequests, letInJoinRequest, passJoinRequest, dismissJoinRequest, matchJoinRequestBand } from '../services/joinRequests.js';
+import { listJoinRequests, letInJoinRequest, passJoinRequest, dismissJoinRequest, matchJoinRequestBand, letInAllForBand } from '../services/joinRequests.js';
 import { adminSupport, addBusiness, updateBusiness, removeBusiness } from '../services/instrumentSupport.js';
 import { listReads as listPieceReads, setChecked as setPieceReadChecked, rerunRead as rerunPieceRead, dropTestFiles as dropPieceReadTestFiles } from '../services/pieceReads.js';
 import { applyRecords } from '../thirdParties/records.js';
@@ -1226,14 +1226,24 @@ router.delete('/support/:id', requireAuth, resolveAccount, requireSuperAdmin, re
 // ML-580: Admin -> Waiting list - the requests from the public page, and Let in / Pass to the organiser / Not now
 router.get('/join-requests', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
-    res.json(await listJoinRequests());
+    res.json(await listJoinRequests(req.accountId));
   } catch (error) {
     sendError(res, error);
   }
 });
 router.post('/join-requests/:id/let-in', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
-    res.json(await letInJoinRequest(req.params.id, req.accountId, appUrl(req)));
+    const { bands, level } = req.body || {};
+    res.json(await letInJoinRequest(req.params.id, req.accountId, appUrl(req), { bands, level })); // ML-646: straight into their band
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+// ML-646: let in everyone on the list asking for one of the owner's bands, at one level
+router.post('/join-requests/let-in-all', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
+  try {
+    const { groupId, level } = req.body || {};
+    res.json(await letInAllForBand(groupId, req.accountId, appUrl(req), level));
   } catch (error) {
     sendError(res, error);
   }
@@ -1248,14 +1258,14 @@ router.post('/join-requests/:id/pass', requireAuth, resolveAccount, requireSuper
 // ML-625: tie a request's typed band to the directory band it means
 router.post('/join-requests/:id/band', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
-    res.json(await matchJoinRequestBand(req.params.id, (req.body || {}).label));
+    res.json(await matchJoinRequestBand(req.params.id, (req.body || {}).label, req.accountId));
   } catch (error) {
     sendError(res, error);
   }
 });
 router.delete('/join-requests/:id', requireAuth, resolveAccount, requireSuperAdmin, requireAdminCheck, async (req, res) => {
   try {
-    res.json(await dismissJoinRequest(req.params.id));
+    res.json(await dismissJoinRequest(req.params.id, req.accountId));
   } catch (error) {
     sendError(res, error);
   }

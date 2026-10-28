@@ -29,9 +29,9 @@ import { passwordLinkForNewcomer } from './passwordAuth.js';
 import { emailFor, nameOrThere } from './emailWording.js';
 import { BAND_SUMMARY_WORDS, BAND_NOTICES_WORDS } from './emailCatalogue.js';
 import { signInWaysOn, waysInWords } from './signInWays.js';
-import { isFeatureEnabled } from './features.js';
+import { isFeatureEnabled, getLimit } from './features.js';
 import { appLink } from '../utils/appPath.js';
-import { noticeBandInvite, withdrawBandInviteNotice, noticeBandLevel, noticeBandRemoved, noticeBandLeader } from './autoNotices.js'; // ML-497
+import { noticeBandInvite, withdrawBandInviteNotice, noticeBandLevel, noticeBandRemoved, noticeBandLeader, noticeBandJoined } from './autoNotices.js'; // ML-497
 
 const fail = (status, message) => Object.assign(new Error(message), { status });
 
@@ -205,7 +205,7 @@ const roleOfLevel = (level) => {
 // (the SQL for "may change" is BAND_CAN_CHANGE_SQL in flowPermissions.js)
 const INVITE_DAYS = 30;
 const MAX_OPEN_INVITES = 50;
-const MAX_INVITES_A_DAY = 20; // per organiser - each one sends an email to an address they typed
+// (the day's and the quarter's invitations: bandInviteAllowance, ML-646 - it was a fixed 20 a day)
 
 async function memberRole(db, accountId, bandId) {
   const { rows } = await db.query(
@@ -639,7 +639,9 @@ export async function listBandMembers(accountId, bandId) {
     invites: isOrganiser ? invites.map((i) => ({ id: Number(i.id), email: i.email, level: levelOf(i.role), sentAt: i.created_at })) : [],
     openInvites: invites.length,
     // ML-479: whether an invitation's email really goes from this site (not on dev or sandbox)
-    emailsAreSent: emailOutcome().emailed
+    emailsAreSent: emailOutcome().emailed,
+    // ML-646: an organiser's invitations left today and this quarter, and when the quarter starts again
+    inviteAllowance: isOrganiser ? await bandInviteAllowance(accountId) : null
   };
 }
 
@@ -649,7 +651,38 @@ export async function listBandMembers(accountId, bandId) {
 // Returns { emailed }: false when nothing was sent - with emailFailed when it should have been, or
 // notSentHere on a site that only keeps its emails (ML-479; dev and sandbox). The invitation stands
 // either way, and is on their My bands page. Whoever sends the email must have a name on their account.
-export async function inviteToBand(accountId, bandId, email, level = 'play', origin = '', { resend = false } = {}) {
+// ML-646: how many band invitations an organiser has left - today (24 hours) and this quarter (calendar quarters,
+// UK time), from Admin -> Feature access's limits band_invites_per_day / band_invites_per_quarter. Every invitation
+// email sent counts (band_invite_sends), whether it was answered or not.
+const QUARTER_START = "date_trunc('quarter', now() AT TIME ZONE 'Europe/London')";
+export async function bandInviteAllowance(accountId, db = pool) {
+  const level = (await db.query('SELECT account_level FROM accounts WHERE id = $1', [accountId])).rows[0]?.account_level || 'standard_member';
+  const [perDay, perQuarter, { rows: [n] }] = await Promise.all([
+    getLimit('band_invites_per_day', 50, level), getLimit('band_invites_per_quarter', 300, level),
+    db.query(
+      `SELECT count(*) FILTER (WHERE sent_at > now() - interval '24 hours')::int AS today,
+              count(*) FILTER (WHERE sent_at >= ${QUARTER_START} AT TIME ZONE 'Europe/London')::int AS quarter,
+              to_char(${QUARTER_START} + interval '3 months', 'YYYY-MM-DD') AS next
+         FROM band_invite_sends WHERE account_id = $1`, [accountId])
+  ]);
+  return {
+    perDay, perQuarter, usedToday: n.today, usedThisQuarter: n.quarter, startsAgainOn: n.next,
+    left: Math.max(0, Math.min(perDay - n.today, perQuarter - n.quarter))
+  };
+}
+const QUARTER_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const sayDay = (iso) => { const [y, m, d] = iso.split('-').map(Number); return `${d} ${QUARTER_MONTHS[m - 1]} ${y}`; };
+async function assertBandInviteLeft(accountId) {
+  const a = await bandInviteAllowance(accountId);
+  if (a.usedToday >= a.perDay) throw fail(429, `You have sent ${a.perDay} band invitations in the last day - you can send more tomorrow.`);
+  if (a.usedThisQuarter >= a.perQuarter) throw fail(429, `You have sent this quarter's ${a.perQuarter} band invitations. More can be sent from ${sayDay(a.startsAgainOn)}.`);
+  return a;
+}
+
+// email: false (ML-646) - the place is kept but no band email goes: the person is being let in from the waiting list,
+// and their invitation email says it. fromRequest (ML-646) - they asked to join this band, so it is accepted for them
+// at their first sign-in (joinBandsAskedFor).
+export async function inviteToBand(accountId, bandId, email, level = 'play', origin = '', { resend = false, email: sendEmail = true, fromRequest = false } = {}) {
   await assertOrganiser(pool, accountId, bandId);
   await requireAdult(pool, accountId);
   const role = roleOfLevel(level);
@@ -667,19 +700,17 @@ export async function inviteToBand(accountId, bandId, email, level = 'play', ori
   const sending = !waiting || resend;
   if (sending) {
     await requireName(pool, accountId, NAME_BEFORE_INVITING);
-    // Each email counts: a new invitation, or one sent again (which is dated today from then on)
-    const today = await pool.query(
-      `SELECT COUNT(*) AS n FROM band_invites WHERE invited_by_account_id = $1 AND created_at > now() - interval '24 hours' AND NOT (band_id = $2 AND email = $3)`,
-      [accountId, bandId, to]);
-    if (Number(today.rows[0].n) >= MAX_INVITES_A_DAY) throw fail(429, `You have invited ${MAX_INVITES_A_DAY} people in the last day - you can invite more tomorrow.`);
+    // ML-646: each email counts - a new invitation, or one sent again - against the day's and the quarter's allowance
+    await assertBandInviteLeft(accountId);
   }
   await pool.query(
-    `INSERT INTO band_invites (band_id, email, invited_by_account_id, role) VALUES ($1, $2, $3, $4)
-     ON CONFLICT (band_id, email) DO UPDATE SET role = EXCLUDED.role${resend ? ', created_at = now(), invited_by_account_id = EXCLUDED.invited_by_account_id' : ''}`,
-    [bandId, to, accountId, role]
+    `INSERT INTO band_invites (band_id, email, invited_by_account_id, role, from_request) VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (band_id, email) DO UPDATE SET role = EXCLUDED.role, from_request = band_invites.from_request OR EXCLUDED.from_request${resend ? ', created_at = now(), invited_by_account_id = EXCLUDED.invited_by_account_id' : ''}`,
+    [bandId, to, accountId, role, !!fromRequest]
   );
-  if (sending) await noticeBandInvite(bandId, to); // ML-497: someone already using the app also sees it in Notifications
-  if (!sending) return { emailed: false };
+  if (sending) await pool.query('INSERT INTO band_invite_sends (account_id, band_id) VALUES ($1, $2)', [accountId, bandId]);
+  if (sending && sendEmail) await noticeBandInvite(bandId, to); // ML-497: someone already using the app also sees it in Notifications
+  if (!sending || !sendEmail) return { emailed: false };
   try {
     const { rows } = await pool.query(
       `SELECT g.name AS band_name, g.logo_url, a.display_name, a.first_name, a.surname
@@ -853,6 +884,27 @@ export async function acceptBandInvite(accountId, inviteId, { labelId = null } =
   await withdrawBandInviteNotice(inviteId); // ML-497: answered - the notice about it goes
   return Number(invite.band_id);
 }
+// ML-646: someone the owner let in from the waiting list asked to join the band, so the place kept for them
+// (from_request) is taken up for them - at their first sign-in, or at once if they already have an account. The same
+// as saying yes (acceptBandInvite: it attaches to the band already on their list). One that can't be taken up (no
+// name yet - ML-479) is left as an ordinary invitation, waiting on My bands. Returns the bands joined.
+export async function joinBandsAskedFor(accountId) {
+  const { rows } = await pool.query(
+    `SELECT i.id, i.band_id FROM band_invites i JOIN accounts a ON lower(a.email) = lower(i.email) AND a.deleted_at IS NULL
+      WHERE a.id = $1 AND i.from_request AND i.created_at >= now() - make_interval(days => $2)`, [accountId, INVITE_DAYS]);
+  const joined = [];
+  for (const r of rows) {
+    try {
+      await acceptBandInvite(accountId, r.id);
+      joined.push(Number(r.band_id));
+      await noticeBandJoined(r.band_id, accountId);
+    } catch (error) {
+      console.error('Waiting list: a band place could not be taken up:', error.message);
+    }
+  }
+  return joined;
+}
+
 export async function declineBandInvite(accountId, inviteId) {
   await myInvite(pool, accountId, inviteId);
   await pool.query('DELETE FROM band_invites WHERE id = $1', [inviteId]);

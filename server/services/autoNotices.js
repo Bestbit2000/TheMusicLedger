@@ -162,6 +162,14 @@ export function noticeBandLeader(bandId, memberId, on, actorId) {
       : { title: `You're no longer a band leader of ${band}`, body: "You're still in the band.", details: { bandId: Number(bandId), on: false } });
   })().catch(log('band leader'));
 }
+// ML-646: let in from the waiting list straight into the band they asked to join - one of the "Changes in a band"
+// notices (kind band_level: what you can do in a band has changed - you're in it now).
+export function noticeBandJoined(bandId, memberId) {
+  return (async () => {
+    const band = await bandName(bandId);
+    await send([memberId], 'band_level', { title: `You're now in ${band}`, body: "Its music is on Rehearse, and it's on My bands.", details: { bandId: Number(bandId), joined: true } });
+  })().catch(log('band joined'));
+}
 export function noticeBandRemoved(bandId, memberId) {
   return (async () => {
     const band = await bandName(bandId);
