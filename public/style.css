@@ -2807,13 +2807,16 @@
     .update-banner { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "icon title close" ". actions actions"; column-gap: var(--space-2); padding-bottom: var(--space-1); }
     .update-banner .notice-banner-icon { grid-area: icon; }
     .update-banner-title { grid-area: title; }
-    .update-banner-actions { grid-area: actions; display: flex; align-items: center; gap: var(--space-4); }
+    .update-banner-actions { grid-area: actions; display: flex; align-items: center; gap: var(--space-4); padding: var(--space-0-5) 0; } /* ML-647: room above and below Reload */
     .update-banner .notice-banner-close { grid-area: close; }
     .update-banner .notice-banner-text { flex: 0 1 auto; }
-    .update-banner-reload { flex-shrink: 0; min-height: var(--touch-target); padding: 0 var(--space-4); background: none; border: 1px solid var(--status-blue-fg); border-radius: var(--radius-sm); color: inherit; font: inherit; cursor: pointer; }
+    /* ML-647: Reload is filled - the strip's own colours the other way round, so it reads as the button (and dark mode
+       turns it round again by itself) */
+    .update-banner-reload { flex-shrink: 0; min-height: var(--touch-target); padding: 0 var(--space-4); background: var(--status-blue-fg); border: 1px solid var(--status-blue-fg); border-radius: var(--radius-sm); color: var(--status-blue-bg); font: inherit; font-weight: var(--font-weight-bold); cursor: pointer; }
+    .update-banner-reload:hover { text-decoration: underline; }
     @media (min-width: 700px) {
-        .update-banner { display: flex; padding-bottom: 0; }
-        .update-banner-actions { flex: 1; min-width: 0; }
+        .update-banner { display: flex; padding-top: var(--space-1); padding-bottom: var(--space-1); } /* ML-647: room above and below Reload */
+        .update-banner-actions { flex: 1; min-width: 0; padding: 0; }
     }
     #noticeBannerModal { z-index: var(--z-over-splash); } /* opened from the sign-in screen too, which sits on top of everything */
     .offline-bar-btn { flex-shrink: 0; min-height: var(--touch-target); padding: 0 var(--space-3); background: none; border: 1px solid var(--status-amber-fg); border-radius: var(--radius-sm); color: var(--status-amber-fg); font-family: var(--font-sans); font-size: var(--font-sm); font-weight: var(--font-weight-bold); cursor: pointer; }
@@ -3100,7 +3103,9 @@
         body.app-shell { align-items: stretch; --rail-w: var(--rail-width); }
         body.app-shell.rail-folded { --rail-w: var(--rail-width-folded); }
         body.app-shell #mainContainer { max-width: none; width: auto; margin-left: var(--rail-w); }
-        body.app-shell :is(.top-bar, .session-bar, .offline-bar) { max-width: none; }
+        body.app-shell :is(.top-bar, .session-bar, .offline-bar, .notice-banner) { max-width: none; }
+        /* ML-647: the strips run the full width, their words over the page in the middle */
+        body.app-shell :is(.offline-bar, .notice-banner) { padding-left: max(var(--space-5), calc((100% - var(--app-max-width)) / 2 + var(--space-5))); padding-right: max(var(--space-1), calc((100% - var(--app-max-width)) / 2 + var(--space-1))); }
         body.app-shell .top-bar { padding: var(--space-2) var(--space-6); min-height: var(--rail-head-height); }
         body.app-shell .top-btn-burger { display: none; }
         body.app-shell .top-bar > .brand-mark { display: none; } /* the rail's head carries the mark and the name */

@@ -233,6 +233,18 @@
     },
     {
       "kind": "text",
+      "fg": "--status-blue-bg",
+      "bg": "--status-blue-fg",
+      "use": "ML-647: Reload on the new-version strip - the strip's colours the other way round"
+    },
+    {
+      "kind": "non-text",
+      "fg": "--status-blue-fg",
+      "bg": "--status-blue-bg",
+      "use": "ML-647: the filled Reload button against its strip"
+    },
+    {
+      "kind": "text",
       "fg": "--status-grey-fg",
       "bg": "--status-grey-bg",
       "use": "status chip"
