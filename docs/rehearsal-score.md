@@ -135,8 +135,9 @@ as rest bars, on the metronome's own clock, at the speed the recording comes bac
 repeat's start, paused, and as the rest ends it is set going to meet the repeat's first click, so the go's number carries
 on (`alongRestBegin` / `alongRestBeat`, ML-634). A video not played yet is loaded silently during the count-in
 (ML-637). With no rest bars, on a go's last click the recording is moved back to the repeat's first bar to meet the next
-go's first click (`alongGoRound`). The count-in and every rest count down in the bar line ("Count-in **3** get ready",
-`showFlowBarCount`, ML-638) - nothing may cover a YouTube video (its terms), and the beats and buttons stay in view
+go's first click (`alongGoRound`). The count-in and every rest count down in the bar line ("Count-in **3**",
+`showFlowBarCount`, ML-638) - after the bar it leads into, so what is about to play is never hidden by it ("Repeat 2 ·
+Bars 1 to 2 · Bar 1 · Rest **3**", ML-643) - nothing may cover a YouTube video (its terms), and the beats and buttons stay in view
 (the owner, 28 Oct 2026); a practice's own count-in before a recording does the same. Not with a practice's count-in
 every time round, which has its own (ML-587). A fermata held on a bar's first beat repeats that beat for each beat of the hold - not a new bar,
 so it is never checked. When the clicks join again because they got ahead (a pause the band held longer than written),
@@ -167,6 +168,10 @@ Unchanged from ML-488:
   is the first one under them (`flowKeepLitTileInView`; `--play-pin-h` is the top bar's height plus the pinned part's). Only
   while playing, so looking around the piece is never undone; pressing Play brings it back. Smooth unless
   the device asks for less motion.
+- **A bar tile outside the bars being repeated** asks "Play from bar 12 instead of repeating bars 1–4?" (ML-642, the
+  choice pop-up): **Yes** (repeat off, and the tap does what it does without a repeat - with a recording, it plays from
+  there), **Repeat from bar 12** (the repeat sheet, starting there, as long as the repeat was) or **No**. In a practice
+  the bars are the practice's - a short message says so.
 - **Rest bars are for the metronome only.** With the clicks seen or heard, the recording waits for them (ML-634, above);
   with neither, a repeat on a recording goes straight round.
 
@@ -205,7 +210,8 @@ waits (ML-634).
 **Start, bars and end** (`#barMapModal`, ML-597 - it was "Mark the bars" on the play screen plus a separate start-and-end
 pop-up): one pop-up, opened from a recording's **start, bars and end** value box on the piece's **Edit → Media** tab
 (the box shows "0:12 to 4:05 · 6 bars marked"). Its own player; **Starts here** (with a second's nudge either way); a bar
-to mark (Bar before / Next bar, or type a bar number) - **This is bar N** puts the mark where the player is and steps on
+to mark (Bar before / Next bar, or its number typed in the box between them - it goes straight there, no Go, ML-644)
+- **Mark the start of this bar** puts the mark where the player is and steps on
 to the next bar, so tapping along bar by bar marks a run of them; **Ends here**; then **How long it takes** (ML-598).
 A mark that would make the recording run backwards is refused, saying which mark it clashes with. **Done** keeps the
 start, the end and the whole list of marks - **in Edit, until Save**, like everything else on that screen (the marks are

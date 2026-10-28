@@ -68,7 +68,6 @@
         'rec-map': (el) => openBarMapModal(actArg(el)),
         'barmap-close': () => closeBarMapModal(),
         'barmap-step': (el) => barMapStep(Number(actArg(el))),
-        'barmap-go': () => barMapGoToTypedBar(),
         'barmap-mark': () => barMapMarkHere(),
         'barmap-remove': (el) => barMapRemove(Number(actArg(el))),
         'barmap-play': (el) => barMapPlayFrom(Number(actArg(el))),
@@ -16145,6 +16144,29 @@
         jumpFlowToStart();
     }
 
+    // ML-642: a tile outside the bars being repeated - instead of a warning to turn repeat off, a question (the owner,
+    // 28 Oct 2026): play from that bar instead (repeat goes off, and the tap does what it does without a repeat), repeat
+    // from it (the repeat sheet, starting there, as long as the repeat was), or keep repeating. Not in a practice - its
+    // bars are the practice's.
+    function askPlayOutsideRepeat(blockId) {
+        const bar = flowBlockStartBar(blockId);
+        if (flowSession || bar === null || !flowLoopPlan) { showWarningToast(`${flowLoopRangeText()} are the bars being practised.`); return; }
+        const repeating = flowLoopRangeText().replace(/^Bar/, 'bar');
+        const length = flowLoop.endBar - flowLoop.startBar;
+        openFlowChoiceModal(`Play from bar ${bar} instead of repeating ${repeating}?`, [
+            { key: 'play', html: addPieceRow('Yes', `Play from bar ${bar}, with repeat off`) },
+            { key: 'repeat', html: addPieceRow(`Repeat from bar ${bar}`, 'Choose the bar it goes to') },
+            { key: 'no', html: addPieceRow('No', `Keep repeating ${repeating}`) }
+        ], (opt) => {
+            if (opt.key === 'play') {
+                flowLoopRemember({ ...flowLoop, on: false });
+                applyFlowLoop(null, false);
+                window.jumpFlowToPlayIndex(blockId);
+            } else if (opt.key === 'repeat') {
+                openFlowLoopModal({ startBar: bar, endBar: bar + Math.max(0, length), restBars: flowLoop.restBars || 0 });
+            }
+        });
+    }
     // Tapping a tile jumps playback to that bar's first appearance in the piece proper (not the intro).
     // While repeating bars (ML-302) it jumps within the current pass, and only to a bar in the loop.
     window.jumpFlowToPlayIndex = function(id) {
@@ -16152,10 +16174,7 @@
         if (flowLoopPlan) {
             const pass = flowPlayQueue[flowPlayIndex] ? flowPlayQueue[flowPlayIndex].loopPass : 1;
             const index = flowPlayQueue.findIndex(p => p.loopPass === pass && p.blockId === id && p.kind !== 'rest');
-            if (index === -1) {
-                showWarningToast(`${flowLoopRangeText()} are repeating - turn repeat off to play from there.`);
-                return;
-            }
+            if (index === -1) { askPlayOutsideRepeat(id); return; }
             flowStartSequenceAt(index);
             renderFlowPlaybackRow();
             return;
@@ -16199,13 +16218,14 @@
         const pos = flowScreenPosition();
         if (!pos) return '';
         const { p } = pos;
-        const block = flowPassageBlock(p);
         // ML-302: "Repeat 3 · ..." while repeating; rest bars count in before the first pass.
         const loopPrefix = flowLoopPlan ? `Repeat ${p.loopPass} · ` : '';
-        // ML-638: playing along, the big count-down is here (showFlowBarCount)
+        // ML-638: playing along, the big count-down is here (showFlowBarCount). ML-643: after the bar it leads into, so
+        // what is about to play is never hidden by it (the owner, 28 Oct 2026) - "Repeat 2 · Bars 1 to 2 · Bar 1 · Rest 3"
         if (flowBarCount > 0) {
             const word = p.kind === 'rest' && p.loopPass > 1 && !flowCountInEveryGo() ? 'Rest' : 'Count-in';
-            return `${loopPrefix}${word} <strong class="flow-bar-count">${flowBarCount}</strong> get ready`;
+            const next = flowPlayQueue.slice(flowPlayIndex).find(q => q.kind !== 'rest' && q.kind !== 'leadIn');
+            return `${next ? `${flowBarLabelHtml(next, next.fromBar)} · ` : loopPrefix}${word} <strong class="flow-bar-count">${flowBarCount}</strong>`;
         }
         if (p.kind === 'rest') {
             // The first pass's clicking bars are the count-in (in a practice or run-through, the number you chose);
@@ -16215,6 +16235,11 @@
             return `${loopPrefix}${first ? 'Count-in' : 'Rest'} <strong class="flow-bar-now">${p.restIndex + 1} of ${restBars}</strong>`;
         }
         if (p.kind === 'leadIn') return `${loopPrefix}<strong class="flow-bar-now">Lead-in</strong>`;
+        return flowBarLabelHtml(p, pos.bar);
+    }
+    // The bar line for bar `bar` (0-based in its block) of passage p
+    function flowBarLabelHtml(p, bar) {
+        const block = flowPassageBlock(p);
         const parts = [];
         if (flowLoopPlan) parts.push(`Repeat ${p.loopPass}`);
         if (p.kind === 'intro') parts.push('Intro');
@@ -16227,7 +16252,7 @@
         const [fromBar, toBar] = flowLoopPlan ? [p.fromBar, p.toBar] : [0, block.barCount - 1];
         if (startBar !== null && toBar > fromBar) parts.push(`Bars ${startBar + fromBar} to ${startBar + toBar}`);
         if (p.kind === 'main' && flowRepeatedBlockIds.has(p.blockId)) parts.push(`${FLOW_ORDINALS[p.pass - 1] || `${p.pass}th`} time`);
-        parts.push(`<strong class="flow-bar-now">${startBar === null ? `${pos.bar + 1} of ${block.barCount} bar${block.barCount === 1 ? '' : 's'}` : `Bar ${startBar + pos.bar}`}</strong>`);
+        parts.push(`<strong class="flow-bar-now">${startBar === null ? `${bar + 1} of ${block.barCount} bar${block.barCount === 1 ? '' : 's'}` : `Bar ${startBar + bar}`}</strong>`);
         return parts.join(' · ') + metroBlkFermataLabelSuffix(block);
     }
 
@@ -17105,7 +17130,7 @@
         if (!player || place === -1) return true; // a recording is showing: the tap is for it, even if it can't be used yet
         if (flowLoopPlan) {
             const loop = FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, 0);
-            if (loop.ok && (place < loop.fromPlace || place > loop.toPlace)) { showWarningToast(`${flowLoopRangeText()} are repeating - turn repeat off to play from there.`); return true; }
+            if (loop.ok && (place < loop.fromPlace || place > loop.toPlace)) { askPlayOutsideRepeat(blockId); return true; } // ML-642
         }
         // ML-640: the clicks and the recording start together at that bar's first beat
         if (alongClicks()) { alongStartFrom(slide, place); return true; }
@@ -17267,7 +17292,9 @@
         if (!barMap) return;
         const label = FlowJourney.placeLabel(barMap.places, barMap.place);
         document.getElementById('barMapPlaceLbl').textContent = label;
-        document.getElementById('barMapMarkBtnLbl').textContent = `This is ${label.charAt(0).toLowerCase()}${label.slice(1)}`;
+        // ML-644: the box shows the bar's number - not while it is being typed in
+        const barInput = document.getElementById('barMapBarInput');
+        if (document.activeElement !== barInput) barInput.value = barMap.places[barMap.place].number ?? '';
         document.getElementById('barMapPrevBtn').disabled = barMap.place <= 0;
         document.getElementById('barMapNextBtn').disabled = barMap.place >= barMap.places.length - 1;
         const used = FlowJourney.usableMarks(barMap.places, barMap.marks);
@@ -17318,7 +17345,6 @@
                 : `<audio id="barMapMedia" class="flow-media-player-audio" controls preload="metadata" src="${escapeHtml(r.blobUrl)}"></audio>`;
             barMap.media = document.getElementById('barMapMedia');
         }
-        document.getElementById('barMapBarInput').value = '';
         renderBarMapModal();
         showModal('barMapModal');
     }
@@ -17336,15 +17362,24 @@
         barMap.place = Math.min(barMap.places.length - 1, Math.max(0, barMap.place + by));
         renderBarMapModal();
     }
-    function barMapGoToTypedBar() {
+    // ML-644 (the owner, 28 Oct 2026): a bar number typed in goes straight there - no Go. One the piece hasn't got is put
+    // back, with why, once the box is left (final).
+    function barMapTypedBar(final) {
         if (!barMap) return;
-        const n = Math.round(Number(document.getElementById('barMapBarInput').value));
-        const place = barMap.places.findIndex(p => p.number === n && p.kind === 'main');
-        if (place === -1) { showWarningToast(barMap.movement ? `This recording is of ${FlowJourney.movementLabel(barMap.movement, false)}: bars ${barMap.movement.startBar} to ${barMap.movement.endBar}.` : `This piece has no bar ${Number.isFinite(n) ? n : 'like that'}.`); return; }
-        barMap.place = place;
-        renderBarMapModal();
+        const input = document.getElementById('barMapBarInput');
+        const n = Math.round(Number(input.value));
+        const place = input.value === '' ? -1 : barMap.places.findIndex(p => p.number === n && p.kind === 'main');
+        if (place !== -1) {
+            if (place !== barMap.place) { barMap.place = place; renderBarMapModal(); }
+            return;
+        }
+        if (!final) return;
+        if (input.value !== '') showWarningToast(barMap.movement ? `This recording is of ${FlowJourney.movementLabel(barMap.movement, false)}: bars ${barMap.movement.startBar} to ${barMap.movement.endBar}.` : `This piece has no bar ${Number.isFinite(n) ? n : 'like that'}.`);
+        input.value = barMap.places[barMap.place].number ?? '';
     }
-    // "This is bar 33": the bar being marked is where the player is now. Then on to the next bar.
+    document.getElementById('barMapBarInput')?.addEventListener('input', () => barMapTypedBar(false));
+    document.getElementById('barMapBarInput')?.addEventListener('change', () => barMapTypedBar(true));
+    // "Mark the start of this bar": the bar being marked is where the player is now. Then on to the next bar.
     function barMapMarkHere() {
         if (!barMap) return;
         const p = barMap.places[barMap.place];
@@ -18461,10 +18496,12 @@
         });
     }
 
-    function applyFlowLoop(settings) {
+    // resume false: turning it off doesn't carry on from the bar you were on (ML-642 - a tile tapped outside the repeat
+    // says where it carries on from)
+    function applyFlowLoop(settings, resume = true) {
         flowLoop = settings;
         flowComputeLoopPlan();
-        const resumeBlockId = !flowLoopPlan && flowPlayQueue[flowPlayIndex] ? flowPlayQueue[flowPlayIndex].blockId : null;
+        const resumeBlockId = resume && !flowLoopPlan && flowPlayQueue[flowPlayIndex] ? flowPlayQueue[flowPlayIndex].blockId : null;
         const wasPlaying = flowAnyPlaying();
         jumpFlowToStart();
         // Turning it off carries on from the bar you were on rather than the top of the piece. Playing along while
@@ -18519,11 +18556,12 @@
         grid.innerHTML = Array.from({ length: FLOW_LOOP_MAX_REST + 1 }, (_, n) =>
             `<button type="button" class="flow-multiselect-num${d.restBars === n ? ' selected' : ''}" data-rest="${n}" aria-pressed="${d.restBars === n}">${n === 0 ? 'None' : n}</button>`).join('');
     }
-    function openFlowLoopModal() {
+    // start: the bars to open on (ML-642: "Repeat from bar 12" - from a tile outside the repeat)
+    function openFlowLoopModal(start = null) {
         const { lo, hi: total } = flowLoopBounds();
         if (!total) return;
         const saved = flowLoopSavedAll()[flowLoopPieceKey()];
-        let draft = flowLoop || (saved ? { startBar: saved.startBar, endBar: saved.endBar, restBars: saved.restBars || 0 } : null);
+        let draft = (start && start.startBar ? start : null) || flowLoop || (saved ? { startBar: saved.startBar, endBar: saved.endBar, restBars: saved.restBars || 0 } : null);
         if (!draft) {
             // First time: start at the bar on screen (or bar 1), four bars long.
             const p = flowPlayQueue[flowPlayIndex];

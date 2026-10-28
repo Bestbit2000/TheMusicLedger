@@ -66,8 +66,9 @@ volume controls (`.metro-speed-row` with − / + and `.metro-volume-row` with th
 
 **Mark the bars pop-up** - `#barMapModal.modal` › `.modal-close-x` › `h2` › the recording's name › help ›
 `#barMapPlayerHost` › `.section-title` "Which bar" with the bar on the right › `.flex-row.gap-sm` with
-**Bar before** / **Next bar** (`.btn-text`) › `.form-group` "Or type a bar number" (a number field and **Go**)
-› **This is bar N** (`.btn-submit`) › `.section-title` "Marked" with the count › a `.history-item` per mark
+one `.flex-row`: **Bar before** (`.btn-text`), the bar's number in a number field (`.text-center`, "Bar number" -
+typing one goes straight there, no Go; one the piece hasn't got is put back with why when the field is left), **Next
+bar** (`.btn-text`) (ML-644) › **Mark the start of this bar** (`.btn-submit`) › `.section-title` "Marked" with the count › a `.history-item` per mark
 (the bar in bold, "at 1:42", then **Play** and **Remove**) › **Save** › **Cancel**.
 
 **The Recordings tool** - `#recordingsView` › `p.theory-intro` › how to record (`p.metro-help-text`) ›

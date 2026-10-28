@@ -2588,18 +2588,13 @@
             </div>
 
             <div class="section-title"><span>Which bar</span><span id="barMapPlaceLbl" aria-live="polite"></span></div>
+            <!-- ML-644: the bar's number between Bar before and Next bar - typing one goes straight there (no Go) -->
             <div class="flex-row gap-sm">
                 <button type="button" class="btn-text" id="barMapPrevBtn" data-act="barmap-step" data-arg="-1" aria-label="The bar before">Bar before</button>
+                <input type="number" id="barMapBarInput" class="text-center" inputmode="numeric" min="1" aria-label="Bar number">
                 <button type="button" class="btn-text" id="barMapNextBtn" data-act="barmap-step" data-arg="1" aria-label="The next bar">Next bar</button>
             </div>
-            <div class="form-group">
-                <label for="barMapBarInput">Or type a bar number</label>
-                <div class="flex-row gap-sm">
-                    <input type="number" id="barMapBarInput" inputmode="numeric" min="1" placeholder="e.g. 33">
-                    <button type="button" class="btn-cancel btn-nav no-margin" data-act="barmap-go">Go</button>
-                </div>
-            </div>
-            <button type="button" class="btn-submit" data-act="barmap-mark"><span id="barMapMarkBtnLbl">This is bar 1</span></button>
+            <button type="button" class="btn-submit" id="barMapMarkBtn" data-act="barmap-mark">Mark the start of this bar</button>
 
             <div class="section-title"><span>Marked</span><span id="barMapCount"></span></div>
             <div id="barMapList"></div>

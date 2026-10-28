@@ -3,7 +3,7 @@
 **Made by `node scripts/usage-buttons.mjs` - don't edit it by hand.** What counts as a use, and how a tap is
 counted, is in [usage-stats.md](usage-stats.md) ("Every button").
 
-885 buttons: 885 have a name a tap can be counted by, 0 need one.
+884 buttons: 884 have a name a tap can be counted by, 0 need one.
 A button on a screen is listed under the screen or pop-up it is on; one the app builds as it goes, under
 the function that builds it (shown with ()). The words are only to help find it - a tap is never counted by
 its words.
@@ -20,7 +20,7 @@ its words.
 | Theory | 25 | 0 |
 | Skills: Tempo, Pulse, Pitch, Rhythm | 38 | 0 |
 | Range | 14 | 0 |
-| Pieces: Rehearse, play, edit | 263 | 0 |
+| Pieces: Rehearse, play, edit | 262 | 0 |
 | Add a piece | 7 | 0 |
 | Recordings | 6 | 0 |
 | Practice lists | 16 | 0 |
@@ -539,8 +539,7 @@ its words.
 | barMapModal | `barmap-clip-nudge(start)` | 1 second on |
 | barMapModal | `#barMapPrevBtn` | Bar before |
 | barMapModal | `#barMapNextBtn` | Next bar |
-| barMapModal | `barmap-go` | Go |
-| barMapModal | `barmap-mark` | This is bar 1 |
+| barMapModal | `#barMapMarkBtn` | Mark the start of this bar |
 | barMapModal | `barmap-clip-mark(end)` | Ends here |
 | barMapModal | `barmap-clip-nudge(end)` | 1 second back |
 | barMapModal | `barmap-clip-nudge(end)` | 1 second on |
