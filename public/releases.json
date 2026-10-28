@@ -1,5 +1,96 @@
 [
   {
+    "version": "0.76.0",
+    "date": "2026-10-28",
+    "changes": [
+      {
+        "key": "ML-643",
+        "type": "New",
+        "summary": "We show the bar that is about to play beside the count-down, so you know what is coming."
+      },
+      {
+        "key": "ML-642",
+        "type": "New",
+        "summary": "We ask whether to play from a bar you tap outside the bars being repeated, or repeat from it, instead of telling you to turn repeat off."
+      },
+      {
+        "key": "ML-641",
+        "type": "Fixes",
+        "summary": "We keep the bar you tap lit while it gets going with a video or recording, instead of the one before it."
+      },
+      {
+        "key": "ML-640",
+        "type": "Fixes",
+        "summary": "We start the clicks and a video or recording together on the first beat every time, even when the music starts at the very beginning."
+      },
+      {
+        "key": "ML-638",
+        "type": "New",
+        "summary": "We count you in above the video, and in every rest between repeats, so nothing covers the video, the beats or the buttons."
+      },
+      {
+        "key": "ML-637",
+        "type": "Fixes",
+        "summary": "We get a video ready during the count-in, so the first click comes in with it the first time you play."
+      },
+      {
+        "key": "ML-636",
+        "type": "New",
+        "summary": "We show the person who runs the app how many accounts there are, how many invitations are waiting, and how many members are active or dormant."
+      },
+      {
+        "key": "ML-635",
+        "type": "New",
+        "summary": "We say in one short line when a video's timing is still to be confirmed, and make the line the link to set it."
+      },
+      {
+        "key": "ML-634",
+        "type": "Fixes",
+        "summary": "We pause a video or recording for a repeat's rest bars, so the rest clicks as rest and the music comes back in after it."
+      },
+      {
+        "key": "ML-633",
+        "type": "Fixes",
+        "summary": "We start the clicks on the first beat when you tap a bar to play from there with a video or recording."
+      },
+      {
+        "key": "ML-632",
+        "type": "New",
+        "summary": "We show a piece's videos and recordings as small icons beside its length and bars."
+      },
+      {
+        "key": "ML-631",
+        "type": "New",
+        "summary": "We show a section's rehearsal mark and its bars together on the line above the beats."
+      },
+      {
+        "key": "ML-630",
+        "type": "New",
+        "summary": "We fold My music's list away while a piece plays on a wider screen, as Rehearse does, so the music has the room."
+      },
+      {
+        "key": "ML-629",
+        "type": "New",
+        "summary": "We start the clicks straight away with a video whose bars aren't marked yet, and say how to set where the music starts."
+      },
+      {
+        "key": "ML-628",
+        "type": "Fixes",
+        "summary": "We kept the clicks in time through pauses and fermatas when you play along to a video or recording."
+      },
+      {
+        "key": "ML-627",
+        "type": "New",
+        "summary": "We let you hear the clicks along with a piece's video or recording, gave the play screen four buttons and a settings cog, and remember what you chose for each piece."
+      },
+      {
+        "key": "ML-626",
+        "type": "New",
+        "summary": "We made the line above the beats simpler: the bars you are in, then the bar you are on, in bold."
+      }
+    ]
+  },
+  {
     "version": "0.75.0",
     "date": "2026-10-27",
     "changes": [
