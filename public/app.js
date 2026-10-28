@@ -68,6 +68,7 @@
         'rec-map': (el) => openBarMapModal(actArg(el)),
         'barmap-close': () => closeBarMapModal(),
         'barmap-step': (el) => barMapStep(Number(actArg(el))),
+        'barmap-go': () => barMapGoToTypedBar(),
         'barmap-mark': () => barMapMarkHere(),
         'barmap-remove': (el) => barMapRemove(Number(actArg(el))),
         'barmap-play': (el) => barMapPlayFrom(Number(actArg(el))),
@@ -17292,9 +17293,7 @@
         if (!barMap) return;
         const label = FlowJourney.placeLabel(barMap.places, barMap.place);
         document.getElementById('barMapPlaceLbl').textContent = label;
-        // ML-644: the box shows the bar's number - not while it is being typed in
-        const barInput = document.getElementById('barMapBarInput');
-        if (document.activeElement !== barInput) barInput.value = barMap.places[barMap.place].number ?? '';
+        document.getElementById('barMapMarkBtnLbl').textContent = `This is ${label.charAt(0).toLowerCase()}${label.slice(1)}`;
         document.getElementById('barMapPrevBtn').disabled = barMap.place <= 0;
         document.getElementById('barMapNextBtn').disabled = barMap.place >= barMap.places.length - 1;
         const used = FlowJourney.usableMarks(barMap.places, barMap.marks);
@@ -17345,6 +17344,7 @@
                 : `<audio id="barMapMedia" class="flow-media-player-audio" controls preload="metadata" src="${escapeHtml(r.blobUrl)}"></audio>`;
             barMap.media = document.getElementById('barMapMedia');
         }
+        document.getElementById('barMapBarInput').value = '';
         renderBarMapModal();
         showModal('barMapModal');
     }
@@ -17362,24 +17362,15 @@
         barMap.place = Math.min(barMap.places.length - 1, Math.max(0, barMap.place + by));
         renderBarMapModal();
     }
-    // ML-644 (the owner, 28 Oct 2026): a bar number typed in goes straight there - no Go. One the piece hasn't got is put
-    // back, with why, once the box is left (final).
-    function barMapTypedBar(final) {
+    function barMapGoToTypedBar() {
         if (!barMap) return;
-        const input = document.getElementById('barMapBarInput');
-        const n = Math.round(Number(input.value));
-        const place = input.value === '' ? -1 : barMap.places.findIndex(p => p.number === n && p.kind === 'main');
-        if (place !== -1) {
-            if (place !== barMap.place) { barMap.place = place; renderBarMapModal(); }
-            return;
-        }
-        if (!final) return;
-        if (input.value !== '') showWarningToast(barMap.movement ? `This recording is of ${FlowJourney.movementLabel(barMap.movement, false)}: bars ${barMap.movement.startBar} to ${barMap.movement.endBar}.` : `This piece has no bar ${Number.isFinite(n) ? n : 'like that'}.`);
-        input.value = barMap.places[barMap.place].number ?? '';
+        const n = Math.round(Number(document.getElementById('barMapBarInput').value));
+        const place = barMap.places.findIndex(p => p.number === n && p.kind === 'main');
+        if (place === -1) { showWarningToast(barMap.movement ? `This recording is of ${FlowJourney.movementLabel(barMap.movement, false)}: bars ${barMap.movement.startBar} to ${barMap.movement.endBar}.` : `This piece has no bar ${Number.isFinite(n) ? n : 'like that'}.`); return; }
+        barMap.place = place;
+        renderBarMapModal();
     }
-    document.getElementById('barMapBarInput')?.addEventListener('input', () => barMapTypedBar(false));
-    document.getElementById('barMapBarInput')?.addEventListener('change', () => barMapTypedBar(true));
-    // "Mark the start of this bar": the bar being marked is where the player is now. Then on to the next bar.
+    // "This is bar 33": the bar being marked is where the player is now. Then on to the next bar.
     function barMapMarkHere() {
         if (!barMap) return;
         const p = barMap.places[barMap.place];

@@ -210,8 +210,7 @@ waits (ML-634).
 **Start, bars and end** (`#barMapModal`, ML-597 - it was "Mark the bars" on the play screen plus a separate start-and-end
 pop-up): one pop-up, opened from a recording's **start, bars and end** value box on the piece's **Edit → Media** tab
 (the box shows "0:12 to 4:05 · 6 bars marked"). Its own player; **Starts here** (with a second's nudge either way); a bar
-to mark (Bar before / Next bar, or its number typed in the box between them - it goes straight there, no Go, ML-644)
-- **Mark the start of this bar** puts the mark where the player is and steps on
+to mark (Bar before / Next bar, or type a bar number) - **This is bar N** puts the mark where the player is and steps on
 to the next bar, so tapping along bar by bar marks a run of them; **Ends here**; then **How long it takes** (ML-598).
 A mark that would make the recording run backwards is refused, saying which mark it clashes with. **Done** keeps the
 start, the end and the whole list of marks - **in Edit, until Save**, like everything else on that screen (the marks are

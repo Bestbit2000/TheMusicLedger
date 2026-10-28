@@ -2657,8 +2657,15 @@
   {
    "group": "Pieces: Rehearse, play, edit",
    "where": "barMapModal",
-   "name": "#barMapMarkBtn",
-   "label": "Mark the start of this bar",
+   "name": "barmap-go",
+   "label": "Go",
+   "html": true
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "barMapModal",
+   "name": "barmap-mark",
+   "label": "This is bar 1",
    "html": true
   },
   {
