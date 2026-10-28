@@ -12701,6 +12701,14 @@
         if (!el) return;
         const { totalBars, mins, secs, barsLabel } = flowSummaryFigures();
         el.innerText = totalBars ? `~${mins}m ${secs}s • ${barsLabel}` : '';
+        // ML-627: what the piece has to play along to, on the same line - read only (the owner, 28 Oct 2026: choosing is
+        // the cog on the card): a video icon, a recording icon, "x2" for more than one of a kind
+        const videos = (typeof flowMediaSlides === 'undefined' ? [] : flowMediaSlides).filter(s => s.type === 'video').length;
+        const audios = (typeof flowMediaSlides === 'undefined' ? 0 : flowMediaSlides.length) - videos;
+        if (!videos && !audios) return;
+        const group = (icon, n) => (n ? `<span class="material-symbols-outlined" aria-hidden="true">${icon}</span>${n > 1 ? `<span aria-hidden="true">×${n}</span>` : ''}` : '');
+        const said = [videos && `${videos} video${videos === 1 ? '' : 's'}`, audios && `${audios} recording${audios === 1 ? '' : 's'}`].filter(Boolean).join(' and ');
+        el.insertAdjacentHTML('beforeend', `${totalBars ? ' • ' : ''}<span class="flow-media-have" role="img" aria-label="${said}">${group('smart_display', videos)}${group('music_note', audios)}</span>`);
     }
 
     function renderFlowBlocksStudio() {
@@ -16168,9 +16176,9 @@
         }
         return null;
     }
-    // "Intro · [A] · 2nd time · Bar 11 · 𝄐" - HTML (the mark is boxed as on its tile; the fermata suffix is
-    // a glyph). Which block it is in - its rehearsal mark, or "Bars 33 to 40" when it has none (the owner,
-    // 12 Oct 2026) - then the piece's own bar number last and in bold, to read at a glance. No time
+    // "Intro · [A] · Bars 9 to 16 · 2nd time · Bar 11 · 𝄐" - HTML (the mark is boxed as on its tile; the fermata
+    // suffix is a glyph). Which block it is in - its rehearsal mark and its bars (both, the owner, 28 Oct 2026; no
+    // bars for a one-bar block) - then the piece's own bar number last and in bold, to read at a glance. No time
     // signature or speed (ML-626): the dots show the beats, and a ramp or play speed changes the speed.
     function flowNowPlayingLabel() {
         const pos = flowScreenPosition();
@@ -16193,8 +16201,9 @@
         const startBar = flowBlockStartBar(p.blockId);
         // ML-529: in a piece in movements, which movement this is ("Mvt 2 · A · Bar 93")
         if (startBar !== null && FlowJourney.movements(currentFlowBlocks).length > 1) parts.push(FlowJourney.movementLabel(FlowJourney.movementOfBar(currentFlowBlocks, startBar), false));
+        // the block's rehearsal mark and its bars, both (the owner, 28 Oct 2026 - before, the mark stood in for the bars)
         if (block.rehearsalMark) parts.push(`<span class="flow-bar-detail-mark">${escapeHtml(block.rehearsalMark)}</span>`);
-        else if (startBar !== null && block.barCount > 1) parts.push(`Bars ${startBar} to ${startBar + block.barCount - 1}`);
+        if (startBar !== null && block.barCount > 1) parts.push(`Bars ${startBar} to ${startBar + block.barCount - 1}`);
         if (p.kind === 'main' && flowRepeatedBlockIds.has(p.blockId)) parts.push(`${FLOW_ORDINALS[p.pass - 1] || `${p.pass}th`} time`);
         parts.push(`<strong class="flow-bar-now">${startBar === null ? `${pos.bar + 1} of ${block.barCount} bar${block.barCount === 1 ? '' : 's'}` : `Bar ${startBar + pos.bar}`}</strong>`);
         return parts.join(' · ') + metroBlkFermataLabelSuffix(block);
@@ -17401,16 +17410,9 @@
     }
 
     // What the piece has to play along to, as icons next to its details (the owner, 28 Oct 2026) - it opens the cog's pop-up
+    // What the piece has to play along to - on its time-and-bars line, read only (renderFlowPlaySummary)
     function renderFlowMediaHave() {
-        const btn = document.getElementById('flowMediaHaveBtn');
-        if (!btn) return;
-        const videos = flowMediaSlides.filter(s => s.type === 'video').length;
-        const audios = flowMediaSlides.length - videos;
-        setShown(btn, flowMediaSlides.length > 0);
-        const group = (icon, n) => (n ? `<span class="material-symbols-outlined" aria-hidden="true">${icon}</span>${n > 1 ? `<span aria-hidden="true">×${n}</span>` : ''}` : '');
-        btn.innerHTML = group('smart_display', videos) + group('music_note', audios);
-        const said = [videos && `${videos} video${videos === 1 ? '' : 's'}`, audios && `${audios} recording${audios === 1 ? '' : 's'}`].filter(Boolean).join(' and ');
-        btn.setAttribute('aria-label', `${said} - choose what to play along to`);
+        renderFlowPlaySummary();
     }
 
     // The cog's pop-up. With nothing playing along, the last of see / hear still on is locked on (greyed, with a line
@@ -17464,7 +17466,6 @@
         updateFlowPlayIcon();
     }
     document.getElementById('flowSeeHearBtn')?.addEventListener('click', openFlowSeeHear);
-    document.getElementById('flowMediaHaveBtn')?.addEventListener('click', openFlowSeeHear);
     document.getElementById('flowSeeMetro')?.addEventListener('change', (e) => setFlowView({ see: e.target.checked }));
     document.getElementById('flowHearClicks')?.addEventListener('change', (e) => setFlowView({ hear: e.target.checked }));
     document.getElementById('flowAlongSection')?.addEventListener('change', (e) => {

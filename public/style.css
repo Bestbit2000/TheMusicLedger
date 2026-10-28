@@ -1737,9 +1737,11 @@
     .flow-visibility-value { margin: 0; font-size: var(--font-base); color: var(--text-color); }
     .flow-pill { flex-shrink: 0; font-size: var(--font-xs); font-weight: var(--font-weight-bold); color: var(--label-color); background: var(--input-bg); border: 1px solid var(--input-border); padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill); white-space: nowrap; }
     .flow-pill-accent { color: var(--primary-action-strong); border-color: var(--primary-action-strong); background: var(--primary-action-tint); }
-    /* ML-627: what a piece has to play along to - its videos and recordings as icons ("x2" for more than one), next to
-       its details on the play screen. A pill like .flow-pill, at full touch size; it opens What to see and hear. */
-    .flow-media-have { display: inline-flex; align-items: center; gap: var(--space-1); flex-shrink: 0; min-height: var(--touch-target); padding: 0 var(--space-3); border: 1px solid var(--input-border); border-radius: var(--radius-pill); background: var(--input-bg); color: var(--label-color); font-size: var(--font-sm); font-weight: var(--font-weight-bold); cursor: pointer; }
+    /* ML-627: what a piece has to play along to - its videos and recordings as small icons ("x2" for more than one), at
+       the end of its time-and-bars line on the play screen. Read only, in the line's own text (the owner, 28 Oct 2026:
+       choosing is the cog on the card). */
+    .flow-media-have { display: inline-flex; align-items: center; gap: var(--space-1); vertical-align: middle; }
+    .flow-media-have .material-symbols-outlined { font-size: var(--icon-sm); }
     .flow-required { color: var(--danger-text); }
     .flow-help-text { display: block; font-size: var(--font-xs); color: var(--label-color); margin-top: var(--space-1); }
 

@@ -135,5 +135,10 @@
   "ML-590": "We kept the menu's fold button in one place on a tablet or computer, open or folded, and put counts on the icons when it's folded so nothing shifts.",
   "ML-591": "We made the Tuner's Transposition and Tuning reference open inside its settings, so closing them no longer closes the settings too.",
   "ML-626": "We made the line above the beats simpler: the bars you are in, then the bar you are on, in bold.",
-  "ML-627": "We let you hear the clicks along with a piece's video or recording, gave the play screen four buttons and a settings cog, and remember what you chose for each piece."
+  "ML-627": "We let you hear the clicks along with a piece's video or recording, gave the play screen four buttons and a settings cog, and remember what you chose for each piece.",
+  "ML-628": "We kept the clicks in time through pauses and fermatas when you play along to a video or recording.",
+  "ML-629": "We start the clicks straight away with a video whose bars aren't marked yet, and say how to set where the music starts.",
+  "ML-630": "We fold My music's list away while a piece plays on a wider screen, as Rehearse does, so the music has the room.",
+  "ML-631": "We show a section's rehearsal mark and its bars together on the line above the beats.",
+  "ML-632": "We show a piece's videos and recordings as small icons beside its length and bars."
 }

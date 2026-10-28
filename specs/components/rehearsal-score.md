@@ -50,7 +50,8 @@ under `.flow-media-slide-header`, or `.flow-media-player-video` with the YouTube
 over it in a practice) › the beat dots (hidden while the metronome isn't seen). Under the card the transport,
 `.metro-transport-grid#flowTransport`: four `button`s of one width - **repeat** and **playback** (`.metroBlk-ctrl-value-btn`:
 "off" or "5–8" over repeat, the speed over playback), **reset** and **play** (`.metro-play-grid-btn`). Beside the piece's
-details, `button.flow-media-have#flowMediaHaveBtn` - the piece's videos and recordings as icons ("×2" for more than one).
+details, at the end of its time-and-bars line (`#flowPlaySummary`), `span.flow-media-have` - the piece's videos and recordings as
+small icons ("×2" for more than one), read only (`role="img"`, "1 video and 2 recordings"); choosing is the cog.
 
 **What to see and hear** - `#flowSeeHearModal.modal` › `.modal-close-x` › `h2` › `h3.warmups-settings-head` "Metronome" ›
 two `.display-toggle-row` (See the metronome, Hear the clicks - a `.toggle-switch` each; the last one on is `disabled` when

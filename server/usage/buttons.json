@@ -2104,13 +2104,6 @@
   {
    "group": "Pieces: Rehearse, play, edit",
    "where": "flowPlayView",
-   "name": "#flowMediaHaveBtn",
-   "label": "Recordings to play along to",
-   "html": true
-  },
-  {
-   "group": "Pieces: Rehearse, play, edit",
-   "where": "flowPlayView",
    "name": "#flowPlayMenuBtn",
    "label": "Flow options",
    "html": true

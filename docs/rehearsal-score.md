@@ -90,8 +90,9 @@ above them, and only one could play at a time. Members wanted the clicks and the
   - **Never an empty screen**: with nothing playing along, the last of See / Hear still on is locked on (greyed,
     with "Stays on while there's nothing to hear / see"). With a recording playing along both may be off. Switching
     play-along off with both off turns See the metronome back on.
-- **What the piece has** - its videos and recordings as icons ("×2" for more than one) on a button next to its
-  details (`.flow-media-have`); it opens the same pop-up. No dot and no one-off message (the owner).
+- **What the piece has** - its videos and recordings as small icons ("×2" for more than one) at the end of its
+  time-and-bars line (`.flow-media-have`), read only - choosing is the cog (the owner, 28 Oct 2026). No dot and no
+  one-off message (the owner).
 - **Each member's choices are remembered per piece** - see, hear, play along and which recording - in
   `piece_play_settings` (the server, so they follow to other devices; `PUT /api/flows/:id/play-settings`, private to
   the member) and in `tml.pieceView` on the device (offline - the write is a quiet one, `public/offline.js`; the

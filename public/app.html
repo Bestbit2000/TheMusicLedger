@@ -2204,9 +2204,6 @@
             <!-- position:relative wrapper anchors the dropdown under the button - same pattern as the
                  burger menu, needed because .section-title itself isn't positioned and
                  .dropdown-menu's top:100%/right:0 resolve against the nearest positioned ancestor. -->
-            <!-- ML-627: the piece's videos and recordings, as icons - it opens What to see and hear (renderFlowMediaHave) -->
-            <div class="flex-row gap-sm">
-            <button type="button" class="flow-media-have hidden-group" id="flowMediaHaveBtn" aria-haspopup="dialog" aria-label="Recordings to play along to"></button>
             <div class="pos-relative">
                 <button type="button" class="list-item-menu-btn" id="flowPlayMenuBtn" aria-label="Flow options" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
                 <div class="dropdown-menu align-edge" id="flowPlayMenu">
@@ -2220,7 +2217,6 @@
                     <!-- ML-510: the same Report as on the piece's menu in My music - a band's or a public piece Last on the menu. -->
                     <button type="button" class="dropdown-item hidden-group" id="flowPlayMenuReport" aria-haspopup="dialog"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">flag</span><span class="dropdown-item-text">Report</span></button>
                 </div>
-            </div>
             </div>
         </div>
         <!-- ML-209/ML-207: 1 / 2 / 4-column switch for the tiles below - same control and icons as the Bars

@@ -3,7 +3,7 @@
 **Made by `node scripts/usage-buttons.mjs` - don't edit it by hand.** What counts as a use, and how a tap is
 counted, is in [usage-stats.md](usage-stats.md) ("Every button").
 
-886 buttons: 886 have a name a tap can be counted by, 0 need one.
+885 buttons: 885 have a name a tap can be counted by, 0 need one.
 A button on a screen is listed under the screen or pop-up it is on; one the app builds as it goes, under
 the function that builds it (shown with ()). The words are only to help find it - a tap is never counted by
 its words.
@@ -20,7 +20,7 @@ its words.
 | Theory | 25 | 0 |
 | Skills: Tempo, Pulse, Pitch, Rhythm | 38 | 0 |
 | Range | 14 | 0 |
-| Pieces: Rehearse, play, edit | 264 | 0 |
+| Pieces: Rehearse, play, edit | 263 | 0 |
 | Add a piece | 7 | 0 |
 | Recordings | 6 | 0 |
 | Practice lists | 16 | 0 |
@@ -463,7 +463,6 @@ its words.
 | flowPlayView | `#flowResetBtn` | reset |
 | flowPlayView | `#flowPlayBtn` | play |
 | flowPlayView | `#flowSessionFinishBtn` | finish |
-| flowPlayView | `#flowMediaHaveBtn` | Recordings to play along to |
 | flowPlayView | `#flowPlayMenuBtn` | Flow options |
 | flowPlayView | `#flowPlayMenuEditDetails` | Edit details |
 | flowPlayView | `#flowPlayMenuEditFlow` | Edit bars |
