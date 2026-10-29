@@ -23,7 +23,7 @@ whole piece is made in Quick entry - it never opens the edit screen, so one piec
 
 | Stage | Step | Asks | Kept as |
 |---|---|---|---|
-| About | `about` | Name (**required**), composer, arranger, publisher, notes | `outline.about` |
+| About | `about` | Name (**required**), composer, then who it's for and its practice list (ML-658 - Add a piece's answers, changeable here), arranger, publisher, notes | `outline.about`, `outline.target` (`{ bandId, listId, listName }`, a copy of Add a piece's) |
 | Structure | `howLong` | Bars, and a count-in bar (a switch, off to start with) | `bars`, `leadIn` |
 | | `marks` | Bar numbers (a typed list - spaces, commas, semicolons, full stops all separate; each mark is named after its bar), letters or words (a table: bar, mark), or none | `markKind`, `marks: [{ bar, label }]` |
 | Tempo | `time` | "Most of it is in" - the time signature as a tile (`mainSig`) - then **where it switches**: a table - from bar, the time (typed like `3/4`, or picked), bars / to bar (each fills in the other; one is needed). After a row the piece is back in the main time. A typed time signature the app doesn't have is added to the player's own (ML-425, ML-440, ML-442) | `outline.timeRows` → `time: { bar: sig }` (`outlineTimeApply`) |

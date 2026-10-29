@@ -36,7 +36,11 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
   (owner, 5 Oct 2026: too busy) - getting about is Back and Next only. There is no Cancel or "Start again" on the steps: leaving keeps the piece, and
   opening Quick entry again asks (`#flowChoiceModal`) whether to carry on with it or start a new one.
 - **About:** `.form-group` × 5 (label over the box, as everywhere): name of the piece (required, `.flow-required`),
-  composer, arranger, publisher, notes (a `textarea`).
+  composer, arranger, publisher, notes (a `textarea`). **Under the composer** (ML-658, the owner's option A, 29 Oct
+  2026): **Who it's for** (`#outlineOwnerBtn`, only when the member has a band) and **Practice list**
+  (`#outlineListBtn`, with practice lists on) - Add a piece's two value boxes (`.metroBlk-ctrl-value-btn.w-full`) and
+  pop-ups, filled in with what it had and changed here for this piece only. The lists follow the band chosen; changing
+  the band takes off a list that isn't that band's (or yours) and says so. Save makes the piece there. No new styles.
 - **How long:** a number box (`.outline-field` › `input` + `.outline-field-label`) for the bars › the count-in as a switch
   (`.display-toggle-row`: "A count-in bar" over "A bar of clicks before bar 1", `.toggle-switch`, off to start with) › ML-529, with the
   `piece_movements` feature (or a read that brought movements in): "It's in movements" as a second switch, off to start with; on,

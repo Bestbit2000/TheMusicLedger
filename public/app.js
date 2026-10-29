@@ -7464,7 +7464,8 @@
     let addPiece = { bandId: null, listId: null, bands: [], lists: [] };
     let addPieceTarget = null; // { bandId, listId, listName } for the piece being made, else null
     const addPieceListsOn = () => isFeatureEnabled('practice_levels');
-    const addPieceListsOffered = () => addPiece.lists.filter(l => l.bandId == null || l.bandId === addPiece.bandId);
+    const addPieceListsFor = (bandId) => addPiece.lists.filter(l => l.bandId == null || l.bandId === bandId);
+    const addPieceListsOffered = () => addPieceListsFor(addPiece.bandId);
     const addPieceBandName = (id) => { const b = addPiece.bands.find(x => Number(x.id) === id); return b ? (b.displayName || b.name) : 'the band'; };
     // Each answer is one value box showing what's picked; tapping it opens the choice pop-up
     // (#flowChoiceModal) - never the whole list on the page (specs/README.md, "One button, one pop-up").
@@ -7474,16 +7475,17 @@
         return [{ value: null, title: 'Just me', sub: 'Only you see it' },
             ...addPiece.bands.map(b => ({ value: Number(b.id), title: b.displayName || b.name, sub: 'Anyone who has joined the band on this app can see and play it' }))];
     }
-    function addPieceListChoices() {
+    // (ML-658: Quick entry's About step offers the same lists for its own answer - `bandId` and what a new list does)
+    function addPieceListChoices(bandId = addPiece.bandId, onNewList = (list) => { addPiece.listId = list.id; renderAddPiece(); }) {
         return [{ value: null, title: 'On its own', sub: 'A single piece, not part of a list' },
-            ...addPieceListsOffered().map(l => ({ value: l.id, title: l.name, sub: addPieceListSub(l) })),
-            { value: 'new', title: '+ New practice list', sub: addPiece.bandId === null ? 'Just yours' : `Shared with ${addPieceBandName(addPiece.bandId)}`, extra: addPieceNewListForm }];
+            ...addPieceListsFor(bandId).map(l => ({ value: l.id, title: l.name, sub: addPieceListSub(l) })),
+            { value: 'new', title: '+ New practice list', sub: bandId === null ? 'Just yours' : `Shared with ${addPieceBandName(bandId)}`, extra: (el, close) => addPieceNewListForm(el, close, bandId, onNewList) }];
     }
     // "+ New practice list", inside its own box in the pop-up: its name and Save (the pop-up's Cancel backs out).
     // Save makes the list there and then - yours, or the band's the piece is for - and picks it.
     // The label avoids the word "name" and the field says data-form-type="other": a lone text box labelled
     // "Name..." was taken for a person's name by a password manager (Dashlane), which offered to fill it.
-    function addPieceNewListForm(el, close) {
+    function addPieceNewListForm(el, close, bandId, onMade) {
         el.innerHTML = `<div class="form-group mt-2"><label for="addPieceNewListInput">What is the list called?</label><input type="text" id="addPieceNewListInput" autocomplete="off" data-form-type="other" maxlength="80" placeholder="e.g. Christmas concert"></div><button type="button" class="btn-submit no-margin" id="addPieceNewListSaveBtn">Save</button>`;
         const input = el.querySelector('input'), saveBtn = el.querySelector('button');
         const save = async () => {
@@ -7492,11 +7494,10 @@
             if (saveBtn.disabled) return;
             saveBtn.disabled = true;
             try {
-                const list = await API.practiceLists.create({ name, bandId: addPiece.bandId });
+                const list = await API.practiceLists.create({ name, bandId });
                 addPiece.lists = [...addPiece.lists, { ...list, pieceCount: 0 }];
-                addPiece.listId = list.id;
                 close();
-                renderAddPiece();
+                onMade(list);
             } catch (e) { showWarningToast('List not created: ' + e.message); saveBtn.disabled = false; }
         };
         saveBtn.addEventListener('click', save);
@@ -7504,6 +7505,11 @@
         input.focus();
     }
     // The app's value box (as Theory's options): the answer, and under it what it is.
+    // (ML-658: as markup too, for Quick entry's About step, which is drawn as a whole)
+    function addPieceValueBoxHtml(id, what, choices, current) {
+        const c = choices.find(x => x.value === current) || choices[0];
+        return `<button type="button" class="metroBlk-ctrl-value-btn w-full" id="${id}" data-value-box="${id}" aria-haspopup="dialog" aria-label="${escapeHtml(`${what}: ${c.title} - tap to change`)}"><strong>${escapeHtml(c.title)}</strong><span class="metroBlk-ctrl-value-label">${escapeHtml(what.toLowerCase())}</span></button>`;
+    }
     function addPieceDrawButton(id, what, choices, current) {
         const c = choices.find(x => x.value === current) || choices[0];
         const btn = document.getElementById(id);
@@ -8674,6 +8680,37 @@
         try { localStorage.setItem(SESS_LAST_STORE, JSON.stringify({ minutes: sessPlan.minutes, open: sessPlan.open, template: templateKey(sessPlan.template), source: sessPlan.source, auto: sessPlan.auto })); } catch (e) { /* per-device convenience */ }
     }
 
+    // ML-658 (owner, 29 Oct 2026, option A): who the piece is for and its practice list, on the About step under the name
+    // and composer - the same value boxes and pop-ups as Add a piece, filled in with what it had, and changed here for
+    // this piece only (outline.target, which Save uses). A band shows only when the member has any (as Add a piece);
+    // the lists follow the band chosen.
+    const outlineTarget = () => outline.target || (outline.target = { bandId: null, listId: null, listName: null });
+    function outlineTargetHtml() {
+        const t = outlineTarget();
+        const owner = addPiece.bands.length ? `<div class="form-group no-margin">${addPieceValueBoxHtml('outlineOwnerBtn', "Who it's for", addPieceOwnerChoices(), t.bandId)}</div>` : '';
+        const list = addPieceListsOn() ? `<div class="form-group no-margin">${addPieceValueBoxHtml('outlineListBtn', 'Practice list', addPieceListChoices(t.bandId), t.listId)}</div>` : '';
+        return owner + list;
+    }
+    async function outlinePickOwner() {
+        await addPieceLoading;
+        const t = outlineTarget();
+        addPieceOpenChoice('Who is this piece for?', addPieceOwnerChoices(), t.bandId, (v) => {
+            t.bandId = v;
+            // a band's list only takes that band's pieces: a list that doesn't belong to the new answer comes off, and it says so
+            if (typeof t.listId === 'number' && !addPieceListsFor(v).some(l => l.id === t.listId)) {
+                showWarningToast(`${t.listName || 'That practice list'} isn't ${v === null ? 'yours' : `${addPieceBandName(v)}'s`}, so the piece won't go on it.`);
+                Object.assign(t, { listId: null, listName: null });
+            }
+            outlineRerenderKeeping('#outlineOwnerBtn');
+        });
+    }
+    async function outlinePickList() {
+        await addPieceLoading;
+        const t = outlineTarget();
+        const pick = (id) => { Object.assign(t, { listId: id, listName: id === null ? null : addPiece.lists.find(l => l.id === id)?.name || null }); outlineRerenderKeeping('#outlineListBtn'); };
+        addPieceOpenChoice('Add it to a practice list?', addPieceListChoices(t.bandId, (list) => pick(list.id)), t.listId, pick);
+    }
+
     // --- About: what the piece is. Only the name is needed. ---
     function outlineAboutHtml() {
         const a = outline.about;
@@ -8682,6 +8719,7 @@
         return `
             ${field('title', 'Name of the piece', 'e.g. Symphony No. 5', true)}
             ${field('composer', 'Composer', 'e.g. Ralph Vaughan Williams')}
+            ${outlineTargetHtml()}
             ${field('arranger', 'Arranger', 'e.g. Gordon Langford')}
             ${field('publisher', 'Publisher', 'e.g. Studio Music Co.')}
             <div class="form-group no-margin"><label for="outlineAbout-notes">Notes</label><textarea id="outlineAbout-notes" data-about="notes" rows="3" maxlength="2000" placeholder="Rehearsal notes, solo cues...">${escapeHtml(a.notes)}</textarea></div>`;
@@ -23627,6 +23665,9 @@
     // every page, next to a < that already leaves). `answered`: the question has just been answered.
     async function openPieceOutline(target, answered) {
         if (!metroBlkTimeSigCache.public.length) { try { await loadMetroBlkTimeSignatures(); } catch (e) { /* the pickers say so */ } }
+        target = target ? { ...target } : { bandId: null, listId: null, listName: null }; // ML-658: changed on the About step for this piece only
+        // ML-658: the bands and lists the About step offers - Add a piece's, fetched if Quick entry was opened without it
+        if (!addPiece.bands.length && !addPiece.lists.length) addPieceLoading = loadAddPiece(true).then(() => { if (outline && outline.step === 0 && viewStack[viewStack.length - 1] === 'pieceOutlineView') outlineRerenderKeeping(); });
         if (outline && outline.step === 0 && !Object.values(outline.about).some(v => String(v).trim())) outlineClose(); // nothing typed: nothing to ask about
         if (outline && !answered) {
             const name = outline.about.title.trim() || 'the piece you started';
@@ -25413,6 +25454,8 @@
             outlinePickNote(outlineNoteKey(outlineSpeedRowNote(i)), (note) => { outline.speedRows[i].noteValue = note; outlineRerenderKeeping(`[data-speed-note="${i}"]`); });
             return;
         }
+        if (t.id === 'outlineOwnerBtn') { outlinePickOwner(); return; } // ML-658
+        if (t.id === 'outlineListBtn') { outlinePickList(); return; }
         if (t.dataset.readAnswer !== undefined) { outlineReadAnswer(Number(t.dataset.readAnswer)); return; } // ML-655
         if (t.dataset.readAll !== undefined) { outlineReadAgreeAll(t.dataset.readAll); return; } // ML-639
         const action = t.dataset.outline;

@@ -3,7 +3,7 @@
 **Made by `node scripts/usage-buttons.mjs` - don't edit it by hand.** What counts as a use, and how a tap is
 counted, is in [usage-stats.md](usage-stats.md) ("Every button").
 
-898 buttons: 898 have a name a tap can be counted by, 0 need one.
+899 buttons: 899 have a name a tap can be counted by, 0 need one.
 A button on a screen is listed under the screen or pop-up it is on; one the app builds as it goes, under
 the function that builds it (shown with ()). The words are only to help find it - a tap is never counted by
 its words.
@@ -21,7 +21,7 @@ its words.
 | Skills: Tempo, Pulse, Pitch, Rhythm | 38 | 0 |
 | Range | 14 | 0 |
 | Pieces: Rehearse, play, edit | 268 | 0 |
-| Add a piece | 7 | 0 |
+| Add a piece | 8 | 0 |
 | Recordings | 6 | 0 |
 | Practice lists | 16 | 0 |
 | Home and All tools | 21 | 0 |
@@ -696,6 +696,7 @@ its words.
 | addPieceView | `#metroBlkEntryPhotoBtn` | From a photo or PDF Uses AI to import the piece |
 | addPieceView | `#metroBlkEntryFromFileBtn` | Import from MusicXML Open a MusicXML or .mxl file from notation softwa |
 | addPieceNewListForm() | `#addPieceNewListSaveBtn` | Save |
+| addPieceValueBoxHtml() | `data-value-box` |  |
 
 ## Recordings
 
@@ -840,7 +841,7 @@ its words.
 | bandMembersView | `#bandInviteLevelBtn` | Can play what they can do |
 | bandMembersView | `#bandInviteBtn` | Invite |
 | bandEditModal | `close (X)` | Close |
-| bandEditModal | `#bandEditLogoBtn` |  |
+| bandEditModal | `#bandEditLogoBtn` | Add a logo |
 | bandEditModal | `#bandEditLogoChoose` | Choose a new logo |
 | bandEditModal | `#bandEditLogoRemove` | Take the logo off |
 | bandEditModal | `#bandEditCancelBtn` | Cancel |

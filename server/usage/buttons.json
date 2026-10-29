@@ -4753,7 +4753,7 @@
    "group": "My bands",
    "where": "bandEditModal",
    "name": "#bandEditLogoBtn",
-   "label": "",
+   "label": "Add a logo",
    "html": true
   },
   {
@@ -5188,6 +5188,13 @@
    "where": "addPieceNewListForm()",
    "name": "#addPieceNewListSaveBtn",
    "label": "Save",
+   "html": false
+  },
+  {
+   "group": "Add a piece",
+   "where": "addPieceValueBoxHtml()",
+   "name": "data-value-box",
+   "label": "",
    "html": false
   },
   {
