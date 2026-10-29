@@ -2188,7 +2188,7 @@ router.post('/piece-read', requireAuth, resolveAccount, requireFeature('piece_fr
   try {
     await limitCalls('piece-read', req.accountId);
     await assertReadLeft(req.accountId);
-    res.json(await readForAccount(req.accountId, req.body?.files, { joinMovements: await isFeatureEnabled('piece_movements'), clientRef: req.body?.ref, estimateMs: req.body?.estimateMs, givens: req.body?.givens }));
+    res.json(await readForAccount(req.accountId, req.body?.files, { joinMovements: await isFeatureEnabled('piece_movements'), clientRef: req.body?.ref, estimateMs: req.body?.estimateMs, givens: req.body?.givens, pageWarnings: req.body?.pageWarnings }));
   } catch (error) {
     await discardReadFiles(req.accountId, req.body?.files); // ML-553: refused or failed - the pages still go
     sendError(res, error);

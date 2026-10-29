@@ -24704,8 +24704,82 @@
     pieceReadInput?.addEventListener('change', () => {
         const files = [...pieceReadInput.files];
         pieceReadInput.value = '';
-        if (files.length) pieceReadStart(files);
+        if (files.length) pieceReadCheckPages(files);
     });
+    // ML-657 part 2 (owner, 29 Oct 2026): the instant checks on each photo before anything is sent - big enough, sharp,
+    // light enough, the right way up (public/pageCheck.js; free, no AI). All well: straight on to the read. Otherwise
+    // #pieceReadPagesModal says what, on each page's thumbnail, with Turn it (on its side) and Retake for that page,
+    // and Read it anyway - so a wrong warning never blocks. A PDF has nothing to look at here.
+    let pieceReadPages = null; // { files, problems, previews, retake } while the pop-up is open
+    const pieceReadIsPdf = (f) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+    async function pieceReadCheckPages(files, opts) {
+        const problem = pieceReadProblem(files);
+        if (problem || !window.PageCheck || files.some(pieceReadIsPdf)) { pieceReadStart(files, opts); return; }
+        const problems = await Promise.all(files.map((f) => PageCheck.checkFile(f).catch(() => null)));
+        if (!problems.some((p) => p && p.length)) { pieceReadPagesClose(); pieceReadStart(files, opts); return; }
+        pieceReadPagesShow(files, problems.map((p) => p || []));
+    }
+    function pieceReadPagesShow(files, problems) {
+        if (pieceReadPages) pieceReadPages.previews.forEach((u) => URL.revokeObjectURL(u));
+        pieceReadPages = { files, problems, previews: files.map((f) => URL.createObjectURL(f)), retake: null };
+        const many = files.length > 1;
+        document.getElementById('pieceReadPagesList').innerHTML = files.map((f, i) => {
+            const p = problems[i];
+            if (!p.length) return '';
+            const name = many ? `Page ${i + 1}` : 'The photo';
+            const said = p.map((x) => escapeHtml(x.text)).join('; and it ');
+            return `<li class="read-page-row">
+                <img class="read-page-thumb" src="${pieceReadPages.previews[i]}" alt="${escapeHtml(name)}">
+                <div class="read-page-text"><span><strong>${escapeHtml(name)}</strong> ${said}.</span>
+                    <span class="read-page-actions">${p.some((x) => x.kind === 'sideways') ? `<button type="button" class="btn-text" data-page-turn="${i}">Turn it</button>` : ''}<button type="button" class="btn-text" data-page-retake="${i}">Retake</button></span>
+                </div>
+            </li>`;
+        }).join('');
+        showModal('pieceReadPagesModal');
+    }
+    function pieceReadPagesClose() {
+        hideModal('pieceReadPagesModal');
+        if (pieceReadPages) pieceReadPages.previews.forEach((u) => URL.revokeObjectURL(u));
+        pieceReadPages = null;
+    }
+    document.getElementById('pieceReadPagesList')?.addEventListener('click', async (e) => {
+        const btn = e.target.closest('button');
+        if (!btn || !pieceReadPages) return;
+        if (btn.dataset.pageTurn !== undefined) {
+            // a quarter turn clockwise each tap, looked at again - the thumbnail shows which way it now is
+            const i = Number(btn.dataset.pageTurn), files = [...pieceReadPages.files];
+            btn.disabled = true;
+            try { files[i] = await PageCheck.turnFile(files[i]); } catch (err) { showWarningToast("That photo couldn't be turned here."); btn.disabled = false; return; }
+            const problems = [...pieceReadPages.problems];
+            problems[i] = (await PageCheck.checkFile(files[i]).catch(() => null)) || [];
+            if (!problems.some((p) => p.length)) { const all = files; pieceReadPagesClose(); pieceReadStart(all); return; }
+            pieceReadPagesShow(files, problems.map((p, k) => (k === i && !p.length ? [{ kind: 'turned', text: 'is the right way up now' }] : p)));
+            return;
+        }
+        if (btn.dataset.pageRetake !== undefined) {
+            pieceReadPages.retake = Number(btn.dataset.pageRetake);
+            document.getElementById('pieceReadRetakeInput')?.click();
+        }
+    });
+    // Retake: that page is chosen again (the camera on a phone) and the others are kept; then all are looked at again
+    document.getElementById('pieceReadRetakeInput')?.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        e.target.value = '';
+        if (!file || !pieceReadPages || pieceReadPages.retake === null) return;
+        const files = [...pieceReadPages.files];
+        files[pieceReadPages.retake] = file;
+        hideModal('pieceReadPagesModal');
+        pieceReadCheckPages(files);
+    });
+    document.getElementById('pieceReadPagesGo')?.addEventListener('click', () => {
+        if (!pieceReadPages) return;
+        const { files, problems } = pieceReadPages;
+        // what was read anyway goes in the log, so Admin -> Photo reads can say whether the warning was right
+        const pageWarnings = problems.map((p, i) => ({ page: i + 1, kinds: p.map((x) => x.kind).filter((k) => k !== 'turned') })).filter((w) => w.kinds.length);
+        pieceReadPagesClose();
+        pieceReadStart(files, { pageWarnings });
+    });
+    document.getElementById('pieceReadPagesCancel')?.addEventListener('click', pieceReadPagesClose);
     // What stops a choice of files being sent, in words - or null. One PDF, or photos; never both.
     function pieceReadProblem(files) {
         const isPdf = (f) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
@@ -24729,7 +24803,7 @@
         }
         return sent;
     }
-    async function pieceReadStart(files) {
+    async function pieceReadStart(files, opts) {
         const problem = pieceReadProblem(files);
         if (problem) { showWarningToast(problem); return; }
         // The allowance (a number of reads a quarter, by account type): said before anything is sent
@@ -24753,7 +24827,7 @@
             const sent = await pieceReadUpload(files, 'piece-read', (text, pct) => wait.sending(pct));
             if (wait.stopped) { pieceReadWaitStop(wait, 'sending'); return; } // stopped while sending: nothing is read
             wait.reading();
-            const result = await apiCall('/api/piece-read', 'POST', { files: sent, ref: wait.ref, estimateMs: wait.estimateMs(), ...(next && next.givens ? { givens: next.givens } : {}) });
+            const result = await apiCall('/api/piece-read', 'POST', { files: sent, ref: wait.ref, estimateMs: wait.estimateMs(), ...(next && next.givens ? { givens: next.givens } : {}), ...(opts && opts.pageWarnings && opts.pageWarnings.length ? { pageWarnings: opts.pageWarnings } : {}) });
             if (wait.stopped) return; // stopped while reading: the answer is let go, and the read doesn't count
             wait.close();
             const read = { id: result.readId, files, kind: isPdf ? 'PDF' : (files.length > 1 ? 'photos' : 'photo') };

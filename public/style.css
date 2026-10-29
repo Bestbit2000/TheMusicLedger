@@ -3385,5 +3385,13 @@
     .read-open-list { list-style: none; padding: 0; margin: 0 0 var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); max-height: var(--read-open-list-max); overflow: auto; }
     .read-open-list li { background: var(--primary-action-tint); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); font-size: var(--font-sm); }
     .read-open-list li strong { display: block; font-size: var(--font-xs); color: var(--primary-action-strong); }
+    /* ML-657: "Before it's read" - a photo that may not read well, its thumbnail beside what is wrong in words, with
+       Turn it / Retake as text buttons of their own width */
+    .read-page-list { list-style: none; padding: 0; margin: 0 0 var(--space-5); display: flex; flex-direction: column; gap: var(--space-3); }
+    .read-page-row { display: flex; gap: var(--space-3); align-items: flex-start; background: var(--primary-action-tint); border-radius: var(--radius-md); padding: var(--space-3); }
+    .read-page-thumb { flex: none; width: var(--read-page-thumb); height: var(--read-page-thumb); object-fit: contain; border-radius: var(--radius-sm); background: var(--container-bg); border: 1px solid var(--input-border); }
+    .read-page-text { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; font-size: var(--font-sm); line-height: var(--line-height-base); }
+    .read-page-actions { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+    .read-page-actions .btn-text { display: inline-block; width: auto; padding: 0; text-align: left; }
     /* Save with something still open: each line has a way straight to its step (a text button, its own width) */
     .read-open-list .read-go { display: inline-block; width: auto; min-height: var(--touch-target); padding: 0; text-align: left; }

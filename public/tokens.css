@@ -445,6 +445,7 @@
     /* Practice Levels heat map (ML-316) */
     --band-logo-sm: var(--ds-size-32, 32px);                     /* ML-534 a band's logo on its My bands row */
     --band-logo-lg: var(--ds-size-96, 96px);                     /* ML-534 a band's logo on the welcome and its Members page */
+    --read-page-thumb: var(--ds-size-96, 96px);                  /* ML-657 a photo's thumbnail in "Before it's read" */
     --level-cell-size: var(--ds-size-24, 24px);                  /* one bar's square in a piece's Level map (display only, not a tap target) */
     --band-summary-cell-height: var(--ds-size-40, 40px);         /* ML-581 one bar's column in the band leader's summary: Levels 1-5 bottom to top (display only) */
     --band-summary-line: var(--ds-size-2, 2px);                  /* ML-581 the average's line across a bar's column */

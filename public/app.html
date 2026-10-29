@@ -4827,6 +4827,20 @@
     </div>
 </div>
 
+<!-- ML-657 part 2: the instant checks on each photo before it is sent (public/pageCheck.js) - only when one says
+     something: each page's thumbnail with what is wrong in words, Turn it (on its side) and Retake, then Read it anyway
+     (pieceReadPagesShow). -->
+<div class="modal" id="pieceReadPagesModal" role="dialog" aria-modal="true" aria-labelledby="pieceReadPagesTitle" aria-describedby="pieceReadPagesHelp">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="pieceReadPagesTitle">Before it's read</h2>
+        <p class="modal-intro text-muted" id="pieceReadPagesHelp">These may not read well. Retake them, or read them as they are.</p>
+        <ul class="read-page-list" id="pieceReadPagesList"></ul>
+        <div class="flex-row gap-md"><button type="button" class="btn-cancel btn-nav no-margin" id="pieceReadPagesCancel">Cancel</button><button type="button" class="btn-submit no-margin" id="pieceReadPagesGo">Read it anyway</button></div>
+        <input type="file" id="pieceReadRetakeInput" accept="image/jpeg,image/png,image/webp" class="hidden-group" aria-label="Choose the page again">
+    </div>
+</div>
+
 <!-- ML-657 (owner, 29 Oct 2026): read a piece again with what can be seen at a glance - never anything that needs
      counting. The time signature it starts with (a value box: the usual picker), whether it changes time and whether it
      starts before the first full bar (switches, off), and the bars in all only if known. Then one confirm and the pages
@@ -4935,6 +4949,7 @@
 <script src="practicePlan.js"></script>
 <script src="filters.js"></script>
 <script src="pieceOutline.js"></script>
+<script src="pageCheck.js"></script><!-- ML-657: the instant checks on a photo of a page, before it is sent -->
 <script src="pieceRead.js"></script><!-- ML-639: bpmForWords - later starting-point speeds worked out again when an earlier one is changed -->
 <script src="notation.js"></script>
 <script src="range.js"></script>

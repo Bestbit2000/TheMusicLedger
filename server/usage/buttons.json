@@ -4744,6 +4744,27 @@
   },
   {
    "group": "Menu, notices and the rest",
+   "where": "pieceReadPagesModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "pieceReadPagesModal",
+   "name": "#pieceReadPagesCancel",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "pieceReadPagesModal",
+   "name": "#pieceReadPagesGo",
+   "label": "Read it anyway",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
    "where": "pieceReadGivensModal",
    "name": "close (X)",
    "label": "Close",
@@ -6308,6 +6329,20 @@
    "where": "renderOutlineEndingsForm()",
    "name": "data-ends-add",
    "label": "+ Add another ending",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "pieceReadPagesShow()",
+   "name": "data-page-turn",
+   "label": "Turn it",
+   "html": false
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "pieceReadPagesShow()",
+   "name": "data-page-retake",
+   "label": "Retake",
    "html": false
   },
   {

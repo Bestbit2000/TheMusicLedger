@@ -372,6 +372,21 @@ one-time "I have the right to upload it" (ML-278) comes first, as for any music.
    Usage sets it beside Quick entry and bar by bar, release by release. Then `PUT /api/piece-read/:id/saved`
    puts the outline as saved in the log beside what was read.
 
+**Before it's sent** (ML-657 part 2, owner 29 Oct 2026): the photos are looked at in the browser first - free, no AI,
+nothing sent (`public/pageCheck.js`, tests `server/test/pageCheck.test.js`). Each is made into a grey copy 1,000
+pixels on its long side and measured: **too small** (under 700 pixels on its short side), **very dark** (the page's
+average 70 or darker out of 255), **faint or washed out** (ink and paper under 45 apart), **blurred** (fine detail -
+the difference from a 3-pixel smoothing - under 0.12 of the detail at 13 pixels: a crisp line is mostly fine detail,
+and blur takes that first; it doesn't depend on how pale the photo is) and **on its side** (the dark pixels make
+lines running down the page 1.8 times more clearly than across - staff lines run across). The numbers were set on
+made-up pages and are meant to be cautious; they are in one place to tune. All well: the read starts as before.
+Otherwise **Before it's read** (`#pieceReadPagesModal`) shows each page's thumbnail with what is wrong, **Turn it**
+(a quarter turn each tap, made in the browser) and **Retake** (that page chosen again, the others kept), and **Read it
+anyway** - a false alarm never blocks. What was read anyway goes with the read (`pageWarnings`, `cleanPageWarnings`)
+into `piece_reads.page_warnings` (migration 171), and Admin → Photo reads shows it beside the read ("Read anyway:
+page 2 blurred"), so the warnings can be checked against what the read then found. A PDF has nothing to look at
+here: the quick AI look (part 3) looks at its pages.
+
 **Waiting for the read** (ML-645, owner 28 Oct 2026): from the moment the files are chosen, a pop-up
 (`#pieceReadWaitModal`, `specs/components/read-wait.md`) shows a turning ring, what it is doing ("Sending your PDF",
 "Reading the music", "Taking a little longer than usual - still reading"), a bar - the upload's own % while sending,

@@ -45,7 +45,7 @@
             ].join(' ');
             return `<tr>
                 <td>${i === 0 ? esc(when(r.at)) : ''}</td>
-                <td class="admin-bc-text"><strong>${esc(p.title || `Piece ${p.index + 1}`)}</strong>${i === 0 && r.isTest ? ' <span class="admin-badge info">Test</span>' : ''}<div class="admin-stat-tile-sub">${esc(r.fileKind === 'pdf' ? 'PDF' : many(r.fileCount, 'photo', 'photos'))} · ${esc(r.promptVersion || '')}</div>${i === 0 && r.givens ? `<div class="admin-stat-tile-sub">Told: ${esc(givensText(r.givens))}</div>` : ''}${reruns}</td>
+                <td class="admin-bc-text"><strong>${esc(p.title || `Piece ${p.index + 1}`)}</strong>${i === 0 && r.isTest ? ' <span class="admin-badge info">Test</span>' : ''}<div class="admin-stat-tile-sub">${esc(r.fileKind === 'pdf' ? 'PDF' : many(r.fileCount, 'photo', 'photos'))} · ${esc(r.promptVersion || '')}</div>${i === 0 && r.givens ? `<div class="admin-stat-tile-sub">Told: ${esc(givensText(r.givens))}</div>` : ''}${i === 0 && r.pageWarnings ? `<div class="admin-stat-tile-sub">Read anyway: ${esc(r.pageWarnings.map((w) => `page ${w.page} ${w.kinds.join(', ')}`).join('; '))}</div>` : ''}${reruns}</td>
                 <td>${badge(p.rating)}</td>
                 <td>${p.bars}${p.savedAt ? ` → ${p.savedBars}` : ''}</td>
                 <td class="admin-bc-text">${p.savedAt ? changedText(p.changes) : '<span class="text-muted">Not saved</span>'}</td>

@@ -265,6 +265,7 @@ edge, icon/text and fill
 |---|---|---|
 | `--band-logo-sm` | `32px` | ML-534 a band's logo on its My bands row |
 | `--band-logo-lg` | `96px` | ML-534 a band's logo on the welcome and its Members page |
+| `--read-page-thumb` | `96px` | ML-657 a photo's thumbnail in "Before it's read" |
 | `--level-cell-size` | `24px` | one bar's square in a piece's Level map (display only, not a tap target) |
 | `--band-summary-cell-height` | `40px` | ML-581 one bar's column in the band leader's summary: Levels 1-5 bottom to top (display only) |
 | `--band-summary-line` | `2px` | ML-581 the average's line across a bar's column |

@@ -187,9 +187,19 @@ export async function stopRead(accountId, { ref, stage, waitedMs } = {}) {
 // with `whole: true` and its own index (it is logged as a piece found, like the others).
 // The pages are deleted from the file store whatever happens. A failure is logged too - a read that the
 // gateway refused or that found no music is part of how well this works.
-export async function readForAccount(accountId, rawFiles, { joinMovements = false, clientRef = null, estimateMs = null, givens: rawGivens = null } = {}) {
+// ML-657 part 2: the browser's warnings about the photos read anyway - only the known kinds, one row a page
+const PAGE_WARNING_KINDS = ['small', 'blurred', 'dark', 'faint', 'sideways'];
+export function cleanPageWarnings(raw) {
+  if (!Array.isArray(raw)) return null;
+  const out = raw.slice(0, MAX_READ_FILES).map((w) => ({ page: Number(w && w.page), kinds: Array.isArray(w && w.kinds) ? [...new Set(w.kinds.filter((k) => PAGE_WARNING_KINDS.includes(k)))] : [] }))
+    .filter((w) => Number.isInteger(w.page) && w.page >= 1 && w.page <= MAX_READ_FILES && w.kinds.length);
+  return out.length ? out : null;
+}
+
+export async function readForAccount(accountId, rawFiles, { joinMovements = false, clientRef = null, estimateMs = null, givens: rawGivens = null, pageWarnings: rawWarnings = null } = {}) {
   const ref = REF.test(String(clientRef || '')) ? String(clientRef) : null;
   const givens = PieceRead.cleanGivens(rawGivens); // ML-657: what the member told a read again
+  const warnings = cleanPageWarnings(rawWarnings);
   const estimate = Number.isFinite(Number(estimateMs)) && Number(estimateMs) > 0 ? Math.round(Number(estimateMs)) : null;
   const files = checkedFiles(rawFiles, readUploadPrefix(accountId));
   let buffers = [];
@@ -212,9 +222,9 @@ export async function readForAccount(accountId, rawFiles, { joinMovements = fals
   // ML-645: stopped before it got here - logged, and marked so it doesn't count
   const stopped = ref ? (await pool.query('SELECT 1 FROM piece_read_stops WHERE client_ref = $1 AND account_id = $2', [ref, accountId])).rows.length > 0 : false;
   const { rows } = await pool.query(
-    `INSERT INTO piece_reads (account_id, status, model, prompt_version, file_kind, file_count, file_bytes, units_in, units_out, ms, pages, estimate_ms, client_ref, cancelled_at, givens)
-     VALUES ($1, 'read', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CASE WHEN $13 THEN now() END, $14) RETURNING id`,
-    [accountId, result.model, READ_VERSION, kind, files.length, buffers.reduce((n, b) => n + b.length, 0), result.usage.inputTokens, result.usage.outputTokens, result.ms, pages, estimate, ref, stopped, givens ? JSON.stringify(givens) : null]);
+    `INSERT INTO piece_reads (account_id, status, model, prompt_version, file_kind, file_count, file_bytes, units_in, units_out, ms, pages, estimate_ms, client_ref, cancelled_at, givens, page_warnings)
+     VALUES ($1, 'read', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CASE WHEN $13 THEN now() END, $14, $15) RETURNING id`,
+    [accountId, result.model, READ_VERSION, kind, files.length, buffers.reduce((n, b) => n + b.length, 0), result.usage.inputTokens, result.usage.outputTokens, result.ms, pages, estimate, ref, stopped, givens ? JSON.stringify(givens) : null, warnings ? JSON.stringify(warnings) : null]);
   const readId = Number(rows[0].id);
 
   const pieces = [];
@@ -287,6 +297,7 @@ export async function listReads() {
     costUsd: costUsd(r.model, r.units_in, r.units_out), isTest: !!r.test_files,
     pages: r.pages, estimateSeconds: r.estimate_ms ? Math.round(r.estimate_ms / 1000) : null, stoppedAt: r.cancelled_at, // ML-645
     givens: r.givens || null, // ML-657: what the member told a read again
+    pageWarnings: r.page_warnings || null, // ML-657: what the browser said about the photos read anyway
     pieces: pieces.filter(p => String(p.read_id) === String(r.id)).map(pieceRow),
     reruns: reruns.filter(x => String(x.read_id) === String(r.id)).map(x => ({ id: Number(x.id), at: x.created_at, status: x.status, failure: x.failure, model: x.model, promptVersion: x.prompt_version, seconds: Math.round(x.ms / 1000), costUsd: costUsd(x.model, x.units_in, x.units_out), pieces: x.pieces }))
   }));

@@ -131,6 +131,14 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
   in `docs/piece-from-photo.md`, "The checks"; `outlineAnswerOptions`). A count moves the bars (`outlineShiftBars`) and
   says what happened (`.read-check-moved`); what it touched becomes a check on its own step. **All right as read** is an
   underlined text link (`.read-agree-all`), shown with two or more open. Next stays the only primary button.
+- **Before it's read** (ML-657 part 2, `#pieceReadPagesModal`): the instant checks on each photo, in the browser,
+  before it is sent (`public/pageCheck.js`). Only shown when one says something: `.modal-intro`, then
+  `ul.read-page-list` with a `li.read-page-row` per page that may not read well - its thumbnail (`img.read-page-thumb`,
+  `--read-page-thumb`, shown whole) beside `.read-page-text`: "**Page 2** is blurred - the bar lines may not read..."
+  and `.read-page-actions` (`.btn-text` of their own width): **Turn it** (on its side - a quarter turn clockwise each
+  tap, and it looks again) and **Retake** (that page chosen again, the rest kept). Then Cancel / **Read it anyway**
+  (`.btn-submit`) - a false alarm never blocks. New classes: `.read-page-list`, `.read-page-row`, `.read-page-thumb`,
+  `.read-page-text`, `.read-page-actions`; new token `--read-page-thumb`.
 - **The time signature comes first** (ML-657): a time signature not read, or read as a guess, is the first check on How
   long. Its answers include **It's in a different time - read it again**: the usual time signature picker, then **Read
   it again** (`#pieceReadGivensModal`, no new styles): `.modal-intro`, the time signature as a value box
