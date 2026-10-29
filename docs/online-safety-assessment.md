@@ -1,6 +1,6 @@
 # Online Safety Act run-through (ML-507)
 
-**Version 8, 29 October 2026**, before ML-653 (version 7: 28 October 2026, ML-646; version 6: 25 October 2026, ML-610; version 5: 23 October 2026, ML-498; version 4: 22 October 2026, ML-581; version 3: 22 October 2026, release 0.67.0; version 2: 19 October 2026, release 0.63.0; version 1: 8 October 2026, release 0.52.0). A first pass at what the Online Safety Act 2023
+**Version 9, 29 October 2026**, before ML-659 (version 8: 29 October 2026, ML-653; version 7: 28 October 2026, ML-646; version 6: 25 October 2026, ML-610; version 5: 23 October 2026, ML-498; version 4: 22 October 2026, ML-581; version 3: 22 October 2026, release 0.67.0; version 2: 19 October 2026, release 0.63.0; version 1: 8 October 2026, release 0.52.0). A first pass at what the Online Safety Act 2023
 asks of this app, done from Ofcom's published guidance. It is a careful reading by Claude, **not legal
 advice**, and **the owner should confirm it with Ofcom's own tools** (below) - they are the official
 route and they produce the records Ofcom expects.
@@ -15,6 +15,7 @@ route and they produce the records Ofcom expects.
 | 6 | 25 October 2026 | Claude, for Andrew Storey | Done again before ML-610 was switched on for everyone: **Instrument support** - the first thing that points a member at businesses outside the app. Members add nothing and see nothing about each other; no new contact between members. See "Version 6" below. |
 | 7 | 28 October 2026 | Claude, for Andrew Storey | Done again before ML-646: **let in from the waiting list straight into a band** - the first time someone is in a band without tapping Join (they asked for it on the form, which says so). See "Version 7" below. |
 | 8 | 29 October 2026 | Claude, for Andrew Storey | Done again before ML-653: **only a band's organisers see who is in it** - everyone else sees how many, the band leader's name and a notice's sender. Less is shown; no new action. See "Version 8" below. |
+| 9 | 29 October 2026 | Claude, for Andrew Storey | Done again before ML-659 (release 0.78.0): **a band's organisers can rename it** - the band's name is free text the whole band sees, and until now only the person who set up sharing (and the owner, ML-511) chose it. No new kind of thing is shown and no new contact. See "Version 9" below. |
 
 **Next review:** 19 October 2027 at the latest. Ofcom asks for a review at least once a year, **and before
 any significant change** to how the service works. It is on Admin → Security → Reviews.
@@ -57,7 +58,7 @@ This is the whole of it, and the smallness of the list is the main reason the ri
 | A document: PDF, MusicXML, MuseScore, Sibelius, Finale (up to 25 MB) | A member with "change music" | The band |
 | A YouTube link and its title | A member with "change music" | The band |
 | A practice list's name | A member with "change music" | The band |
-| A band's name | Whoever sets up sharing | The band, and people invited to it |
+| A band's name | Whoever sets up sharing; its organisers can change it (version 9, ML-659) | The band, and people invited to it |
 | A band's logo: one picture, PNG, JPEG or WebP, up to 1 MB (version 2, ML-534) | An organiser of the band - an adult (action 2) | The band; people invited to it, on the welcome and at the top of the invitation email |
 | A member's name and picture (initials or one of twelve drawings - no photo upload) | The member | The band's organisers (version 8, ML-653); a band leader's name, and the name on a band's notice, the whole band |
 | A band's notice: a title (up to 120 characters) and a message (up to 1000), with the sender's name - one way, no replies (version 5, ML-498) | An organiser, a member with "change music" or the band leader - each confirmed an adult; at most 3 a day and 10 a week per band | The band's members at the time, less anyone who switched band notices off |
@@ -375,6 +376,31 @@ sharing) are met more fully: less about a member is shown, by default, with noth
 
 **Result:** the service's risk levels are unchanged (low) and no new action. **Showing members' names to everyone in a
 band again (`MEMBER_NAMES_SEEN_BY`) would need this run again.**
+
+## Version 9: a band's organisers can rename it (ML-659, 29 October 2026)
+
+**Why again:** it changes who can set something every member of a band sees. A shared band's name was chosen once, by
+the member who set up sharing, and after that only the owner could change it (ML-511, for a name that breaks the terms).
+
+**What it is** (the owner, 29 October 2026): on a band's page an organiser opens **Edit the band** and can change the
+band's name as well as its logo (the logo was already theirs, version 2). Everyone in the band sees the new name; a
+member who had called the band something else on their own My bands list keeps their own name for it. Only an
+organiser can, and only one who has said they are 18 or over (ML-506/554, as every organiser action). A band just for
+one member's practice log was already theirs to rename and nobody else sees it.
+
+**Against the questions above:**
+- **Harmful content:** the same as before - a band's name is short free text (80 characters), seen only by the band and
+  people invited to it. It was already the one place an organiser's words reach the whole band besides a notice
+  (version 5). A bad name can still be **reported** by anyone in the band (ML-510, "Report the band's name") and the
+  owner can **rename it** with the organisers told (ML-511).
+- **Contact and grooming:** no change - a name is not a message, nobody can reply to it, and it reaches no one outside
+  the band.
+- **Children:** organisers are adults; a young player can't rename a shared band.
+
+**Children's Code self-assessment:** checked - no standard's answer changes (nothing new is collected or shared, and no
+setting about a child changes).
+
+**Result:** the service's risk levels are unchanged (low) and no new action.
 
 ## What would change the answer
 
