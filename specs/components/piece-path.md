@@ -38,8 +38,8 @@ and **Bar by bar**.
 - **Setting the levels** (ML-536): the bars sit in the piece's sections as big squares, **6 across on a phone** (more
   from 700px) - the bar number small in the corner, the Level big in the middle, the Level colour behind it. The
   toolbox stays pinned to the bottom: first the Level to set (`.level-picker` + `.level-pick`), then six tools, 6
-  across - **Fill bar** (a bar), **Fill section** (its empty bars), **Fill all** (the whole piece - then Fill bar goes
-  back on), **Range** (tap the first bar - it's ringed, `.is-range-start` - then the last), **Remove level** and
+  across - **Fill bar** (a bar), **Fill section** (its empty bars), **Fill all** (every bar with no level yet - one already
+  set keeps it, ML-662; then Fill bar goes back on), **Range** (tap the first bar - it's ringed, `.is-range-start` - then the last), **Remove level** and
   **Undo** (a tool, faded while there's nothing to undo) - then the chosen tool's instruction right under them, then
   Next. Tap only - no drag, so scrolling is never fought.
 - **Focus sections (the knife):** tap the bar where a new bit should start - a red edge marks it (`.is-cut-before`);

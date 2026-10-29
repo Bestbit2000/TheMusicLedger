@@ -8058,7 +8058,7 @@
     const PAINT_HINTS = {
         brush: 'Tap a bar to give it this level.',
         section: 'Tap any bar: the bars in its section with no level yet get this one.',
-        all: 'Tap any bar: the whole piece gets this level. Then give the bars that went wrong a lower one.',
+        all: 'Tap any bar: every bar with no level yet gets this one. Then give the bars that went wrong a lower one.',
         range: 'Tap the first bar, then the last: every bar from one to the other gets this level.',
         rubber: 'Tap a bar to remove its level.'
     };
@@ -8123,7 +8123,8 @@
             paint.rangeStart = null;
         } else if (paint.tool === 'brush') paint.levels[n - 1] = paint.pot;
         else if (paint.tool === 'rubber') paint.levels[n - 1] = null;
-        else if (paint.tool === 'all') paint.levels = paint.levels.map((v, i) => (i + 1 >= levelsFrom() && i + 1 <= levelsTo() ? paint.pot : v));
+        // Fill all (ML-662, the owner: "a bit too powerful"): only the bars with no level yet - one already set keeps it
+        else if (paint.tool === 'all') paint.levels = paint.levels.map((v, i) => (!v && i + 1 >= levelsFrom() && i + 1 <= levelsTo() ? paint.pot : v));
         else if (paint.tool === 'section') {
             const s = paint.sections.find(x => n >= x.startBar && n <= x.endBar);
             if (s) for (let k = s.startBar; k <= s.endBar; k++) if (!paint.levels[k - 1]) paint.levels[k - 1] = paint.pot;

@@ -203,8 +203,8 @@ opened from a practice list, Play Flow's menu (My Levels) and a session's Prepar
      "Skip play through and set the level directly" skips it;
    - **set the level of each bar** (`#levelsPaintView`; ML-536 - it was "painting", and the code's names still
      say paint): the bars in the piece's sections (`FlowJourney.pieceSections`), 6 across on a phone, and a toolbox
-     pinned to the bottom - the Level to set, then **Fill bar**, **Fill section** (its empty bars), **Fill all** (the
-     power fill; then Fill bar comes back on), **Range** (tap the first bar, then the last), **Remove level** and
+     pinned to the bottom - the Level to set, then **Fill bar**, **Fill section** (its empty bars), **Fill all** (every bar
+     with no level yet - one already set keeps it, ML-662; then Fill bar comes back on), **Range** (tap the first bar, then the last), **Remove level** and
      **Undo**, with the chosen tool's instruction under them. After a run-through the Level starts at the one it was
      played at: Fill all, then give the bars that went wrong a lower one. **Type bars instead** keeps the from-to
      entry;
