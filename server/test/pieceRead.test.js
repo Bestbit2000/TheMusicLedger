@@ -520,11 +520,13 @@ describe('ML-657 part 3: what the quick look at the pages means', () => {
     assert.deepEqual(j.turns, [{ page: 1, quarters: 1 }]);
     assert.deepEqual(j.time, { beats: 2, beatType: 4 });
   });
-  test('a missing page, a cut-off edge, an unreadable page and no end are each said, page by page', () => {
+  test('a missing or unreadable page stops it, page by page; a cut-off edge and no end are only noted', () => {
     const page = (n, over) => ({ page: n, music: true, printedNumber: n, cutOff: [], readable: true, turned: 'upright', ...over });
     const j = PR.judgePages({ pages: [page(1), page(2, { cutOff: ['right', 'right', 'nowhere'] }), page(3, { printedNumber: 4, readable: false })], beats: null, beatType: null, timeSure: false, lastPageEnds: false }, 3);
-    assert.deepEqual(j.problems.map(p => p.kind), ['cut', 'unreadable', 'missing', 'end']);
-    assert.match(j.problems[0].text, /Page 2's right edge is cut off/);
+    assert.deepEqual(j.problems.map(p => p.kind), ['unreadable', 'missing']);
+    // (the owner, 29 Oct 2026, after the trial: the quick model said these on clean prints, and the full read checks both)
+    assert.deepEqual(j.notes.map(p => p.kind), ['cut', 'end']);
+    assert.match(j.notes[0].text, /Page 2's right edge is cut off/);
     const missing = j.problems.find(p => p.kind === 'missing');
     assert.match(missing.text, /Page 3 seems to be missing \(the pages are numbered 1, 2, 4\)/);
     assert.equal(missing.before, 3, 'it goes before the page numbered 4');

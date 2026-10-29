@@ -97,7 +97,7 @@
     // ML-657 part 3: the quick look at the pages - does it earn its few seconds? How often it stopped a read and for
     // what, what people did, whether reads it was right to stop (read anyway) came back with page problems, and how
     // often a read it passed still found one (its misses)
-    const LOOK_KINDS = { notMusic: 'not music', unreadable: 'hard to read', cut: 'an edge cut off', missing: 'a page missing', end: 'no end' };
+    const LOOK_KINDS = { notMusic: 'not music', unreadable: 'hard to read', missing: 'a page missing' }; // (an edge cut off and no end are only noted - the owner, 29 Oct 2026)
     function pageChecksHtml(c) {
         if (!c || !c.checks) return '';
         const kinds = Object.entries(c.byKind).map(([k, n]) => `${esc(LOOK_KINDS[k] || k)} ${n}`).join(', ');

@@ -6362,13 +6362,6 @@
   {
    "group": "Menu, notices and the rest",
    "where": "pieceReadPagesShowLook()",
-   "name": "data-page-add",
-   "label": "Add a page after it",
-   "html": false
-  },
-  {
-   "group": "Menu, notices and the rest",
-   "where": "pieceReadPagesShowLook()",
    "name": "data-page-retake",
    "label": "Retake",
    "html": false

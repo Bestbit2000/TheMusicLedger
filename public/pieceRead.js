@@ -448,7 +448,10 @@
     // ---------- ML-657 part 3: the quick look at the pages before the full read ----------
     // The page check's answer (server/services/pieceReader.js, PAGE_CHECK_SCHEMA) made safe, and what it means:
     //   problems - what is worth stopping for, page by page, in words: { page, kind, text } with kind 'notMusic',
-    //              'unreadable', 'cut', 'missing' or 'end' (each one offers Read it anyway in the app);
+    //              'unreadable' or 'missing' (each one offers Read it anyway in the app);
+    //   notes    - what it saw that doesn't stop the read: 'cut' (an edge cut off) and 'end' (no end on the last page),
+    //              kept in the log only. The owner, 29 Oct 2026, after the trial: the quick model said both on clean
+    //              publisher's PDFs (6 of 24 would have stopped), and the full read checks both itself;
     //   turns    - pages printed on their side or upside down: { page, quarters } - quarter turns clockwise to put
     //              it upright (done before the full read; never a problem to stop for);
     //   time     - { beats, beatType } when a time signature at the start could be read, else null (then the
@@ -465,11 +468,11 @@
         })).slice(0, Math.max(1, fileCount || 50)).sort((a, b) => a.page - b.page);
         const many = pages.length > 1;
         const name = (p) => (many ? `Page ${p.page}` : 'The page');
-        const problems = [];
+        const problems = [], notes = [];
         pages.forEach(p => {
             if (!p.music) { problems.push({ page: p.page, kind: 'notMusic', text: `${name(p)} doesn't look like music.` }); return; }
             if (!p.readable) problems.push({ page: p.page, kind: 'unreadable', text: `${name(p)} is hard to read - the bar lines may not come out right.` });
-            if (p.cut.length) problems.push({ page: p.page, kind: 'cut', text: `${name(p)}'s ${p.cut.join(' and ')} ${p.cut.length > 1 ? 'edges are' : 'edge is'} cut off - bars may be missing.` });
+            if (p.cut.length) notes.push({ page: p.page, kind: 'cut', text: `${name(p)}'s ${p.cut.join(' and ')} ${p.cut.length > 1 ? 'edges are' : 'edge is'} cut off - bars may be missing.` });
         });
         // A page number printed on each page: a gap is a page not sent (1, 2, 4)
         const numbered = pages.filter(p => p.printed);
@@ -481,10 +484,10 @@
             const after = pages.findIndex(p => p.printed && p.printed > missing[0]);
             if (missing.length) problems.push({ page: null, before: after < 0 ? pages.length + 1 : after + 1, kind: 'missing', text: `${missing.length > 1 ? `Pages ${missing.join(' and ')} seem` : `Page ${missing[0]} seems`} to be missing (the pages are numbered ${nums.join(', ')}).` });
         }
-        if (pages.length && raw && raw.lastPageEnds === false) problems.push({ page: pages[pages.length - 1].page, kind: 'end', text: `The last page doesn't seem to end the piece - is there a page after it?` });
+        if (pages.length && raw && raw.lastPageEnds === false) notes.push({ page: pages[pages.length - 1].page, kind: 'end', text: `The last page doesn't seem to end the piece - is there a page after it?` });
         const beats = whole(raw && raw.beats), beatType = whole(raw && raw.beatType);
         const time = raw && raw.timeSure === true && beats >= 1 && beats <= 32 && [1, 2, 4, 8, 16, 32].includes(beatType) ? { beats, beatType } : null;
-        return { problems, turns: pages.filter(p => p.quarters).map(p => ({ page: p.page, quarters: p.quarters })), time };
+        return { problems, notes, turns: pages.filter(p => p.quarters).map(p => ({ page: p.page, quarters: p.quarters })), time };
     }
     // Pages the full read is told are turned (a PDF's - photos are turned in the browser first): [{ page, quarters }]
     function cleanTurns(raw, maxPages) {

@@ -24750,8 +24750,7 @@
             const thumb = !ctx.isPdf && i !== null ? pieceReadThumb(st.previews[i], `Page ${x.page}`) : '';
             const act = ctx.isPdf ? '<button type="button" class="btn-text" data-page-again="1">Choose the PDF again</button>'
                 : x.kind === 'missing' ? `<button type="button" class="btn-text" data-page-add="${(x.before || files.length + 1) - 1}">Add the missing page</button>`
-                    : x.kind === 'end' ? `<button type="button" class="btn-text" data-page-add="${files.length}">Add a page after it</button>`
-                        : i !== null ? `<button type="button" class="btn-text" data-page-retake="${i}">Retake</button>` : '';
+                    : i !== null ? `<button type="button" class="btn-text" data-page-retake="${i}">Retake</button>` : '';
             return `<li class="read-page-row">${thumb}<div class="read-page-text"><span>${escapeHtml(x.text)}</span><span class="read-page-actions">${act}</span></div></li>`;
         }).join(''));
     }

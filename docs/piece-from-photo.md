@@ -398,11 +398,13 @@ last page ends the piece. `PieceRead.judgePages` turns that into:
 - **pages on their side** - put upright before the full read, never stopped for: a photo is turned in the browser and
   sent again; a PDF's page is told to the reader (`turns`, `PieceRead.cleanTurns`, `turnsText`) - the reader counting
   a sideways page was Wassail's worst case;
-- **problems** - a page that isn't music, hard to read, an edge cut off, a page missing by its printed numbers (1, 2,
-  4), or no end on the last page. They stop it before the full read, in **Before it's read** (the pop-up the browser's
-  checks use), one row each, in words, with **Retake** / **Add the missing page** / **Add a page after it** (photos;
-  the others kept and everything looked at again) or **Choose the PDF again**, and **Read it anyway** (the pages already
-  sent - every finding offers it, so a false alarm never blocks);
+- **problems** - a page that isn't music, a page hard to read, or a page missing by its printed numbers (1, 2, 4).
+  They stop it before the full read, in **Before it's read** (the pop-up the browser's checks use), one row each, in
+  words, with **Retake** / **Add the missing page** (photos; the others kept and everything looked at again) or
+  **Choose the PDF again**, and **Read it anyway** (the pages already sent - every finding offers it, so a false alarm
+  never blocks);
+- **notes** - an edge cut off, or no end on the last page: kept in the log only, never stopped for (the owner, 29 Oct
+  2026, after the trial - see below). The full read's own `cropped` and `end` checks ask about both;
 - **no time signature it could read** - the same box as reading again comes first, as **What time is it in?**, with
   **Not sure** to read it without one; what is said goes with the read as `givens`.
 The waiting screen's first stage is "Checking your pages", then straight on to "Reading the music". The look never
@@ -413,8 +415,16 @@ Admin → Photo reads, **The quick look at the pages**, says whether it earns it
 read and for what, what people did, whether the reads it stopped and that were read anyway came back with a page
 problem (an edge cut off, the end not seen, things past the end), and how often a read it let through still found one
 (its misses). Its cost is in the "Photo reads, in dollars" meter. The full read's own `cropped` and `end` checks stay,
-as a backup. **Which model** is the owner's choice from the trial (`scripts/page-check-trial.mjs`: each model on the
-test library and Wassail, false alarms and misses side by side); until then `anthropic/claude-haiku-5.5`.
+as a backup.
+
+**Which model** (the trial, 29 Oct 2026, `scripts/page-check-trial.mjs` - the 25 clean PDFs of the test library and
+Wassail; full table on ML-657): `anthropic/claude-haiku-5.5` and `google/gemini-3.8-flash` both turned the three
+pages really on their side (Wassail, Slaidburn, page 2 of Wallace and Gromit). Haiku took about 7 seconds and 0.09¢ a
+look, and would have stopped 6 of the 24 clean pieces, nearly all with "right edge cut off" or "doesn't end"; Gemini
+took 16 seconds and 0.6¢, stopped 3, said Wassail was 2/2 (so wouldn't have asked), couldn't read the time signature
+on 8 clean pieces and failed once - and would have added Google as a company the pages go to. **The owner chose
+Haiku, stopping only for a page that isn't music, can't be read or is missing** - so on the trial no clean piece is
+stopped, and Wassail is still turned upright and asked "What time is it in?".
 
 **Waiting for the read** (ML-645, owner 28 Oct 2026): from the moment the files are chosen, a pop-up
 (`#pieceReadWaitModal`, `specs/components/read-wait.md`) shows a turning ring, what it is doing ("Sending your PDF",

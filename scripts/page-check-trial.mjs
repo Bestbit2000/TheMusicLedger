@@ -31,7 +31,7 @@ for (const model of models) {
       cost += c; seconds += r.ms / 1000;
       const j = r.judged;
       if (j.problems.length || j.turns.length) flagged++;
-      console.log(`${path.basename(file).padEnd(44)} ${(r.ms / 1000).toFixed(1).padStart(5)} s  ${(c * 100).toFixed(2).padStart(5)}c  time ${j.time ? `${j.time.beats}/${j.time.beatType}` : 'not read'}${j.turns.length ? `  turn ${j.turns.map(t => `p${t.page}x${t.quarters}`).join(' ')}` : ''}${j.problems.length ? `\n      ${j.problems.map(p => `[${p.kind}] ${p.text}`).join('\n      ')}` : ''}`);
+      console.log(`${path.basename(file).padEnd(44)} ${(r.ms / 1000).toFixed(1).padStart(5)} s  ${(c * 100).toFixed(2).padStart(5)}c  time ${j.time ? `${j.time.beats}/${j.time.beatType}` : 'not read'}${j.turns.length ? `  turn ${j.turns.map(t => `p${t.page}x${t.quarters}`).join(' ')}` : ''}${j.problems.length ? `\n      ${j.problems.map(p => `[${p.kind}] ${p.text}`).join('\n      ')}` : ''}${(j.notes || []).length ? `\n      noted, not stopped for: ${j.notes.map(p => p.kind).join(', ')}` : ''}`);
       out.push({ model, file: path.basename(file), ms: r.ms, cost: c, judged: j, raw: r.raw });
     } catch (e) {
       failed++;
