@@ -6138,13 +6138,6 @@
   {
    "group": "Pieces: Rehearse, play, edit",
    "where": "renderOutline()",
-   "name": "data-outline=readIntroNext",
-   "label": "Next: …",
-   "html": false
-  },
-  {
-   "group": "Pieces: Rehearse, play, edit",
-   "where": "renderOutline()",
    "name": "data-outline=back",
    "label": "Back",
    "html": false
@@ -6256,15 +6249,22 @@
   },
   {
    "group": "Pieces: Rehearse, play, edit",
-   "where": "outlineReadCheckHtml()",
-   "name": "data-read-value",
-   "label": "… bpm speed at bar ……",
+   "where": "outlineAnswerBox()",
+   "name": "data-read-answer",
+   "label": "",
    "html": false
   },
   {
    "group": "Pieces: Rehearse, play, edit",
    "where": "outlineReadChecksHtml()",
    "name": "data-read-all",
+   "label": "All right as read",
+   "html": false
+  },
+  {
+   "group": "Pieces: Rehearse, play, edit",
+   "where": "outlineReadAskSave()",
+   "name": "data-read-go",
    "label": "",
    "html": false
   },

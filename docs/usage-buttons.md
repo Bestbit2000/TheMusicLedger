@@ -665,7 +665,6 @@ its words.
 | renderMetroSegCustomSigManageList() | `timesig-delete` |  |
 | renderMetroSegCustomSigManageList() | `timesig-archive` | Archive |
 | renderMetroBlkMiniTunerInstrumentOptions() | `data-value` |  |
-| renderOutline() | `data-outline=readIntroNext` | Next: … |
 | renderOutline() | `data-outline=back` | Back |
 | renderOutline() | `data-outline` |  |
 | outlineValueBtn() | `data-outline` |  |
@@ -682,8 +681,9 @@ its words.
 | outlineMediaStepHtml() | `data-outline=pickFile` | + … |
 | renderOutlineExtraForm() | `data-x-sign` |  |
 | renderOutlineEndingsForm() | `data-ends-add` | + Add another ending |
-| outlineReadCheckHtml() | `data-read-value` | … bpm speed at bar …… |
-| outlineReadChecksHtml() | `data-read-all` |  |
+| outlineAnswerBox() | `data-read-answer` |  |
+| outlineReadChecksHtml() | `data-read-all` | All right as read |
+| outlineReadAskSave() | `data-read-go` |  |
 
 ## Add a piece
 

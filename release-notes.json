@@ -164,6 +164,7 @@
     "internal": true,
     "why": "Admin -> Costs and usage only: the Vercel meter left out the plan fee"
   },
+  "ML-655": "We turned each thing to check after a piece is read from a photo into a question, and your answer puts the piece right - a bar count you correct moves everything after it.",
   "ML-654": {
     "internal": true,
     "why": "Admin panel only: its secondary buttons look like the app's, and the Waiting list lists its choices and has an empty page"

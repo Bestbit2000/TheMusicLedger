@@ -35,8 +35,19 @@
         const bars = whole(p.bars);
         if (!(bars >= 1 && bars <= maxBars)) return null;
         let dropped = 0;
+        // ML-655: what was left out for being past the last bar, said by name ("a pause at bar 81") - so the
+        // check can ask whether the piece is longer than it was read
+        const droppedItems = [];
         const bar = (v) => { const n = whole(v); if (n !== null && n >= 1 && n <= bars) return n; return null; };
-        const keep = (list, make) => rows(list).map(r => { const made = make(r); if (!made) dropped++; return made; }).filter(Boolean);
+        const keep = (list, make, what) => rows(list).map(r => {
+            const made = make(r);
+            if (!made) {
+                dropped++;
+                const at = whole(r.bar !== undefined ? r.bar : r.from);
+                if (what && at !== null && at > bars) droppedItems.push({ bar: at, what: typeof what === 'function' ? what(r) : what });
+            }
+            return made;
+        }).filter(Boolean);
         const byBar = (a, b) => a.bar - b.bar;
 
         const systems = rows(p.systems).map(s => ({ page: whole(s.page) || 1, firstBar: whole(s.firstBar), bars: whole(s.bars), anchored: s.anchored === true, sure: level(s.sure) }))
@@ -49,23 +60,23 @@
             const b = bar(r.bar), bpm = whole(r.bpm);
             if (!b) return null;
             return { bar: b, bpm: bpm >= 10 && bpm <= 400 ? bpm : null, note: NOTE_VALUES.includes(r.note) ? r.note : null, text: str(r.text, 60), handwritten: r.handwritten === true };
-        }).sort(byBar);
-        const marks = keep(p.marks, r => { const b = bar(r.bar), label = str(r.label, 12); return b && label ? { bar: b, label } : null; }).sort(byBar);
+        }, (r) => (whole(r.bpm) ? `a speed of ${whole(r.bpm)}` : str(r.text) ? `"${str(r.text, 30)}"` : 'a change of speed')).sort(byBar);
+        const marks = keep(p.marks, r => { const b = bar(r.bar), label = str(r.label, 12); return b && label ? { bar: b, label } : null; }, (r) => (str(r.label) ? `rehearsal mark ${str(r.label, 12)}` : 'a rehearsal mark')).sort(byBar);
         const repeats = keep(p.repeats, r => {
             const from = bar(r.from), to = bar(r.to), times = whole(r.times);
             if (!from || !to || to < from) return null;
             const e1From = bar(r.firstEndingFrom), e2To = bar(r.lastEndingTo);
             return { from, to, times: times >= 2 && times <= 20 ? times : 2, e1From: e1From && e2To ? e1From : null, e2To: e1From && e2To ? e2To : null };
-        }).sort((a, b) => a.from - b.from);
-        const signs = keep(p.signs, r => { const b = bar(r.bar); return b && SIGN_KEYS.includes(r.sign) ? { sign: r.sign, bar: b } : null; });
+        }, 'a repeat').sort((a, b) => a.from - b.from);
+        const signs = keep(p.signs, r => { const b = bar(r.bar); return b && SIGN_KEYS.includes(r.sign) ? { sign: r.sign, bar: b } : null; }, 'a sign');
         const pauses = keep(p.pauses, r => {
             const b = bar(r.bar), beat = whole(r.beat);
             return b ? { bar: b, beat: beat >= 1 && beat <= 32 ? beat : 1, kind: r.kind === 'break' ? 'break' : 'pause' } : null;
-        }).sort(byBar);
+        }, (r) => (r.kind === 'break' ? 'a break' : 'a pause')).sort(byBar);
         const ramps = keep(p.ramps, r => {
             const from = bar(r.from), to = bar(r.to);
             return from && to && to >= from ? { from, to, kind: r.kind === 'faster' ? 'faster' : 'slower', text: str(r.text, 40) } : null;
-        }).sort((a, b) => a.from - b.from);
+        }, (r) => (r.kind === 'faster' ? 'an accel.' : 'a rall.')).sort((a, b) => a.from - b.from);
         const special = keep(p.special, r => { const from = bar(r.from), to = bar(r.to) || from; return from && str(r.text) ? { from, to: Math.max(from, to), text: str(r.text, 80) } : null; });
         const doubts = rows(p.doubts).map(r => { const from = bar(r.from), to = bar(r.to) || from; return { from, to: from ? Math.max(from, to) : null, level: level(r.level), note: str(r.note, 140) }; }).filter(d => d.note);
 
@@ -77,7 +88,7 @@
         return {
             // ML-529: a movement's own number is printed with its name ("1) S.P.Q.R", "II. Andante"); the app numbers them itself
             title: str(p.title), movement: str(p.movement).replace(/^(\d{1,2}|[IVXL]{1,5})\s*[).:-]\s*/i, ''), composer: str(p.composer), arranger: str(p.arranger), publisher: str(p.publisher), part: str(p.part, 60),
-            bars, systems, tail, clashes, freeBars, time, speeds, marks, repeats, signs, pauses, ramps, special, doubts, dropped,
+            bars, systems, tail, clashes, freeBars, time, speeds, marks, repeats, signs, pauses, ramps, special, doubts, dropped, droppedItems,
             numbersAt: ['start', 'end', 'none'].includes(p.numbersAt) ? p.numbersAt : 'none',
             pickupBeats: pickup > 0 && pickup < 32 ? pickup : null,
             endSeen: p.endSeen === true, cropped: p.cropped === true, pagesMissing: p.pagesMissing === true
@@ -140,7 +151,8 @@
             title: firstOf(0), movement: null, composer: pick('composer'), arranger: pick('arranger'), publisher: pick('publisher'), part: pick('part'),
             bars, numbersAt: list[0].numbersAt, pickupBeats: list[0].pickupBeats,
             endSeen: list[list.length - 1].endSeen, cropped: list.some(p => p.cropped), pagesMissing: list.some(p => p.pagesMissing),
-            dropped: list.reduce((n, p) => n + (p.dropped || 0), 0), printedFrom: 1,
+            // (what a movement left out past its own end isn't past the end of the whole, so only the count is kept)
+            dropped: list.reduce((n, p) => n + (p.dropped || 0), 0), droppedItems: [], printedFrom: 1,
             systems: [], tail: [], clashes: [], freeBars: [], time: [], speeds: [], marks: [], repeats: [], signs: [], pauses: [], ramps: [], special: [], doubts: [],
             movements: [], extraChecks: []
         };
@@ -151,9 +163,9 @@
             if (k === list.length - 1) joined.tail = moved.tail;
             joined.movements.push({ bar: at + 1, title: p.movement || (k === 0 ? null : p.title) || null });
             if (p.printedFrom > 1 && p.printedFrom !== at + 1) {
-                joined.extraChecks.push({ level: 'low', kind: 'count', from: at + 1, to: at + 1, text: `Movement ${k + 1}'s bar numbers start at ${p.printedFrom}, but the movements before it were counted as ${at} bars. Check the bars before bar ${at + 1}.` });
+                joined.extraChecks.push({ level: 'low', kind: 'count', from: at + 1, to: at + 1, text: `Movement ${k + 1}'s bar numbers start at ${p.printedFrom}, but the movements before it were counted as ${at} bars. Which is right?`, ask: { type: 'printed', bar: at + 1, printed: p.printedFrom } });
             }
-            if (k > 0 && !moved.speeds.some(s => s.bar === at + 1)) joined.extraChecks.push({ level: 'info', kind: 'speed', from: at + 1, to: at + 1, text: `No speed is printed at the start of movement ${k + 1} (bar ${at + 1}): it carries on at the speed before.` });
+            if (k > 0 && !moved.speeds.some(s => s.bar === at + 1)) joined.extraChecks.push({ level: 'info', kind: 'speed', from: at + 1, to: at + 1, text: `No speed is printed at the start of movement ${k + 1} (bar ${at + 1}): it carries on at the speed before.`, ask: { type: 'addSpeed', bar: at + 1 } });
             at += p.bars;
         });
         return joined;
@@ -196,11 +208,12 @@
     function fit(piece, opts) {
         const sigKey = (opts && opts.sigKey) || ((beats, beatType) => `${beats}/${beatType}`);
         const notes = [];
-        const note = (lvl, kind, from, to, text) => notes.push({ level: lvl, kind, from: from || null, to: to || from || null, text });
+        // ML-655: every check is a question, and `ask` says what its answers are (public/app.js, outlineAnswerOptions)
+        const note = (lvl, kind, from, to, text, ask) => notes.push({ level: lvl, kind, from: from || null, to: to || from || null, text, ...(ask ? { ask } : {}) });
 
         // Time: the signature most bars are in is the main one; the rest are exceptions, bar by bar.
         const timeRows = piece.time.length && piece.time[0].bar === 1 ? piece.time : [{ bar: 1, beats: 4, beatType: 4 }, ...piece.time];
-        if (!piece.time.length || piece.time[0].bar !== 1) note('medium', 'time', 1, 1, 'No time signature was read at the start: 4/4 was put in.');
+        if (!piece.time.length || piece.time[0].bar !== 1) note('medium', 'time', 1, 1, 'No time signature was read at the start, so 4/4 was put in. Is it in 4/4?', { type: 'mainTime' });
         const sigs = new Map();
         const perBar = [];
         let cur = null;
@@ -221,13 +234,13 @@
         piece.speeds.forEach(s => {
             let bpm = s.bpm, how = s.bpm ? (s.handwritten ? 'pencil' : 'printed') : null;
             if (!bpm) { const g = bpmForWords(s.text, prev, mainBpm); if (g) { bpm = g.bpm; how = 'word'; } }
-            if (!bpm) { note('info', 'speed', s.bar, s.bar, `"${s.text || 'A change of speed'}" at bar ${s.bar}: no number is printed, so no change of speed was put in.`); return; }
-            if (how === 'word') note('info', 'speed', s.bar, s.bar, `No number is printed at bar ${s.bar}: ${bpm} is a starting point for "${s.text}".`);
-            if (how === 'pencil') note('info', 'speed', s.bar, s.bar, `${bpm} at bar ${s.bar} is written in by hand, not printed.`);
+            if (!bpm) { note('info', 'speed', s.bar, s.bar, `"${s.text || 'A change of speed'}" at bar ${s.bar}: no number is printed, so no change of speed was put in.`, { type: 'addSpeed', bar: s.bar }); return; }
+            if (how === 'word') note('info', 'speed', s.bar, s.bar, `No number is printed at bar ${s.bar}: ${bpm} is a starting point for "${s.text}".`, { type: 'speed', bar: s.bar });
+            if (how === 'pencil') note('info', 'speed', s.bar, s.bar, `${bpm} at bar ${s.bar} is written in by hand, not printed.`, { type: 'speed', bar: s.bar });
             if (s.bar === 1) { mainBpm = bpm; mainNote = s.note; } else speeds.push(s.note ? { bar: s.bar, bpm, noteValue: s.note } : { bar: s.bar, bpm });
             prev = bpm;
         });
-        if (!mainBpm) { mainBpm = DEFAULT_BPM; note('info', 'speed', 1, 1, `No speed is printed at the start: ${DEFAULT_BPM} was put in.`); }
+        if (!mainBpm) { mainBpm = DEFAULT_BPM; note('info', 'speed', 1, 1, `No speed is printed at the start: ${DEFAULT_BPM} was put in.`, { type: 'speed', bar: 1 }); }
 
         const numbered = piece.marks.length > 0 && piece.marks.every(m => m.label === String(m.bar));
         const extras = [];
@@ -238,7 +251,7 @@
         const speedBars = new Set(speeds.map(s => s.bar));
         piece.ramps.forEach(r => {
             if (speedBars.has(r.to + 1)) extras.push({ type: 'ramp', from: r.from, to: r.to, target: 'next' });
-            else note('info', 'ramp', r.from, r.to, `"${r.text || (r.kind === 'faster' ? 'accel.' : 'rall.')}" at ${range(r.from, r.to)} was not put in: the speed it reaches isn't printed.`);
+            else note('info', 'ramp', r.from, r.to, `"${r.text || (r.kind === 'faster' ? 'accel.' : 'rall.')}" at ${range(r.from, r.to)} was not put in: the speed it reaches isn't printed.`, { type: 'ramp', from: r.from, to: r.to, kind: r.kind });
         });
 
         const o = { bars: piece.bars, leadIn: false, mainSig, mainBpm, mainNote: mainNote || null, markKind: !piece.marks.length ? 'none' : (numbered ? 'numbers' : 'text'), marks: piece.marks.map(m => ({ bar: m.bar, label: m.label })), time, speeds, extras,
@@ -253,16 +266,17 @@
                 if (!clashes.length) break;
                 [...new Set(clashes.map(c => c.extra))].sort((a, b) => b - a).forEach(i => {
                     const x = o.extras[i], said = PO.describeExtra(x), why = clashes.find(c => c.extra === i).message;
-                    note('medium', 'left-out', x.from || x.bar, x.to || x.bar, `${said.title} was read but not put in. ${why}`);
+                    note('medium', 'left-out', x.from || x.bar, x.to || x.bar, `${said.title} was read but not put in. ${why}`, { type: 'leftOut', extra: x });
                     o.extras.splice(i, 1);
                 });
             }
         }
 
-        if (piece.printedFrom > 1) note('info', 'numbers', 1, 1, `The bar numbers on the page start at ${piece.printedFrom}, carrying on from the movement before: here the bars are counted from 1.`);
-        if (piece.pickupBeats) note('info', 'pickup', 1, 1, `There is a pickup of ${piece.pickupBeats} beat${piece.pickupBeats === 1 ? '' : 's'} before bar 1. It was not put in.`);
-        piece.freeBars.forEach(f => note('medium', 'free-bar', f.bar, f.bar, `Bar ${f.bar} has no set length${f.text ? ` ("${f.text}")` : ''}: count its beats and set it by hand.`));
-        piece.special.forEach(s => note('medium', 'special', s.from, s.to, `${range(s.from, s.to)}: "${s.text}" is printed. The app plays these bars every time.`));
+        // (nothing to do about it: a note on the first screen, not a check)
+        if (piece.printedFrom > 1) note('info', 'numbers', 1, 1, `The bar numbers on the page start at ${piece.printedFrom}, carrying on from the movement before: here the bars are counted from 1.`, { type: 'note' });
+        if (piece.pickupBeats) note('info', 'pickup', 1, 1, `There is a pickup of ${piece.pickupBeats} beat${piece.pickupBeats === 1 ? '' : 's'} before bar 1. The app starts at bar 1, so it isn't played.`, { type: 'pickup' });
+        piece.freeBars.forEach(f => note('medium', 'free-bar', f.bar, f.bar, `Bar ${f.bar} has no set length${f.text ? ` ("${f.text}")` : ''}. How many beats are in it?`, { type: 'beats', bar: f.bar }));
+        piece.special.forEach(s => note('medium', 'special', s.from, s.to, `${range(s.from, s.to)}: "${s.text}" is printed. The app plays these bars every time.`, { type: 'special', from: s.from, to: s.to }));
 
         const name = [piece.title, piece.movement].filter(Boolean).join(': ');
         return { about: { name, composer: piece.composer, arranger: piece.arranger, publisher: piece.publisher }, o, sigs: [...sigs.values()].map(s => ({ key: s.key, beats: s.beats, beatType: s.beatType })), notes };
@@ -274,66 +288,91 @@
     // listed and don't lower the rating: it says how far to trust the bars and the order of play.
     function rate(piece, fitted) {
         const checks = [];
-        const add = (lvl, kind, from, to, text) => checks.push({ level: lvl, kind, from: from || null, to: to || from || null, text });
+        // ML-655: every check is a question, and `ask` says what its answers are (public/app.js, outlineAnswerOptions).
+        // A count's ask is { type: 'lineCount', from, bars, at, options }: `bars` bars from bar `from` as the piece
+        // stands, the bars from `at` on following any change, and `options` the other counts the read gave.
+        const add = (lvl, kind, from, to, text, ask) => checks.push({ level: lvl, kind, from: from || null, to: to || from || null, text, ...(ask ? { ask } : {}) });
         const sys = piece.systems;
+        const lineCount = (from, bars, at, options) => ({ type: 'lineCount', from, bars, at, options: [...new Set((options || []).filter(n => n >= 1 && n !== bars))] });
 
-        if (piece.dropped) add('medium', 'dropped', null, null, `${piece.dropped} thing${piece.dropped === 1 ? '' : 's'} read from the page had a bar number that isn't in the piece, and ${piece.dropped === 1 ? 'was' : 'were'} left out.`);
+        if (piece.dropped) {
+            const items = piece.droppedItems || [];
+            if (items.length) {
+                const said = items.slice(0, 4).map(d => `${d.what} at bar ${d.bar}`);
+                add('medium', 'dropped', piece.bars, piece.bars, `Some things on the page are on bars after the last one: ${said.join(', ')}${items.length > 4 ? ` and ${items.length - 4} more` : ''}. The piece was read as ${piece.bars} bars. Is it longer?`, { type: 'end', bars: piece.bars, items });
+            } else add('medium', 'dropped', null, null, `${piece.dropped} thing${piece.dropped === 1 ? '' : 's'} read from the page couldn't be placed on a bar, and ${piece.dropped === 1 ? 'was' : 'were'} left out.`, { type: 'note' });
+        }
 
-        if (!sys.length) add('medium', 'count', 1, piece.bars, 'The bars were not counted line by line, so the total could not be checked.');
+        if (!sys.length) add('medium', 'count', 1, piece.bars, `The bars were not counted line by line, so the total couldn't be checked. It was read as ${piece.bars} bars in all. Is that right?`, lineCount(1, piece.bars, piece.bars + 1));
         else {
-            // Do the lines add up? Each starts where the one before stopped, and the last ends on the last bar.
+            // Do the lines add up? Each starts where the one before stopped. Where one doesn't, the question is how
+            // many bars the line before has: the line's own count, or what the numbering says.
             sys.forEach((s, i) => {
                 const expected = i === 0 ? 1 : sys[i - 1].firstBar + sys[i - 1].bars;
-                if (s.firstBar !== expected) add('low', 'count', Math.min(expected, s.firstBar), Math.max(expected, s.firstBar), `The count doesn't add up around bar ${Math.min(expected, s.firstBar)}: a line starts at bar ${s.firstBar} where bar ${expected} was expected.`);
+                if (s.firstBar === expected) return;
+                if (i === 0) { add('low', 'count', 1, s.firstBar, `The first line starts at bar ${s.firstBar}, not bar 1. Check the start of the piece.`, { type: 'doubt' }); return; }
+                const p = sys[i - 1];
+                add('low', 'count', p.firstBar, s.firstBar - 1, `The line from bar ${p.firstBar} was counted as ${p.bars} bars, but the next line is numbered from bar ${s.firstBar}. How many bars are on the line from bar ${p.firstBar}?`,
+                    lineCount(p.firstBar, s.firstBar - p.firstBar, s.firstBar, [p.bars]));
             });
-            const last = sys[sys.length - 1];
-            if (last.firstBar + last.bars - 1 !== piece.bars) add('low', 'count', last.firstBar, piece.bars, `The last line ends on bar ${last.firstBar + last.bars - 1}, but the piece was read as ${piece.bars} bars.`);
 
             // A printed bar number (at the start of a line, or a numbered mark) proves the count up to that
             // bar, and the rest of its own line is a handful of bars in plain sight. So the bars nothing
             // checks are the lines after the last line with a printed number on it.
             const anchors = [...sys.filter(s => s.anchored).map(s => s.firstBar), ...piece.marks.filter(m => m.label === String(m.bar)).map(m => m.bar)];
-            if (!anchors.length) add('medium', 'numbers', 1, piece.bars, 'No bar numbers are printed, so every bar was counted by eye. Check the total.');
+            if (!anchors.length) add('medium', 'numbers', 1, piece.bars, `No bar numbers are printed, so every bar was counted by eye. It was read as ${piece.bars} bars in all. Is that right?`, lineCount(1, piece.bars, piece.bars + 1));
             else {
                 const lastAnchor = Math.max(...anchors);
                 const line = sys.find(s => lastAnchor >= s.firstBar && lastAnchor < s.firstBar + s.bars);
                 const checkedTo = line ? line.firstBar + line.bars - 1 : lastAnchor;
-                if (piece.bars - checkedTo >= UNANCHORED_BARS) add('medium', 'numbers', checkedTo + 1, piece.bars, `${range(checkedTo + 1, piece.bars)}: no printed bar number after bar ${lastAnchor} to check the count against.`);
+                if (piece.bars - checkedTo >= UNANCHORED_BARS) add('medium', 'numbers', checkedTo + 1, piece.bars, `There's no printed bar number after bar ${lastAnchor} to check the count against. It was read as ${piece.bars - checkedTo} bars from bar ${checkedTo + 1} to the end. Is that right?`, lineCount(checkedTo + 1, piece.bars - checkedTo, piece.bars + 1));
             }
-            // One line for all of them: a cropped scan can make every line a little unsure.
-            const unsure = sys.filter(s => s.sure !== 'high');
-            if (unsure.length) add('medium', 'line', unsure[0].firstBar, unsure[unsure.length - 1].firstBar + unsure[unsure.length - 1].bars - 1, `The barlines were hard to make out on ${unsure.length === 1 ? 'one line' : `${unsure.length} lines`}: bars ${unsure.slice(0, 6).map(s => `${s.firstBar}-${s.firstBar + s.bars - 1}`).join(', ')}${unsure.length > 6 ? ' and more' : ''}.`);
+            // A line whose barlines were hard to make out: how many bars are on it? (The last line is asked about below.)
+            sys.slice(0, -1).filter(s => s.sure !== 'high').slice(0, 8).forEach(s => add('medium', 'line', s.firstBar, s.firstBar + s.bars - 1,
+                `The barlines were hard to make out on the line from bar ${s.firstBar}. It was read as ${s.bars} bars (${range(s.firstBar, s.firstBar + s.bars - 1)}). Is that right?`,
+                lineCount(s.firstBar, s.bars, s.firstBar + s.bars)));
         }
 
         // The last line. In the owner's check of 20 pieces (11 Oct 2026) six of the reader's seven wrong totals
         // were a miscount on the final line - bars of very different widths, and no later printed number to
         // catch it. So the reader lists those bars one by one (the tail), the list has to agree with the
-        // line count, and the last line is always named as a place to look, whatever the rating.
+        // line count, and the last line is always asked about, whatever the rating (ML-655: as a question - how
+        // many bars are on it? - offering each count the read gave).
         if (sys.length) {
             const lastLine = sys[sys.length - 1];
+            const asRead = piece.bars - lastLine.firstBar + 1; // what the piece's total makes it
             const tail = piece.tail;
-            if (!tail.length) add('medium', 'last-line', lastLine.firstBar, piece.bars, `The last line (${range(lastLine.firstBar, piece.bars)}) was not counted bar by bar. Check it.`);
+            const counts = [lastLine.bars];
+            let level = lastLine.firstBar + lastLine.bars - 1 !== piece.bars || lastLine.sure !== 'high' ? 'low' : 'info';
+            if (lastLine.firstBar + lastLine.bars - 1 === piece.bars && lastLine.sure !== 'high') level = 'medium';
+            let listed = '';
+            if (!tail.length) { if (level === 'info') level = 'medium'; listed = ", but they weren't counted one by one"; }
             else {
                 // An entry is one bar, or a multi-bar rest of `bars` bars.
                 const runs = tail.every((t, i) => i === 0 || t.bar === tail[i - 1].bar + tail[i - 1].bars);
                 const tailEnd = tail[tail.length - 1].bar + tail[tail.length - 1].bars - 1;
                 const tailBars = tail.reduce((n, t) => n + t.bars, 0);
                 const startsOnALine = sys.some(s => s.firstBar === tail[0].bar);
-                if (!runs || !startsOnALine || tailEnd !== piece.bars || tail[0].bar > lastLine.firstBar) add('low', 'last-line', Math.min(tail[0].bar, lastLine.firstBar), piece.bars, `The last line was counted two ways and they disagree: ${tailBars} bars listed from bar ${tail[0].bar}, but the piece was read as ending on bar ${piece.bars}.`);
-                else add('info', 'last-line', lastLine.firstBar, piece.bars, `Check the last line: ${range(lastLine.firstBar, piece.bars)} (${piece.bars - lastLine.firstBar + 1} bars). It is where a miscount is most likely.`);
+                counts.push(tail[0].bar === lastLine.firstBar ? tailBars : tailEnd - lastLine.firstBar + 1);
+                if (!runs || !startsOnALine || tailEnd !== piece.bars || tail[0].bar > lastLine.firstBar) level = 'low';
             }
+            const other = [...new Set(counts.filter(n => n >= 1 && n !== asRead))];
+            add(level, 'last-line', lastLine.firstBar, piece.bars, other.length
+                ? `The last line was counted ${other.length + 1} ways: ${[asRead, ...other].join(' or ')} bars, starting at bar ${lastLine.firstBar}. How many bars are on it?`
+                : `It looks like there are ${asRead} bars on the last line (${range(lastLine.firstBar, piece.bars)})${listed}. Is that right? It's where a miscount is most likely.`,
+                lineCount(lastLine.firstBar, asRead, piece.bars + 1, other));
         }
         // A printed bar number that isn't on the bar it names: a misprint (The Wonderful World of Disney has
-        // "141" on bar 142) or a miscount. The count is kept, and it can't be settled without a look.
+        // "141" on bar 142) or a miscount. Which is right is the question; a miscount moves the bars to the print.
         const clashAt = new Map(piece.clashes.map(c => [c.bar, c.printed]));
         const numeric = piece.marks.filter(m => /^\d+$/.test(m.label));
         if (numeric.length >= 3 && numeric.filter(m => m.label === String(m.bar)).length >= numeric.length * 0.6) numeric.filter(m => m.label !== String(m.bar)).forEach(m => { if (!clashAt.has(m.bar)) clashAt.set(m.bar, m.label); });
-        clashAt.forEach((printed, b) => add('low', 'number', b, b, `"${printed}" is printed on what was counted as bar ${b}. Either the music is misprinted or a bar was miscounted before it: check the bars before bar ${b}.`));
-        if (piece.cropped) add('medium', 'cropped', null, null, 'An edge of a page is cut off.');
-        if (!piece.endSeen || piece.pagesMissing) add('medium', 'end', piece.bars, piece.bars, `The final barline wasn't seen. Check that bar ${piece.bars} is the last and that no page is missing.`);
+        clashAt.forEach((printed, b) => add('low', 'number', b, b, `"${printed}" is printed on what was counted as bar ${b}. Which is right?`, /^\d+$/.test(String(printed)) ? { type: 'printed', bar: b, printed: Number(printed) } : { type: 'doubt' }));
+        if (piece.cropped) add('medium', 'cropped', null, null, 'An edge of a page is cut off. Is anything missing from it?', { type: 'page' });
+        if (!piece.endSeen || piece.pagesMissing) add('medium', 'end', piece.bars, piece.bars, `The final barline wasn't seen. Does the piece end at bar ${piece.bars}, with no page missing?`, { type: 'end', bars: piece.bars });
         // The reader's own doubts never make a read "low": in the trial every model called something low on
         // reads that were right. Low is kept for what the sums above prove.
-        piece.doubts.forEach(d => add(d.level === 'high' ? 'info' : 'medium', 'doubt', d.from, d.to, d.note));
+        piece.doubts.forEach(d => add(d.level === 'high' ? 'info' : 'medium', 'doubt', d.from, d.to, d.note, { type: 'doubt' }));
         ((fitted && fitted.notes) || []).forEach(n => checks.push(n));
         (piece.extraChecks || []).forEach(c => checks.push(c)); // ML-529: what joining the movements found
 

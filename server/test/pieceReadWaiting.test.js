@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 
 const onDev = process.env.NEON_BRANCH === 'dev' && !!process.env.DATABASE_URL;
 process.env.DATABASE_URL ||= 'postgres://test@localhost/test';
-const { estimateFrom, countPdfPages, summariseStops } = await import('../services/pieceReads.js');
+const { estimateFrom, countPdfPages, summariseStops, summariseAnswersByLevel } = await import('../services/pieceReads.js');
 
 test('the estimate: the middle of 5 or more reads like it, else a starting guess, never past 270 s', () => {
   const photos = [30000, 40000, 50000, 60000, 90000].map((ms) => ({ ms, file_count: 1 }));
@@ -70,4 +70,13 @@ test('a stopped read never counts against the allowance - stopped before or afte
   const stops = (await pool.query('SELECT stage FROM piece_read_stops WHERE account_id = $1 ORDER BY id', [accountId])).rows.map((r) => r.stage);
   assert.deepEqual(stops, ['reading', 'sending']);
   await assert.rejects(stopRead(accountId, { ref: 'x', stage: 'reading' }), (e) => e.status === 400, 'a reference that is not one');
+});
+// ML-655: the check answers by the read's level, for Admin -> Photo reads
+test('the answers by level: each level counts its own pieces and their answers', () => {
+  const saved = [{ rating: 'high', answers: [{ state: 'agreed' }] }, { rating: 'low', answers: [{ state: 'changed' }, { state: 'changed' }, { state: 'open' }] }, { rating: 'low', answers: [] }];
+  assert.deepEqual(summariseAnswersByLevel(saved), [
+    { level: 'high', pieces: 1, agreed: 1, agreedAll: 0, changed: 0, checked: 0, open: 0 },
+    { level: 'medium', pieces: 0, agreed: 0, agreedAll: 0, changed: 0, checked: 0, open: 0 },
+    { level: 'low', pieces: 2, agreed: 0, agreedAll: 0, changed: 2, checked: 0, open: 1 }
+  ]);
 });

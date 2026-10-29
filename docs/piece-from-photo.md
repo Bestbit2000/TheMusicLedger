@@ -298,20 +298,54 @@ one-time "I have the right to upload it" (ML-278) comes first, as for any music.
 3. One piece opens straight in Quick entry. Several (movements, or two pieces on one PDF) ask which first, and
    the rest are offered again after each save - the file is read, and paid for, once.
 4. **Quick entry opens filled in** (`outlineOpenFromRead`): its tables' rows are set as if they had been
-   typed, since that is what Quick entry works from. Every step has one button at the top - "Read from your
-   PDF: Medium confidence · 2 things to check" - which opens the list of checks; tapping a check goes to the
-   step it is about. A Low read's button is red.
-   **The checks** (ML-639, owner 28 Oct 2026; `specs/components/piece-outline.md`, "Checks from a read") are no
-   longer one button and a list: each sits at the top of the step it is about (`outlineCheckStep`: speeds on Speed, a
-   rall. left out on Gradual speed changes, the count and the last line on How long...), with a yes/no switch -
-   **Checked**, or **Agreed** for a speed, whose value box opens the Tempo pop-up; a changed value switches it on by
-   itself, and the later starting points from words that nobody has answered yet are worked out again from it
-   (`PieceRead.bpmForWords`, loaded on the app page for this). What has no step of its own (a page cut off, the end
-   not seen, a pickup...) is on an extra first step, "Here are your checks", shown only when it has something. A
-   strip at the top of every step counts them, the progress dashes carry ? or a tick, and **Save** asks "These are
-   still outstanding, save anyway?" if any are open. What was done with each goes in the log
-   (`piece_read_pieces.check_answers`), and Admin → Photo reads shows, for each kind of check, how often it was
-   agreed, changed or left open.
+   typed, since that is what Quick entry works from.
+   **The checks, one thing at a time** (ML-639, then ML-655 - the owner, 28-29 Oct 2026; `specs/components/piece-outline.md`,
+   "Checks from a read"):
+   - **The first screen** (About) opens with the read's card - the only place its result shows, and in words, not
+     "confidence" (the level is just the most serious of the checks: Low = something the sums prove wrong, Medium =
+     something that couldn't be confirmed, High = only things worth a look). "Your piece has been read", then High "It
+     read clearly. Just worth a quick look in this step:", Medium "Most of it read clearly, but a few things couldn't be
+     confirmed from the page. They need reviewing in these steps:", Low (red) "Some of it doesn't add up...". Then the
+     steps with checks as a bulleted list with how many each ("How long - 2 to check"); steps that are fine aren't
+     listed. Then notes with nothing to do (bar numbers carrying on from a movement), then **Before you start**: the
+     checks with no step of their own (a page cut off, the end not seen, things past the end).
+   - **Every other step** shows only its own checks, at the top (`outlineCheckStep`: speeds on Speed, a rall. left out on
+     Gradual speed changes, the counts, the last line and a pickup on How long...). A step without checks shows nothing
+     from the read, and the progress bar is the plain one (owner: "a gold dash already means done").
+   - **Every check is a question with one answer box** (owner, 29 Oct 2026: "I need an action to be possible or
+     suggested, and something to do as a result"). The reader gives each check an `ask` (`pieceRead.js`), and the box's
+     pop-up (`outlineAnswerOptions`) holds "Yes, that's right" and the ways forward - each of which does something:
+
+     | Check | Answers |
+     |---|---|
+     | The last line (always), a line that doesn't add up, a line hard to make out, bars after the last printed number, no numbers at all (`lineCount`) | Yes / each other count the read gave / Another number. A new count moves the bars (`outlineShiftBars`) |
+     | A printed number on the wrong bar (`printed`) | The print is wrong / The count is wrong - the bars from there move to match the print |
+     | Things past the last bar, the end not seen (`end`) | Yes, it ends at bar N / It's longer - how many bars / A page is missing - read it again |
+     | A page cut off (`page`) | Nothing is missing / Take a new photo of it / I'll fill in what's missing |
+     | No time signature at the start (`mainTime`) | Yes / A different time signature (the usual picker) |
+     | A bar with no set length (`beats`) | Give the beats in it (a time row of its own) / I'll set it in the table below |
+     | A speed from a word, a pencilled number, the default (`speed`) | Yes / A different speed (the Tempo pop-up; later starting points from words follow) |
+     | A word not understood (`addSpeed`) | No change of speed / Put in a speed |
+     | A rall. or accel. not put in (`ramp`) | Leave it out / Put it in, to a speed (the speed at the bar after it, and the rall.) |
+     | Something that clashed (`leftOut`) | Put it in for me to fix (a row or extra on its step) / Leave it out |
+     | A pickup (`pickup`) | Turn on a count-in bar / Leave it |
+     | "2nd time only" and the like (`special`) | I'll set it up below / Leave it |
+     | The reader's own doubts (`doubt`) | It's right / It's not right - which step? (goes there) |
+
+     **Reading again** (a page cut off or missing) is the ordinary photo read and **uses one of the member's reads**
+     (owner, 29 Oct 2026). **Moving the bars** (`outlineShiftBars`): everything typed or read follows - marks, speeds,
+     time rows, movements, repeats, pauses, rall./accel., signs, the intro and the other checks. When the piece gets
+     shorter at the end, what belongs at the end (a sign, a pause, the end of a repeat, an ending, a time row or a rall.)
+     moves to the new last bar and anything else past it is left out (owner, 29 Oct 2026); bars that go in the middle
+     take what is on them to the bar before. What moved, what was left out and what is on the changed bars each become a
+     check on its own step ("Is it still on the right bar?", "Put it back at bar 74"), and the check that started it says
+     what happened.
+   - **Save** asks "These are still outstanding, save anyway?" if any are open, each with **Go to <step>**. What was done
+     with each goes in the log (`piece_read_pieces.check_answers`), and Admin → Photo reads shows, for each kind of check
+     and for each level (High / Medium / Low), how often it was agreed, changed, checked or left open.
+   - **Trying it without a read:** on a developer's machine with `localStorage['tml.testClock'] = '1'`,
+     `window.__pieceReadTest.open(answer)` opens Quick entry from a made-up model answer through the same rules
+     (nothing is sent, and it can't be saved against a read).
 5. **Save** is Quick entry's own. The stopwatch records the piece as `creation_source = 'photo'`, so Admin →
    Usage sets it beside Quick entry and bar by bar, release by release. Then `PUT /api/piece-read/:id/saved`
    puts the outline as saved in the log beside what was read.

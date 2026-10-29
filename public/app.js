@@ -2358,6 +2358,7 @@
     function showPromptModal(title, defaultVal, callback) {
         document.getElementById('promptTitle').innerText = title;
         const input = document.getElementById('promptInput');
+        input.type = 'text'; input.inputMode = 'text'; // (ML-655: a count asks for a number - outlineAskNumber)
         input.value = defaultVal || '';
         promptCallback = callback;
         showModal('promptModal');
@@ -23631,33 +23632,25 @@
         // ML-449: where you are is one bar - a piece a step, a wider gap between stages - and one line under it
         // ("Tempo · step 4 of 11"). Getting about is Back and Next, together at the bottom of the screen on every
         // step. (It was five labelled stage bars, then "Tempo: 1 of 2" and a row of dots.)
-        // ML-639: a piece read from a photo may open on an extra first step - "Here are your checks" - for the checks
-        // that have no step of their own. It is drawn before About, not counted among OUTLINE_STEPS.
-        const intro = outlineReadHasIntro();
-        const shift = intro ? 1 : 0;
-        const total = OUTLINE_STEPS.length + shift;
-        const here = outline.readIntro ? 0 : outline.step + shift;
+        // ML-655 (owner, 29 Oct 2026): the bar is the plain one even for a piece read from a photo - a gold dash already
+        // means done, and a step's checks are at the top of that step (the first screen says which steps have any)
+        const total = OUTLINE_STEPS.length;
+        const here = outline.step;
         const bar = document.getElementById('outlineBar');
-        bar.setAttribute('aria-label', outline.readIntro ? `Step 1 of ${total}: Read` : `Step ${here + 1} of ${total}: ${OUTLINE_STAGES[cur.stage].name}${outlineReadMarksSaid()}`);
-        bar.classList.toggle('has-marks', !!outline.read);
-        const piece = (i, key, endsStage) => `<span class="step-bar-piece${i < here ? ' is-done' : i === here ? ' is-now' : ''}${endsStage ? ' ends-stage' : ''}">${outlineReadMarkHtml(key)}</span>`;
-        bar.innerHTML = (intro ? piece(0, 'read', true) : '') + OUTLINE_STEPS.map((s, i) => piece(i + shift, s.key, i < OUTLINE_STEPS.length - 1 && OUTLINE_STEPS[i + 1].stage !== s.stage)).join('');
-        document.getElementById('outlineWhereText').innerHTML = outline.readIntro ? `<strong>Read</strong> · step 1 of ${total}` : `<strong>${escapeHtml(OUTLINE_STAGES[cur.stage].name)}</strong> · step ${here + 1} of ${total}`;
-        document.getElementById('outlineQuestion').textContent = outline.readIntro ? 'Here are your checks' : cur.question();
-        if (outline.readIntro) {
-            document.getElementById('outlineBody').innerHTML = outlineReadIntroHtml();
-            document.getElementById('outlineFoot').innerHTML = `<button type="button" class="btn-submit no-margin" data-outline="readIntroNext">Next: ${OUTLINE_STEPS[0].label}</button>`;
-            return;
-        }
+        bar.setAttribute('aria-label', `Step ${here + 1} of ${total}: ${OUTLINE_STAGES[cur.stage].name}`);
+        const piece = (i, endsStage) => `<span class="step-bar-piece${i < here ? ' is-done' : i === here ? ' is-now' : ''}${endsStage ? ' ends-stage' : ''}"></span>`;
+        bar.innerHTML = OUTLINE_STEPS.map((s, i) => piece(i, i < OUTLINE_STEPS.length - 1 && OUTLINE_STEPS[i + 1].stage !== s.stage)).join('');
+        document.getElementById('outlineWhereText').innerHTML = `<strong>${escapeHtml(OUTLINE_STAGES[cur.stage].name)}</strong> · step ${here + 1} of ${total}`;
+        document.getElementById('outlineQuestion').textContent = cur.question();
         const html = cur.kinds ? outlineExtrasStepHtml(cur) : cur.media ? outlineMediaStepHtml(cur)
             : { about: outlineAboutHtml, howLong: outlineHowLongHtml, marks: outlineMarksHtml, time: outlineTimeStepHtml, speed: outlineSpeedStepHtml }[cur.key]();
-        // ML-246 / ML-639: the read's strip, then this step's checks together at the top
-        document.getElementById('outlineBody').innerHTML = outlineReadStripHtml() + outlineReadChecksHtml(cur.key) + html;
+        // ML-655: a read opens with what it means on the first screen (only there); every step has its own checks at the top
+        document.getElementById('outlineBody').innerHTML = (outline.step === 0 ? outlineReadStartHtml() : outlineReadChecksHtml(cur.key)) + html;
         // Back (not on the first step) and Next - Save on the last step, which is off while something won't work
-        const last = outline.step === total - shift - 1;
+        const last = outline.step === total - 1;
         let blocked = false;
         if (last) { const built = outlineBuild(); blocked = !!(built.clashes.length || built.errors.length); }
-        document.getElementById('outlineFoot').innerHTML = `${outline.step > 0 || intro ? '<button type="button" class="btn-cancel btn-nav no-margin" data-outline="back">Back</button>' : ''}<button type="button" class="btn-submit no-margin" data-outline="${last ? 'save' : 'next'}"${blocked ? ' disabled' : ''}>${outlineNextLabel()}</button>`;
+        document.getElementById('outlineFoot').innerHTML = `${outline.step > 0 ? '<button type="button" class="btn-cancel btn-nav no-margin" data-outline="back">Back</button>' : ''}<button type="button" class="btn-submit no-margin" data-outline="${last ? 'save' : 'next'}"${blocked ? ' disabled' : ''}>${outlineNextLabel()}</button>`;
         if (cur.key === 'marks') outlineMarksRefresh();
         if (cur.key === 'time') outlineTimeRefresh();
         if (cur.key === 'speed') outlineSpeedRefresh();
@@ -24794,7 +24787,7 @@
         const r = piece.outline, o = outline.o;
         const text = (v) => String(v || '');
         outline.source = 'photo';
-        outline.read = { id: read.id, index: piece.index, rating: piece.rating, files: read.files, kind: read.kind, keep: false, answers: {} };
+        outline.read = { id: read.id, index: piece.index, rating: piece.rating, files: read.files, kind: read.kind, keep: false, answers: {}, said: {}, notes: outlineReadNotesFrom(piece.rating.checks) };
         outline.about = { title: text(piece.about.name), composer: text(piece.about.composer), arranger: text(piece.about.arranger), publisher: text(piece.about.publisher), notes: '' };
         Object.assign(o, {
             bars: r.bars, mainSig: outlineSigInfo(r.mainSig) ? r.mainSig : o.mainSig, mainBpm: r.mainBpm, mainNote: r.mainNote || null, markKind: r.markKind,
@@ -24816,41 +24809,65 @@
         const repeats = OUTLINE_ROW_TABLES.repeat, pauses = OUTLINE_ROW_TABLES.pause;
         outline.repeatRows = [...r.extras.filter(x => x.type === 'repeat' || x.type === 'repeatEndings').map(x => ({ ...repeats.blank(), from: String(x.from), to: String(x.to), times: x.times === 2 ? '' : String(x.times), e1From: x.e1From ? String(x.e1From) : '', e2To: x.e2To ? String(x.e2To) : '' })), repeats.blank()];
         outline.pauseRows = [...r.extras.filter(x => x.type === 'pause').map(x => ({ ...pauses.blank(), bar: String(x.bar), beat: x.beat === 1 ? '' : String(x.beat), kind: x.kind === 'caesura' ? 'caesura' : '' })), pauses.blank()];
-        outline.read.checks = outlineReadChecksFrom(piece.rating.checks); // ML-639: each on its step, with its value
-        outline.readIntro = outlineReadHasIntro(); // ML-639: open on "Here are your checks" when it has something
+        outline.read.checks = outlineReadChecksFrom(piece.rating.checks); // ML-639 / ML-655: each on its step, with its question
         renderOutline();
     }
-    // ---------- ML-639: the read's checks, each on the step it is about (owner, 28 Oct 2026) ----------
-    // Each check sits at the top of its step, with a yes/no switch - Checked (nothing to change) or Agreed (a value). A
-    // speed's value is the usual value box (the Tempo pop-up); changing it switches the check on by itself, and later
-    // starting-point speeds not yet looked at are worked out again from it. What has no step of its own goes on an
-    // extra first step, "Here are your checks". The strip at the top of every other step counts them; the progress
-    // dashes show ? on a step with checks open and a tick once they're done; Save asks if any are still open. The
-    // answers go in the log beside the read (Admin -> Photo reads). docs/piece-from-photo.md, "The checks".
+    // Photo read test hook - LOCAL DEVELOPMENT ONLY, the same switch as the Theory one (localhost + localStorage
+    // 'tml.testClock' = '1'). Opens Quick entry from a made-up read - the model's answer, as the reader's own tests
+    // write it - through the same rules a real read goes through, so the checks and their answers can be tried and
+    // back-tested without paying for a read. Nothing is sent: a piece opened this way can't be saved against a read.
+    (function pieceReadTestHook() {
+        let on = false;
+        try { on = ['localhost', '127.0.0.1'].includes(location.hostname) && localStorage.getItem('tml.testClock') === '1'; } catch (e) { on = false; }
+        if (!on || !window.PieceRead) return;
+        window.__pieceReadTest = {
+            open: async (raw) => {
+                if (!metroBlkTimeSigCache.public.length) await loadMetroBlkTimeSignatures();
+                const r = window.PieceRead.normalise({ pieces: [raw] }).pieces[0];
+                const sigKey = (beats, beatType) => { const s = metroBlkTimeSigCache.public.find((t) => t.numerator === beats && t.denominator === beatType); return s ? `public:${s.id}` : `${beats}/${beatType}`; };
+                const fitted = window.PieceRead.fit(r, { sigKey });
+                const piece = { index: 0, about: fitted.about, outline: fitted.o, rating: window.PieceRead.rate(r, fitted) };
+                await outlineOpenFromRead({ bandId: null, listId: null, listName: null }, piece, { id: 0, files: [], kind: 'photo' });
+            },
+            state: () => outline && JSON.parse(JSON.stringify({ step: outline.step, o: outline.o, marksText: outline.marksText, markRows: outline.markRows, speedRows: outline.speedRows, timeRows: outline.timeRows, repeatRows: outline.repeatRows, pauseRows: outline.pauseRows, checks: (outline.read && outline.read.checks || []).map((c) => ({ id: c.id, kind: c.kind, step: c.step, text: c.text, state: outlineCheckState(c), moved: c.moved || null })) }))
+        };
+    })();
+    // ---------- ML-639 / ML-655: the read's checks, one thing at a time (owner, 28-29 Oct 2026) ----------
+    // The first screen of the piece opens with what the read means - in words, not "confidence" - the steps with
+    // something to look at (a line each, with how many) and what has no step of its own ("Before you start"). After
+    // that a step shows only its own checks, at the top; a step with none shows nothing from the read, and the progress
+    // bar is the plain one. Every check is a question with one answer box (ML-655: "I need an action to be possible or
+    // suggested, and something to do as a result"): its pop-up holds "Yes, that's right" and the ways forward, and each
+    // does something - a count moves the bars (outlineShiftBars), a speed opens the Tempo pop-up, something left out is
+    // put in or left out, a page cut off can be read again... What a change touches becomes a check on its own step.
+    // Save lists only what is still open, each with a way back to it. The level and every answer go in the log beside
+    // the read (Admin -> Photo reads). docs/piece-from-photo.md, "The checks".
     function outlineCheckStep(c) {
         const t = String(c.text || '');
+        if (c.step) return c.step; // a follow-up says its own
         if (c.kind === 'speed') return 'speed';
         if (c.kind === 'ramp') return 'xRamps';
         if (c.kind === 'time' || c.kind === 'free-bar') return 'time';
-        if (c.kind === 'number') return 'marks';
-        if (c.kind === 'left-out') return /repeat|ending/i.test(t) ? 'xRepeats' : /pause|hold|fermata|caesura|break/i.test(t) ? 'xPauses' : 'xSigns';
-        if (c.kind === 'numbers' && /start at/.test(t)) return 'read'; // bar numbers carrying on from a movement
-        if (['count', 'numbers', 'last-line', 'line'].includes(c.kind)) return 'howLong';
+        if (c.kind === 'special') return 'xRepeats';
+        if (c.kind === 'left-out') return /repeat|ending/i.test(t) ? 'xRepeats' : /pause|hold|fermata|caesura|break/i.test(t) ? 'xPauses' : /intro/i.test(t) ? 'xIntro' : /rall|accel|rit/i.test(t) ? 'xRamps' : 'xSigns';
+        if (['count', 'numbers', 'last-line', 'line', 'number', 'pickup'].includes(c.kind)) return 'howLong';
         if (c.kind === 'doubt' && c.from) return 'howLong';
-        return 'read'; // dropped, a page cut off, the end not seen, a pickup, "play these bars every time", a doubt with no bars
+        return 'read'; // things left out past the end, a page cut off, the end not seen, a doubt with no bars
     }
     function outlineReadChecksFrom(checks) {
-        return (checks || []).map((c, id) => {
-            const step = outlineCheckStep(c);
+        return (checks || []).filter((c) => !(c.ask && c.ask.type === 'note')).map((c, id) => {
             const t = String(c.text || '');
             // A speed with a value behind it: a starting point from a word, one written in by hand, or the default at bar 1
-            const valued = c.kind === 'speed' && /starting point|written in by hand|was put in/.test(t) && c.from;
+            const valued = c.kind === 'speed' && c.ask && c.ask.type === 'speed' && c.from;
             const word = (t.match(/starting point for "(.*)"\.?$/) || [])[1] || null;
-            const out = { ...c, id, step, valueBar: valued ? Number(c.from) : null, word };
+            const out = { ...c, ask: c.ask ? JSON.parse(JSON.stringify(c.ask)) : { type: 'doubt' }, id, valueBar: valued ? Number(c.from) : null, word };
+            out.step = outlineCheckStep(out);
             if (out.valueBar) out.readBpm = out.firstBpm = outlineBpmAt(out.valueBar);
             return out;
         });
     }
+    // What has nothing to do about it is said once, on the first screen (bar numbers carrying on from a movement...)
+    const outlineReadNotesFrom = (checks) => (checks || []).filter((c) => c.ask && c.ask.type === 'note').map((c) => c.text);
     function outlineBpmAt(bar) {
         if (Number(bar) === 1) return Number(outline.o.mainBpm) || null;
         const row = outline.speedRows.find((r) => Number(r.bar) === Number(bar));
@@ -24869,80 +24886,325 @@
     }
     const outlineReadChecks = () => (outline && outline.read && outline.read.checks) || [];
     const outlineReadOpenChecks = () => outlineReadChecks().filter((c) => outlineCheckState(c) === 'open');
-    const outlineReadHasIntro = () => outlineReadChecks().some((c) => c.step === 'read');
-    const outlineStepName = (key) => (key === 'read' ? 'Read' : (OUTLINE_STEPS.find((s) => s.key === key) || {}).name || key);
-    function outlineReadMarkHtml(key) {
-        const mine = outlineReadChecks().filter((c) => c.step === key);
-        if (!mine.length) return '';
-        const open = mine.filter((c) => outlineCheckState(c) === 'open').length;
-        return open ? '<span class="step-mark is-open" aria-hidden="true">?</span>' : '<span class="step-mark is-done" aria-hidden="true"><span class="material-symbols-outlined">check</span></span>';
-    }
-    // What the marks on the bar say, for a screen reader (the bar is one picture with a label)
-    function outlineReadMarksSaid() {
-        const steps = [...new Set(outlineReadOpenChecks().map((c) => c.step))];
-        return steps.length ? ` - still to check: ${steps.map(outlineStepName).join(', ')}` : '';
-    }
-    function outlineReadStripHtml() {
+    const outlineStepName = (key) => (key === 'read' ? 'Before you start' : (OUTLINE_STEPS.find((s) => s.key === key) || {}).name || key);
+    const outlineStepIndex = (key) => Math.max(0, OUTLINE_STEPS.findIndex((s) => s.key === key));
+    const outlineCap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+    // The first screen: what the read means in words (the level is the most serious of its checks - docs/piece-from-photo.md),
+    // the steps with something to look at, with how many, and what has no step of its own. Only here, only once.
+    const OUTLINE_READ_SAYS = {
+        high: (one) => `It read clearly. Just worth a quick look in ${one ? 'this step' : 'these steps'}:`,
+        medium: () => "Most of it read clearly, but a few things couldn't be confirmed from the page. They need reviewing in these steps:",
+        low: () => "Some of it doesn't add up - the bar count, for example - so these need a careful look in these steps:"
+    };
+    function outlineReadStartHtml() {
         const read = outline && outline.read;
         if (!read) return '';
-        const all = outlineReadChecks(), done = all.length - outlineReadOpenChecks().length;
-        const count = !all.length ? 'nothing to check' : done === all.length ? `<span class="material-symbols-outlined read-strip-tick" aria-hidden="true">check_circle</span>All ${all.length} checked` : `${done} of ${all.length} checked`;
-        return `<div class="read-strip${read.rating.level === 'low' ? ' is-low' : ''}"><span class="material-symbols-outlined" aria-hidden="true">photo_camera</span><span>Read from your ${escapeHtml(read.kind)} · ${pieceReadLevelWord(read.rating.level)} confidence</span><span class="read-strip-count">${count}</span></div>`;
+        const level = read.rating.level;
+        const steps = OUTLINE_STEPS.map((s) => ({ s, all: outlineReadChecks().filter((c) => c.step === s.key) })).filter((x) => x.all.length);
+        const line = ({ s, all }) => {
+            const open = all.filter((c) => outlineCheckState(c) === 'open').length;
+            return `<li><strong>${escapeHtml(s.name)}</strong> - ${open ? `${open} to check` : 'done'}</li>`;
+        };
+        const says = steps.length ? `<p>${escapeHtml(OUTLINE_READ_SAYS[level] ? OUTLINE_READ_SAYS[level](steps.length === 1) : OUTLINE_READ_SAYS.medium())}</p>
+            <ul class="read-start-list">${steps.map(line).join('')}</ul>
+            <p>${steps.length === 1 ? "It's at the top of its step." : 'Each is at the top of its step.'}</p>`
+            : '<p>It read clearly. There is nothing on the steps to check.</p>';
+        const notes = (read.notes || []).map((n) => `<p class="text-sm text-muted">${escapeHtml(n)}</p>`).join('');
+        return `<div class="read-start${level === 'low' ? ' is-low' : ''}">
+            <p class="read-start-head"><span class="material-symbols-outlined" aria-hidden="true">photo_camera</span>Your piece has been read</p>
+            ${says}${notes}
+            ${outlineReadChecksHtml('read')}
+        </div>`;
+    }
+    // A check's answer box: the answer over what it is about - one button, one pop-up
+    function outlineAnswerBox(c) {
+        const state = outlineCheckState(c);
+        const said = outline.read.said[c.id];
+        const a = c.ask;
+        let main, sub;
+        if (c.valueBar) { const now = outlineBpmAt(c.valueBar); main = `${now || '-'} bpm`; sub = `speed at bar ${c.valueBar}${now !== c.firstBpm && c.firstBpm ? ` · changed from ${c.firstBpm}` : ''}`; }
+        else if (a.type === 'lineCount') { main = `${a.bars} bars`; sub = a.from === 1 && a.at > Number(outline.o.bars) ? 'in all' : `from bar ${a.from}`; }
+        else { main = said || 'Choose'; sub = state === 'open' ? 'what to do' : ''; }
+        if (state === 'open') sub += `${sub ? ' - ' : ''}tap to answer`;
+        else if (said && (c.valueBar || a.type === 'lineCount')) sub += ` · ${said}`;
+        return `<button type="button" class="metroBlk-ctrl-value-btn w-full" data-read-answer="${c.id}" aria-haspopup="dialog" aria-label="${escapeHtml(`${main}, ${sub}`)}"><strong>${escapeHtml(main)}</strong><span class="metroBlk-ctrl-value-label">${escapeHtml(sub)}</span></button>`;
     }
     function outlineReadCheckHtml(c) {
         const state = outlineCheckState(c);
-        const label = c.valueBar ? 'Agreed' : 'Checked';
-        const now = c.valueBar ? outlineBpmAt(c.valueBar) : null;
-        const changedFrom = c.valueBar && now !== c.firstBpm && c.firstBpm ? ` · changed from ${c.firstBpm}` : '';
         return `<div class="read-check${state === 'open' ? '' : ' is-done'}">
             <p class="read-check-text">${escapeHtml(c.text)}</p>
-            ${c.valueBar ? `<button type="button" class="metroBlk-ctrl-value-btn w-full" data-read-value="${c.id}" aria-haspopup="dialog" aria-label="Speed at bar ${c.valueBar}: ${now || '-'} bpm - tap to change"><strong>${now || '-'} bpm</strong><span class="metroBlk-ctrl-value-label">speed at bar ${c.valueBar}${changedFrom}</span></button>` : ''}
+            ${outlineAnswerBox(c)}
             ${c.moved ? `<p class="read-check-moved"><span class="material-symbols-outlined" aria-hidden="true">autorenew</span>${escapeHtml(c.moved)}</p>` : ''}
-            <div class="display-toggle-row read-check-toggle"><span id="readCheck${c.id}Label">${state === 'changed' ? 'Changed' : label}</span><label class="toggle-switch"><input type="checkbox" data-read-check="${c.id}" aria-labelledby="readCheck${c.id}Label"${state === 'open' ? '' : ' checked'}${state === 'changed' ? ' disabled' : ''}><span class="toggle-slider"></span></label></div>
         </div>`;
     }
     function outlineReadChecksHtml(stepKey) {
         const mine = outlineReadChecks().filter((c) => c.step === stepKey);
         if (!mine.length) return '';
         const open = mine.filter((c) => outlineCheckState(c) === 'open').length;
-        const all = stepKey === 'read' ? 'Check all' : 'Agree all';
-        const head = stepKey === 'read' ? `${mine.length} to look at${mine.length - open ? `: ${mine.length - open} done` : ''}` : `To check on this step: ${mine.length - open} of ${mine.length} done`;
+        const head = `${stepKey === 'read' ? 'Before you start' : 'From your photo'}: ${open ? `${open} to check` : 'all done'}`;
         return `<div class="read-checks">
-            <div class="read-checks-head"><span class="read-checks-title"><span class="material-symbols-outlined" aria-hidden="true">photo_camera</span>${head}</span>${open >= 2 ? `<button type="button" class="read-agree-all" data-read-all="${stepKey}">${all}</button>` : ''}</div>
+            <div class="read-checks-head"><span class="read-checks-title"><span class="material-symbols-outlined" aria-hidden="true">photo_camera</span>${head}</span>${open >= 2 ? `<button type="button" class="read-agree-all" data-read-all="${stepKey}">All right as read</button>` : ''}</div>
             ${mine.map(outlineReadCheckHtml).join('')}
         </div>`;
     }
-    function outlineReadIntroHtml() {
-        const read = outline.read;
-        const elsewhere = {};
-        outlineReadChecks().filter((c) => c.step !== 'read').forEach((c) => { elsewhere[c.step] = (elsewhere[c.step] || 0) + 1; });
-        const also = OUTLINE_STEPS.filter((s) => elsewhere[s.key]).map((s) => `<strong>${escapeHtml(s.name)}</strong> (${elsewhere[s.key]})`);
-        return `<p class="text-sm text-muted mb-3">Your piece was read in with ${pieceReadLevelWord(read.rating.level)} confidence. Look at these first, then the rest of the steps.</p>
-            ${outlineReadChecksHtml('read')}
-            ${also.length ? `<p class="read-also">Also to check: ${also.join(', ')}.</p>` : ''}`;
-    }
-    function outlineReadToggle(id, on) {
-        const c = outlineReadChecks().find((x) => x.id === id);
-        if (!c) return;
-        if (on) outline.read.answers[id] = c.valueBar ? 'agreed' : 'checked'; else delete outline.read.answers[id];
-        outlineRerenderKeeping(`[data-read-check="${id}"]`);
-    }
     function outlineReadAgreeAll(stepKey) {
-        outlineReadChecks().filter((c) => c.step === stepKey && outlineCheckState(c) === 'open').forEach((c) => { outline.read.answers[c.id] = 'agreedAll'; });
+        outlineReadChecks().filter((c) => c.step === stepKey && outlineCheckState(c) === 'open').forEach((c) => { outline.read.answers[c.id] = 'agreedAll'; outline.read.said[c.id] = 'Yes, as read'; });
         renderOutline();
     }
-    // A speed changed in its check: the Tempo pop-up, then the later starting points not yet looked at follow it
-    function outlineReadChangeValue(id) {
+    const outlineReadDone = (c, state, said, moved) => { outline.read.answers[c.id] = state; outline.read.said[c.id] = said; if (moved !== undefined) c.moved = moved; renderOutline(); };
+    // A number typed in the prompt pop-up: whole, from `min`, or the prompt asks again
+    function outlineAskNumber(title, value, min, max, then) {
+        showPromptModal(title, String(value), (typed) => {
+            const n = Number(typed);
+            if (!Number.isInteger(n) || n < min || n > max) { showWarningToast(`Type a whole number from ${min} to ${max}.`); return; }
+            then(n);
+        });
+        const input = document.getElementById('promptInput');
+        if (input) { input.type = 'number'; input.inputMode = 'numeric'; }
+    }
+    // ML-655: what each kind of check can be answered with - [{ key, title, sub, run }]. "Yes, that's right" first.
+    function outlineAnswerOptions(c) {
+        const a = c.ask, o = outline.o;
+        const yes = (title, sub) => ({ key: 'yes', title, sub: sub || 'Nothing changes', run: () => outlineReadDone(c, 'agreed', 'Yes, as read') });
+        const ok = (key, title, sub) => ({ key, title, sub, run: () => outlineReadDone(c, 'checked', title) });
+        const speed = (bar, title, sub, after) => ({ key: 'speed', title, sub, run: () => flowOpenBpmModal(null, { value: outlineBpmAt(bar) || outlineBpmAt(1) || 120, typeFirst: true, onApply: (bpm) => { const v = Math.min(400, Math.max(20, bpm)); outlineSetBpm(bar, v); if (after) after(v); outlineReadDone(c, 'changed', `${v} bpm`); } }) });
+        const readAgain = { key: 'again', title: 'Take a new photo of it', sub: 'Read the piece again with all the pages - this uses one of your reads', run: () => outlineReadAgain(c) };
+        switch (a.type) {
+            case 'lineCount': {
+                const word = (n) => `${n} bar${n === 1 ? '' : 's'}`;
+                const effect = (n) => { const d = n - a.bars; return d === 0 ? 'Nothing changes' : a.at > Number(o.bars) ? `The piece becomes ${Number(o.bars) + d} bars` : `The bars after it move ${Math.abs(d)} ${d > 0 ? 'later' : 'earlier'}, and the piece becomes ${Number(o.bars) + d} bars`; };
+                return [yes(`Yes, ${word(a.bars)}`),
+                    ...(a.options || []).map((n) => ({ key: `n${n}`, title: word(n), sub: effect(n), run: () => outlineSetLineCount(c, n) })),
+                    { key: 'other', title: 'Another number', sub: 'Count them on your music', run: () => outlineAskNumber(a.from === 1 ? 'How many bars in all?' : `How many bars from bar ${a.from}?`, a.bars, 1, 2000, (n) => outlineSetLineCount(c, n)) }];
+            }
+            case 'printed':
+                return [ok('print', 'The print is wrong', `Bar ${a.bar} stays bar ${a.bar}`),
+                    { key: 'count', title: 'The count is wrong', sub: `Bar ${a.bar} becomes bar ${a.printed}, and the bars after it move to match`, run: () => outlineMoveBars(c, a.bar, a.printed - a.bar, null, 'The count is wrong') }];
+            case 'end': {
+                const longer = { key: 'longer', title: "It's longer", sub: 'Give the number of bars in all', run: () => outlineAskNumber('How many bars in all?', Number(o.bars), Number(o.bars) + 1, 2000, (n) => outlineMoveBars(c, Number(o.bars) + 1, n - Number(o.bars), null, `${n} bars`, a.items)) };
+                return [yes(`Yes, it ends at bar ${o.bars}`, a.items ? 'They are left out' : ''), longer, { ...readAgain, title: 'A page is missing - read it again', sub: 'Choose all the pages and read the piece again - this uses one of your reads' }];
+            }
+            case 'page':
+                return [ok('none', 'Nothing is missing', 'Carry on as it is'), readAgain, ok('fill', "I'll fill in what's missing", 'Carry on, and put it right on the steps as you go')];
+            case 'mainTime':
+                return [yes(`Yes, ${outlineSigLabel(o.mainSig)}`), { key: 'pick', title: 'A different time signature', sub: 'Pick the one most of it is in', run: () => outlinePickSig(o.mainSig, (value) => { o.mainSig = value; outlineReadDone(c, 'changed', outlineSigLabel(value)); }) }];
+            case 'beats':
+                return [{ key: 'beats', title: 'Give the beats in it', sub: `Bar ${a.bar} gets a time signature of its own`, run: () => outlineAskNumber(`How many beats are in bar ${a.bar}?`, 4, 1, 32, (n) => outlineSetBarBeats(c, a.bar, n)) },
+                    ok('self', "I'll set it in the table below", 'Carry on, and add a row for it on this step')];
+            case 'speed':
+                return [yes(`Yes, ${outlineBpmAt(a.bar) || '-'} bpm`), speed(a.bar, 'A different speed', 'Type it, or tap it out', (v) => {
+                    outlineReadChecks().forEach((x) => { if (x.moved && x.valueBar > a.bar) x.moved = null; });
+                    outlineReworkSpeeds(a.bar).forEach((x) => { x.moved = `Worked out again from your ${v} at bar ${a.bar} - the read had ${x.was}.`; });
+                })];
+            case 'addSpeed':
+                return [ok('none', 'No change of speed', 'It carries on at the speed before'), speed(a.bar, 'Put in a speed', `A change of speed at bar ${a.bar}`)];
+            case 'ramp':
+                return [ok('out', 'Leave it out', 'The speed changes all at once, if at all'),
+                    speed(a.to + 1, `Put it in: ${a.kind === 'faster' ? 'faster' : 'slower'} to a speed`, `The speed it reaches at bar ${a.to + 1}`, () => {
+                        if (!o.extras.some((x) => x.type === 'ramp' && x.from === a.from)) o.extras.push({ type: 'ramp', from: a.from, to: a.to, target: 'next', startBeat: 1 });
+                    })];
+            case 'leftOut':
+                return [{ key: 'in', title: 'Put it in for me to fix', sub: `It goes on the ${outlineStepName(c.step)} step, where you can change its bars`, run: () => { outlinePutBack(a.extra); outlineReadDone(c, 'changed', 'Put in to fix'); } },
+                    ok('out', 'Leave it out', 'The piece plays without it')];
+            case 'pickup':
+                return [{ key: 'countIn', title: 'Turn on a count-in bar', sub: 'A bar of clicks before bar 1, to play the pickup in', run: () => { o.leadIn = true; outlineReadDone(c, 'changed', 'Count-in bar on'); } },
+                    ok('leave', 'Leave it', 'Start at bar 1')];
+            case 'special':
+                return [ok('self', "I'll set it up below", 'As a repeat with endings, on this step'), ok('leave', 'Leave it', 'Play these bars every time')];
+            case 'follow':
+                return [yes("It's on the right bar"), ok('self', "I'll move it below", 'Change its bar on this step')];
+            case 'putBack':
+                return [ok('out', 'Leave it out', 'The piece plays without it'),
+                    { key: 'back', title: `Put it back at bar ${o.bars}`, sub: 'The last bar - change it on this step if it belongs elsewhere', run: () => { a.restore(Number(o.bars)); outlineReadDone(c, 'changed', `Back at bar ${o.bars}`); } }];
+            default: // the reader's own doubts, and anything else
+                return [yes("It's right"), { key: 'go', title: "It's not right", sub: 'Choose the step to put it right on', run: () => outlinePickStepToFix(c) }];
+        }
+    }
+    function outlineReadAnswer(id) {
         const c = outlineReadChecks().find((x) => x.id === id);
-        if (!c || !c.valueBar) return;
-        flowOpenBpmModal(null, { value: outlineBpmAt(c.valueBar) || 120, typeFirst: true, onApply: (bpm) => {
-            const v = Math.min(400, Math.max(20, bpm));
-            outlineSetBpm(c.valueBar, v);
-            outlineReadChecks().forEach((x) => { if (x.moved && x.valueBar > c.valueBar) x.moved = null; });
-            const moved = outlineReworkSpeeds(c.valueBar);
-            moved.forEach((x) => { x.moved = `Worked out again from your ${v} at bar ${c.valueBar} - the read had ${x.was}.`; });
-            renderOutline();
-        } });
+        if (!c) return;
+        if (outlineStepKey() === 'howLong') outlineHowLongKeep();
+        const options = outlineAnswerOptions(c);
+        openFlowChoiceModal(c.text.length > 90 ? 'Your answer' : c.text, options.map((x) => ({ key: x.key, html: addPieceRow(x.title, x.sub) })), (opt) => {
+            const x = options.find((y) => y.key === opt.key);
+            if (x) x.run();
+        });
+    }
+    function outlinePickStepToFix(c) {
+        openFlowChoiceModal('Which step is it on?', OUTLINE_STEPS.filter((s) => !s.media).map((s) => ({ key: s.key, html: addPieceRow(s.name, OUTLINE_STAGES[s.stage].name) })), (opt) => {
+            outline.read.answers[c.id] = 'checked';
+            outline.read.said[c.id] = `To put right on ${outlineStepName(opt.key)}`;
+            outlineGoStep(outlineStepIndex(opt.key));
+        });
+    }
+    // Read the music again (a page cut off or missing) - the ordinary photo read, which uses one of the member's reads
+    // (owner, 29 Oct 2026); this piece is replaced by the new read when it arrives, and kept if the read is not made
+    function outlineReadAgain(c) {
+        outline.read.answers[c.id] = 'checked';
+        outline.read.said[c.id] = 'Reading again';
+        renderOutline();
+        if (pieceReadBtn) pieceReadBtn.click();
+    }
+    // A bar with no set length, given its beats: a time signature of its own (beats over the main one's beat), when
+    // the app has it; otherwise the row is left to fill in on the step
+    function outlineSetBarBeats(c, bar, beats) {
+        const main = outlineSigInfo(outline.o.mainSig);
+        const sig = metroBlkTimeSigCache.public.find((t) => t.numerator === beats && t.denominator === (main ? main.denominator : 4));
+        if (!sig) { showWarningToast(`Add bar ${bar} as a row in the table below, as ${beats}/${main ? main.denominator : 4}.`); outlineReadDone(c, 'checked', `${beats} beats - add it below`); return; }
+        const key = `public:${sig.id}`;
+        outline.timeRows = outline.timeRows.filter((r) => r.bar === '' || Number(r.bar) !== bar);
+        outline.timeRows.splice(Math.max(0, outline.timeRows.length - 1), 0, { bar: String(bar), sig: sig.label, key, bars: '1', end: String(bar) });
+        outlineReadDone(c, 'changed', `${sig.label} for bar ${bar}`);
+    }
+    // Something read but left out (it clashed) put in where it can be fixed: a table row, or one of the step's extras
+    function outlinePutBack(x) {
+        const row = (t, fill) => { const rows = outlineRowsOf(t); rows.splice(rows.length - 1, 0, { ...t.blank(), ...fill }); };
+        if (x.type === 'repeat' || x.type === 'repeatEndings') row(OUTLINE_ROW_TABLES.repeat, { from: String(x.from), to: String(x.to), times: x.times === 2 ? '' : String(x.times), e1From: x.e1From ? String(x.e1From) : '', e2To: x.e2To ? String(x.e2To) : '' });
+        else if (x.type === 'pause') row(OUTLINE_ROW_TABLES.pause, { bar: String(x.bar), beat: x.beat === 1 ? '' : String(x.beat), kind: x.kind === 'caesura' ? 'caesura' : '' });
+        else if (x.type === 'intro') Object.assign(outlineIntro(), { on: true, from: String(x.from), to: x.to ? String(x.to) : '' });
+        else outline.o.extras.push(x.type === 'ramp' ? { startBeat: 1, ...x } : { ...x });
+    }
+    // A count answered with a number of bars: the bars after it move, or the piece gets longer or shorter at the end
+    function outlineSetLineCount(c, n) {
+        const a = c.ask, d = n - a.bars, was = a.bars;
+        if (d === 0) { outlineReadDone(c, 'agreed', 'Yes, as read'); return; }
+        a.bars = n; // (before the move, which draws the step again)
+        outlineMoveBars(c, a.at, d, a.from, `changed from ${was}`);
+    }
+    // Move the bars, then say what happened on the check and make what it touched a check on its own step
+    function outlineMoveBars(c, at, delta, lineFrom, said, items) {
+        if (!delta) { outlineReadDone(c, 'agreed', 'Yes, as read'); return; }
+        const was = Number(outline.o.bars);
+        const r = outlineShiftBars(at, delta, lineFrom, c);
+        const now = Number(outline.o.bars);
+        // What happened, by name: "The pause and Fine moved to bar 74, the new last bar."
+        const names = (list) => { const w = [...new Set(list.map((x) => x.what))]; const said = w.length > 3 ? [...w.slice(0, 2), `${w.length - 2} more`] : w; return outlineCap(said.length > 1 ? `${said.slice(0, -1).join(', ')} and ${said[said.length - 1]}` : said[0]); };
+        const many = (list) => new Set(list.map((x) => x.what)).size > 1;
+        const bits = [`The piece is now ${now} bars (it was ${was}).`];
+        if (r.moved.length) bits.push(`${names(r.moved)} moved to bar ${r.moved[0].bar}${r.moved[0].atEnd ? ', the new last bar' : ''}.`);
+        if (r.left.length) bits.push(`${names(r.left)} ${many(r.left) ? 'were' : 'was'} past the new end, so ${many(r.left) ? 'they were' : 'it was'} left out.`);
+        if (r.onLine.length) bits.push(`${names(r.onLine)} ${many(r.onLine) ? 'are' : 'is'} on the bars you changed.`);
+        if (r.moved.length || r.left.length || r.onLine.length) bits.push(`${r.moved.length + r.left.length + r.onLine.length === 1 ? 'It is' : 'Each is'} now a check on its own step.`);
+        const add = (step, text, ask) => outline.read.checks.push({ id: outline.read.checks.length, kind: 'follow', level: 'info', step, text, ask, from: null, to: null, valueBar: null });
+        r.onLine.forEach((x) => add(x.step, `${outlineCap(x.what)} at bar ${x.bar} is on the bars you changed. Is it still on the right bar?`, { type: 'follow' }));
+        r.moved.forEach((x) => add(x.step, x.atEnd ? `${outlineCap(x.what)} was on bar ${x.was}, past the new end, so it is now on the last bar, ${x.bar}. Is that right?` : `${outlineCap(x.what)} was on bar ${x.was}, which has gone, so it is now on bar ${x.bar}. Is that right?`, { type: 'follow' }));
+        r.left.forEach((x) => add(x.step, `${outlineCap(x.what)} at bar ${x.bar} was left out: the piece now ends at bar ${now}.`, { type: 'putBack', restore: x.restore }));
+        // what was on the page past the old end, now inside the piece: put it in on its step
+        (items || []).filter((d) => d.bar <= now).forEach((d) => add(outlineItemStep(d.what), `${outlineCap(d.what)} at bar ${d.bar} was on the page. It can go in now - add it on this step.`, { type: 'follow' }));
+        outlineReadDone(c, 'changed', said, bits.join(' '));
+    }
+    const outlineItemStep = (what) => (/mark/.test(what) ? 'marks' : /speed|"/.test(what) ? 'speed' : /repeat/.test(what) ? 'xRepeats' : /pause|break/.test(what) ? 'xPauses' : /rall|accel/.test(what) ? 'xRamps' : /sign/.test(what) ? 'xSigns' : 'howLong');
+    // ML-655: the bars from `at` on move by `delta` - a bar was missed (delta > 0) or counted twice (delta < 0) before
+    // `at` - or, when `at` is past the last bar, the piece just ends sooner or later. Everything typed or read follows:
+    // marks, speeds, time rows, movements, repeats, pauses, rall./accel., signs, the intro and the other checks. Bars
+    // that go take what is on them: what belongs at the end (a sign, a pause, the end of a repeat or an ending, the end
+    // of a time row or a rall.) moves to the last bar before them; anything else past the new end is left out, and in
+    // the middle of the piece it moves too (owner, 29 Oct 2026). `lineFrom`: the first bar of the line whose count
+    // changed - what is on it may now be a bar out. Returns { moved, left, onLine }: [{ what, step, bar, was }].
+    function outlineShiftBars(at, delta, lineFrom, fromCheck) {
+        const o = outline.o, oldTotal = Number(o.bars), total = oldTotal + delta;
+        const cut = delta < 0 ? at + delta : null; // bars cut..at-1 go
+        const atEnd = at > oldTotal;
+        const lineEnd = at + delta - 1; // the changed line's last bar, now
+        const report = { moved: [], left: [], onLine: [] };
+        const gone = (b) => cut !== null && b >= cut && b < at;
+        // a bar's new place: a number, or null to leave the thing out. `end`: it belongs at the end of something
+        const place = (b, what, step, end, restore) => {
+            if (!Number.isInteger(b)) return b;
+            if (gone(b)) {
+                const to = Math.max(1, cut - 1);
+                if (end || !atEnd) { if (what) report.moved.push({ what, step, bar: to, was: b, atEnd }); return to; }
+                report.left.push({ what, step, bar: b, restore }); return null;
+            }
+            const nb = b >= at ? b + delta : b;
+            if (lineFrom && nb >= lineFrom && nb <= lineEnd && what) report.onLine.push({ what, step, bar: nb });
+            return nb;
+        };
+        const num = (s) => (String(s).trim() === '' ? null : Number(s));
+        const str = (n) => (n === null || n === undefined ? '' : String(n));
+        // Rehearsal marks
+        if (o.markKind === 'numbers') {
+            const bars = String(outline.marksText || '').split(/[\s,;.]+/).filter(Boolean).map(Number).filter(Number.isInteger);
+            outline.marksText = bars.map((b) => place(b, 'the rehearsal mark', 'marks', false, (to) => { outline.marksText = [outline.marksText, to].filter(Boolean).join(', '); })).filter((b) => b !== null).join(', ');
+        } else {
+            outline.markRows = outline.markRows.filter((r) => {
+                if (r.bar === '') return true;
+                const label = r.label;
+                const nb = place(num(r.bar), `rehearsal mark ${label || ''}`.trim(), 'marks', false, (to) => { outline.markRows.splice(outline.markRows.length - 1, 0, { bar: String(to), label }); });
+                if (nb === null) return false;
+                r.bar = str(nb); return true;
+            });
+        }
+        // Speeds
+        outline.speedRows = outline.speedRows.filter((r) => {
+            if (r.bar === '') return true;
+            const keep = { ...r };
+            const nb = place(num(r.bar), `the change of speed to ${r.bpm || '?'}`, 'speed', false, (to) => { outline.speedRows.splice(outline.speedRows.length - 1, 0, { ...keep, bar: String(to) }); });
+            if (nb === null) return false;
+            r.bar = str(nb); return true;
+        });
+        // Time signature rows: the start is a change (left out past the end); the end moves with the last bar
+        outline.timeRows = outline.timeRows.filter((r) => {
+            if (r.bar === '') return true;
+            const keep = { ...r };
+            const from = place(num(r.bar), `the ${r.sig || ''} time signature`.replace('  ', ' '), 'time', false, (to) => { outline.timeRows.splice(outline.timeRows.length - 1, 0, { ...keep, bar: String(to), bars: '1', end: String(to) }); });
+            if (from === null) return false;
+            const end = num(r.end) !== null ? place(num(r.end), null, 'time', true) : null;
+            r.bar = str(from);
+            if (end !== null) { r.end = str(Math.max(from, end)); r.bars = str(Math.max(from, end) - from + 1); }
+            return true;
+        });
+        // Movements
+        if (outline.moves && outline.moves.rows) outline.moves.rows = outline.moves.rows.filter((r) => {
+            if (r.bar === '' || Number(r.bar) === 1) return true;
+            const nb = place(num(r.bar), `the start of ${r.title || 'a movement'}`, 'howLong', false, (to) => { outline.moves.rows.splice(outline.moves.rows.length - 1, 0, { bar: String(to), title: r.title }); });
+            if (nb === null) return false;
+            r.bar = str(nb); return true;
+        });
+        // Repeats (the end of a repeat and its endings belong at the end; a repeat starting past it is left out)
+        const repeats = OUTLINE_ROW_TABLES.repeat;
+        outline.repeatRows = outlineRowsOf(repeats).filter((r) => {
+            if (!repeats.started(r)) return true;
+            const keep = { ...r };
+            const what = `the repeat from bar ${r.from}`;
+            const from = place(num(r.from), what, 'xRepeats', false, (to) => { outlineRowsOf(repeats).splice(outlineRowsOf(repeats).length - 1, 0, { ...keep, from: String(to), to: String(to) }); });
+            if (from === null) return false;
+            r.from = str(from);
+            r.to = str(place(num(r.to), null, 'xRepeats', true));
+            if (r.e1From !== '') { const e = place(num(r.e1From), null, 'xRepeats', true); r.e1From = str(e); }
+            if (r.e2To !== '') r.e2To = str(place(num(r.e2To), null, 'xRepeats', true));
+            if (r.mids) r.mids = r.mids.split(',').map((m) => place(Number(m), null, 'xRepeats', true)).join(',');
+            return true;
+        });
+        // Pauses belong where they are written - one past the end moves to the last bar
+        outlineRowsOf(OUTLINE_ROW_TABLES.pause).forEach((r) => { if (r.bar !== '') r.bar = str(place(num(r.bar), r.kind === 'caesura' ? 'the break' : 'the pause', 'xPauses', true)); });
+        // The extras kept as extras: a rall./accel. (its start is a change; its end moves), a sign (moves)
+        o.extras = o.extras.filter((x) => {
+            if (x.type === 'ramp') {
+                const keep = { ...x };
+                const from = place(x.from, 'the rall. or accel.', 'xRamps', false, (to) => { o.extras.push({ ...keep, from: to, to }); });
+                if (from === null) return false;
+                x.from = from; x.to = Math.max(from, place(x.to, null, 'xRamps', true)); return true;
+            }
+            if (x.type === 'sign') { x.bar = place(x.bar, PieceOutline.describeExtra(x).title || 'a sign', 'xSigns', true); return true; }
+            return true;
+        });
+        const it = outlineIntro();
+        if (it.from !== '') { it.from = str(place(num(it.from), 'the intro', 'xIntro', true)); if (it.to !== '') it.to = str(place(num(it.to), null, 'xIntro', true)); }
+        // The other checks follow the bars they are about
+        const mv = (b) => (Number.isInteger(b) ? (gone(b) ? Math.max(1, cut - 1) : b >= at ? b + delta : b) : b);
+        outlineReadChecks().forEach((x) => {
+            if (x === fromCheck) return;
+            x.from = mv(x.from); x.to = mv(x.to);
+            if (x.valueBar) x.valueBar = mv(x.valueBar);
+            const k = x.ask || {};
+            if (k.type === 'lineCount') { k.from = mv(k.from); k.at = k.at > oldTotal ? total + 1 : mv(k.at); }
+            if (k.bar) k.bar = mv(k.bar);
+            if (k.type === 'ramp') { k.from = mv(k.from); k.to = mv(k.to); }
+            if (k.type === 'end') k.bars = total;
+        });
+        o.bars = total;
+        return report;
     }
     function outlineReworkSpeeds(fromBar) {
         const PR = window.PieceRead;
@@ -24961,16 +25223,24 @@
         }
         return moved;
     }
-    // Save with checks still open: "These are still outstanding, save anyway?", the open ones listed, No / Yes
+    // Save with checks still open: "These are still outstanding, save anyway?", the open ones listed - each with a way
+    // straight to its step - then No / Yes
     function outlineReadAskSave(open, save) {
         const list = document.getElementById('outlineOpenChecksList');
-        list.innerHTML = open.map((c) => `<li><strong>${escapeHtml(outlineStepName(c.step))}</strong>${escapeHtml(c.text)}</li>`).join('');
+        list.innerHTML = open.map((c) => `<li><strong>${escapeHtml(outlineStepName(c.step))}</strong>${escapeHtml(c.text)}<br><button type="button" class="btn-text read-go" data-read-go="${c.step}">${c.step === 'read' ? 'Go to the first screen' : `Go to ${escapeHtml(outlineStepName(c.step))}`}</button></li>`).join('');
         outlineReadAfterAsk = save;
         showModal('outlineOpenChecksModal');
     }
     let outlineReadAfterAsk = null;
     document.getElementById('outlineOpenChecksYes')?.addEventListener('click', () => { hideModal('outlineOpenChecksModal'); const go = outlineReadAfterAsk; outlineReadAfterAsk = null; if (go) go(); });
     document.getElementById('outlineOpenChecksNo')?.addEventListener('click', () => { hideModal('outlineOpenChecksModal'); outlineReadAfterAsk = null; });
+    document.getElementById('outlineOpenChecksList')?.addEventListener('click', (e) => {
+        const go = e.target.closest('[data-read-go]');
+        if (!go) return;
+        hideModal('outlineOpenChecksModal');
+        outlineReadAfterAsk = null;
+        outlineGoStep(outlineStepIndex(go.dataset.readGo === 'read' ? 'about' : go.dataset.readGo));
+    });
     // What was answered, for the log beside the read
     const outlineReadAnswers = () => outlineReadChecks().map((c) => ({ id: c.id, kind: c.kind, step: c.step, state: outlineCheckState(c), from: c.from || null, to: c.to || null }));
     // The owner's test library: a switch on the last step, his alone. On, the pages are kept (sent again, to
@@ -25036,18 +25306,13 @@
             outlinePickNote(outlineNoteKey(outlineSpeedRowNote(i)), (note) => { outline.speedRows[i].noteValue = note; outlineRerenderKeeping(`[data-speed-note="${i}"]`); });
             return;
         }
-        if (t.dataset.readValue !== undefined) { outlineReadChangeValue(Number(t.dataset.readValue)); return; } // ML-639
+        if (t.dataset.readAnswer !== undefined) { outlineReadAnswer(Number(t.dataset.readAnswer)); return; } // ML-655
         if (t.dataset.readAll !== undefined) { outlineReadAgreeAll(t.dataset.readAll); return; } // ML-639
         const action = t.dataset.outline;
         if (action === 'back') {
             // Back just keeps what's typed - nothing is checked until you come forward again
             if (outlineStepKey() === 'howLong') outlineHowLongKeep();
-            if (outline.step === 0 && outlineReadHasIntro()) { outline.readIntro = true; renderOutline(); window.scrollTo({ top: 0 }); return; } // ML-639
             outlineGoStep(outline.step - 1);
-        } else if (action === 'readIntroNext') {
-            outline.readIntro = false; // ML-639: from "Here are your checks" to About
-            renderOutline();
-            window.scrollTo({ top: 0 });
         } else if (action === 'next') {
             outlineLeaveStepWhenReady().then(ok => { if (ok) outlineGoStep(outline.step + 1); });
         } else if (action === 'mainSig') {
@@ -25114,7 +25379,7 @@
     outlineView?.addEventListener('change', (e) => {
         if (!outline) return;
         if (e.target.id === 'outlineReadKeep' && outline.read) outline.read.keep = e.target.checked; // ML-246
-        if (e.target.dataset.readCheck !== undefined && outline.read) { outlineReadToggle(Number(e.target.dataset.readCheck), e.target.checked); return; } // ML-639
+
         if (e.target.id === 'outlineLeadIn') outline.o.leadIn = e.target.checked;
         if (e.target.id === 'outlineMovesOn') {
             outlineHowLongKeep();

@@ -439,7 +439,6 @@
     --icon-lg: var(--ds-size-24, 24px);                          /* icon-only buttons */
     --icon-xl: var(--ds-size-32, 32px);                          /* tool tiles, hero icons */
     --read-wait-ring: var(--ds-size-96, 96px);                   /* ML-645 the turning ring on the photo-read waiting screen */
-    --step-mark-size: var(--ds-size-16, 16px);                   /* ML-639 the ? / tick over a Quick entry step's dash (a read's checks) */
     --read-open-list-max: 50vh;                                  /* ML-639 the open checks listed in "save anyway?" scroll past half the screen */
     --empty-art-width: var(--ds-size-256, 256px);                /* the "all done here" drawing on a wide admin page (Waiting list) */
 

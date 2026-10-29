@@ -80,6 +80,18 @@
             </table></div>`;
     }
 
+    // ML-655: the same answers by the read's level - if High needs as much changing as Medium, the level means little
+    function answersByLevelHtml(rows) {
+        if (!rows || !rows.some((r) => r.pieces)) return '';
+        return `
+            <h2 class="admin-stat-section-title">The answers by level</h2>
+            <p class="admin-intro">The same answers, for the pieces read at each level. A level whose checks are mostly changed is saying less than it should.</p>
+            <div class="admin-stat-table-wrap"><table class="admin-stat-table admin-stack-table admin-bc-table">
+                <thead><tr><th class="admin-bc-text">Level</th><th>Pieces</th><th>Agreed</th><th>Agree all</th><th>Changed</th><th>Checked</th><th>Left open</th></tr></thead>
+                <tbody>${rows.map((r) => `<tr><td class="admin-bc-text">${badge(r.level)}</td><td data-label="Pieces">${r.pieces}</td><td data-label="Agreed">${r.agreed}</td><td data-label="Agree all">${r.agreedAll}</td><td data-label="Changed">${r.changed}</td><td data-label="Checked">${r.checked}</td><td data-label="Left open">${r.open}</td></tr>`).join('')}</tbody>
+            </table></div>`;
+    }
+
     function render() {
         const s = data.summary;
         const ratingRows = s.byRating.map(r => `<tr><td class="admin-bc-text">${badge(r.level)}</td><td>${r.saved}</td><td>${r.saved ? `${r.barsRight} of ${r.saved}` : '–'}</td><td>${r.saved ? `${r.same} of ${r.saved}` : '–'}</td></tr>`).join('');
@@ -87,6 +99,7 @@
             <p class="admin-intro">${many(s.reads, 'read', 'reads')}${s.failed ? ` (${s.failed} failed)` : ''}, ${many(s.pieces, 'piece', 'pieces')} found, ${s.saved} saved, ${many(s.tests, 'test kept', 'tests kept')}. ${s.costPerRead === null ? '' : `About ${money(s.costPerRead)} and ${s.seconds} seconds a read; ${money(s.costUsd)} in all at the model's list price - Vercel's AI Gateway page is the bill.`} Reading now with <strong>${esc(data.model)}</strong>, prompt <strong>${esc(data.promptVersion)}</strong>.</p>
             ${stoppedHtml(s.stopped)}
             ${answersHtml(s.answers)}
+            ${answersByLevelHtml(s.answersByLevel)}
             <h2 class="admin-stat-section-title">Is the rating right?</h2>
             <p class="admin-intro">Of the pieces saved after a read: how many had the right number of bars, and how many were saved with nothing changed. If High is no better than Medium, the rating needs work.</p>
             <div class="admin-stat-table-wrap"><table class="admin-stat-table admin-stack-table admin-bc-table">

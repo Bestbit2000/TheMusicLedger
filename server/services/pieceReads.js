@@ -324,6 +324,14 @@ export function summariseAnswers(savedPieces) {
   }
   return Object.values(byKind).sort((x, y) => x.kind.localeCompare(y.kind));
 }
+// ML-655: the same answers by the read's level - do High reads really need less changing than Medium and Low?
+export function summariseAnswersByLevel(savedPieces) {
+  return ['high', 'medium', 'low'].map((level) => {
+    const k = { level, pieces: 0, agreed: 0, agreedAll: 0, changed: 0, checked: 0, open: 0 };
+    for (const p of savedPieces) if (p.rating === level) { k.pieces += 1; for (const a of p.answers || []) if (a.state in k) k[a.state] += 1; }
+    return k;
+  });
+}
 export function summarise(reads, stops = []) {
   const done = reads.filter(r => r.status === 'read');
   const saved = done.flatMap(r => r.pieces).filter(p => p.savedAt && p.changes);
@@ -337,7 +345,8 @@ export function summarise(reads, stops = []) {
     costUsd: costs.reduce((n, c) => n + c, 0), costPerRead: costs.length ? costs.reduce((n, c) => n + c, 0) / costs.length : null,
     seconds: done.length ? Math.round(done.reduce((n, r) => n + r.seconds, 0) / done.length) : null, byRating,
     stopped: summariseStops(stops, reads), // ML-645
-    answers: summariseAnswers(saved) // ML-639
+    answers: summariseAnswers(saved), // ML-639
+    answersByLevel: summariseAnswersByLevel(saved) // ML-655
   };
 }
 

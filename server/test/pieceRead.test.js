@@ -175,7 +175,12 @@ describe('rate - how far to trust it', () => {
   });
   test('a speed to fill in is listed but does not lower the rating; the least sure comes first', () => {
     const { rating } = fitAndRate({ bars: 24, systems: lines([1, 11], 20), cropped: true });
-    assert.deepEqual(rating.checks.map(c => c.level), ['low', 'low', 'medium', 'info']);
+    // ML-655: the last line that ends off the total is one question (how many bars?), offering both counts
+    assert.deepEqual(rating.checks.map(c => c.level), ['low', 'medium', 'info']);
+    const last = rating.checks.find(c => c.kind === 'last-line');
+    assert.deepEqual(last.ask, { type: 'lineCount', from: 11, bars: 14, at: 25, options: [10] });
+    assert.match(last.text, /counted 2 ways: 14 or 10 bars, starting at bar 11\. How many bars are on it\?/);
+    assert.deepEqual(rating.checks.find(c => c.kind === 'cropped').ask, { type: 'page' });
     assert.equal(fitAndRate({ bars: 20, systems: lines([1, 11], 20) }).rating.level, 'high');
   });
   test('the last line: always named; not listed bar by bar is medium; listed and disagreeing is low', () => {
@@ -218,6 +223,39 @@ describe('rate - how far to trust it', () => {
   });
   test('with no line-by-line count the total cannot be checked', () => {
     assert.equal(fitAndRate({ bars: 20 }).rating.level, 'medium');
+  });
+});
+
+// ML-655: every check is a question, and `ask` says what its answers are (public/app.js turns it into the answer box)
+describe('each check asks something that can be answered', () => {
+  test('what was left out past the last bar is said by name, and asks whether the piece is longer', () => {
+    const { rating } = fitAndRate({ bars: 20, systems: lines([1, 11], 20), marks: [{ bar: 25, label: 'C' }], pauses: [{ bar: 22, beat: 1, kind: 'pause' }] });
+    const dropped = rating.checks.find(c => c.kind === 'dropped');
+    assert.deepEqual(dropped.ask, { type: 'end', bars: 20, items: [{ bar: 25, what: 'rehearsal mark C' }, { bar: 22, what: 'a pause' }] });
+    assert.match(dropped.text, /rehearsal mark C at bar 25, a pause at bar 22\. The piece was read as 20 bars\. Is it longer\?/);
+  });
+  test('a line hard to make out asks how many bars are on it; the bars after it follow the answer', () => {
+    const sys = lines([1, 11, 21], 30);
+    sys[1].sure = 'medium';
+    const line = fitAndRate({ bars: 30, systems: sys }).rating.checks.find(c => c.kind === 'line');
+    assert.deepEqual(line.ask, { type: 'lineCount', from: 11, bars: 10, at: 21, options: [] });
+    assert.match(line.text, /line from bar 11\. It was read as 10 bars \(bars 11 to 20\)\. Is that right\?/);
+  });
+  test('a line that does not add up asks about the line before it, offering its own count', () => {
+    const sys = lines([1, 11, 21], 30);
+    sys[1].bars = 8; // counted 8, but the next line is numbered from 21
+    const count = fitAndRate({ bars: 30, systems: sys }).rating.checks.find(c => c.kind === 'count');
+    assert.deepEqual(count.ask, { type: 'lineCount', from: 11, bars: 10, at: 21, options: [8] });
+  });
+  test('a printed number on the wrong bar asks which is right; a pickup, a free bar, a word not known and a missing time each ask their own', () => {
+    const { rating } = fitAndRate({ bars: 20, systems: lines([1, 11], 20), numberClashes: [{ bar: 15, printed: 14 }], pickupBeats: 1, freeBars: [{ bar: 9, text: 'cadenza' }],
+      speeds: [{ bar: 5, bpm: null, note: null, text: 'Con gioia', handwritten: false }], time: [] });
+    const ask = (kind) => rating.checks.find(c => c.kind === kind).ask;
+    assert.deepEqual(ask('number'), { type: 'printed', bar: 15, printed: 14 });
+    assert.deepEqual(ask('pickup'), { type: 'pickup' });
+    assert.deepEqual(ask('free-bar'), { type: 'beats', bar: 9 });
+    assert.deepEqual(ask('time'), { type: 'mainTime' });
+    assert.ok(rating.checks.some(c => c.kind === 'speed' && c.ask && c.ask.type === 'addSpeed' && c.ask.bar === 5));
   });
 });
 
