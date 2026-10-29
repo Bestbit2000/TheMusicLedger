@@ -1,5 +1,56 @@
 [
   {
+    "version": "0.77.0",
+    "date": "2026-10-29",
+    "changes": [
+      {
+        "key": "ML-655",
+        "type": "New",
+        "summary": "We turned each thing to check after a piece is read from a photo into a question, and your answer puts the piece right - a bar count you correct moves everything after it."
+      },
+      {
+        "key": "ML-653",
+        "type": "New",
+        "summary": "We gave My bands its own place in the menu and each band its own page, and only a band's organisers now see who is in it - everyone else sees how many."
+      },
+      {
+        "key": "ML-651",
+        "type": "New",
+        "summary": "We keep the app's fonts on your device between updates, so it opens faster after each one."
+      },
+      {
+        "key": "ML-649",
+        "type": "Fixes",
+        "summary": "We now tell you in Notifications about a band invitation even if you were invited before you had an account."
+      },
+      {
+        "key": "ML-648",
+        "type": "New",
+        "summary": "We tell you, in the app and by email, when you are made a band leader and what that lets you see."
+      },
+      {
+        "key": "ML-647",
+        "type": "New",
+        "summary": "We made the strips at the top of the screen run the full width on a computer, and made Reload easier to spot."
+      },
+      {
+        "key": "ML-646",
+        "type": "New",
+        "summary": "We put people who ask to join on our website straight into the band they named, once we let them in."
+      },
+      {
+        "key": "ML-645",
+        "type": "New",
+        "summary": "We show a waiting screen while a photo or PDF is read - what it's doing, how long it usually takes, and a way to stop that doesn't use up a read."
+      },
+      {
+        "key": "ML-639",
+        "type": "New",
+        "summary": "We show each thing to check after a piece is read from a photo on the step it is about, where you can agree it or change it."
+      }
+    ]
+  },
+  {
     "version": "0.76.1",
     "date": "2026-10-28",
     "changes": [
