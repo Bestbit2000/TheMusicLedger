@@ -190,6 +190,10 @@ export function billingPeriod(billingDay, today) {
 // who used the app in the period. Only usage counts - the plan's own fee, tax and credits are not
 // usage. The newest day in `lines` may be part-counted by the provider; the rate is taken over the
 // days gone, as meterStatus does, so it errs low early in a day rather than high.
+// ML-652: Vercel puts the plan's own fee in its Usage category too - "Pro", with no unit, a share of the $20 each
+// day - and the Pro plan's $20 comes with $20 of usage credit. So a line with no unit (the plan, and add-ons such as
+// Observability Plus) is a fee, not usage: it is left out of the total and its projection, and counted in planFees.
+const isPlanFee = (l) => !l.unit;
 export function spendBreakdown(lines, period, today, activeMembers) {
   const start = dayOf(period.start);
   const end = dayOf(period.end);
@@ -201,10 +205,12 @@ export function spendBreakdown(lines, period, today, activeMembers) {
   const r4 = (n) => Math.round(n * 10000) / 10000;
   const bySku = new Map();
   const byDay = new Map();
+  let planFees = 0;
   (lines || []).forEach((l) => {
     if (l.category !== 'Usage') return;
     const d = dayOf(l.day);
     if (d < start || d > end) return;
+    if (isPlanFee(l)) { planFees += Number(l.cost) || 0; return; }
     const row = bySku.get(l.sku) || { sku: l.sku, service: l.service, unit: l.unit, quantity: 0, cost: 0 };
     row.quantity += Number(l.quantity) || 0;
     row.cost += Number(l.cost) || 0;
@@ -222,6 +228,7 @@ export function spendBreakdown(lines, period, today, activeMembers) {
     period, daysIn, daysTotal, members,
     total: r4(total), projected: r4(total * scale),
     perMember: members ? r4((total * scale) / members) : null,
+    planFees: r4(planFees), // ML-652: the plan's own fee so far - not usage, and not taken from the included credit
     services,
     daily: [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([day, cost]) => ({ day, cost: r4(cost) }))
   };

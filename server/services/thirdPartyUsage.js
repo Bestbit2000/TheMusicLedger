@@ -140,8 +140,9 @@ export const METERS = [
   {
     // The three typed-in Vercel meters (server calls, data transfer, CPU time) went when the app moved
     // to Pro: their limits were the free plan's. Their old readings stay in the table.
-    key: 'vercel-spend', party: 'vercel', name: 'Vercel usage, in dollars', unit: 'USD', limit: 20, per: 'month', cumulative: true, source: 'api', needs: 'VERCEL_API_TOKEN',
-    how: 'Vercel\'s billing API: the cost of everything used since the billing day (the 7th unless VERCEL_BILLING_DAY says otherwise), against the $20 a month the Pro plan includes. Past $20 it is billed.',
+    // ML-652: the plan's own $20 fee (Vercel lists it as a usage line, "Pro") is not usage - spendBreakdown leaves it out
+    key: 'vercel-spend', party: 'vercel', name: 'Vercel usage against the $20 included credit', unit: 'USD', limit: 20, per: 'month', cumulative: true, source: 'api', needs: 'VERCEL_API_TOKEN',
+    how: 'Vercel\'s billing API: the cost of everything used since the billing day (the 7th unless VERCEL_BILLING_DAY says otherwise), against the $20 of usage credit that comes with the Pro plan\'s $20 a month. The plan\'s own fee is separate and is not counted here. Only usage past the $20 credit is billed.',
     async read(cache) { const v = await vercelCharges(cache); return v ? { value: v.total, period: v.period, note: v.lines ? null : 'Vercel sent no charges for the period' } : null; }
   },
   {

@@ -155,7 +155,10 @@ The top of **Admin → Third parties** shows what the app costs and how close ea
     dollars - when the key is set;
   - **typed in** - any meter can be given a typed reading.
 - **Vercel is on Pro (7 Oct 2026), so its meter is money.** The plan includes $20 of usage a month and bills
-  the rest, so the one Vercel meter is "Vercel usage, in dollars" against $20. It is read from Vercel's billing
+  the rest, so the one Vercel meter is "Vercel usage against the $20 included credit". **The plan's own $20 fee is not
+  usage** (ML-652): Vercel lists it among its usage lines as "Pro", with no unit, a share of $20 each day, and until
+  29 Oct 2026 it was counted, so the meter read about $16 when $2.47 of the credit had been used. A line with no unit
+  (the plan, and add-ons such as Observability Plus) is now kept apart as `planFees`. It is read from Vercel's billing
   API (`GET /v1/billing/charges`), which gives every charge for a day, service by service: how much was used
   and what it cost. Those lines are kept in `third_party_usage_lines` (migration 115) and shown under the
   meters as **Where Vercel's usage is going**: each service's use and cost so far this billing period, where

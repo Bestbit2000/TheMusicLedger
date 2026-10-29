@@ -211,6 +211,21 @@ test('where the usage is going: each service so far, where it is heading, and fo
   assert.deepEqual(b.daily, [{ day: '2026-10-07', cost: 0.777 }, { day: '2026-10-08', cost: 0.177 }]);
 });
 
+test('ML-652: the Pro plan fee Vercel lists among its usage (no unit, a share of $20 each day) is not usage', () => {
+  const period = { start: '2026-10-07', end: '2026-11-06' };
+  const day = (d) => [
+    { day: d, sku: 'pro', service: 'Pro', category: 'Usage', unit: '', quantity: 1, cost: 0.6452 }, // the plan's own fee
+    { day: d, sku: 'obs', service: 'Observability Plus', category: 'Usage', unit: '', quantity: 1, cost: 0 }, // an add-on
+    { day: d, sku: 'build', service: 'Build CPU Minutes', category: 'Usage', unit: 'minute', quantity: 25, cost: 0.085 },
+    { day: d, sku: 'cpu', service: 'Fluid Active CPU', category: 'Usage', unit: 'hour', quantity: 0.05, cost: 0.0083 }
+  ];
+  const b = spendBreakdown([...day('2026-10-07'), ...day('2026-10-08')], period, '2026-10-08', 1);
+  assert.equal(b.total, 0.1866, 'only the usage - not the $1.29 of plan fee');
+  assert.equal(b.planFees, 1.2904, 'the plan fee, kept apart');
+  assert.deepEqual(b.services.map((s) => s.service), ['Build CPU Minutes', 'Fluid Active CPU']);
+  assert.equal(b.projected, 2.8923, 'heading for the usage only - far under the $20 credit');
+});
+
 test('with nobody seen in the period there is no figure for each member, and no usage is nothing', () => {
   const period = { start: '2026-10-07', end: '2026-11-06' };
   const b = spendBreakdown([{ day: '2026-10-07', sku: 'cpu', service: 'CPU', category: 'Usage', unit: 'Hours', quantity: 1, cost: 0.2 }], period, '2026-10-07', 0);

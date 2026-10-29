@@ -158,5 +158,6 @@
   "ML-647": "We made the strips at the top of the screen run the full width on a computer, and made Reload easier to spot.",
   "ML-646": "We put people who ask to join on our website straight into the band they named, once we let them in.",
   "ML-645": "We show a waiting screen while a photo or PDF is read - what it's doing, how long it usually takes, and a way to stop that doesn't use up a read.",
-  "ML-639": "We show each thing to check after a piece is read from a photo on the step it is about, where you can agree it or change it."
+  "ML-639": "We show each thing to check after a piece is read from a photo on the step it is about, where you can agree it or change it.",
+  "ML-652": "We fixed the Vercel meter on Costs and usage: it counted the plan's own fee as usage, so it looked close to the limit when it wasn't."
 }
