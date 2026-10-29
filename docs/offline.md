@@ -106,6 +106,14 @@ they arrive.
 A bar under the top bar (hidden when online with nothing waiting), a pop-up listing what is waiting, and
 three toasts. All in `specs/components/offline-status.md`.
 
+**Start-up data that doesn't come** (ML-661, 29 Oct 2026). With no connection at all, `apiCall` already answers
+`GET /api/dropdown-options` (bands, switched-on features, limits) from the copy above. When the server *answers with
+an error* instead, `loadAppData` tries again after 1, 3 and 8 seconds (not on a 401/403 - signing in deals with
+those), then uses the copy kept on this device, and only with none the empty defaults. Either way a second bar in the
+offline bar's look (`#startupBar`) says "Your settings didn't load - showing what this device last had" (or "...some
+tools may be missing") with **Try again**, and goes as soon as they load. Before, it fell to the defaults quietly - the
+owner saw 4 favourite tools instead of his 12 on production.
+
 ## Limits worth knowing
 
 - **Signing in needs a connection**, and a sign-in lasts 30 days. Longer offline than that means signing in

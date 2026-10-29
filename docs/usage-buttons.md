@@ -3,7 +3,7 @@
 **Made by `node scripts/usage-buttons.mjs` - don't edit it by hand.** What counts as a use, and how a tap is
 counted, is in [usage-stats.md](usage-stats.md) ("Every button").
 
-911 buttons: 911 have a name a tap can be counted by, 0 need one.
+912 buttons: 912 have a name a tap can be counted by, 0 need one.
 A button on a screen is listed under the screen or pop-up it is on; one the app builds as it goes, under
 the function that builds it (shown with ()). The words are only to help find it - a tap is never counted by
 its words.
@@ -31,7 +31,7 @@ its words.
 | My bands | 31 | 0 |
 | My account, instruments, settings | 57 | 0 |
 | Signing in | 15 | 0 |
-| Menu, notices and the rest | 114 | 0 |
+| Menu, notices and the rest | 115 | 0 |
 
 ## Practice session
 
@@ -967,6 +967,7 @@ its words.
 | top bar | `reload` | Reload |
 | top bar | `#updateBannerMore` | See what's new |
 | top bar | `#updateBannerClose` | Hide until next time |
+| top bar | `#startupBarBtn` | Try again |
 | top bar | `#offlineBarBtn` | See them |
 | top bar | `#previewStopBtn` | Stop previewing |
 | notificationsView | `#notificationsMarkAllBtn` | Mark all as read |

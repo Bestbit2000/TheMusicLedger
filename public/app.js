@@ -1734,22 +1734,48 @@
         showConfirmModal('Log out', `Are you sure you want to log out?${lost}`, () => auth.logout(), !!waiting);
     }
 
-    async function loadAppData(token) {
-        try {
-            appData = await API.dropdownOptions(token);
-            populateWhoDropdowns();
-            renderDurationRadios();
-            renderFeatureGates();
-            renderPracticeYearOptions();
-            syncPracticeYearSettings();
-            resumePracticeRun(); // ML-320: a session that was running carries on (this device or another)
-        } catch (error) {
-            console.warn('Failed to load settings:', error);
-            appData = { organisations: [], teachers: [], durations: [], enabledFeatures: [] };
-            renderFeatureGates();
-            renderPracticeYearOptions();
-        }
+    // ML-661: the start-up answer (bands, switched-on features, limits) is what every screen is drawn from. One that
+    // doesn't come is tried again after 1, 3 and 8 seconds (not when signing in is the problem); then the copy kept on
+    // this device is used (ML-220), and only with none the empty defaults - and a strip says so, with Try again. It
+    // used to fall to the defaults quietly: 4 favourites, gated tools missing (the owner, 29 Oct 2026).
+    const APP_DATA_RETRIES_MS = [1000, 3000, 8000];
+    function applyAppData() {
+        populateWhoDropdowns();
+        renderDurationRadios();
+        renderFeatureGates();
+        renderPracticeYearOptions();
+        syncPracticeYearSettings();
+        resumePracticeRun(); // ML-320: a session that was running carries on (this device or another)
     }
+    async function loadAppData(token) {
+        let lastError = null;
+        for (let attempt = 0; attempt <= APP_DATA_RETRIES_MS.length; attempt++) {
+            if (attempt) await new Promise((resolve) => setTimeout(resolve, APP_DATA_RETRIES_MS[attempt - 1]));
+            try {
+                appData = await API.dropdownOptions(token);
+                setShown('startupBar', false);
+                applyAppData();
+                return;
+            } catch (error) {
+                lastError = error;
+                if (error.status === 401 || error.status === 403) break;
+            }
+        }
+        console.warn('Failed to load settings:', lastError);
+        const kept = window.Offline ? await window.Offline.recall('/api/dropdown-options').catch(() => null) : null;
+        appData = kept ? kept.json : { organisations: [], teachers: [], durations: [], enabledFeatures: [] };
+        document.getElementById('startupBarText').textContent = kept
+            ? "Your settings didn't load - showing what this device last had."
+            : "Your settings didn't load - some tools may be missing.";
+        setShown('startupBar', true);
+        if (kept) applyAppData();
+        else { renderFeatureGates(); renderPracticeYearOptions(); }
+    }
+    document.getElementById('startupBarBtn')?.addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        try { await loadAppData(); } finally { btn.disabled = false; }
+    });
 
     // ML-190: applies appData.enabledFeatures to every gated UI entry point - called once
     // loadAppData resolves (success or failure) since isFeatureEnabled reads appData, which isn't

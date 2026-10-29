@@ -384,6 +384,13 @@
   {
    "group": "Menu, notices and the rest",
    "where": "top bar",
+   "name": "#startupBarBtn",
+   "label": "Try again",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
    "name": "#offlineBarBtn",
    "label": "See them",
    "html": true

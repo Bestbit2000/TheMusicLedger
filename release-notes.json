@@ -1,4 +1,5 @@
 {
+  "ML-661": "We try again when your settings don't load as the app opens, then show what your device last had and say so - instead of quietly showing the basics.",
   "ML-657": "We check the photos of a piece before they are read - a page on its side, blurred, cut off or missing - ask its time signature first when it can't be made out, and can read it again with what you can see at a glance.",
   "ML-658": "We let you choose who a piece is for and its practice list on Quick entry's first step, so you don't have to move it afterwards.",
   "ML-660": { "internal": true, "why": "Admin -> Usage -> Heat map only" },

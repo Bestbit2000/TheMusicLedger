@@ -19,6 +19,9 @@ How it works is in `docs/offline.md`; the rules are `public/offline.js`.
   [practice session](practice-session.md) bar: an icon (`cloud_off` offline, `cloud_sync` waiting,
   `sync_problem` when something was refused), the words (`.offline-bar-text`) and at most one button
   (`button.offline-bar-btn`).
+- **The start-up bar** (ML-661) - a second `div.offline-bar` (`#startupBar`), the same look, above it: `sync_problem`,
+  "Your settings didn't load - showing what this device last had" (or "...some tools may be missing") and **Try
+  again**. Shown only when the start-up data didn't load after trying again; gone when it does. No new styles.
 - **The pop-up** - `#offlineModal`, an ordinary [modal](modal.md): a line of introduction, then an
   `.offline-item` per thing waiting (`.offline-item-text`: what it is in bold, then when it was logged), and
   **Sync now** (`.btn-submit`). An item the server refused is `.offline-item.is-failed`: it says why and has a

@@ -269,6 +269,13 @@
 
     <!-- ML-220: no connection, or things logged offline still waiting to be sent. Sits under the top bar
          on every screen; hidden when online with nothing waiting. specs/components/offline-status.md -->
+    <!-- ML-661: the start-up data didn't load even after trying again - what the screens are showing, and Try again
+         (the offline bar's look; loadAppData) -->
+    <div class="offline-bar hidden-group" id="startupBar" role="status" aria-live="polite">
+        <span class="material-symbols-outlined" aria-hidden="true">sync_problem</span>
+        <span class="offline-bar-text" id="startupBarText"></span>
+        <button type="button" class="offline-bar-btn" id="startupBarBtn">Try again</button>
+    </div>
     <div class="offline-bar hidden-group" id="offlineBar" role="status" aria-live="polite">
         <span class="material-symbols-outlined" id="offlineBarIcon" aria-hidden="true">cloud_off</span>
         <span class="offline-bar-text" id="offlineBarText"></span>
