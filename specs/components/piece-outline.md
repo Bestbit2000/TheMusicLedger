@@ -7,7 +7,9 @@
   `.outline-cell-btn`, `.outline-sum`, `.outline-extra` with
   `.has-clash`, `.outline-extra-text`, `.outline-extra-clash`, `.outline-add`; ML-639 / ML-655, a read's checks: `.read-start` with
   `.is-low`, `.read-start-head`, `.read-start-list`, `.read-checks`, `.read-checks-head`, `.read-checks-title`,
-  `.read-agree-all`, `.read-check` with `.is-done`, `.read-check-text`, `.read-check-moved`, `.read-open-list`, `.read-go`)
+  `.read-agree-all`, `.read-check` with `.is-done`, `.read-check-text`, `.read-check-moved`, `.read-open-list`, `.read-go`; ML-657, before
+  it's read: `#pieceReadPagesModal` with `.read-page-list`, `.read-page-row`, `.read-page-thumb`, `.read-page-text`, `.read-page-actions`;
+  `#pieceReadGivensModal`)
 - **Category:** Form / stepped set-up
 - **Status:** New (ML-424)
 
