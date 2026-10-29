@@ -1,4 +1,5 @@
 {
+  "ML-657": "We ask about a piece's time signature first when a photo read couldn't make it out, and can read the music again with what you can see at a glance.",
   "ML-658": "We let you choose who a piece is for and its practice list on Quick entry's first step, so you don't have to move it afterwards.",
   "ML-660": { "internal": true, "why": "Admin -> Usage -> Heat map only" },
   "ML-659": "We made a band's logo and name changeable in one place - tap the pencil beside the name - and a band's organisers can now change its name.",

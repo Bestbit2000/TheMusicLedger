@@ -85,7 +85,13 @@
         const clashes = keep(p.numberClashes, r => { const b = bar(r.bar), printed = str(String(r.printed == null ? '' : r.printed), 12); return b && printed ? { bar: b, printed } : null; });
         const freeBars = keep(p.freeBars, r => { const b = bar(r.bar); return b ? { bar: b, text: str(r.text, 60) } : null; }).sort(byBar);
         const pickup = Number(p.pickupBeats);
+        // ML-657: the bars that end with a double barline - where a march's strains end
+        const doubleBars = [...new Set(rows(p.doubleBars).map(r => bar(r.bar)).filter(Boolean))].sort((a, b) => a - b);
         return {
+            doubleBars,
+            // ML-657: false when the reader couldn't read a time signature at the start and the one given is a guess
+            // (an answer from before the field was asked for says nothing, and counts as seen)
+            timeSeen: p.timeSeen !== false,
             // ML-529: a movement's own number is printed with its name ("1) S.P.Q.R", "II. Andante"); the app numbers them itself
             title: str(p.title), movement: str(p.movement).replace(/^(\d{1,2}|[IVXL]{1,5})\s*[).:-]\s*/i, ''), composer: str(p.composer), arranger: str(p.arranger), publisher: str(p.publisher), part: str(p.part, 60),
             bars, systems, tail, clashes, freeBars, time, speeds, marks, repeats, signs, pauses, ramps, special, doubts, dropped, droppedItems,
@@ -115,6 +121,7 @@
             freeBars: each(piece.freeBars, ['bar']), time: each(piece.time, ['bar']), speeds: each(piece.speeds, ['bar']),
             marks: each(piece.marks, ['bar']), repeats: each(piece.repeats, ['from', 'to', 'e1From', 'e2To']), signs: each(piece.signs, ['bar']),
             pauses: each(piece.pauses, ['bar']), ramps: each(piece.ramps, ['from', 'to']), special: each(piece.special, ['from', 'to']),
+            doubleBars: (piece.doubleBars || []).map(mv).filter(ok),
             doubts: piece.doubts.map(d => ({ ...d, from: mv(d.from), to: mv(d.to) })).map(d => (d.from !== null && !ok(d.from) ? { ...d, from: null, to: null } : d))
         };
     }
@@ -151,6 +158,7 @@
             title: firstOf(0), movement: null, composer: pick('composer'), arranger: pick('arranger'), publisher: pick('publisher'), part: pick('part'),
             bars, numbersAt: list[0].numbersAt, pickupBeats: list[0].pickupBeats,
             endSeen: list[list.length - 1].endSeen, cropped: list.some(p => p.cropped), pagesMissing: list.some(p => p.pagesMissing),
+            timeSeen: list.every(p => p.timeSeen !== false), doubleBars: [],
             // (what a movement left out past its own end isn't past the end of the whole, so only the count is kept)
             dropped: list.reduce((n, p) => n + (p.dropped || 0), 0), droppedItems: [], printedFrom: 1,
             systems: [], tail: [], clashes: [], freeBars: [], time: [], speeds: [], marks: [], repeats: [], signs: [], pauses: [], ramps: [], special: [], doubts: [],
@@ -159,7 +167,7 @@
         let at = 0;
         list.forEach((p, k) => {
             const moved = shiftPiece(p, at, at + p.bars);
-            ['systems', 'clashes', 'freeBars', 'time', 'speeds', 'marks', 'repeats', 'signs', 'pauses', 'ramps', 'special', 'doubts'].forEach(f => joined[f].push(...moved[f]));
+            ['systems', 'clashes', 'freeBars', 'time', 'speeds', 'marks', 'repeats', 'signs', 'pauses', 'ramps', 'special', 'doubts', 'doubleBars'].forEach(f => joined[f].push(...moved[f]));
             if (k === list.length - 1) joined.tail = moved.tail;
             joined.movements.push({ bar: at + 1, title: p.movement || (k === 0 ? null : p.title) || null });
             if (p.printedFrom > 1 && p.printedFrom !== at + 1) {
@@ -214,6 +222,12 @@
         // Time: the signature most bars are in is the main one; the rest are exceptions, bar by bar.
         const timeRows = piece.time.length && piece.time[0].bar === 1 ? piece.time : [{ bar: 1, beats: 4, beatType: 4 }, ...piece.time];
         if (!piece.time.length || piece.time[0].bar !== 1) note('medium', 'time', 1, 1, 'No time signature was read at the start, so 4/4 was put in. Is it in 4/4?', { type: 'mainTime' });
+        // ML-657 (owner, 29 Oct 2026): a time signature the reader couldn't make out is a guess from the rhythms - the
+        // first question, since every bar count depends on it (Wassail, a march card read as 6/8)
+        else if (piece.timeSeen === false) {
+            const t0 = piece.time[0];
+            note('medium', 'time', 1, 1, `The time signature at the start couldn't be read clearly, so ${t0.beats}/${t0.beatType} is a guess from the rhythms. Is it in ${t0.beats}/${t0.beatType}?`, { type: 'timeGuess', beats: t0.beats, beatType: t0.beatType });
+        }
         const sigs = new Map();
         const perBar = [];
         let cur = null;
@@ -376,6 +390,11 @@
         clashAt.forEach((printed, b) => add('low', 'number', b, b, `"${printed}" is printed on what was counted as bar ${b}. Which is right?`, /^\d+$/.test(String(printed)) ? { type: 'printed', bar: b, printed: Number(printed) } : { type: 'doubt' }));
         if (piece.cropped) add('medium', 'cropped', null, null, 'An edge of a page is cut off. Is anything missing from it?', { type: 'page' });
         if (!piece.endSeen || piece.pagesMissing) add('medium', 'end', piece.bars, piece.bars, `The final barline wasn't seen. Does the piece end at bar ${piece.bars}, with no page missing?`, { type: 'end', bars: piece.bars });
+        // ML-657: the member said how many bars there are in all (a read again with what they know) - the count has to reach it
+        if (piece.givenBars && piece.givenBars !== piece.bars) add('low', 'count', 1, piece.bars, `You said it has ${piece.givenBars} bars in all, but it was read as ${piece.bars}. How many bars are there?`, lineCount(1, piece.bars, piece.bars + 1, [piece.givenBars]));
+        // ML-657 (owner, 29 Oct 2026): a march is built in strains, usually 16 bars, between double barlines and repeats.
+        // A strain of 15 or 17 is asked about - only asked: first and second time bars make a strain run past 16.
+        strainChecks(piece).forEach(s => add('medium', 'strain', s.from, s.to, `The strain from bar ${s.from} to bar ${s.to} came out as ${s.bars} bars, and marches usually have 16. ${s.bars < 16 ? 'Is a bar missing?' : 'Is there a bar too many?'}`, { type: 'doubt' }));
         // The reader's own doubts never make a read "low": in the trial every model called something low on
         // reads that were right. Low is kept for what the sums above prove.
         piece.doubts.forEach(d => add(d.level === 'high' ? 'info' : 'medium', 'doubt', d.from, d.to, d.note, { type: 'doubt' }));
@@ -389,6 +408,41 @@
             .sort((a, b) => order[a.level] - order[b.level] || (a.from || 0) - (b.from || 0));
         const overall = list.some(c => c.level === 'low') ? 'low' : (list.some(c => c.level === 'medium') ? 'medium' : 'high');
         return { level: overall, checks: list };
+    }
+
+    // ---------- ML-657: strains, and what the member tells a read ----------
+    // A piece's strains: the stretches between double barlines, repeats and movements, each { from, to, bars }. With
+    // first and second time bars a strain is as long as the first time through. Only asked about when the piece looks
+    // like a march - "march" in its title, or two or more strains of 16 bars - and then only a strain of 15 or 17.
+    function strains(piece) {
+        const ends = new Set([piece.bars, ...(piece.doubleBars || [])]);
+        piece.repeats.forEach(r => { if (r.from > 1) ends.add(r.from - 1); ends.add(r.e2To || r.to); });
+        (piece.movements || []).forEach(m => { if (m.bar > 1) ends.add(m.bar - 1); });
+        const out = [];
+        let start = 1;
+        [...ends].filter(b => b >= 1 && b <= piece.bars).sort((a, b) => a - b).forEach(end => {
+            const rep = piece.repeats.find(r => r.from === start && (r.e2To || r.to) === end && r.e1From);
+            out.push({ from: start, to: end, bars: rep ? rep.to - rep.from + 1 : end - start + 1 });
+            start = end + 1;
+        });
+        return out;
+    }
+    function strainChecks(piece) {
+        const all = strains(piece);
+        const march = /\bmarch/i.test(piece.title || '') || all.filter(s => s.bars === 16).length >= 2;
+        return march ? all.filter(s => s.bars === 15 || s.bars === 17) : [];
+    }
+    // What the member can tell a read again, checked before it goes anywhere near the prompt - never free text:
+    //   { beats, beatType } - the time signature it starts with;
+    //   changes - whether it changes time somewhere (false: it stays in that time throughout);
+    //   pickup - whether it starts before the first full bar;
+    //   bars - how many bars in all, when they know (null otherwise).
+    // Returns null when there is nothing usable (no real time signature).
+    function cleanGivens(raw, maxBars) {
+        if (!raw || typeof raw !== 'object') return null;
+        const beats = whole(raw.beats), beatType = whole(raw.beatType), bars = whole(raw.bars);
+        if (!(beats >= 1 && beats <= 32 && [1, 2, 4, 8, 16, 32].includes(beatType))) return null;
+        return { beats, beatType, changes: raw.changes === true, pickup: raw.pickup === true, bars: bars >= 1 && bars <= (maxBars || 2000) ? bars : null };
     }
 
     // ---------- compare: the outline as read against the outline as saved ----------
@@ -420,5 +474,5 @@
         return out;
     }
 
-    return { NOTE_VALUES, SIGN_KEYS, UNANCHORED_BARS, DEFAULT_BPM, normalise, bpmForWords, fit, rate, compare, fromBarOne, looksLikeOneWork, join };
+    return { NOTE_VALUES, SIGN_KEYS, UNANCHORED_BARS, DEFAULT_BPM, normalise, bpmForWords, fit, rate, compare, fromBarOne, looksLikeOneWork, join, strains, cleanGivens };
 }));

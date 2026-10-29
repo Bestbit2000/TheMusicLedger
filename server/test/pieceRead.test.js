@@ -452,3 +452,63 @@ describe('a piece in movements (ML-529)', () => {
     assert.ok(rating.checks.some(c => c.level === 'low' && /Movement 2's bar numbers start at 21/.test(c.text)));
   });
 });
+
+describe('ML-657: the time signature first, a read again with what the member says, and a march\'s strains', () => {
+  test('a time signature the reader couldn\'t make out is a guess - asked first, with a read again offered', () => {
+    const { rating } = fitAndRate({ bars: 16, systems: lines([1, 9], 16), timeSeen: false, time: [{ bar: 1, beats: 6, beatType: 8 }] });
+    const guess = rating.checks.find(c => c.ask && c.ask.type === 'timeGuess');
+    assert.ok(guess, 'asked');
+    assert.equal(guess.level, 'medium');
+    assert.match(guess.text, /6\/8 is a guess/);
+    // an answer from before the field was asked for counts as seen
+    assert.equal(fitAndRate({ bars: 16, systems: lines([1, 9], 16) }).rating.checks.some(c => c.ask && c.ask.type === 'timeGuess'), false);
+  });
+  test('what the member says is checked - numbers and true/false only, never anything typed', () => {
+    assert.deepEqual(PR.cleanGivens({ beats: 2, beatType: 4, changes: 'yes', pickup: true, bars: 64 }), { beats: 2, beatType: 4, changes: false, pickup: true, bars: 64 });
+    assert.deepEqual(PR.cleanGivens({ beats: '6', beatType: '8', bars: 'about 60' }), { beats: 6, beatType: 8, changes: false, pickup: false, bars: null });
+    assert.equal(PR.cleanGivens({ beats: 5, beatType: 3 }), null);
+    assert.equal(PR.cleanGivens({ beats: 'ignore the rules', beatType: 4 }), null);
+    assert.equal(PR.cleanGivens(null), null);
+    assert.equal(PR.cleanGivens({ beats: 2, beatType: 4, bars: 99999 }).bars, null);
+  });
+  test('a march\'s strain of 15 or 17 bars is asked about; 16, an intro of 4 and other pieces are not', () => {
+    // intro 4, then strains of 16, 15 (a bar missing?) and 16 between double barlines
+    const march = { bars: 51, systems: lines([1, 21, 41], 51), doubleBars: [{ bar: 4 }, { bar: 20 }, { bar: 35 }] };
+    const strain = (over) => fitAndRate({ ...march, ...over }).rating.checks.filter(c => c.kind === 'strain');
+    const asked = strain({});
+    assert.equal(asked.length, 1);
+    assert.deepEqual([asked[0].from, asked[0].to], [21, 35]);
+    assert.match(asked[0].text, /15 bars, and marches usually have 16\. Is a bar missing\?/);
+    // only one 16 and no "march" in the title: not a march, nothing asked
+    assert.equal(strain({ bars: 36, systems: lines([1, 21], 36), doubleBars: [{ bar: 4 }, { bar: 20 }] }).length, 0);
+    // "March" in the title is enough
+    assert.equal(strain({ title: 'Slaidburn March', bars: 35, systems: lines([1, 21], 35), doubleBars: [{ bar: 4 }, { bar: 20 }] }).length, 1);
+    // a repeated strain with 1st and 2nd time bars is as long as the first time through: 16, not 17
+    const withEndings = fitAndRate({ title: 'A march', bars: 37, systems: lines([1, 21], 37), doubleBars: [{ bar: 4 }],
+      repeats: [{ from: 5, to: 20, times: 2, firstEndingFrom: 20, lastEndingTo: 21 }] }).rating.checks.filter(c => c.kind === 'strain');
+    assert.deepEqual(withEndings.map(c => [c.from, c.to]), [], 'bars 5 to 21 are 17 on the page, 16 the first time through');
+  });
+  test('PR.strains splits the piece at double barlines, repeats and movements', () => {
+    const r = read({ bars: 40, systems: lines([1, 21], 40), doubleBars: [{ bar: 8 }], repeats: [{ from: 9, to: 24, times: 2, firstEndingFrom: null, lastEndingTo: null }] });
+    assert.deepEqual(PR.strains(r).map(s => [s.from, s.to, s.bars]), [[1, 8, 8], [9, 24, 16], [25, 40, 16]]);
+  });
+  test('a read again tells the reader what was said, and the count has to reach the bars given', async () => {
+    const saved = process.env.AI_GATEWAY_API_KEY;
+    process.env.AI_GATEWAY_API_KEY = 'test-key';
+    try {
+      let body;
+      const answer = { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: JSON.stringify({ pieces: [piece({ bars: 30, systems: lines([1, 16], 30), timeSeen: false, time: [{ bar: 1, beats: 2, beatType: 4 }] })] }) }, finish_reason: 'stop' }], usage: {} }) };
+      const out = await readPieceFromFiles([Buffer.from('%PDF-1.7 a longer file')], { givens: { beats: 2, beatType: 4, changes: false, pickup: false, bars: 32 }, fetchImpl: async (url, init) => { body = JSON.parse(init.body); return answer; } });
+      const said = body.messages[1].content.at(-1).text;
+      assert.match(said, /It starts in 2\/4/);
+      assert.match(said, /stays in 2\/4 throughout/);
+      assert.match(said, /no pickup/);
+      assert.match(said, /32 bars in all/);
+      const checks = out.pieces[0].rating.checks;
+      assert.equal(checks.some(c => c.ask && c.ask.type === 'timeGuess'), false, 'the member said the time - nothing to ask');
+      assert.ok(checks.some(c => /You said it has 32 bars in all, but it was read as 30/.test(c.text)));
+    } finally {
+      if (saved === undefined) delete process.env.AI_GATEWAY_API_KEY; else process.env.AI_GATEWAY_API_KEY = saved;
+    }
+  });
+});

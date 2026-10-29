@@ -131,6 +131,14 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
   in `docs/piece-from-photo.md`, "The checks"; `outlineAnswerOptions`). A count moves the bars (`outlineShiftBars`) and
   says what happened (`.read-check-moved`); what it touched becomes a check on its own step. **All right as read** is an
   underlined text link (`.read-agree-all`), shown with two or more open. Next stays the only primary button.
+- **The time signature comes first** (ML-657): a time signature not read, or read as a guess, is the first check on How
+  long. Its answers include **It's in a different time - read it again**: the usual time signature picker, then **Read
+  it again** (`#pieceReadGivensModal`, no new styles): `.modal-intro`, the time signature as a value box
+  (`.metroBlk-ctrl-value-btn.w-full`, "2/4" over "time signature at the start" - it opens the picker again, this pop-up
+  closing first), two `.setting-row` switches (**It changes time somewhere**, **It starts before the first full bar**,
+  both off), a `.form-group` number box **Bars in all, if you know it** with its help line, then Cancel / **Read it
+  again in 2/4** (`.btn-submit`). That asks once ("Read it again in 2/4? Choose the pages again. This uses another of
+  your photo reads.") and opens the file chooser.
 - **The progress bar** is the plain one: no marks (owner, 29 Oct 2026 - a gold dash already means done).
 - **Save** with checks open asks "These are still outstanding, save anyway?" (`#outlineOpenChecksModal`): the open
   ones listed with their step (`.read-open-list`), each with **Go to <step>** (`.btn-text.read-go`), then No / Yes. The

@@ -187,19 +187,20 @@ export async function stopRead(accountId, { ref, stage, waitedMs } = {}) {
 // with `whole: true` and its own index (it is logged as a piece found, like the others).
 // The pages are deleted from the file store whatever happens. A failure is logged too - a read that the
 // gateway refused or that found no music is part of how well this works.
-export async function readForAccount(accountId, rawFiles, { joinMovements = false, clientRef = null, estimateMs = null } = {}) {
+export async function readForAccount(accountId, rawFiles, { joinMovements = false, clientRef = null, estimateMs = null, givens: rawGivens = null } = {}) {
   const ref = REF.test(String(clientRef || '')) ? String(clientRef) : null;
+  const givens = PieceRead.cleanGivens(rawGivens); // ML-657: what the member told a read again
   const estimate = Number.isFinite(Number(estimateMs)) && Number(estimateMs) > 0 ? Math.round(Number(estimateMs)) : null;
   const files = checkedFiles(rawFiles, readUploadPrefix(accountId));
   let buffers = [];
   let result;
   try {
     buffers = await fetchBuffers(files);
-    result = await readPieceFromFiles(buffers);
+    result = await readPieceFromFiles(buffers, { givens });
   } catch (error) {
     await pool.query(
-      `INSERT INTO piece_reads (account_id, status, failure, model, prompt_version, file_count, file_bytes) VALUES ($1, 'failed', $2, $3, $4, $5, $6)`,
-      [accountId, String(error.message || 'failed').slice(0, 300), readerModel(), READ_VERSION, files.length, buffers.reduce((n, b) => n + b.length, 0)]
+      `INSERT INTO piece_reads (account_id, status, failure, model, prompt_version, file_count, file_bytes, givens) VALUES ($1, 'failed', $2, $3, $4, $5, $6, $7)`,
+      [accountId, String(error.message || 'failed').slice(0, 300), readerModel(), READ_VERSION, files.length, buffers.reduce((n, b) => n + b.length, 0), givens ? JSON.stringify(givens) : null]
     ).catch(() => {});
     throw error;
   } finally {
@@ -211,9 +212,9 @@ export async function readForAccount(accountId, rawFiles, { joinMovements = fals
   // ML-645: stopped before it got here - logged, and marked so it doesn't count
   const stopped = ref ? (await pool.query('SELECT 1 FROM piece_read_stops WHERE client_ref = $1 AND account_id = $2', [ref, accountId])).rows.length > 0 : false;
   const { rows } = await pool.query(
-    `INSERT INTO piece_reads (account_id, status, model, prompt_version, file_kind, file_count, file_bytes, units_in, units_out, ms, pages, estimate_ms, client_ref, cancelled_at)
-     VALUES ($1, 'read', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CASE WHEN $13 THEN now() END) RETURNING id`,
-    [accountId, result.model, READ_VERSION, kind, files.length, buffers.reduce((n, b) => n + b.length, 0), result.usage.inputTokens, result.usage.outputTokens, result.ms, pages, estimate, ref, stopped]);
+    `INSERT INTO piece_reads (account_id, status, model, prompt_version, file_kind, file_count, file_bytes, units_in, units_out, ms, pages, estimate_ms, client_ref, cancelled_at, givens)
+     VALUES ($1, 'read', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CASE WHEN $13 THEN now() END, $14) RETURNING id`,
+    [accountId, result.model, READ_VERSION, kind, files.length, buffers.reduce((n, b) => n + b.length, 0), result.usage.inputTokens, result.usage.outputTokens, result.ms, pages, estimate, ref, stopped, givens ? JSON.stringify(givens) : null]);
   const readId = Number(rows[0].id);
 
   const pieces = [];
@@ -285,6 +286,7 @@ export async function listReads() {
     fileKind: r.file_kind, fileCount: r.file_count, unitsIn: r.units_in, unitsOut: r.units_out, seconds: Math.round(r.ms / 1000),
     costUsd: costUsd(r.model, r.units_in, r.units_out), isTest: !!r.test_files,
     pages: r.pages, estimateSeconds: r.estimate_ms ? Math.round(r.estimate_ms / 1000) : null, stoppedAt: r.cancelled_at, // ML-645
+    givens: r.givens || null, // ML-657: what the member told a read again
     pieces: pieces.filter(p => String(p.read_id) === String(r.id)).map(pieceRow),
     reruns: reruns.filter(x => String(x.read_id) === String(r.id)).map(x => ({ id: Number(x.id), at: x.created_at, status: x.status, failure: x.failure, model: x.model, promptVersion: x.prompt_version, seconds: Math.round(x.ms / 1000), costUsd: costUsd(x.model, x.units_in, x.units_out), pieces: x.pieces }))
   }));
@@ -358,14 +360,14 @@ export async function setChecked(pieceId, on) {
 // A kept test read again with whatever prompt and model are set now. Its pieces are compared with the
 // pieces as saved (by position in the file), and it is kept beside the first read - never over it.
 export async function rerunRead(readId) {
-  const { rows } = await pool.query('SELECT id, account_id, test_files FROM piece_reads WHERE id = $1', [readId]);
+  const { rows } = await pool.query('SELECT id, account_id, test_files, givens FROM piece_reads WHERE id = $1', [readId]);
   if (!rows.length || !rows[0].test_files) throw withStatus(404, 'That read has no file kept to read again.');
   const accountId = rows[0].account_id;
   const files = checkedFiles(rows[0].test_files.map(f => ({ blobUrl: f.url, blobPathname: f.pathname })), testUploadPrefix(accountId));
   const savedRows = (await pool.query('SELECT piece_index, saved FROM piece_read_pieces WHERE read_id = $1', [readId])).rows;
   let result;
   try {
-    result = await readPieceFromFiles(await fetchBuffers(files));
+    result = await readPieceFromFiles(await fetchBuffers(files), { givens: PieceRead.cleanGivens(rows[0].givens) }); // ML-657: read again with what it was told
   } catch (error) {
     await pool.query(`INSERT INTO piece_read_reruns (read_id, status, failure, model, prompt_version) VALUES ($1, 'failed', $2, $3, $4)`,
       [readId, String(error.message || 'failed').slice(0, 300), readerModel(), READ_VERSION]);

@@ -3,7 +3,7 @@
 **Made by `node scripts/usage-buttons.mjs` - don't edit it by hand.** What counts as a use, and how a tap is
 counted, is in [usage-stats.md](usage-stats.md) ("Every button").
 
-899 buttons: 899 have a name a tap can be counted by, 0 need one.
+903 buttons: 903 have a name a tap can be counted by, 0 need one.
 A button on a screen is listed under the screen or pop-up it is on; one the app builds as it goes, under
 the function that builds it (shown with ()). The words are only to help find it - a tap is never counted by
 its words.
@@ -31,7 +31,7 @@ its words.
 | My bands | 31 | 0 |
 | My account, instruments, settings | 57 | 0 |
 | Signing in | 15 | 0 |
-| Menu, notices and the rest | 102 | 0 |
+| Menu, notices and the rest | 106 | 0 |
 
 ## Practice session
 
@@ -1000,6 +1000,10 @@ its words.
 | feedbackModal | `close (X)` | Close |
 | feedbackModal | `#feedbackCancelBtn` | Cancel |
 | feedbackModal | `#feedbackSubmitBtn` | Send |
+| pieceReadGivensModal | `close (X)` | Close |
+| pieceReadGivensModal | `#pieceReadGivensTime` | 4/4 time signature at the start |
+| pieceReadGivensModal | `#pieceReadGivensCancel` | Cancel |
+| pieceReadGivensModal | `#pieceReadGivensGo` | Read it again |
 | promptModal | `close (X)` | Close |
 | promptModal | `prompt-close` | Cancel |
 | promptModal | `#promptActionBtn` | Save |

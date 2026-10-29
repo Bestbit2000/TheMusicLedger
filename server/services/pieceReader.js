@@ -76,7 +76,9 @@ export const READ_SCHEMA = object({
     endSeen: { type: 'boolean' },
     cropped: { type: 'boolean' },
     pagesMissing: { type: 'boolean' },
+    timeSeen: { type: 'boolean' },
     time: list({ bar: int, beats: int, beatType: int }),
+    doubleBars: list({ bar: int }),
     speeds: list({ bar: int, bpm: nullable('integer'), note: { type: ['string', 'null'], enum: [...PieceRead.NOTE_VALUES, null] }, text: nullable('string'), handwritten: { type: 'boolean' } }),
     ramps: list({ from: int, to: int, kind: { type: 'string', enum: ['slower', 'faster'] }, text: nullable('string') }),
     marks: list({ bar: int, label: { type: 'string' } }),
@@ -105,6 +107,8 @@ HOW TO COUNT
 
 WHAT TO REPORT
 - time: the time signature at bar 1, then every change, each as the bar it starts on. Common time is 4/4, cut time is 2/2. Ignore a courtesy signature at the end of a line (it belongs to the next bar).
+- timeSeen: true only when a time signature is printed at the start and you can read it clearly. When there is none, or you can't make it out and the one you give at bar 1 is worked out from the rhythms, it is false - never guess silently.
+- doubleBars: every bar that ends with a double barline (two thin lines, or thin-thick in the middle of the piece). Not the end of a repeat - that is in "repeats" - and not the final barline.
 - speeds: every tempo mark, at the bar it starts on. "bpm" is the printed metronome number (for a range such as 132-138, the lower number) or null when only words are printed. "note" is the note the number counts (crotchet, dotted-crotchet, minim...) or null. "text" is the printed words (Allegro, Slower, Tempo I). Set "handwritten" true when the number is written in by hand and not printed.
 - ramps: every rit., rall., allarg. (slower) or accel. (faster), from the bar it starts in to the last bar before the next tempo mark.
 - marks: every rehearsal mark - a boxed or circled bar number, or a letter - with the bar it sits on. A boxed bar number's label is the number itself. Section titles and words like "Soli" are not rehearsal marks.
@@ -126,6 +130,22 @@ If the pages hold several pieces, or one piece in several movements, give each a
 // read again later can say what it was read with (Admin -> Photo reads).
 export const READ_VERSION = createHash('sha256').update(READ_PROMPT + JSON.stringify(READ_SCHEMA)).digest('hex').slice(0, 10);
 export const readerModel = () => process.env.PIECE_READER_MODEL || DEFAULT_MODEL;
+
+// ML-657 (owner, 29 Oct 2026): what the member could see at a glance, for a read again - checked by
+// PieceRead.cleanGivens first, so only numbers and true/false ever reach the prompt, never anything typed.
+// With the beats known, the reader counts the bars from the notes.
+export function givensText(givens) {
+  if (!givens) return '';
+  const sig = `${givens.beats}/${givens.beatType}`;
+  return [
+    'THE PLAYER HAS LOOKED AT THE MUSIC AND TELLS YOU:',
+    `- It starts in ${sig}. Use ${sig} at bar 1 and set "timeSeen" true.`,
+    givens.changes ? '- It changes time signature somewhere: report each change you find.' : `- It stays in ${sig} throughout: report no change of time signature.`,
+    givens.pickup ? '- It starts before the first full bar: there is a pickup - give its length in "pickupBeats".' : '- It starts on a full bar: there is no pickup.',
+    givens.bars ? `- It has ${givens.bars} bars in all. Your count must reach ${givens.bars}: if it doesn't, count again.` : '',
+    `- Count the bars from the notes: every bar holds the beats of ${sig}, so where a barline is faint or missing it goes where the beats are full. Check each line's count against the beats in it.`
+  ].filter(Boolean).join('\n');
+}
 
 function gatewayKey() {
   return process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || null;
@@ -158,7 +178,7 @@ export function parseAnswer(text) {
 // where read is the checked answer, outline is ready for Quick entry (time signatures as "3/4" keys, with
 // `sigs` saying what each is, for the caller to turn into the account's own) and rating is
 // { level, checks }. Throws withStatus 4xx with a message for the member; nothing is stored.
-export async function readPieceFromFiles(buffers, { fetchImpl = fetch } = {}) {
+export async function readPieceFromFiles(buffers, { fetchImpl = fetch, givens = null } = {}) {
   const key = gatewayKey();
   if (!key) throw withStatus(422, "Reading a piece from a photo isn't set up here yet.");
   const files = (buffers || []).filter(Boolean);
@@ -192,7 +212,7 @@ export async function readPieceFromFiles(buffers, { fetchImpl = fetch } = {}) {
         ...(process.env.PIECE_READER_EFFORT ? { reasoning: { effort: process.env.PIECE_READER_EFFORT } } : {}),
         messages: [
           { role: 'system', content: READ_PROMPT },
-          { role: 'user', content: [...parts, { type: 'text', text: 'Read the structure of the music on these pages.' }] }
+          { role: 'user', content: [...parts, { type: 'text', text: ['Read the structure of the music on these pages.', givensText(givens)].filter(Boolean).join('\n\n') }] }
         ],
         response_format: { type: 'json_schema', json_schema: { name: 'piece_read', description: 'The structure of the music on the pages', schema: READ_SCHEMA } },
         // Only providers that have agreed not to keep or train on what is sent.
@@ -213,6 +233,8 @@ export async function readPieceFromFiles(buffers, { fetchImpl = fetch } = {}) {
   const raw = parseAnswer(choice?.message?.content);
   const { pieces } = PieceRead.normalise(raw, PieceOutline.MAX_BARS);
   if (!pieces.length) throw withStatus(422, "Couldn't find a piece of music on that - try a clearer photo, or enter the piece by hand.");
+  // ML-657: the member gave the time signature (nothing to ask about it now) and perhaps the bars in all (a check if missed)
+  if (givens) pieces.forEach(p => { p.timeSeen = true; p.givenBars = givens.bars; });
 
   const asRead = (read) => {
     const fitted = PieceRead.fit(read);

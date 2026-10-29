@@ -18,6 +18,8 @@
     const BADGE = { high: 'pass', medium: 'warn', low: 'fail' };
     const badge = (level) => `<span class="admin-badge ${BADGE[level] || 'never'}">${esc(level)}</span>`;
     const many = (n, one, more) => `${n} ${n === 1 ? one : more}`;
+    // ML-657: what the member told a read again
+    const givensText = (g) => [`${g.beats}/${g.beatType}`, g.changes ? 'changes time' : 'one time throughout', g.pickup ? 'a pickup' : 'no pickup', g.bars ? many(g.bars, 'bar', 'bars') : ''].filter(Boolean).join(', ');
 
     // What was changed before saving, in a few words
     function changedText(c) {
@@ -43,7 +45,7 @@
             ].join(' ');
             return `<tr>
                 <td>${i === 0 ? esc(when(r.at)) : ''}</td>
-                <td class="admin-bc-text"><strong>${esc(p.title || `Piece ${p.index + 1}`)}</strong>${i === 0 && r.isTest ? ' <span class="admin-badge info">Test</span>' : ''}<div class="admin-stat-tile-sub">${esc(r.fileKind === 'pdf' ? 'PDF' : many(r.fileCount, 'photo', 'photos'))} · ${esc(r.promptVersion || '')}</div>${reruns}</td>
+                <td class="admin-bc-text"><strong>${esc(p.title || `Piece ${p.index + 1}`)}</strong>${i === 0 && r.isTest ? ' <span class="admin-badge info">Test</span>' : ''}<div class="admin-stat-tile-sub">${esc(r.fileKind === 'pdf' ? 'PDF' : many(r.fileCount, 'photo', 'photos'))} · ${esc(r.promptVersion || '')}</div>${i === 0 && r.givens ? `<div class="admin-stat-tile-sub">Told: ${esc(givensText(r.givens))}</div>` : ''}${reruns}</td>
                 <td>${badge(p.rating)}</td>
                 <td>${p.bars}${p.savedAt ? ` → ${p.savedBars}` : ''}</td>
                 <td class="admin-bc-text">${p.savedAt ? changedText(p.changes) : '<span class="text-muted">Not saved</span>'}</td>

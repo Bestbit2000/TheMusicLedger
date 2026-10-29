@@ -4743,6 +4743,34 @@
    "html": true
   },
   {
+   "group": "Menu, notices and the rest",
+   "where": "pieceReadGivensModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "pieceReadGivensModal",
+   "name": "#pieceReadGivensTime",
+   "label": "4/4 time signature at the start",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "pieceReadGivensModal",
+   "name": "#pieceReadGivensCancel",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "pieceReadGivensModal",
+   "name": "#pieceReadGivensGo",
+   "label": "Read it again",
+   "html": true
+  },
+  {
    "group": "My bands",
    "where": "bandEditModal",
    "name": "close (X)",

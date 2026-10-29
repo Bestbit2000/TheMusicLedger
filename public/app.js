@@ -7544,6 +7544,7 @@
     async function loadAddPiece(isBack) {
         if (!isBack) {
             addPieceTarget = null;
+            pieceReadNext = null; // a read again whose pages were never chosen doesn't carry over to a fresh read (ML-657)
             addPiece = { bandId: null, listId: null, bands: addPiece.bands, lists: addPiece.lists };
         }
         renderAddPiece();
@@ -24677,6 +24678,7 @@
     const pieceReadInput = document.getElementById('pieceReadInput');
     let pieceReadBusy = false;
     let pieceReadMore = null; // the pieces of a read not opened yet (a file can hold several): { read, pieces, target }
+    let pieceReadNext = null; // a read again from Quick entry: { target, givens } for the next read only (ML-657)
     let pieceReadAllowance = null; // asked for while the file chooser is open: { limit, used, left, startsAgainOn }
     const pieceReadDay = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
     // The tile's help line ends with the reads left this quarter, asked for each time Add a piece opens and
@@ -24737,7 +24739,10 @@
                 : `You have used this quarter's ${allowance.limit} photo reads. They reset on ${pieceReadDay(allowance.startsAgainOn)}.`);
             return;
         }
-        const target = addPieceTakeTarget();
+        // A read again from Quick entry (ML-655/657) keeps where the piece goes and takes what the member said with it
+        const next = pieceReadNext;
+        pieceReadNext = null;
+        const target = (next && next.target) || addPieceTakeTarget();
         pieceReadBusy = true;
         pieceReadBtn.disabled = true;
         pieceReadBtn.setAttribute('aria-busy', 'true');
@@ -24748,7 +24753,7 @@
             const sent = await pieceReadUpload(files, 'piece-read', (text, pct) => wait.sending(pct));
             if (wait.stopped) { pieceReadWaitStop(wait, 'sending'); return; } // stopped while sending: nothing is read
             wait.reading();
-            const result = await apiCall('/api/piece-read', 'POST', { files: sent, ref: wait.ref, estimateMs: wait.estimateMs() });
+            const result = await apiCall('/api/piece-read', 'POST', { files: sent, ref: wait.ref, estimateMs: wait.estimateMs(), ...(next && next.givens ? { givens: next.givens } : {}) });
             if (wait.stopped) return; // stopped while reading: the answer is let go, and the read doesn't count
             wait.close();
             const read = { id: result.readId, files, kind: isPdf ? 'PDF' : (files.length > 1 ? 'photos' : 'photo') };
@@ -24962,6 +24967,10 @@
     function outlineCheckStep(c) {
         const t = String(c.text || '');
         if (c.step) return c.step; // a follow-up says its own
+        // ML-657 (owner, 29 Oct 2026): the time signature the piece starts in is the first question on How long - every
+        // bar count depends on it; and a march's strain of 15 or 17 bars is a question about the count
+        if (c.ask && (c.ask.type === 'timeGuess' || c.ask.type === 'mainTime')) return 'howLong';
+        if (c.kind === 'strain') return 'howLong';
         if (c.kind === 'speed') return 'speed';
         if (c.kind === 'ramp') return 'xRamps';
         if (c.kind === 'time' || c.kind === 'free-bar') return 'time';
@@ -25074,7 +25083,9 @@
         </div>`;
     }
     function outlineReadChecksHtml(stepKey) {
-        const mine = outlineReadChecks().filter((c) => c.step === stepKey);
+        // (the time signature it starts in goes first: the counts after it depend on it - ML-657)
+        const first = (c) => (c.ask && (c.ask.type === 'timeGuess' || c.ask.type === 'mainTime') ? 0 : 1);
+        const mine = outlineReadChecks().filter((c) => c.step === stepKey).sort((a, b) => first(a) - first(b));
         if (!mine.length) return '';
         const open = mine.filter((c) => outlineCheckState(c) === 'open').length;
         const head = `${stepKey === 'read' ? 'Before you start' : 'From your photo'}: ${open ? `${open} to check` : 'all done'}`;
@@ -25123,7 +25134,10 @@
             case 'page':
                 return [ok('none', 'Nothing is missing', 'Carry on as it is'), readAgain, ok('fill', "I'll fill in what's missing", 'Carry on, and put it right on the steps as you go')];
             case 'mainTime':
-                return [yes(`Yes, ${outlineSigLabel(o.mainSig)}`), { key: 'pick', title: 'A different time signature', sub: 'Pick the one most of it is in', run: () => outlinePickSig(o.mainSig, (value) => { o.mainSig = value; outlineReadDone(c, 'changed', outlineSigLabel(value)); }) }];
+            case 'timeGuess': // ML-657 (owner, 29 Oct 2026): every bar count depends on it, so a reread is offered with what you can see
+                return [yes(`Yes, ${outlineSigLabel(o.mainSig)}`),
+                    { key: 'again', title: "It's in a different time - read it again", sub: 'Say what you can see at a glance, and the bars are counted again - this uses one of your reads', run: () => outlineReadAgainGiven(c) },
+                    { key: 'pick', title: "It's in a different time - just change it", sub: 'The time signature is set, and the bar counts stay as they were read', run: () => outlinePickSig(o.mainSig, (value) => { o.mainSig = value; outlineReadDone(c, 'changed', outlineSigLabel(value)); }) }];
             case 'beats':
                 return [{ key: 'beats', title: 'Give the beats in it', sub: `Bar ${a.bar} gets a time signature of its own`, run: () => outlineAskNumber(`How many beats are in bar ${a.bar}?`, 4, 1, 32, (n) => outlineSetBarBeats(c, a.bar, n)) },
                     ok('self', "I'll set it in the table below", 'Carry on, and add a row for it on this step')];
@@ -25184,8 +25198,62 @@
         outline.read.answers[c.id] = 'checked';
         outline.read.said[c.id] = 'Reading again';
         renderOutline();
+        pieceReadNext = { target: outline.target }; // ML-658: where the piece goes, as changed on the About step
         if (pieceReadBtn) pieceReadBtn.click();
     }
+    // ML-657 (owner, 29 Oct 2026): read it again with what can be seen at a glance - never anything that needs counting
+    // ("that is the whole point of not doing it manually"). First the time signature it starts with (the usual picker),
+    // then #pieceReadGivensModal: that time as a value box, "It changes time somewhere" and "It starts before the first
+    // full bar" (switches, off), and the bars in all only if known. One confirm, and the pages are chosen again - they
+    // aren't kept after a read. The answers go with the read (PieceRead.cleanGivens on the server).
+    let pieceReadGivens = null; // { check, sig, changes, pickup, bars } while the pop-up is open
+    function outlineReadAgainGiven(c) {
+        outlinePickSig(outline.o.mainSig, (sig) => pieceReadGivensOpen({ check: c, sig, changes: false, pickup: false, bars: '' }));
+    }
+    function pieceReadGivensOpen(state) {
+        pieceReadGivens = state;
+        const label = outlineSigLabel(state.sig);
+        const timeBtn = document.getElementById('pieceReadGivensTime');
+        timeBtn.innerHTML = `<strong>${escapeHtml(label)}</strong><span class="metroBlk-ctrl-value-label">time signature at the start</span>`;
+        timeBtn.setAttribute('aria-label', `Time signature at the start: ${label} - tap to change`);
+        document.getElementById('pieceReadGivensChanges').checked = state.changes;
+        document.getElementById('pieceReadGivensPickup').checked = state.pickup;
+        document.getElementById('pieceReadGivensBars').value = state.bars;
+        document.getElementById('pieceReadGivensGo').textContent = `Read it again in ${label}`;
+        showModal('pieceReadGivensModal');
+    }
+    const pieceReadGivensKeep = () => {
+        const g = pieceReadGivens;
+        if (!g) return null;
+        g.changes = document.getElementById('pieceReadGivensChanges').checked;
+        g.pickup = document.getElementById('pieceReadGivensPickup').checked;
+        g.bars = document.getElementById('pieceReadGivensBars').value.trim();
+        return g;
+    };
+    document.getElementById('pieceReadGivensTime')?.addEventListener('click', () => {
+        const g = pieceReadGivensKeep();
+        if (!g) return;
+        hideModal('pieceReadGivensModal'); // pop-ups don't stack: the picker, then back here
+        outlinePickSig(g.sig, (sig) => pieceReadGivensOpen({ ...g, sig }));
+    });
+    document.getElementById('pieceReadGivensCancel')?.addEventListener('click', () => { hideModal('pieceReadGivensModal'); pieceReadGivens = null; });
+    document.getElementById('pieceReadGivensGo')?.addEventListener('click', () => {
+        const g = pieceReadGivensKeep();
+        if (!g || !outline) return;
+        const bars = g.bars === '' ? null : Number(g.bars);
+        if (bars !== null && !(Number.isInteger(bars) && bars >= 1 && bars <= 2000)) { showWarningToast('Bars in all is a whole number - or leave it empty.'); return; }
+        const sig = outlineSigInfo(g.sig);
+        if (!sig) { showWarningToast('Choose the time signature it starts with.'); return; }
+        const label = outlineSigLabel(g.sig);
+        hideModal('pieceReadGivensModal');
+        showConfirmModal(`Read it again in ${label}?`, 'Choose the pages again. This uses another of your photo reads.', () => {
+            const c = g.check;
+            if (outline && c) { outline.read.answers[c.id] = 'checked'; outline.read.said[c.id] = `Reading again in ${label}`; renderOutline(); }
+            pieceReadNext = { target: outline ? outline.target : null, givens: { beats: sig.numerator, beatType: sig.denominator, changes: g.changes, pickup: g.pickup, bars } };
+            pieceReadGivens = null;
+            if (pieceReadBtn) pieceReadBtn.click();
+        }, false, 'Choose the pages');
+    });
     // A bar with no set length, given its beats: a time signature of its own (beats over the main one's beat), when
     // the app has it; otherwise the row is left to fill in on the step
     function outlineSetBarBeats(c, bar, beats) {

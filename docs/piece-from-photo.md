@@ -322,7 +322,9 @@ one-time "I have the right to upload it" (ML-278) comes first, as for any music.
      | A printed number on the wrong bar (`printed`) | The print is wrong / The count is wrong - the bars from there move to match the print |
      | Things past the last bar, the end not seen (`end`) | Yes, it ends at bar N / It's longer - how many bars / A page is missing - read it again |
      | A page cut off (`page`) | Nothing is missing / Take a new photo of it / I'll fill in what's missing |
-     | No time signature at the start (`mainTime`) | Yes / A different time signature (the usual picker) |
+     | No time signature at the start (`mainTime`), or one that is a guess (`timeGuess`, ML-657) - first on How long | Yes / It's in a different time - read it again (with what you can see, below) / It's in a different time - just change it (the usual picker; the counts stay as read) |
+     | A march's strain of 15 or 17 bars (`strain`, ML-657) - on How long | It's right / It's not right - which step? (it only asks: 1st and 2nd time bars make a strain run past 16) |
+     | Fewer or more bars than the member said there are (`count`, after a read again given the bars) | Yes / the number they gave / Another number |
      | A bar with no set length (`beats`) | Give the beats in it (a time row of its own) / I'll set it in the table below |
      | A speed from a word, a pencilled number, the default (`speed`) | Yes / A different speed (the Tempo pop-up; later starting points from words follow) |
      | A word not understood (`addSpeed`) | No change of speed / Put in a speed |
@@ -333,7 +335,27 @@ one-time "I have the right to upload it" (ML-278) comes first, as for any music.
      | The reader's own doubts (`doubt`) | It's right / It's not right - which step? (goes there) |
 
      **Reading again** (a page cut off or missing) is the ordinary photo read and **uses one of the member's reads**
-     (owner, 29 Oct 2026). **Moving the bars** (`outlineShiftBars`): everything typed or read follows - marks, speeds,
+     (owner, 29 Oct 2026). It keeps where the piece goes, as changed on the About step (ML-658).
+
+     **Reading again with what you can see** (ML-657, owner 29 Oct 2026 - after Wassail, a sideways march card with no
+     readable time signature, came out 6/8 and badly miscounted). The time signature question's "read it again" asks only
+     what can be seen at a glance, never anything that needs counting ("that is the whole point of not doing it
+     manually"): the time signature it starts with (the usual picker, then a value box in `#pieceReadGivensModal`), **It
+     changes time somewhere** and **It starts before the first full bar** (switches, off - off tells the reader it stays
+     in that time and has no pickup), and **Bars in all, if you know it** (left empty unless the member has the number).
+     One confirm ("Read it again in 2/4? Choose the pages again. This uses another of your photo reads.") and the pages
+     are chosen again - they aren't kept. The answers go with the read as `givens`, are checked by `PieceRead.cleanGivens`
+     (a real time signature, true/false, a whole number of bars - never free text) and become a few lines of the prompt
+     (`givensText`): the reader counts the bars from the notes, every bar holding the time signature's beats. A read
+     given them asks nothing about the time signature, and asks about the bars if its count misses the number given.
+     The log keeps them (`piece_reads.givens`, migration 170), Admin → Photo reads shows "Told: 2/4, one time
+     throughout, no pickup", and **Read again** on a kept test reads it with the same givens.
+
+     **The time signature and a march's strains** (ML-657): the reader says whether it could read the time signature at
+     the start (`timeSeen`; false makes the `timeGuess` question) and lists the bars that end with a double barline
+     (`doubleBars`). `PieceRead.strains` splits the piece at double barlines, repeats and movements (a repeated strain
+     with 1st and 2nd time bars is as long as the first time through); when the piece looks like a march - "march" in
+     its title, or two or more strains of 16 - a strain of 15 or 17 bars is asked about. **Moving the bars** (`outlineShiftBars`): everything typed or read follows - marks, speeds,
      time rows, movements, repeats, pauses, rall./accel., signs, the intro and the other checks. When the piece gets
      shorter at the end, what belongs at the end (a sign, a pause, the end of a repeat, an ending, a time row or a rall.)
      moves to the new last bar and anything else past it is left out (owner, 29 Oct 2026); bars that go in the middle

@@ -4827,6 +4827,33 @@
     </div>
 </div>
 
+<!-- ML-657 (owner, 29 Oct 2026): read a piece again with what can be seen at a glance - never anything that needs
+     counting. The time signature it starts with (a value box: the usual picker), whether it changes time and whether it
+     starts before the first full bar (switches, off), and the bars in all only if known. Then one confirm and the pages
+     are chosen again (pieceReadGivensOpen). -->
+<div class="modal" id="pieceReadGivensModal" role="dialog" aria-modal="true" aria-labelledby="pieceReadGivensTitle" aria-describedby="pieceReadGivensHelp">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="pieceReadGivensTitle">Read it again</h2>
+        <p class="modal-intro text-muted" id="pieceReadGivensHelp">Say what you can see at a glance. Knowing the beats in a bar, the bars are counted from the notes.</p>
+        <div class="form-group">
+            <button type="button" class="metroBlk-ctrl-value-btn w-full" id="pieceReadGivensTime" aria-haspopup="dialog"><strong>4/4</strong><span class="metroBlk-ctrl-value-label">time signature at the start</span></button>
+        </div>
+        <div class="setting-row">
+            <span id="pieceReadGivensChangesLabel">It changes time somewhere</span><label class="toggle-switch"><input type="checkbox" id="pieceReadGivensChanges" aria-labelledby="pieceReadGivensChangesLabel"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row">
+            <span id="pieceReadGivensPickupLabel">It starts before the first full bar</span><label class="toggle-switch"><input type="checkbox" id="pieceReadGivensPickup" aria-labelledby="pieceReadGivensPickupLabel"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="form-group">
+            <label for="pieceReadGivensBars">Bars in all, if you know it</label>
+            <input type="number" id="pieceReadGivensBars" min="1" max="2000" inputmode="numeric" autocomplete="off" aria-describedby="pieceReadGivensBarsHelp">
+            <p class="text-sm text-muted mt-2 no-margin" id="pieceReadGivensBarsHelp">Leave it empty unless you already have the number - from a score, or printed on the last bar.</p>
+        </div>
+        <div class="flex-row gap-md"><button type="button" class="btn-cancel btn-nav no-margin" id="pieceReadGivensCancel">Cancel</button><button type="button" class="btn-submit no-margin" id="pieceReadGivensGo">Read it again</button></div>
+    </div>
+</div>
+
 <!-- ML-659 (owner, 29 Oct 2026): Edit the band - its logo and its name in one place, saved together on Save (Cancel
      changes nothing). The logo is the button: a pencil badge on its corner opens a small menu (Choose a new logo / Take
      the logo off) - a menu, not a pop-up, so nothing stacks; with no logo a + badge goes straight to choosing a picture.
