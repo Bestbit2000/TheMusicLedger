@@ -45,12 +45,14 @@ The owner's model (6 Oct 2026, after seeing his old session names beside the ban
 - **One row a band, one page a band** (ML-653, the owner, 29 Oct 2026). My bands is its own item in the ☰ menu
   (in "You", after My music), with a number on it while a band invitation is waiting (`bandInvitesWaiting` on
   `GET /api/account`). Each band is a row - its logo, its name, what I can do and how many are in it, or "Just for
-  my practice log" - and a tap opens **the band's page**: the logo (an organiser changes it there), name, what I can
-  do and the website; for a shared band **Members** (a page for its organisers only) and **Tell the band** (for
+  my practice log" - and a tap opens **the band's page**: the logo, the name, what I can do and the website. A pencil
+  beside the name opens **Edit the band** (ML-659, the owner, 29 Oct 2026) for a shared band's organisers and a band
+  just for my log: the logo (organisers; the logo is the button) and the name, saved together on Save. The name goes
+  through `renameMyBand` (`PUT /api/account/my-bands/:labelId/name`) - never to the name of another band of mine; for
+  a shared band only an organiser who has said they are an adult may, and it renames the band everyone in it sees
+  (each member's own entry follows when it still had the old name; one they had called something else keeps theirs); for a shared band **Members** (a page for its organisers only) and **Tell the band** (for
   those who can send), and **Me in this band** - my own switch for sharing Levels; then what I can do with it on
-  my list (the old ⋮ menu): Change its name (a band just for my log only - `renameMyBand`,
-  `PUT /api/account/my-bands/:labelId/name`; never to the name of another of mine, and never a shared band, whose name
-  everyone in it sees), It's a band in the list, Same as another band of mine, I don't play with them now,
+  my list (the old ⋮ menu): It's a band in the list, Same as another band of mine, I don't play with them now,
   Leave the shared band / Stop sharing, Report the band's name; or, for a band just for my log, **Set up sharing**.
 
 Tests: `server/test/myBands.test.js` (dev database). Screens: `specs/components/band-members.md`.

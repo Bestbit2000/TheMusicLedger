@@ -5,11 +5,13 @@
   `#tidyBandsView`, `#bandView`, `#bandMembersView`, `#bandNoticeView` - no classes of their own: `.metro-help-text`,
   `.section-title`, `.form-group`, the value box `.metroBlk-ctrl-value-btn.w-full`, `.btn-submit`, `.btn-cancel.btn-inline`,
   `.btn-text`, `.history-item` (`.settings-link`, `.is-muted`), `.band-row-text`, the toggle row); ML-534 adds
-  `#bandWelcomeView`, `#bandLogoSection` and three classes: `.band-logo` (`.band-logo-sm`, `.band-logo-lg`) and
+  `#bandWelcomeView` and three classes: `.band-logo` (`.band-logo-sm`, `.band-logo-lg`) and
   `.band-row-main`
 - **Category:** Flow / input
 - **Status:** New (ML-473); My bands as one list, ML-478; a band's logo and its welcome, ML-534; one row a band, one
-  page a band, and only organisers see who is in it, ML-653
+  page a band, and only organisers see who is in it, ML-653; Edit the band (the logo is the button, organisers rename a
+  shared band), ML-659 - adds `#bandEditModal` and five classes: `.band-logo-edit`, `.band-logo-btn`,
+  `.band-logo-empty-icon`, `.band-logo-badge`, `.band-logo-menu`
 
 ## 2. Overview
 **My bands is every band you play with** (ML-478, the owner's model, 6 Oct 2026) - and exactly what the
@@ -22,14 +24,25 @@
   `person` for a band just for my log), its name, and under it what I can do and how many are in it ("Organiser · 6
   members") or "Just for my practice log", and a chevron. A tap opens **the band's page** (`#bandView`); there is no ⋮
   menu. On a wide screen My bands is a list page: the list stays on the left and the band opens on the right.
-- **The band's page** (`#bandView`, `renderBandPage`): the logo (`.band-logo-lg`), the name (`h2`), "You: Organiser"
-  (or "Just for my practice log") and the website; an organiser's **Add a logo / Change the logo** and **Take the logo
-  off** under it. For a shared band, **The band**: **Members** - a `.settings-link` row ("6 members · 1 invitation
+- **The band's page** (`#bandView`, `renderBandPage`): the logo (`.band-logo-lg`), the name (`h2`) with a pencil beside
+  it (`.list-item-menu-btn`, `#bandPageEditBtn` - a shared band's organisers and a band just for my log only), "You:
+  Organiser" (or "Just for my practice log") and the website.
+- **Edit the band** (`#bandEditModal`, ML-659, the owner's decisions 29 Oct 2026): the pencil's pop-up, the one place a
+  band's logo and name are changed. **The logo is the button** (`.band-logo-btn`, in `.band-logo-edit`), with a pencil
+  badge on its corner (`.info-row-edit-icon.band-logo-badge` - on a phone there is no hover, so the badge is always
+  there). A tap opens the usual small menu under it (`.dropdown-menu.band-logo-menu`, not a pop-up, so nothing stacks):
+  **Choose a new logo** · **Take the logo off** (red). With no logo the box shows a picture icon
+  (`.band-logo-empty-icon`) and a **+** badge, and a tap goes straight to choosing a picture. The logo's help line under
+  it. Then **Name** ("Everyone in the band sees this name." / "Only you see this name. The N sessions logged with it
+  keep it."), and **Cancel** / **Save**. **Nothing changes until Save** - a picture chosen is only shown (a `blob:`
+  address), and taking the logo off only marks it; Save sends the logo, then the name. The logo part is for a shared
+  band's organisers (feature `band_welcome`); a band just for my log has only the name. **An organiser may rename a
+  shared band** - everyone in it sees the new name, and each member's own entry follows when it still had the old one
+  (`renameMyBand`). An organiser who hasn't said they are 18 or over is asked first, with the pop-up out of the way. For a shared band, **The band**: **Members** - a `.settings-link` row ("6 members · 1 invitation
   waiting") that opens the Members page **for its organisers only**; everyone else gets the same row without a
   chevron, as plain text ("14 members") - and **Tell the band** for those who can send ("A notice to everyone · 3 more
   can go now"); then **Me in this band**, the switch for sharing Levels. Then what I can do with it on my list, as
-  `.btn-text` links, each only when it applies: Change its name (a band just for my log: the prompt pop-up; its
-  sessions keep it - a shared band's name is the one everyone in it sees) · It's a band in the list · Same as another band of mine · I don't play
+  `.btn-text` links, each only when it applies (its name is changed in Edit the band, ML-659): It's a band in the list · Same as another band of mine · I don't play
   with them now · Leave the shared band · **Stop sharing** (danger, when I'm the only one in it) · Report the band's
   name. A band just for my log says only I see it, and its one primary button is **Set up sharing** (a confirm pop-up
   first; you become its organiser).
@@ -91,9 +104,8 @@ who runs a band). Two places:
 - **Don't use** it for the directory (Admin → Bands).
 
 **A band's logo and its welcome** (ML-534, feature `band_welcome`; the owner's decisions, 19 Oct 2026):
-- **The logo** - an organiser adds, changes or takes it off at the top of the band's page (`#bandLogoSection`, under
-  the logo itself, ML-653): the logo (`.band-logo.band-logo-lg`), **Add a logo** / **Change the logo** and
-  **Take the logo off** (asks first). A PNG, JPEG or WebP up to 1 MB, kept in the file store under
+- **The logo** - an organiser adds, changes or takes it off in **Edit the band** (ML-659, above): the logo is the button,
+  its menu has Choose a new logo and Take the logo off, and both wait for Save. A PNG, JPEG or WebP up to 1 MB, kept in the file store under
   `band-logos/<band>/`. It is shown whole on a plain ground (`object-fit: contain`), never cropped.
 - **On My bands** a shared band with a logo shows it small at the start of its row (`.band-logo-sm`, where the icon is).
   The picture is decoration there (`alt=""`) - the name is beside it.
@@ -117,8 +129,8 @@ who runs a band). Two places:
 - `#accountBandInvites` › per invitation: `.section-title` "You are invited to join ..." › `p.metro-help-text` ›
   `.flex-row.items-center.gap-sm` with **Join ...** (`.btn-submit.btn-inline`) and **No thanks**
   (`.btn-cancel.btn-inline`).
-- `#bandView` (ML-653) › `.flex-col.items-center.text-center` (`img.band-logo.band-logo-lg`, `h2`, "You: ..." in
-  `p.metro-help-text`, the website, `#bandLogoSection` for an organiser) › `#bandPageShared`: `.section-title` "The
+- `#bandView` (ML-653) › `.flex-col.items-center.text-center` (`img.band-logo.band-logo-lg`, `.flex-row` with the `h2`
+  and `button.list-item-menu-btn#bandPageEditBtn`, "You: ..." in `p.metro-help-text`, the website) › `#bandPageShared`: `.section-title` "The
   band" › `button.history-item.settings-link#bandPageMembersLink` (organisers) or `div.history-item.settings-link#bandPageMembersCount`
   (everyone else: no chevron, nothing to tap) › `button.history-item.settings-link#bandPageNoticeLink` › `#bandShareLevelsSection`
   (`.section-title` "Me in this band" and the toggle row) › or `#bandPageOwn` (a band just for my log) › `#bandPageActions`:
@@ -131,10 +143,16 @@ who runs a band). Two places:
 - `#bandNoticeView` (ML-498, its own page since ML-653) › `p.metro-help-text#bandNoticeHelp` › `.form-group` (Title) ›
   `.form-group` (Message, a `textarea`) › **Send to the band** (`.btn-submit`) › `.section-title` "Sent lately" › a
   `.history-item` › `.band-row-text` per notice.
+- `#bandEditModal` (ML-659) › `.modal-content` › `.modal-close-x` › `h2` "Edit the band" › `.form-group#bandEditLogoGroup`
+  (organisers of a shared band): `label` "Logo" › `.band-logo-edit` (`button.band-logo.band-logo-lg.band-logo-btn` holding
+  the `img` or `.band-logo-empty-icon`, and `.info-row-edit-icon.band-logo-badge` - `edit` or `add`; then
+  `.dropdown-menu.band-logo-menu` with two `.dropdown-item`s, the second `.metroBlk-tile-menu-delete`) › help line ›
+  hidden file input › `.form-group` (Name, its line) › `.flex-row` Cancel (`.btn-cancel.btn-nav`) / Save (`.btn-submit`).
 
 ## 4. Tokens used
 None of its own - see [form-field](form-field.md), [button](button.md), [list-row](list-row.md) and
-[metronome](metronome.md) (the value box).
+[metronome](metronome.md) (the value box). ML-659's classes use `--space-3` (the badge sits that far over the logo's
+corner), `--space-4` (the menu's gap under the logo), `--icon-xl` (the empty box's picture) and `--label-color`.
 
 ## 5. Props / API
 - app.js, by `renderAccountBandsList`: `BAND_LEVELS`, `renderAccountBandInvites`, `loadBandMembers`,
@@ -194,6 +212,11 @@ None of its own - see [form-field](form-field.md), [button](button.md), [list-ro
   again** names its band in its `aria-label`; a Tidy value box's label says the name, how many sessions and
   "tap to say what it is". Merging asks first, in words, and says it can't be undone.
 - The email box is `type="email"` with `autocapitalize="off"`; an error is a toast, in words.
+- ML-659: the pencil beside the name is a `<button>` with `aria-label="Edit the band"` and `aria-haspopup="dialog"`
+  (40px with the shared 44px touch area of `.list-item-menu-btn`). In Edit the band the logo is one `<button>` (96px)
+  whose label says what a tap does - "The band's logo - change it or take it off" (`aria-haspopup="menu"`,
+  `aria-expanded`) or "Add a logo"; the badge is decoration (`aria-hidden`). The menu is the shared `.dropdown-menu`
+  (arrow keys, Escape closes it first, focus goes back to the logo). The name's line is its `aria-describedby`.
 - ML-534: the logo's preview and the welcome's logo have an `alt` naming the band; on a My bands row it is
   `alt=""` (the name is beside it). The file picker is a real `<input type="file">` with an `aria-label`, opened
   by a `<button>`. The welcome is a heading (`h2`) and plain rows - what it says is words, not the picture.

@@ -186,6 +186,14 @@
     .band-logo { flex: none; display: block; object-fit: contain; border-radius: var(--radius-sm); background: var(--container-bg); border: 1px solid var(--input-border); box-sizing: border-box; }
     .band-logo-sm { width: var(--band-logo-sm); height: var(--band-logo-sm); }
     .band-logo-lg { width: var(--band-logo-lg); height: var(--band-logo-lg); }
+    /* ML-659: in Edit the band the logo is the button - a pencil badge (.info-row-edit-icon) on its corner, or a +
+       on the empty box; a tap opens a small .dropdown-menu just under it (.band-logo-menu) */
+    .band-logo-edit { position: relative; width: fit-content; }
+    .band-logo-btn { position: relative; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; color: var(--label-color); }
+    .band-logo-btn img { width: 100%; height: 100%; object-fit: contain; border-radius: inherit; }
+    .band-logo-btn .band-logo-empty-icon { font-size: var(--icon-xl); }
+    .band-logo-badge { position: absolute; right: calc(-1 * var(--space-3)); bottom: calc(-1 * var(--space-3)); }
+    .band-logo-menu { left: 0; right: auto; top: calc(100% + var(--space-4)); width: max-content; }
     .band-row-main { display: flex; align-items: center; gap: var(--space-3); min-width: 0; } /* a My bands row: the logo (if any) beside the name */
     /* The home greeting: avatar, then the greeting with one line of encouragement under it */
     .home-greeting { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-6); } /* a clear break before Start a practice session */

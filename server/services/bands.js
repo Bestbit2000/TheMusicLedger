@@ -438,16 +438,43 @@ export async function keepMyBand(accountId, labelId) {
 }
 
 // ML-653 (owner, 29 Oct 2026): rename a band that is just for my practice log, from its page. Its rehearsals and
-// performances follow it (they hold the band, not its name). A shared band's name is the one the whole band sees,
-// so it isn't renamed here - nor to the name of another band of mine (that is "Same as another band of mine").
+// performances follow it (they hold the band, not its name) - but not to the name of another band of mine (that is
+// "Same as another band of mine").
+// ML-659 (owner, 29 Oct 2026): a shared band's organiser renames the band itself - the name everyone in it sees. As
+// the owner's rename does (ML-511), each member's own entry follows when it still carries the old name; one a member
+// has called something else keeps their name. Like every organiser action it asks that they are an adult (ML-554).
 export async function renameMyBand(accountId, labelId, name) {
   const label = await myLabel(pool, accountId, labelId);
   const trimmed = String(name || '').trim();
   if (!trimmed) throw fail(400, 'Type a name for the band.');
   if (trimmed.length > LABEL_NAME_MAX) throw fail(400, `A band's name can be up to ${LABEL_NAME_MAX} letters.`);
-  if (await sharedSpaceOf(pool, accountId, label)) throw fail(409, "A shared band's name is the one everyone in it sees, so it can't be changed here.");
+  const shared = await sharedSpaceOf(pool, accountId, label);
+  if (shared) await assertAdultOrganiser(pool, accountId, shared);
   if (await labelNamed(pool, accountId, trimmed, label.id)) throw fail(409, `You already have a band called ${trimmed}. To make the two one band, use "Same as another band of mine".`);
-  await pool.query('UPDATE bands SET name = $1 WHERE id = $2', [trimmed, label.id]);
+  if (!shared) {
+    await pool.query('UPDATE bands SET name = $1 WHERE id = $2', [trimmed, label.id]);
+    return;
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(`SELECT name FROM bands WHERE id = $1 AND kind = 'group' FOR UPDATE`, [shared]);
+    const oldName = rows.length ? rows[0].name : '';
+    await client.query(`UPDATE bands SET name = $2 WHERE id = $1 AND kind = 'group'`, [shared, trimmed]);
+    await client.query('UPDATE bands SET name = $1 WHERE id = $2', [trimmed, label.id]);
+    await client.query(
+      `UPDATE bands l SET name = $2
+        WHERE l.kind = 'label' AND l.shared_band_id = $1 AND l.id <> $4 AND lower(l.name) = lower($3)
+          AND NOT EXISTS (SELECT 1 FROM bands o WHERE o.kind = 'label' AND o.created_by_account_id = l.created_by_account_id
+                                                   AND o.id <> l.id AND lower(o.name) = lower($2))`,
+      [shared, trimmed, oldName, label.id]);
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 // "Same as another of mine": two names for one band become one. The rehearsals and performances

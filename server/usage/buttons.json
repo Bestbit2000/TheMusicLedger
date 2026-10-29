@@ -944,15 +944,8 @@
   {
    "group": "My bands",
    "where": "bandView",
-   "name": "#bandLogoBtn",
-   "label": "Add a logo",
-   "html": true
-  },
-  {
-   "group": "My bands",
-   "where": "bandView",
-   "name": "#bandLogoRemoveBtn",
-   "label": "Take the logo off",
+   "name": "#bandPageEditBtn",
+   "label": "Edit the band",
    "html": true
   },
   {
@@ -967,13 +960,6 @@
    "where": "bandView",
    "name": "#bandPageNoticeLink",
    "label": "Tell the band",
-   "html": true
-  },
-  {
-   "group": "My bands",
-   "where": "bandView",
-   "name": "#bandPageRenameBtn",
-   "label": "Change its name",
    "html": true
   },
   {
@@ -4754,6 +4740,48 @@
    "where": "feedbackModal",
    "name": "#feedbackSubmitBtn",
    "label": "Send",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandEditModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandEditModal",
+   "name": "#bandEditLogoBtn",
+   "label": "",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandEditModal",
+   "name": "#bandEditLogoChoose",
+   "label": "Choose a new logo",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandEditModal",
+   "name": "#bandEditLogoRemove",
+   "label": "Take the logo off",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandEditModal",
+   "name": "#bandEditCancelBtn",
+   "label": "Cancel",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandEditModal",
+   "name": "#bandEditSaveBtn",
+   "label": "Save",
    "html": true
   },
   {

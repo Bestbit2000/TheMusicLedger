@@ -1009,16 +1009,14 @@
     <div id="bandView" class="hidden-group">
         <div class="flex-col items-center text-center gap-sm mb-4">
             <img id="bandPageLogo" class="band-logo band-logo-lg hidden-group" alt="">
-            <h2 id="bandPageTitle" class="no-margin"></h2>
+            <!-- ML-659: the pencil beside the name opens Edit the band (the logo and the name) - for a shared band's
+                 organisers and a band just for my log -->
+            <div class="flex-row items-center justify-center gap-sm">
+                <h2 id="bandPageTitle" class="no-margin"></h2>
+                <button type="button" class="list-item-menu-btn hidden-group" id="bandPageEditBtn" aria-haspopup="dialog" aria-label="Edit the band"><span class="material-symbols-outlined" aria-hidden="true">edit</span></button>
+            </div>
             <p class="metro-help-text no-margin" id="bandPageWho"></p>
             <div id="bandPageWebsite"></div>
-            <!-- ML-534: the band's logo - an organiser adds, changes or takes it off (renderBandLogo) -->
-            <div class="hidden-group flex-col items-center gap-sm" id="bandLogoSection">
-                <button type="button" class="btn-nav no-margin" id="bandLogoBtn">Add a logo</button>
-                <button type="button" class="btn-text btn-text-danger hidden-group" id="bandLogoRemoveBtn">Take the logo off</button>
-                <p class="text-sm text-muted no-margin">Everyone in the band sees it, and so does someone you invite. A PNG, JPEG or WebP up to 1 MB - the band's logo, not a photo of people, and one the band has the right to use.</p>
-                <input type="file" id="bandLogoInput" accept="image/png,image/jpeg,image/webp" class="hidden-group" aria-label="Choose the band's logo">
-            </div>
         </div>
         <div class="hidden-group" id="bandPageShared">
             <div class="section-title">The band</div>
@@ -1042,7 +1040,6 @@
         </div>
         <!-- What I can do with this band on my list - each only when it applies (renderBandPage) -->
         <div class="flex-col items-start mt-4" id="bandPageActions">
-            <button type="button" class="btn-text hidden-group" id="bandPageRenameBtn" aria-haspopup="dialog">Change its name</button>
             <button type="button" class="btn-text hidden-group" id="bandPageDirectoryBtn" aria-haspopup="dialog">It's a band in the list</button>
             <button type="button" class="btn-text hidden-group" id="bandPageMergeBtn" aria-haspopup="dialog">Same as another band of mine</button>
             <button type="button" class="btn-text hidden-group" id="bandPageHideBtn" aria-haspopup="dialog">I don't play with them now</button>
@@ -4827,6 +4824,39 @@
             <button class="btn-cancel btn-nav no-margin" type="button" id="feedbackCancelBtn">Cancel</button>
             <button class="btn-submit no-margin" type="button" id="feedbackSubmitBtn">Send</button>
         </div>
+    </div>
+</div>
+
+<!-- ML-659 (owner, 29 Oct 2026): Edit the band - its logo and its name in one place, saved together on Save (Cancel
+     changes nothing). The logo is the button: a pencil badge on its corner opens a small menu (Choose a new logo / Take
+     the logo off) - a menu, not a pop-up, so nothing stacks; with no logo a + badge goes straight to choosing a picture.
+     The logo is for a shared band's organisers only (renderBandEdit). -->
+<div class="modal" id="bandEditModal" role="dialog" aria-modal="true" aria-labelledby="bandEditTitle">
+    <div class="modal-content">
+        <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
+        <h2 id="bandEditTitle">Edit the band</h2>
+        <div class="form-group hidden-group" id="bandEditLogoGroup">
+            <label for="bandEditLogoBtn">Logo</label>
+            <div class="band-logo-edit">
+                <button type="button" class="band-logo band-logo-lg band-logo-btn" id="bandEditLogoBtn" aria-label="Add a logo">
+                    <img id="bandEditLogoImg" class="hidden-group" alt="">
+                    <span class="material-symbols-outlined band-logo-empty-icon" id="bandEditLogoEmpty" aria-hidden="true">image</span>
+                    <span class="material-symbols-outlined info-row-edit-icon band-logo-badge" id="bandEditLogoBadge" aria-hidden="true">edit</span>
+                </button>
+                <div class="dropdown-menu band-logo-menu" id="bandEditLogoMenu" role="menu">
+                    <button type="button" class="dropdown-item" id="bandEditLogoChoose" role="menuitem"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">image</span><span class="dropdown-item-text">Choose a new logo</span></button>
+                    <button type="button" class="dropdown-item metroBlk-tile-menu-delete" id="bandEditLogoRemove" role="menuitem"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Take the logo off</span></button>
+                </div>
+            </div>
+            <p class="text-sm text-muted mt-4 no-margin">Everyone in the band sees it, and so does someone you invite. A PNG, JPEG or WebP up to 1 MB - the band's logo, not a photo of people, and one the band has the right to use.</p>
+            <input type="file" id="bandLogoInput" accept="image/png,image/jpeg,image/webp" class="hidden-group" aria-label="Choose the band's logo">
+        </div>
+        <div class="form-group">
+            <label for="bandEditName">Name</label>
+            <input type="text" id="bandEditName" maxlength="80" autocomplete="off" aria-describedby="bandEditNameNote">
+            <p class="text-sm text-muted mt-2 no-margin" id="bandEditNameNote"></p>
+        </div>
+        <div class="flex-row gap-md"><button type="button" class="btn-cancel btn-nav no-margin" id="bandEditCancelBtn">Cancel</button><button type="button" class="btn-submit no-margin" id="bandEditSaveBtn">Save</button></div>
     </div>
 </div>
 

@@ -262,7 +262,34 @@ test('a merged band takes the other one\'s shared space and directory entry when
   assert.deepEqual((await bands.getAccountBands(anna)).map((b) => b.id), [space], 'still its organiser');
 });
 
-test('ML-653: a band just for my log can be renamed from its page - its sessions keep it; a shared band cannot', { skip }, async () => {
+test('ML-659: an organiser renames a shared band - members who still had its old name follow, nobody else can', { skip }, async () => {
+  const anna = await account('anna-rename2');
+  const ben = await account('ben-rename2');
+  const cara = await account('cara-rename2');
+  const annas = await bands.addOwnBand(anna, `Rename Band ${stamp}`);
+  const space = await bands.setUpSharing(anna, annas);
+  for (const [who, name] of [[ben, 'ben-rename2'], [cara, 'cara-rename2']]) {
+    await bands.inviteToBand(anna, space, emailOf(name), 'play');
+    const [invite] = await bands.listMyBandInvites(who);
+    await bands.acceptBandInvite(who, invite.id);
+  }
+  const carasEntry = (await bands.listMyBands(cara)).find((b) => b.shared && b.shared.bandId === space);
+  await pool.query('UPDATE bands SET name = $1 WHERE id = $2', [`Cara's own name ${stamp}`, carasEntry.id]);
+  const bensEntry = (await bands.listMyBands(ben)).find((b) => b.shared && b.shared.bandId === space);
+
+  await assert.rejects(bands.renameMyBand(ben, bensEntry.id, 'Taken Over'), status(403)); // a player can't
+  await bands.renameMyBand(anna, annas, `  Renamed Band ${stamp} `);
+  const shared = (who) => bands.listMyBands(who).then((l) => l.find((b) => b.shared && b.shared.bandId === space));
+  assert.deepEqual([(await shared(anna)).name, (await shared(anna)).shared.name], [`Renamed Band ${stamp}`, `Renamed Band ${stamp}`]);
+  assert.equal((await shared(ben)).name, `Renamed Band ${stamp}`, 'a member with the old name follows');
+  assert.deepEqual([(await shared(cara)).name, (await shared(cara)).shared.name], [`Cara's own name ${stamp}`, `Renamed Band ${stamp}`], 'her own name stays');
+
+  // an organiser who hasn't said they are an adult is asked first (ML-554)
+  await pool.query('UPDATE accounts SET organiser_adult_confirmed_on = NULL WHERE id = $1', [anna]);
+  await assert.rejects(bands.renameMyBand(anna, annas, 'Not yet'), (e) => e.reason === 'needs-adult');
+});
+
+test('ML-653: a band just for my log can be renamed from its page - its sessions keep it', { skip }, async () => {
   const anna = await account('anna-rename');
   const ben = await account('ben-rename');
   const quartet = await rehearsal(anna, `Quartet ${stamp}`);
@@ -278,8 +305,4 @@ test('ML-653: a band just for my log can be renamed from its page - its sessions
   await assert.rejects(bands.renameMyBand(anna, quartet, `trio ${stamp}`), status(409)); // another of mine: merge instead
   await assert.rejects(bands.renameMyBand(ben, quartet, 'Hijacked'), status(404)); // never another member's
   await bands.renameMyBand(anna, quartet, `kitchen QUARTET ${stamp}`); // its own name, typed differently, is fine
-
-  const shared = await bands.addOwnBand(anna, `Shared Band ${stamp}`);
-  await bands.setUpSharing(anna, shared);
-  await assert.rejects(bands.renameMyBand(anna, shared, 'Something else'), status(409));
 });

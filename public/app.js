@@ -4729,7 +4729,8 @@
             ? `You: ${bandLevel(shared.level).label}${bandSummaryOn() && shared.isBandLeader ? ' · Band leader' : ''}`
             : 'Just for my practice log';
         document.getElementById('bandPageWebsite').innerHTML = bandWebsiteLinkHtml(band.website);
-        renderBandLogo();
+        setShown('bandPageEditBtn', bandEditCanEdit(band)); // ML-659
+        if (bandEdit && bandEdit.labelId === band.id) renderBandEdit(); // the band's logo came in while the pop-up was open
         setShown('bandPageShared', !!shared);
         setShown('bandPageOwn', !shared);
         if (shared) {
@@ -4743,7 +4744,6 @@
         }
         renderBandShareLevels();
         renderBandNotices();
-        setShown('bandPageRenameBtn', !shared); // a shared band's name is the one everyone in it sees
         setShown('bandPageDirectoryBtn', !shared && !band.directoryBandId);
         setShown('bandPageMergeBtn', myBandsShown().length > 1);
         setShown('bandPageHideBtn', !shared);
@@ -4839,14 +4839,7 @@
         const band = myBandById(bandPage.labelId);
         if (band) run(band);
     });
-    // ML-653 (owner, 29 Oct 2026): rename a band that is just for my log - its sessions keep it, under the new name
-    function bandRename(band) {
-        showPromptModal(`Change the name of ${band.displayName}`, band.displayName, (name) => {
-            if (!name || name === band.displayName) return;
-            myBandDo(() => API.account.renameBand(band.id, name), `Now called ${name}`);
-        });
-    }
-    bandPageAction('bandPageRenameBtn', bandRename);
+    // (renaming a band: Edit the band, from the pencil beside its name - ML-659)
     bandPageAction('bandPageShareBtn', bandSetUpSharing);
     bandPageAction('bandPageDirectoryBtn', bandPickDirectory);
     bandPageAction('bandPageMergeBtn', bandPickMerge);
@@ -4975,54 +4968,137 @@
             renderBandNotices();
         }
     }
-    // ML-534: the band's logo - an organiser adds, changes or takes it off. ML-653: under the logo at the top of the
-    // band's page (the picture itself is renderBandPage's)
-    function renderBandLogo() {
-        const d = bandMembers.data;
-        const on = !!(d && d.isOrganiser && isFeatureEnabled('band_welcome'));
-        setShown('bandLogoSection', on);
-        if (!on) return;
-        document.getElementById('bandLogoBtn').textContent = d.logoUrl ? 'Change the logo' : 'Add a logo';
-        setShown('bandLogoRemoveBtn', !!d.logoUrl);
+    // ML-659 (owner, 29 Oct 2026): Edit the band - the logo (ML-534, a shared band's organisers) and the name in one
+    // pop-up, opened by the pencil beside the name. Nothing changes until Save: a picture chosen is only shown here (a
+    // blob: address, which the content security policy allows) and goes up on Save; "Take the logo off" only marks it.
+    let bandEdit = null; // { labelId, file, preview, remove }
+    const bandEditCanEdit = (band) => !!band && (!band.shared || (bandMembers.data ? !!bandMembers.data.isOrganiser : band.shared.isOrganiser));
+    const bandEditCanLogo = (band) => !!(band && band.shared && bandMembers.data && bandMembers.data.isOrganiser && isFeatureEnabled('band_welcome'));
+    function bandEditForgetPreview() {
+        if (bandEdit && bandEdit.preview) URL.revokeObjectURL(bandEdit.preview);
+        if (bandEdit) bandEdit.preview = null;
     }
-    document.getElementById('bandLogoBtn')?.addEventListener('click', () => document.getElementById('bandLogoInput')?.click());
+    // The logo as it will be after Save: the picture chosen, none (taken off), or the band's own
+    function bandEditLogo() {
+        if (!bandEdit) return null;
+        if (bandEdit.preview) return bandEdit.preview;
+        return bandEdit.remove ? null : (bandMembers.data && bandMembers.data.logoUrl) || null;
+    }
+    function openBandEdit() {
+        const band = myBandById(bandPage.labelId);
+        if (!bandEditCanEdit(band)) return;
+        bandEditForgetPreview();
+        bandEdit = { labelId: band.id, file: null, preview: null, remove: false };
+        document.getElementById('bandEditName').value = band.displayName;
+        document.getElementById('bandEditNameNote').textContent = band.shared
+            ? 'Everyone in the band sees this name.'
+            : `Only you see this name.${band.sessions ? ` The ${sessionsWord(band.sessions)} logged with it keep it.` : ''}`;
+        renderBandEdit();
+        showModal('bandEditModal');
+    }
+    function closeBandEdit() {
+        hideModal('bandEditModal');
+        bandEditForgetPreview();
+        bandEdit = null;
+    }
+    function renderBandEdit() {
+        const band = bandEdit && myBandById(bandEdit.labelId);
+        const on = bandEditCanLogo(band);
+        setShown('bandEditLogoGroup', on);
+        closeBandEditLogoMenu();
+        if (!on) return;
+        const logo = bandEditLogo();
+        const img = document.getElementById('bandEditLogoImg');
+        setShown(img, !!logo);
+        if (logo) img.src = logo; else img.removeAttribute('src');
+        setShown('bandEditLogoEmpty', !logo);
+        document.getElementById('bandEditLogoBadge').textContent = logo ? 'edit' : 'add';
+        const btn = document.getElementById('bandEditLogoBtn');
+        btn.setAttribute('aria-label', logo ? "The band's logo - change it or take it off" : 'Add a logo');
+        if (logo) btn.setAttribute('aria-haspopup', 'menu'); else btn.removeAttribute('aria-haspopup');
+    }
+    function closeBandEditLogoMenu() {
+        document.getElementById('bandEditLogoMenu')?.classList.remove('show');
+        document.getElementById('bandEditLogoBtn')?.setAttribute('aria-expanded', 'false');
+    }
+    document.addEventListener('click', closeBandEditLogoMenu);
+    document.getElementById('bandPageEditBtn')?.addEventListener('click', openBandEdit);
+    // The logo is the button: with one, a small menu under it; with none, straight to choosing a picture
+    document.getElementById('bandEditLogoBtn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!bandEditLogo()) { document.getElementById('bandLogoInput')?.click(); return; }
+        const open = !document.getElementById('bandEditLogoMenu').classList.contains('show');
+        document.getElementById('bandEditLogoMenu').classList.toggle('show', open);
+        e.currentTarget.setAttribute('aria-expanded', String(open));
+    });
+    document.getElementById('bandEditLogoChoose')?.addEventListener('click', () => document.getElementById('bandLogoInput')?.click());
+    document.getElementById('bandEditLogoRemove')?.addEventListener('click', () => {
+        if (!bandEdit) return;
+        bandEditForgetPreview();
+        Object.assign(bandEdit, { file: null, remove: true });
+        renderBandEdit();
+    });
     document.getElementById('bandLogoInput')?.addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
         e.target.value = '';
-        if (!file || !bandMembers.bandId) return;
+        if (!file || !bandEdit) return;
         if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) { showWarningToast('A logo has to be a picture: PNG, JPEG or WebP.'); return; }
         if (file.size > 1024 * 1024) { showWarningToast('A logo can be up to 1 MB.'); return; }
-        uploadBandLogo(file);
+        bandEditForgetPreview();
+        Object.assign(bandEdit, { file, preview: URL.createObjectURL(file), remove: false });
+        renderBandEdit();
     });
-    // ML-554: the upload itself is refused for an organiser who hasn't said they are an adult - asked first, so the
-    // file chosen goes up straight after (the file store's refusal doesn't carry the reason back)
-    async function uploadBandLogo(file) {
-        if (accountProfile && !accountProfile.organiserAdultConfirmedOn && organiserAdultNeeded({ reason: 'needs-adult' }, () => uploadBandLogo(file))) return;
-        const btn = document.getElementById('bandLogoBtn');
+    document.getElementById('bandEditCancelBtn')?.addEventListener('click', closeBandEdit);
+    document.getElementById('bandEditSaveBtn')?.addEventListener('click', saveBandEdit);
+    // ML-554: an organiser says they are an adult before any of it - asked with this pop-up out of the way (pop-ups
+    // don't stack), then back to it and Save again. The file store's refusal doesn't carry the reason, so it is asked first.
+    function bandEditAskAdult(error) {
+        hideModal('bandEditModal');
+        organiserAdultNeeded(error, () => { showModal('bandEditModal'); saveBandEdit(); });
+    }
+    async function saveBandEdit() {
+        const band = bandEdit && myBandById(bandEdit.labelId);
+        if (!band) return;
+        const name = document.getElementById('bandEditName').value.trim();
+        if (!name) { showWarningToast('Type a name for the band.'); return; }
+        const logoOn = bandEditCanLogo(band);
+        const newLogo = logoOn && bandEdit.file;
+        const takeOff = logoOn && !bandEdit.file && bandEdit.remove && !!(bandMembers.data && bandMembers.data.logoUrl);
+        const renamed = name !== band.displayName;
+        if (!newLogo && !takeOff && !renamed) { closeBandEdit(); return; }
+        if (band.shared && accountProfile && !accountProfile.organiserAdultConfirmedOn) { bandEditAskAdult({ reason: 'needs-adult' }); return; }
+        const btn = document.getElementById('bandEditSaveBtn');
         btn.disabled = true;
         try {
-            const bandId = bandMembers.bandId;
-            const ext = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' }[file.type];
-            const blob = await uploadToStore(`band-logos/${bandId}/logo.${ext}`, file, {
-                access: 'public', contentType: file.type,
-                handleUploadUrl: `${API_BASE_URL}/api/account/bands/${bandId}/logo/upload-token`
-            });
-            bandMembers.data = await API.account.setBandLogo(bandId, { blobUrl: blob.url, blobPathname: blob.pathname, fileSizeBytes: file.size, mimeType: file.type });
-            renderBandPage();
-            loadAccountBands(); // the small logo on its My bands row
-            showSuccessToast('The logo is on the band now');
+            const bandId = band.shared && band.shared.bandId;
+            if (newLogo) {
+                const file = bandEdit.file;
+                const ext = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' }[file.type];
+                const blob = await uploadToStore(`band-logos/${bandId}/logo.${ext}`, file, {
+                    access: 'public', contentType: file.type,
+                    handleUploadUrl: `${API_BASE_URL}/api/account/bands/${bandId}/logo/upload-token`
+                });
+                bandMembers.data = await API.account.setBandLogo(bandId, { blobUrl: blob.url, blobPathname: blob.pathname, fileSizeBytes: file.size, mimeType: file.type });
+            } else if (takeOff) {
+                bandMembers.data = await API.account.removeBandLogo(bandId);
+            }
+            // the logo is done - a Save again after a refused name doesn't send it twice
+            bandEditForgetPreview();
+            Object.assign(bandEdit, { file: null, remove: false });
+            if (renamed) await API.account.renameBand(band.id, name);
+            closeBandEdit();
+            await loadAccountBands();
+            renderAccountSummaries();
+            if (viewStack[viewStack.length - 1] === 'bandView') loadBandPage();
+            showSuccessToast(renamed ? `Now called ${name}` : newLogo ? 'The logo is on the band now' : 'The logo is off');
         } catch (error) {
-            if (!organiserAdultNeeded(error, () => uploadBandLogo(file))) showWarningToast('The logo could not be added: ' + error.message);
+            if (error.reason === 'needs-adult') bandEditAskAdult(error);
+            else showWarningToast(error.message);
+            if (bandEdit) renderBandEdit();
         } finally {
             btn.disabled = false;
         }
     }
-    document.getElementById('bandLogoRemoveBtn')?.addEventListener('click', () => {
-        if (!bandMembers.bandId) return;
-        showConfirmModal('Take the logo off?', 'The band goes back to having no logo. You can add one again at any time.', async () => {
-            bandMembersDo(() => API.account.removeBandLogo(bandMembers.bandId)); // ML-554: asks for the adult confirmation if it's needed
-        }, true, 'Take it off');
-    });
     function renderBandMembers() {
         const d = bandMembers.data;
         if (!d) return;

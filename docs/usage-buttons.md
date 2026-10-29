@@ -3,7 +3,7 @@
 **Made by `node scripts/usage-buttons.mjs` - don't edit it by hand.** What counts as a use, and how a tap is
 counted, is in [usage-stats.md](usage-stats.md) ("Every button").
 
-894 buttons: 894 have a name a tap can be counted by, 0 need one.
+898 buttons: 898 have a name a tap can be counted by, 0 need one.
 A button on a screen is listed under the screen or pop-up it is on; one the app builds as it goes, under
 the function that builds it (shown with ()). The words are only to help find it - a tap is never counted by
 its words.
@@ -28,7 +28,7 @@ its words.
 | Stats | 25 | 0 |
 | Instrument support | 11 | 0 |
 | Set-up | 10 | 0 |
-| My bands | 27 | 0 |
+| My bands | 31 | 0 |
 | My account, instruments, settings | 57 | 0 |
 | Signing in | 15 | 0 |
 | Menu, notices and the rest | 102 | 0 |
@@ -826,11 +826,9 @@ its words.
 | accountBandsView | `#accountAddBandBtn` | Add |
 | bandWelcomeView | `#bandWelcomeJoinBtn` | Join the band |
 | bandWelcomeView | `#bandWelcomeLaterBtn` | Not now |
-| bandView | `#bandLogoBtn` | Add a logo |
-| bandView | `#bandLogoRemoveBtn` | Take the logo off |
+| bandView | `#bandPageEditBtn` | Edit the band |
 | bandView | `#bandPageMembersLink` | Members |
 | bandView | `#bandPageNoticeLink` | Tell the band |
-| bandView | `#bandPageRenameBtn` | Change its name |
 | bandView | `#bandPageDirectoryBtn` | It's a band in the list |
 | bandView | `#bandPageMergeBtn` | Same as another band of mine |
 | bandView | `#bandPageHideBtn` | I don't play with them now |
@@ -841,6 +839,12 @@ its words.
 | bandNoticeView | `#bandNoticeSendBtn` | Send to the band |
 | bandMembersView | `#bandInviteLevelBtn` | Can play what they can do |
 | bandMembersView | `#bandInviteBtn` | Invite |
+| bandEditModal | `close (X)` | Close |
+| bandEditModal | `#bandEditLogoBtn` |  |
+| bandEditModal | `#bandEditLogoChoose` | Choose a new logo |
+| bandEditModal | `#bandEditLogoRemove` | Take the logo off |
+| bandEditModal | `#bandEditCancelBtn` | Cancel |
+| bandEditModal | `#bandEditSaveBtn` | Save |
 | renderAccountBandInvites() | `data-invite-accept` | Join … |
 | renderAccountBandInvites() | `data-invite-decline` | No thanks |
 | renderAccountBandsList() | `data-band-open` |  |
