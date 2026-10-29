@@ -1366,6 +1366,20 @@
         </div>`;
         const head = `<tr><th class="usage-heat-name" scope="col">${tap ? 'Tool' : d.kind === 'view' ? 'Screen' : 'Tool'}</th>${d.weeks.map((w) => `<th scope="col">${weekLabel(w)}</th>`).join('')}<th scope="col">${tap ? 'Pressed' : d.kind === 'view' ? 'Opened' : 'Started'}</th>${finishes ? '<th scope="col">Finished</th>' : ''}<th scope="col">Members</th></tr>`;
         const span = d.weeks.length + (finishes ? 4 : 3);
+        // ML-660: equal weeks - the name and the totals have set widths, the weeks share the rest
+        const cols = `<colgroup><col class="usage-col-name">${d.weeks.map(() => '<col>').join('')}${'<col class="usage-col-total">'.repeat(finishes ? 3 : 2)}</colgroup>`;
+        // ML-660: on a phone, a block per item - its name and totals in words, then its weeks as a strip
+        const doneWord = tap ? 'pressed' : d.kind === 'view' ? 'opened' : 'started';
+        const stripClass = d.weeks.length > 12 ? ' is-13' : d.weeks.length < 12 ? ' is-4' : '';
+        const items = d.weeks.length ? `<div class="usage-heat-weeks" aria-hidden="true"><span>${weekLabel(d.weeks[0])}</span><span>← ${d.weeks.length} weeks →</span><span>${weekLabel(d.weeks[d.weeks.length - 1])}</span></div>` : '';
+        const blocks = d.groups.map((g) => `<h3 class="usage-heat-group-title">${escapeHtml(g.name)}</h3>${g.rows.map((r) => `
+            <div class="usage-heat-item">
+                <div class="usage-heat-item-head">
+                    <span>${r.tool ? `<button type="button" class="usage-heat-link" data-usage-tool="${escapeHtml(r.tool)}">${escapeHtml(r.label)}</button>` : escapeHtml(r.label)}${r.history ? ' <span class="admin-stat-tile-sub">rounds kept since launch</span>' : ''}</span>
+                    <span class="usage-heat-item-sums"><strong>${r.started}</strong> ${doneWord}${finishes ? ` · ${r.finished === null ? '–' : `${r.finished}%`} finished` : ''} · ${r.members} ${r.members === 1 ? 'member' : 'members'}</span>
+                </div>
+                <div class="usage-heat-strip${stripClass}" role="img" aria-label="${escapeHtml(`${r.label}, week by week from ${d.weeks.length ? weekLabel(d.weeks[0]) : ''}: ${r.cells.join(', ')}`)}">${r.cells.map(heatCell).join('')}</div>
+            </div>`).join('')}`).join('');
         const body = d.groups.map((g) => `<tr class="usage-heat-group"><th colspan="${span}" scope="colgroup">${escapeHtml(g.name)}</th></tr>${g.rows.map((r) => `
             <tr>
                 <td class="usage-heat-name">${r.tool ? `<button type="button" class="usage-heat-link" data-usage-tool="${escapeHtml(r.tool)}">${escapeHtml(r.label)}</button>` : escapeHtml(r.label)}${r.history ? ' <span class="admin-stat-tile-sub">rounds kept since launch</span>' : ''}</td>
@@ -1374,9 +1388,10 @@
                 ${finishes ? `<td class="usage-heat-total">${r.finished === null ? '–' : `${r.finished}%`}</td>` : ''}
                 <td class="usage-heat-total">${r.members}</td>
             </tr>`).join('')}`).join('');
-        return `<p class="admin-intro">How often each ${tap ? 'tool\'s buttons are' : d.kind === 'view' ? 'screen is' : 'tool is'} used, week by week - counted, never who. Darker is more; each square says how many times. <strong>Members</strong> is the most in any one day: the counts never say who, so one person on two days can't be told apart. Open a tool to see every one of its buttons. ${escapeHtml(countedFrom(d.firstCounted))}</p>
+        return `<div class="usage-heat-view"><p class="admin-intro">How often each ${tap ? 'tool\'s buttons are' : d.kind === 'view' ? 'screen is' : 'tool is'} used, week by week - counted, never who. Darker is more; each square says how many times. <strong>Members</strong> is the most in any one day: the counts never say who, so one person on two days can't be told apart. Open a tool to see every one of its buttons. ${escapeHtml(countedFrom(d.firstCounted))}</p>
             ${controls}
-            <div class="admin-stat-table-wrap"><table class="usage-heat-table"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+            <div class="admin-stat-table-wrap usage-heat-wrap"><table class="usage-heat-table${d.weeks.length > 12 ? ' is-26' : ''}">${cols}<thead>${head}</thead><tbody>${body}</tbody></table></div>
+            <div class="usage-heat-items">${items}${blocks}</div></div>`;
     }
     function renderUsageTool(t) {
         const rows = t.rows.length ? t.rows.map((r) => `<tr><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.whereLabel)}</td><td>${r.pressed}<span class="usage-press-bar" aria-hidden="true" style="--bar-w:${Math.round((r.pressed / t.rows[0].pressed) * 100)}%"></span></td><td>${r.inSession}%</td><td>${r.members}</td></tr>`).join('')

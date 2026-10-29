@@ -527,6 +527,38 @@ body.admin-body { display: block; background: var(--bg-color); }
 .usage-heat-3 { background: var(--heat-time-3); color: var(--heat-text-3); }
 .usage-heat-4 { background: var(--heat-time-4); color: var(--heat-text-4); }
 .usage-heat-link { background: none; border: none; padding: 0; font: inherit; color: var(--link-color); text-decoration: underline; cursor: pointer; text-align: left; min-height: var(--touch-target); }
+/* ML-660: every week's box the same width - the name and the three totals have set widths (.usage-col-name,
+   .usage-col-total) and the weeks share what is left equally */
+.usage-heat-table { table-layout: fixed; min-width: calc(var(--space-6) * 30); } /* narrower than that, the grid scrolls sideways in its box */
+.usage-heat-table.is-26 { min-width: calc(var(--space-6) * 48); }
+.usage-heat-table td.usage-heat-name { white-space: normal; }
+.usage-heat-table col.usage-col-name { width: calc(var(--space-6) * 8); }
+.usage-heat-table col.usage-col-total { width: calc(var(--space-6) * 3); }
+.usage-heat-table .usage-heat-cell { min-width: 0; }
+/* ML-660: on a phone each item is a block (.usage-heat-items, drawn beside the table; one or the other shows) - its
+   name and totals in words on one line, its weeks as a strip of equal squares under it: 4 or 12 across, or 26 weeks
+   as two rows of 13 so every number still fits. The dates show once, over the list. Which one shows goes by the
+   heat map's own width (.usage-heat-view is a size container), so a narrow window beside the menu gets the blocks
+   too - and so does Admin → Design's narrow example. */
+.usage-heat-view { container-type: inline-size; }
+.usage-heat-items { display: none; }
+.usage-heat-weeks { display: flex; justify-content: space-between; gap: var(--space-2); font-size: var(--font-xs); color: var(--label-color); margin-bottom: var(--space-2); }
+.usage-heat-group-title { font-size: var(--font-sm); font-weight: var(--font-weight-semibold); color: var(--label-color); border-bottom: 1px solid var(--input-border); padding: var(--space-4) 0 var(--space-1); margin: 0; }
+.usage-heat-item { padding: var(--space-1) 0 var(--space-3); border-bottom: 1px solid var(--input-border); }
+.usage-heat-item-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.usage-heat-item-sums { font-size: var(--font-sm); color: var(--label-color); text-align: right; }
+.usage-heat-item-sums strong { color: var(--text-color); }
+.usage-heat-strip { display: grid; grid-template-columns: repeat(12, 1fr); gap: var(--space-1); }
+.usage-heat-strip.is-4 { grid-template-columns: repeat(4, 1fr); }
+.usage-heat-strip.is-13 { grid-template-columns: repeat(13, 1fr); }
+.usage-heat-strip .usage-heat-cell { min-width: 0; }
+@container (max-width: 640px) {
+  .usage-heat-controls { display: grid; grid-template-columns: 1fr 1fr; }
+  .usage-heat-controls select { width: 100%; min-width: 0; }
+  .usage-heat-controls .usage-heat-legend { grid-column: 1 / -1; margin-left: 0; }
+  .usage-heat-wrap { display: none; }
+  .usage-heat-items { display: block; }
+}
 /* Quiet corners and a tool's buttons never pressed: each a small chip */
 .usage-chip-list { display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; margin: 0; padding: 0; }
 .usage-chip { border: 1px solid var(--input-border); border-radius: var(--radius-pill); padding: var(--space-1) var(--space-3); font-size: var(--font-sm); }

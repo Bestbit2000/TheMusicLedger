@@ -5,7 +5,10 @@
   `.usage-heat-name`, `.usage-heat-total`, `.usage-heat-group`, `.usage-heat-cell`, the steps `.usage-heat-0`,
   `.usage-heat-1`, `.usage-heat-2`, `.usage-heat-3`, `.usage-heat-4`, `.usage-heat-link`, `.usage-press-bar`, `.usage-chip-list`, `.usage-chip`)
 - **Category:** Data display (admin panel)
-- **Status:** New (ML-22)
+- **Status:** New (ML-22); equal week boxes and a phone layout, ML-660 - adds `.usage-heat-view`, `.usage-heat-wrap`,
+  `.usage-col-name`, `.usage-col-total`, `.usage-heat-items`, `.usage-heat-weeks`, `.usage-heat-group-title`,
+  `.usage-heat-item`, `.usage-heat-item-head`, `.usage-heat-item-sums`, `.usage-heat-strip` (`.is-4`, `.is-13`) and
+  the table's `.is-26`
 
 ## 2. Overview
 How often each tool, button and screen in the app is used, week by week - counted, never who. It is on
@@ -20,8 +23,19 @@ How often each tool, button and screen in the app is used, week by week - counte
   `<details>` per tool, chips inside) and the screens never opened.
 
 The owner chose this layout from two on 25 Oct 2026 (Option A - "one heat map, every item by week"; the
-canvas is linked from `docs/usage-stats.md`). The admin panel is desktop first: the grid scrolls sideways in
-its box on a narrow window and the names keep their room.
+canvas is linked from `docs/usage-stats.md`). The admin panel is desktop first.
+
+**Equal weeks and a phone layout** (ML-660, the owner's choice of two, 29 Oct 2026 - option A):
+- **Every week's box is the same width.** The table is `table-layout: fixed` with a `colgroup`: the name
+  (`.usage-col-name`, `--space-6` × 8) and each total (`.usage-col-total`, `--space-6` × 3) have set widths, and the
+  weeks share the rest. Under 720px (1152px with 26 weeks, `.is-26`) it scrolls sideways in its box.
+- **When the heat map is 640px wide or less** - a phone, or a narrow window beside the menu - it is no longer a table.
+  The width is the heat map's own (`.usage-heat-view` is a size container), not the window's. The four filters sit
+  two by two with the key under them, the dates show once (first week, "← 12 weeks →", last week), and each item is a
+  block: its name (still opening its buttons) and its totals in words - "7 started · 86% finished · 2 members", or
+  "N pressed" / "N opened" - then a strip of equal squares, a week each, with the number in it. 12 across, 4 for
+  "Last 4 weeks" (`.is-4`), and 26 weeks as two rows of 13 (`.is-13`) so every number still fits. Both are drawn;
+  the CSS shows one.
 
 **Use** it for counts over weeks for many items at once. **Don't use** it for one amount against a limit (the
 [usage bar](usage-bar.md)) or for a member's own practice days (the Stats page's heat map, `.h-time-*`).
@@ -90,6 +104,8 @@ The steps are fixed counts, so a week can be compared with another: none, 1-4, 5
 - A real table: weeks are column headers, each group a `colgroup` header; a screen reader reads "Metronome,
   19 Oct, 42".
 - Never colour alone: every square has its number; the legend is decoration (`aria-hidden`).
+- The phone blocks (ML-660): the totals are words; each strip is one `role="img"` whose label reads the item and its
+  weeks in order ("Tuner, week by week from 10 Aug: 0, 0, ... 7"); the dates line is decoration.
 - The numbers pass 4.5:1 on every step in both themes (`--heat-text-N` on `--heat-time-N` in
   `specs/accessibility/contrast-pairs.json`); the press bar passes 3:1 against the card.
 - Every control is a labelled `<select>` or a `<button>`; opening a tool moves the keyboard to "← Heat map",

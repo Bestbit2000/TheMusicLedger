@@ -1,4 +1,5 @@
 {
+  "ML-660": { "internal": true, "why": "Admin -> Usage -> Heat map only" },
   "ML-625": "We now ask \"Did you mean one of these bands?\" when you type your band's name on the Ask to join form rather than picking it from the list.",
   "ML-624": "We made the admin pages easy to read and use on a phone, and let them use the whole width of a big screen.",
   "ML-622": "We drew the notes in the Beat note pop-up, and everywhere a speed shows its note, in the same music font as the music itself.",
