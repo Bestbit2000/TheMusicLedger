@@ -178,8 +178,9 @@ describe('rate - how far to trust it', () => {
     // ML-655: the last line that ends off the total is one question (how many bars?), offering both counts
     assert.deepEqual(rating.checks.map(c => c.level), ['low', 'medium', 'info']);
     const last = rating.checks.find(c => c.kind === 'last-line');
-    assert.deepEqual(last.ask, { type: 'lineCount', from: 11, bars: 14, at: 25, options: [10] });
-    assert.match(last.text, /counted 2 ways: 14 or 10 bars, starting at bar 11\. How many bars are on it\?/);
+    assert.deepEqual(last.ask, { type: 'lineCount', from: 11, bars: 14, read: 14, at: 25, options: [10], place: { page: 1, line: 2, pages: 1 } });
+    // a line is named by its place on the page, not its bars (owner, 29 Oct 2026)
+    assert.match(last.text, /The last line \(line 2\) was counted 2 ways: 14 or 10 bars\. How many bars are on it\?/);
     assert.deepEqual(rating.checks.find(c => c.kind === 'cropped').ask, { type: 'page' });
     assert.equal(fitAndRate({ bars: 20, systems: lines([1, 11], 20) }).rating.level, 'high');
   });
@@ -238,14 +239,20 @@ describe('each check asks something that can be answered', () => {
     const sys = lines([1, 11, 21], 30);
     sys[1].sure = 'medium';
     const line = fitAndRate({ bars: 30, systems: sys }).rating.checks.find(c => c.kind === 'line');
-    assert.deepEqual(line.ask, { type: 'lineCount', from: 11, bars: 10, at: 21, options: [] });
-    assert.match(line.text, /line from bar 11\. It was read as 10 bars \(bars 11 to 20\)\. Is that right\?/);
+    assert.deepEqual(line.ask, { type: 'lineCount', from: 11, bars: 10, read: 10, at: 21, options: [], place: { page: 1, line: 2, pages: 1 } });
+    assert.match(line.text, /hard to make out on line 2\. It was read as 10 bars\. Is that right\?/);
   });
   test('a line that does not add up asks about the line before it, offering its own count', () => {
     const sys = lines([1, 11, 21], 30);
     sys[1].bars = 8; // counted 8, but the next line is numbered from 21
     const count = fitAndRate({ bars: 30, systems: sys }).rating.checks.find(c => c.kind === 'count');
-    assert.deepEqual(count.ask, { type: 'lineCount', from: 11, bars: 10, at: 21, options: [8] });
+    assert.deepEqual(count.ask, { type: 'lineCount', from: 11, bars: 10, read: 10, at: 21, options: [8], place: { page: 1, line: 2, pages: 1 } });
+    assert.match(count.text, /^Line 2 was counted as 8 bars, but the line after it is numbered from bar 21\. How many bars are on line 2\?/);
+    // with more than one page, the page is said too
+    const two = lines([1, 11, 21], 30).map((l, i) => ({ ...l, page: i < 2 ? 1 : 2 }));
+    two[2].sure = 'medium'; two.push({ page: 2, firstBar: 31, bars: 5, anchored: true, sure: 'high' });
+    const onPage2 = fitAndRate({ bars: 35, systems: two }).rating.checks.find(c => c.kind === 'line');
+    assert.match(onPage2.text, /on line 1 on page 2\./);
   });
   test('a printed number on the wrong bar asks which is right; a pickup, a free bar, a word not known and a missing time each ask their own', () => {
     const { rating } = fitAndRate({ bars: 20, systems: lines([1, 11], 20), numberClashes: [{ bar: 15, printed: 14 }], pickupBeats: 1, freeBars: [{ bar: 9, text: 'cadenza' }],

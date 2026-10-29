@@ -293,7 +293,12 @@
         // stands, the bars from `at` on following any change, and `options` the other counts the read gave.
         const add = (lvl, kind, from, to, text, ask) => checks.push({ level: lvl, kind, from: from || null, to: to || from || null, text, ...(ask ? { ask } : {}) });
         const sys = piece.systems;
-        const lineCount = (from, bars, at, options) => ({ type: 'lineCount', from, bars, at, options: [...new Set((options || []).filter(n => n >= 1 && n !== bars))] });
+        // A line is named by where it is on the page - "line 3 on page 1" - not by its bars: when a count is wrong, the
+        // bar numbers after it are wrong too (owner, 29 Oct 2026). `place` goes with a count's ask for the app to say it.
+        const pageCount = new Set(sys.map(s => s.page)).size;
+        const placeOf = (s) => (s ? { page: s.page, line: sys.filter(t => t.page === s.page).indexOf(s) + 1, pages: pageCount } : null);
+        const lineName = (s) => { const p = placeOf(s); return p.pages > 1 ? `line ${p.line} on page ${p.page}` : `line ${p.line}`; };
+        const lineCount = (from, bars, at, options, s, toEnd) => ({ type: 'lineCount', from, bars, read: bars, at, options: [...new Set((options || []).filter(n => n >= 1 && n !== bars))], ...(s ? { place: { ...placeOf(s), ...(toEnd ? { toEnd: true } : {}) } } : {}) });
 
         if (piece.dropped) {
             const items = piece.droppedItems || [];
@@ -312,8 +317,8 @@
                 if (s.firstBar === expected) return;
                 if (i === 0) { add('low', 'count', 1, s.firstBar, `The first line starts at bar ${s.firstBar}, not bar 1. Check the start of the piece.`, { type: 'doubt' }); return; }
                 const p = sys[i - 1];
-                add('low', 'count', p.firstBar, s.firstBar - 1, `The line from bar ${p.firstBar} was counted as ${p.bars} bars, but the next line is numbered from bar ${s.firstBar}. How many bars are on the line from bar ${p.firstBar}?`,
-                    lineCount(p.firstBar, s.firstBar - p.firstBar, s.firstBar, [p.bars]));
+                add('low', 'count', p.firstBar, s.firstBar - 1, `${lineName(p).replace(/^l/, 'L')} was counted as ${p.bars} bars, but the line after it is numbered from bar ${s.firstBar}. How many bars are on ${lineName(p)}?`,
+                    lineCount(p.firstBar, s.firstBar - p.firstBar, s.firstBar, [p.bars], p));
             });
 
             // A printed bar number (at the start of a line, or a numbered mark) proves the count up to that
@@ -325,12 +330,13 @@
                 const lastAnchor = Math.max(...anchors);
                 const line = sys.find(s => lastAnchor >= s.firstBar && lastAnchor < s.firstBar + s.bars);
                 const checkedTo = line ? line.firstBar + line.bars - 1 : lastAnchor;
-                if (piece.bars - checkedTo >= UNANCHORED_BARS) add('medium', 'numbers', checkedTo + 1, piece.bars, `There's no printed bar number after bar ${lastAnchor} to check the count against. It was read as ${piece.bars - checkedTo} bars from bar ${checkedTo + 1} to the end. Is that right?`, lineCount(checkedTo + 1, piece.bars - checkedTo, piece.bars + 1));
+                const next = sys.find(s => s.firstBar === checkedTo + 1);
+                if (piece.bars - checkedTo >= UNANCHORED_BARS) add('medium', 'numbers', checkedTo + 1, piece.bars, `From ${next ? lineName(next) : `bar ${checkedTo + 1}`} to the end there's no printed bar number to check the count against. It was read as ${piece.bars - checkedTo} bars. Is that right?`, lineCount(checkedTo + 1, piece.bars - checkedTo, piece.bars + 1, [], next, true));
             }
             // A line whose barlines were hard to make out: how many bars are on it? (The last line is asked about below.)
             sys.slice(0, -1).filter(s => s.sure !== 'high').slice(0, 8).forEach(s => add('medium', 'line', s.firstBar, s.firstBar + s.bars - 1,
-                `The barlines were hard to make out on the line from bar ${s.firstBar}. It was read as ${s.bars} bars (${range(s.firstBar, s.firstBar + s.bars - 1)}). Is that right?`,
-                lineCount(s.firstBar, s.bars, s.firstBar + s.bars)));
+                `The barlines were hard to make out on ${lineName(s)}. It was read as ${s.bars} bars. Is that right?`,
+                lineCount(s.firstBar, s.bars, s.firstBar + s.bars, [], s)));
         }
 
         // The last line. In the owner's check of 20 pieces (11 Oct 2026) six of the reader's seven wrong totals
@@ -358,9 +364,9 @@
             }
             const other = [...new Set(counts.filter(n => n >= 1 && n !== asRead))];
             add(level, 'last-line', lastLine.firstBar, piece.bars, other.length
-                ? `The last line was counted ${other.length + 1} ways: ${[asRead, ...other].join(' or ')} bars, starting at bar ${lastLine.firstBar}. How many bars are on it?`
-                : `It looks like there are ${asRead} bars on the last line (${range(lastLine.firstBar, piece.bars)})${listed}. Is that right? It's where a miscount is most likely.`,
-                lineCount(lastLine.firstBar, asRead, piece.bars + 1, other));
+                ? `The last line (${lineName(lastLine)}) was counted ${other.length + 1} ways: ${[asRead, ...other].join(' or ')} bars. How many bars are on it?`
+                : `It looks like there are ${asRead} bars on the last line (${lineName(lastLine)})${listed}. Is that right? It's where a miscount is most likely.`,
+                lineCount(lastLine.firstBar, asRead, piece.bars + 1, other, lastLine));
         }
         // A printed bar number that isn't on the bar it names: a misprint (The Wonderful World of Disney has
         // "141" on bar 142) or a miscount. Which is right is the question; a miscount moves the bars to the print.

@@ -24923,18 +24923,37 @@
         const a = c.ask;
         let main, sub;
         if (c.valueBar) { const now = outlineBpmAt(c.valueBar); main = `${now || '-'} bpm`; sub = `speed at bar ${c.valueBar}${now !== c.firstBpm && c.firstBpm ? ` · changed from ${c.firstBpm}` : ''}`; }
-        else if (a.type === 'lineCount') { main = `${a.bars} bars`; sub = a.from === 1 && a.at > Number(outline.o.bars) ? 'in all' : `from bar ${a.from}`; }
+        else if (a.type === 'lineCount') {
+            main = `${a.bars} bars`;
+            const name = outlineLineName(a.place), end = a.at > Number(outline.o.bars) ? Number(outline.o.bars) : a.from + a.bars - 1;
+            sub = a.from === 1 && a.at > Number(outline.o.bars) && !name ? 'in all' : `${name ? `${a.place.toEnd ? `from ${name} to the end` : `on ${name}`} · ` : ''}now bars ${a.from} to ${end}`;
+        }
         else { main = said || 'Choose'; sub = state === 'open' ? 'what to do' : ''; }
         if (state === 'open') sub += `${sub ? ' - ' : ''}tap to answer`;
         else if (said && (c.valueBar || a.type === 'lineCount')) sub += ` · ${said}`;
         return `<button type="button" class="metroBlk-ctrl-value-btn w-full" data-read-answer="${c.id}" aria-haspopup="dialog" aria-label="${escapeHtml(`${main}, ${sub}`)}"><strong>${escapeHtml(main)}</strong><span class="metroBlk-ctrl-value-label">${escapeHtml(sub)}</span></button>`;
     }
+    // A line is named by where it is on the page - "line 3 on page 1" - never by its bars: once a count is wrong, the bar
+    // numbers after it are wrong too (owner, 29 Oct 2026). The bars it holds as the piece stands are said beside it.
+    const outlineLineName = (p) => (p ? (p.pages > 1 ? `line ${p.line} on page ${p.page}` : `line ${p.line}`) : null);
+    // A count's question once other answers have moved the bars (ML-655): the same words, by the line's place
+    function outlineLineCountText(c) {
+        const a = c.ask, name = outlineLineName(a.place), read = a.read || a.bars, total = Number(outline.o.bars);
+        if (!name) return a.from === 1 && a.at > total ? `It was read as ${read} bars in all, counted by eye. Is that right?` : c.text;
+        if (c.kind === 'line') return `The barlines were hard to make out on ${name}. It was read as ${read} bars. Is that right?`;
+        if (c.kind === 'last-line') return (a.options || []).length
+            ? `The last line (${name}) was counted ${a.options.length + 1} ways: ${[read, ...a.options].join(' or ')} bars. How many bars are on it?`
+            : `It looks like there are ${read} bars on the last line (${name}). Is that right? It's where a miscount is most likely.`;
+        if (a.place.toEnd) return `From ${name} to the end there's no printed bar number to check the count against. It was read as ${read} bars. Is that right?`;
+        return c.text;
+    }
     function outlineReadCheckHtml(c) {
         const state = outlineCheckState(c);
+        const note = (text) => (text ? `<p class="read-check-moved"><span class="material-symbols-outlined" aria-hidden="true">autorenew</span>${escapeHtml(text)}</p>` : '');
         return `<div class="read-check${state === 'open' ? '' : ' is-done'}">
-            <p class="read-check-text">${escapeHtml(c.text)}</p>
+            <p class="read-check-text">${escapeHtml(c.ask && c.ask.type === 'lineCount' && (c.reworded || c.ask.place) ? outlineLineCountText(c) : c.text)}</p>
             ${outlineAnswerBox(c)}
-            ${c.moved ? `<p class="read-check-moved"><span class="material-symbols-outlined" aria-hidden="true">autorenew</span>${escapeHtml(c.moved)}</p>` : ''}
+            ${note(c.moved)}${note(c.barsNote)}
         </div>`;
     }
     function outlineReadChecksHtml(stepKey) {
@@ -24975,7 +24994,7 @@
                 const effect = (n) => { const d = n - a.bars; return d === 0 ? 'Nothing changes' : a.at > Number(o.bars) ? `The piece becomes ${Number(o.bars) + d} bars` : `The bars after it move ${Math.abs(d)} ${d > 0 ? 'later' : 'earlier'}, and the piece becomes ${Number(o.bars) + d} bars`; };
                 return [yes(`Yes, ${word(a.bars)}`),
                     ...(a.options || []).map((n) => ({ key: `n${n}`, title: word(n), sub: effect(n), run: () => outlineSetLineCount(c, n) })),
-                    { key: 'other', title: 'Another number', sub: 'Count them on your music', run: () => outlineAskNumber(a.from === 1 ? 'How many bars in all?' : `How many bars from bar ${a.from}?`, a.bars, 1, 2000, (n) => outlineSetLineCount(c, n)) }];
+                    { key: 'other', title: 'Another number', sub: 'Count them on your music', run: () => outlineAskNumber(a.place ? (a.place.toEnd ? `How many bars from ${outlineLineName(a.place)} to the end?` : `How many bars are on ${outlineLineName(a.place)}?`) : 'How many bars in all?', a.bars, 1, 2000, (n) => outlineSetLineCount(c, n)) }];
             }
             case 'printed':
                 return [ok('print', 'The print is wrong', `Bar ${a.bar} stays bar ${a.bar}`),
@@ -25013,6 +25032,8 @@
                 return [ok('self', "I'll set it up below", 'As a repeat with endings, on this step'), ok('leave', 'Leave it', 'Play these bars every time')];
             case 'follow':
                 return [yes("It's on the right bar"), ok('self', "I'll move it below", 'Change its bar on this step')];
+            case 'fixHere':
+                return [ok('done', "I've put it right", 'On this step'), yes("It was right after all")];
             case 'putBack':
                 return [ok('out', 'Leave it out', 'The piece plays without it'),
                     { key: 'back', title: `Put it back at bar ${o.bars}`, sub: 'The last bar - change it on this step if it belongs elsewhere', run: () => { a.restore(Number(o.bars)); outlineReadDone(c, 'changed', `Back at bar ${o.bars}`); } }];
@@ -25030,11 +25051,14 @@
             if (x) x.run();
         });
     }
+    // "It's not right - which step?": the check waits at the top of that step, and you stay where you are to carry on
+    // with the rest (owner, 29 Oct 2026 - it used to jump there before the other checks on the first screen were done)
     function outlinePickStepToFix(c) {
         openFlowChoiceModal('Which step is it on?', OUTLINE_STEPS.filter((s) => !s.media).map((s) => ({ key: s.key, html: addPieceRow(s.name, OUTLINE_STAGES[s.stage].name) })), (opt) => {
-            outline.read.answers[c.id] = 'checked';
-            outline.read.said[c.id] = `To put right on ${outlineStepName(opt.key)}`;
-            outlineGoStep(outlineStepIndex(opt.key));
+            const step = opt.key, name = outlineStepName(step);
+            outline.read.checks.push({ id: outline.read.checks.length, kind: 'follow', level: 'info', step, text: `${c.step === 'read' ? 'From the first screen' : `From ${outlineStepName(c.step)}`}: ${c.text}`, ask: { type: 'fixHere' }, from: c.from || null, to: c.to || null, valueBar: null });
+            outlineReadDone(c, 'checked', `To put right on ${name}`);
+            showSuccessToast(step === outlineStepKey() && c.step !== 'read' ? 'It is at the top of this step.' : `It's waiting at the top of the ${name} step.`);
         });
     }
     // Read the music again (a page cut off or missing) - the ordinary photo read, which uses one of the member's reads
@@ -25193,15 +25217,22 @@
         if (it.from !== '') { it.from = str(place(num(it.from), 'the intro', 'xIntro', true)); if (it.to !== '') it.to = str(place(num(it.to), null, 'xIntro', true)); }
         // The other checks follow the bars they are about
         const mv = (b) => (Number.isInteger(b) ? (gone(b) ? Math.max(1, cut - 1) : b >= at ? b + delta : b) : b);
+        // and their questions say so: a count is asked again in the bars as they are now; anything else that moved
+        // says where its bar is now (its words are the reader's, about the bars as they were read)
         outlineReadChecks().forEach((x) => {
             if (x === fromCheck) return;
+            const was = x.from;
             x.from = mv(x.from); x.to = mv(x.to);
             if (x.valueBar) x.valueBar = mv(x.valueBar);
             const k = x.ask || {};
+            // a count whose bars take in the change grows or shrinks with it (the whole piece, or to the end, or the line)
+            if (k.type === 'lineCount' && k.from < at && (k.at > oldTotal || at < k.at)) k.bars += delta;
             if (k.type === 'lineCount') { k.from = mv(k.from); k.at = k.at > oldTotal ? total + 1 : mv(k.at); }
             if (k.bar) k.bar = mv(k.bar);
             if (k.type === 'ramp') { k.from = mv(k.from); k.to = mv(k.to); }
             if (k.type === 'end') k.bars = total;
+            if (k.type === 'lineCount') x.reworded = true;
+            else if (Number.isInteger(was) && x.from !== was) { if (x.firstFrom === undefined) x.firstFrom = was; x.barsNote = `Since your change, bar ${x.firstFrom} is now bar ${x.from}.`; }
         });
         o.bars = total;
         return report;
