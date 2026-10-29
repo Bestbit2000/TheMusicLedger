@@ -116,7 +116,12 @@ test('ML-581: only the band leader sees it, only sharing players count, and the 
   assert.equal(asOrganiser.members.find((m) => m.accountId === leader).isBandLeader, true);
   assert.equal(asOrganiser.yourSharesLevels, false);
   assert.ok(!JSON.stringify(asOrganiser.members).includes('shares'), 'no member row says whether they share');
-  assert.equal((await bands.listBandMembers(a, bandId)).yourSharesLevels, true);
+  // ML-653: a player is sent the band leader's name - who their summary goes to - and no other member's
+  const asPlayer = await bands.listBandMembers(a, bandId);
+  assert.equal(asPlayer.yourSharesLevels, true);
+  assert.deepEqual(asPlayer.members, []);
+  assert.deepEqual(asPlayer.bandLeaders, [{ name: asOrganiser.members.find((m) => m.accountId === leader).name, isYou: false }]);
+  for (const m of asOrganiser.members.filter((m) => m.accountId !== leader && m.accountId !== a)) assert.ok(!JSON.stringify(asPlayer).includes(m.name), `${m.name} is not in a player's answer`);
 
   // Switching it off takes them out again
   await bands.setSharesLevels(c, bandId, false);

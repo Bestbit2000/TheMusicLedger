@@ -179,7 +179,7 @@ test('an account with no name can neither invite nor join until it has one - and
   assert.equal((await bands.listBandMembers(olga, space)).members.length, 1);
   await pool.query(`UPDATE accounts SET first_name = 'Jo' WHERE id = $1`, [jo]);
   assert.equal(await bands.acceptBandInvite(jo, invite.id), space);
-  assert.deepEqual((await bands.listBandMembers(jo, space)).members.map((m) => m.name).sort(), ['A member', 'Jo']); // Olga, from before the rule, has no name again
+  assert.deepEqual((await bands.listBandMembers(olga, space)).members.map((m) => m.name).sort(), ['A member', 'Jo']); // Olga, from before the rule, has no name again
   await pool.query('DELETE FROM auth_email_links WHERE lower(email) = $1', [joiner]);
 });
 

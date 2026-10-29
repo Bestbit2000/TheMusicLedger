@@ -37,11 +37,19 @@ The owner's model (6 Oct 2026, after seeing his old session names beside the ban
   shared bands can't be merged.
 - **Leaving, or being taken out, keeps the band on your list** as a band of your own (`ensureLabels` clears
   the link); the last one out with nothing in it, or **Stop sharing**, deletes the space and leaves the label.
-- **Tidying** - each also on a band's ⋮ menu: `linkMyBandToDirectory` (it becomes that band, or is merged
+- **Tidying** - each also on a band's page (ML-653): `linkMyBandToDirectory` (it becomes that band, or is merged
   into the entry that already is), `mergeMyBands` (the sessions move onto the one kept; the other name goes),
   `keepMyBand`, `hideMyBand` (hidden if anything is logged with it, otherwise removed) and `showMyBand`.
   `needs_tidy` marks the names that were there before migration 110, so **Tidy my bands** asks about each once.
 - A label is only ever reached through its owner (`myLabel`): another member's label id is "not found".
+- **One row a band, one page a band** (ML-653, the owner, 29 Oct 2026). My bands is its own item in the ☰ menu
+  (in "You", after My music), with a number on it while a band invitation is waiting (`bandInvitesWaiting` on
+  `GET /api/account`). Each band is a row - its logo, its name, what I can do and how many are in it, or "Just for
+  my practice log" - and a tap opens **the band's page**: the logo (an organiser changes it there), name, what I can
+  do and the website; for a shared band **Members** (a page for its organisers only) and **Tell the band** (for
+  those who can send), and **Me in this band** - my own switch for sharing Levels; then what I can do with it on
+  my list (the old ⋮ menu): It's a band in the list, Same as another band of mine, I don't play with them now,
+  Leave the shared band / Stop sharing, Report the band's name; or, for a band just for my log, **Set up sharing**.
 
 Tests: `server/test/myBands.test.js` (dev database). Screens: `specs/components/band-members.md`.
 
@@ -53,7 +61,7 @@ confirms who runs a band, so nobody has to be).
   into a space someone else started.
 - **The one way in without a Join tap** (ML-646, owner 28 Oct 2026): someone who asked to join a band on the public
   page, let in by the owner on Admin → Waiting list into a band **he organises**, is in it at their first sign-in - the
-  form told them its members would see their name. Every other invitation still waits for a yes (docs/waiting-list.md).
+  form told them its organisers would see their name (its members, until ML-653). Every other invitation still waits for a yes (docs/waiting-list.md).
 - Two people who set up sharing for the same band get **two separate spaces** and neither can see the other.
   So claiming a band's name gains nothing: a space holds only the people its members invited.
 - The way into a space is an **invitation from one of its organisers**, addressed to the email address the
@@ -96,13 +104,19 @@ confirms who runs a band, so nobody has to be).
   Whoever added a piece is still the one who can delete it or take it out (ML-411).
 - A band always has an organiser: the only one can't step down, and if the last one leaves, whoever has
   been in it longest takes over (`ensureOrganiser`).
-- A member sees the other members' **names**, never their email addresses.
+- **Only a band's organisers see who is in it** (ML-653, the owner, 29 Oct 2026: "If you're not an organiser do you
+  need to see the other members' names? Just the number may be enough ... This might change later"). Everyone in the
+  band sees how many there are; an organiser sees the members' **names** (never their email addresses) and the
+  invitations waiting. The server sends the names to nobody else (`listBandMembers`) - one switch,
+  `MEMBER_NAMES_SEEN_BY`, would show them to every level again. Two names still reach the whole band: **the band
+  leader's** (on a player's switch for sharing Levels - "so you know who you're sharing it with") and **the sender's
+  on a band's notice**. Who added a band's piece, list or recording isn't shown to anyone.
 - A practice session's "who" is always one of the member's own labels - their My bands list (ML-478).
 
 Code: `server/services/bands.js`; tests `server/test/bandGroups.test.js` (dev database); screens
 `specs/components/band-members.md` (My bands: the invitations waiting for you, and a band's Members page).
 
-**Said at the moment of sharing (ML-468):** an invitation says the band will see your name; giving a piece
+**Said at the moment of sharing (ML-468):** an invitation says the band's organisers will see your name (ML-653); giving a piece
 to a band says everyone in it will see and play it with its recordings and documents, and that it stays
 with the band if you leave; a band's practice list says the same.
 
@@ -129,7 +143,7 @@ The owner's decisions (19 Oct 2026). Feature `band_welcome`, Super admin only un
   own data - how many pieces, each practice list with its concert date and how many pieces, how many
   recordings (`bandInviteWelcome`, `GET /api/account/band-invites/:id/welcome`, for the person invited only).
   Never a message an organiser writes, and never anyone's practice. Then what they will be able to do and that
-  the band will see their name.
+  the band's organisers will see their name (ML-653).
 - **Joining is one tap** - "Join <band>" - but still their own yes: nothing joins them by itself. The same
   "Is this the same band as one of yours?" question as My bands when it might be. **Not now** leaves the
   invitation waiting on My bands.

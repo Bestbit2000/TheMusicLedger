@@ -205,6 +205,9 @@
                 <div class="nav-section-title">You</div>
                 <!-- ML-299: create, import, library and edit pieces (the old Flow start screen). Gated by flow_manage. -->
                 <button type="button" class="dropdown-item nav-item hidden-group" id="myMusicNavItem" data-view="metroBuilderView" data-act="view-menu" data-arg="metroBuilderView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">library_music</span><span class="nav-item-text">My music</span></button>
+                <!-- ML-653 (owner, 29 Oct 2026): My bands is its own item, not under My account - a band's page is where its
+                     members, invitations and notices are. The number is band invitations waiting (renderBandInvitesCount). -->
+                <button type="button" class="dropdown-item nav-item" data-view="accountBandsView" data-act="view-menu" data-arg="accountBandsView"><span class="material-symbols-outlined nav-item-icon" aria-hidden="true">groups</span><span class="nav-item-text">My bands</span><span class="notif-count hidden-group" id="bandInvitesNavCount"></span></button>
                 <!-- ML-610 (owner, 25 Oct 2026): "My app settings" - how the app works for you, not any sort of settings - then
                      My instruments with Instrument support straight after it, last in the group so the "My..." items stay
                      together. My account is down by Log out. -->
@@ -859,7 +862,6 @@
         <button type="button" class="history-item settings-link" data-act="view" data-arg="accountDetailsView"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">badge</span><span class="settings-link-text"><span class="settings-link-title">My details</span><span class="settings-link-sub" id="accountDetailsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <!-- ML-355: shown once email + password login is on -->
         <button type="button" class="history-item settings-link hidden-group" id="accountSecurityRow" data-act="view" data-arg="accountSecurityView"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">lock</span><span class="settings-link-text"><span class="settings-link-title">Sign-in and security</span><span class="settings-link-sub" id="accountSecuritySummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
-        <button type="button" class="history-item settings-link" data-act="view" data-arg="accountBandsView"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">groups</span><span class="settings-link-text"><span class="settings-link-title">My bands</span><span class="settings-link-sub" id="accountBandsSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
         <button type="button" class="history-item settings-link hidden-group" id="accountTeachersRow" data-act="view" data-arg="accountTeachersView"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">school</span><span class="settings-link-text"><span class="settings-link-title">My teachers</span><span class="settings-link-sub" id="accountTeachersSummary"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
     </div>
 
@@ -948,8 +950,9 @@
         <div id="accountBandInvites" class="hidden-group mb-4"></div>
         <!-- ML-478: the names logged before My bands was one list, to say what each is - once (tidyBandsView) -->
         <button type="button" class="history-item settings-link hidden-group" id="tidyBandsLink"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">checklist</span><span class="settings-link-text"><span class="settings-link-title">Tidy my bands</span><span class="settings-link-sub" id="tidyBandsLinkSub"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+        <!-- ML-653: a row per band - its logo, its name, what I can do there and how many are in it. A tap opens its page. -->
         <div id="accountBandsList"></div>
-        <p class="metro-help-text mt-4">Adding a band is private to you: it is who you can say a rehearsal or performance was with. To share a band's music, open its menu and choose Set up sharing - or ask the band's organiser to invite you.</p>
+        <p class="metro-help-text mt-4">Adding a band is private to you: it is who you can say a rehearsal or performance was with. To share a band's music, open it and choose Set up sharing - or ask the band's organiser to invite you.</p>
         <div class="flex-row gap-sm mt-2">
             <select id="accountBandPicker" aria-label="Band to add" class="flex-1"><option value="">Choose a band to add&hellip;</option></select>
             <button class="btn-submit btn-inline" id="accountJoinBandBtn">Add</button>
@@ -998,54 +1001,88 @@
         <div id="tidyBandsList"></div>
     </div>
 
-    <!-- ML-473: who is in a band and what each may do (opened from a band's menu on My bands). Everyone in
-         the band sees the names; an organiser also invites, changes what a member may do and removes
-         (renderBandMembers). A member's row and the invitation's level are value boxes that open the usual
-         choice pop-up - one button, one pop-up. -->
+    <!-- ML-653 (owner, 29 Oct 2026): a band's own page, opened from its row on My bands - one row a band, one page a
+         band. The band's logo, name, what I can do and its website at the top; then, for a shared band, "The band"
+         (Members - a page only its organisers can open, everyone else sees how many - and Tell the band) and "Me in
+         this band" (my own say-so on sharing Levels); then what I can do with it on my list. A band that is just a
+         name for my practice log says so and offers Set up sharing. renderBandPage. -->
+    <div id="bandView" class="hidden-group">
+        <div class="flex-col items-center text-center gap-sm mb-4">
+            <img id="bandPageLogo" class="band-logo band-logo-lg hidden-group" alt="">
+            <h2 id="bandPageTitle" class="no-margin"></h2>
+            <p class="metro-help-text no-margin" id="bandPageWho"></p>
+            <div id="bandPageWebsite"></div>
+            <!-- ML-534: the band's logo - an organiser adds, changes or takes it off (renderBandLogo) -->
+            <div class="hidden-group flex-col items-center gap-sm" id="bandLogoSection">
+                <button type="button" class="btn-nav no-margin" id="bandLogoBtn">Add a logo</button>
+                <button type="button" class="btn-text btn-text-danger hidden-group" id="bandLogoRemoveBtn">Take the logo off</button>
+                <p class="text-sm text-muted no-margin">Everyone in the band sees it, and so does someone you invite. A PNG, JPEG or WebP up to 1 MB - the band's logo, not a photo of people, and one the band has the right to use.</p>
+                <input type="file" id="bandLogoInput" accept="image/png,image/jpeg,image/webp" class="hidden-group" aria-label="Choose the band's logo">
+            </div>
+        </div>
+        <div class="hidden-group" id="bandPageShared">
+            <div class="section-title">The band</div>
+            <button type="button" class="history-item settings-link hidden-group" id="bandPageMembersLink"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">group</span><span class="settings-link-text"><span class="settings-link-title">Members</span><span class="settings-link-sub" id="bandPageMembersSub"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+            <!-- not an organiser: how many, never who (ML-653) - a row to read, not to tap -->
+            <div class="history-item settings-link hidden-group" id="bandPageMembersCount"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">group</span><span class="settings-link-text"><span class="settings-link-title">Members</span><span class="settings-link-sub" id="bandPageMembersCountSub"></span></span></div>
+            <button type="button" class="history-item settings-link hidden-group" id="bandPageNoticeLink"><span class="material-symbols-outlined settings-link-icon" aria-hidden="true">campaign</span><span class="settings-link-text"><span class="settings-link-title">Tell the band</span><span class="settings-link-sub" id="bandPageNoticeSub"></span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>
+            <!-- ML-581: the player's own say-so for this band, in the owner's words - off until they switch it on, and
+                 never asked anywhere else. Its line names the band leader (ML-653: "so you know who you're sharing it
+                 with") and what they would see. -->
+            <div class="hidden-group" id="bandShareLevelsSection">
+                <div class="section-title mt-4">Me in this band</div>
+                <div class="flex-row gap-sm items-center">
+                    <span class="grow"><strong id="bandShareLevelsLbl">I'm happy to share my piece levels anonymously at a summary level only to the band leader</strong><br><span class="text-sm text-muted" id="bandShareLevelsNote"></span></span>
+                    <label class="toggle-switch"><input type="checkbox" id="bandShareLevelsToggle" aria-labelledby="bandShareLevelsLbl" aria-describedby="bandShareLevelsNote"><span class="toggle-slider"></span></label>
+                </div>
+            </div>
+        </div>
+        <div class="hidden-group" id="bandPageOwn">
+            <p class="metro-help-text">Only you see this band. It is here so you can say who a rehearsal or performance was with - nobody else is in it and nothing is shared.</p>
+        </div>
+        <!-- What I can do with this band on my list - each only when it applies (renderBandPage) -->
+        <div class="flex-col items-start mt-4" id="bandPageActions">
+            <button type="button" class="btn-text hidden-group" id="bandPageDirectoryBtn" aria-haspopup="dialog">It's a band in the list</button>
+            <button type="button" class="btn-text hidden-group" id="bandPageMergeBtn" aria-haspopup="dialog">Same as another band of mine</button>
+            <button type="button" class="btn-text hidden-group" id="bandPageHideBtn" aria-haspopup="dialog">I don't play with them now</button>
+            <button type="button" class="btn-text hidden-group" id="bandPageLeaveBtn" aria-haspopup="dialog">Leave the shared band</button>
+            <button type="button" class="btn-text btn-text-danger hidden-group" id="bandPageStopBtn" aria-haspopup="dialog">Stop sharing</button>
+            <!-- ML-510: a shared band's name, when someone else is in the band to see it -->
+            <button type="button" class="btn-text hidden-group" id="bandPageReportBtn" aria-haspopup="dialog">Report the band's name</button>
+        </div>
+        <div class="hidden-group mt-4" id="bandPageShareBox">
+            <p class="metro-help-text">Want to share music with the rest of the band? Set up sharing and invite them - or ask the band's organiser to invite you, and it joins up with this one.</p>
+            <button type="button" class="btn-submit" id="bandPageShareBtn" aria-haspopup="dialog">Set up sharing</button>
+        </div>
+    </div>
+
+    <!-- ML-498: a notice to everyone in the band - for its organisers, the members who can change its music and its band
+         leader. One way only: nobody can reply. The help line says how many the band has left. ML-653: its own page,
+         opened from the band's page. -->
+    <div id="bandNoticeView" class="hidden-group">
+        <p class="metro-help-text" id="bandNoticeHelp"></p>
+        <div class="form-group">
+            <label for="bandNoticeTitle">Title</label>
+            <input type="text" id="bandNoticeTitle" maxlength="120" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label for="bandNoticeBody">Message</label>
+            <textarea id="bandNoticeBody" rows="4" maxlength="1000"></textarea>
+        </div>
+        <button type="button" class="btn-submit" id="bandNoticeSendBtn">Send to the band</button>
+        <div class="section-title mt-4 hidden-group" id="bandNoticeSentTitle">Sent lately</div>
+        <div id="bandNoticeSentList"></div>
+    </div>
+
+    <!-- ML-473: who is in a band and what each may do. ML-653 (owner, 29 Oct 2026): for the band's organisers only - nobody
+         else is sent the names. An organiser invites, changes what a member may do and removes (renderBandMembers). A
+         member's row and the invitation's level are value boxes that open the usual choice pop-up - one button, one pop-up. -->
     <div id="bandMembersView" class="hidden-group">
         <p class="metro-help-text" id="bandMembersIntro"></p>
         <div id="bandMembersList"></div>
-        <p class="metro-help-text hidden-group" id="bandMembersWaiting"></p>
-        <!-- ML-581: the player's own say-so for this band, in the owner's words - off until they switch it on, and
-             never asked anywhere else. Its line says who the band leader is and what they would see. -->
-        <div class="hidden-group" id="bandShareLevelsSection">
-            <div class="section-title mt-4">My Levels</div>
-            <div class="flex-row gap-sm items-center">
-                <span class="grow"><strong id="bandShareLevelsLbl">I'm happy to share my piece levels anonymously at a summary level only to the band leader</strong><br><span class="text-sm text-muted" id="bandShareLevelsNote"></span></span>
-                <label class="toggle-switch"><input type="checkbox" id="bandShareLevelsToggle" aria-labelledby="bandShareLevelsLbl" aria-describedby="bandShareLevelsNote"><span class="toggle-slider"></span></label>
-            </div>
-        </div>
-        <!-- ML-498: a notice to everyone in the band - for its organisers, the members who can change its music and its
-             band leader. One way only: nobody can reply. The help line says how many the band has left. -->
-        <div class="hidden-group" id="bandNoticeSection">
-            <div class="section-title mt-4">Tell the band</div>
-            <p class="metro-help-text" id="bandNoticeHelp"></p>
-            <div class="form-group">
-                <label for="bandNoticeTitle">Title</label>
-                <input type="text" id="bandNoticeTitle" maxlength="120" autocomplete="off">
-            </div>
-            <div class="form-group">
-                <label for="bandNoticeBody">Message</label>
-                <textarea id="bandNoticeBody" rows="4" maxlength="1000"></textarea>
-            </div>
-            <button type="button" class="btn-submit" id="bandNoticeSendBtn">Send to the band</button>
-            <div class="section-title mt-4 hidden-group" id="bandNoticeSentTitle">Sent lately</div>
-            <div id="bandNoticeSentList"></div>
-        </div>
         <div class="hidden-group" id="bandMembersOrganiser">
-            <!-- ML-534: the band's logo - an organiser adds, changes or takes it off (renderBandLogo) -->
-            <div class="hidden-group" id="bandLogoSection">
-                <div class="section-title mt-4">The band's logo</div>
-                <p class="metro-help-text">Everyone in the band sees it, and so does someone you invite, on the welcome. A picture - PNG, JPEG or WebP - up to 1 MB. Use the band's logo, not a photo of people. Only use a logo the band has the right to use.</p>
-                <div class="flex-row items-center gap-md mb-2">
-                    <img id="bandLogoPreview" class="band-logo band-logo-lg hidden-group" alt="The band's logo">
-                    <div class="flex-col gap-sm">
-                        <button type="button" class="btn-nav no-margin" id="bandLogoBtn">Add a logo</button>
-                        <button type="button" class="btn-text btn-text-danger hidden-group" id="bandLogoRemoveBtn">Take the logo off</button>
-                    </div>
-                </div>
-                <input type="file" id="bandLogoInput" accept="image/png,image/jpeg,image/webp" class="hidden-group" aria-label="Choose the band's logo">
-            </div>
+            <div class="section-title mt-4 hidden-group" id="bandInvitesTitle">Waiting for an answer</div>
+            <div id="bandInvitesList"></div>
             <div class="section-title mt-4">Invite someone</div>
             <p class="metro-help-text" id="bandInviteHelp">Type their email address. They are sent an email, and the invitation waits on their My bands page for 30 days. They sign in with that same address to join.</p>
             <div class="form-group">
@@ -1054,8 +1091,6 @@
             </div>
             <button type="button" class="metroBlk-ctrl-value-btn w-full mb-2" id="bandInviteLevelBtn" aria-haspopup="dialog"><strong>Can play</strong><span class="metroBlk-ctrl-value-label">what they can do</span></button>
             <button type="button" class="btn-submit" id="bandInviteBtn">Invite</button>
-            <div class="section-title mt-4 hidden-group" id="bandInvitesTitle">Waiting for an answer</div>
-            <div id="bandInvitesList"></div>
         </div>
     </div>
 
@@ -1080,17 +1115,6 @@
         <button type="button" class="dropdown-item hidden-group" id="accountInstrumentMenuRange"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">height</span><span class="dropdown-item-text">My range&hellip;</span></button>
         <button type="button" class="dropdown-item hidden-group" id="accountInstrumentMenuClef" aria-haspopup="dialog"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">music_note</span><span class="dropdown-item-text">My clef&hellip;</span></button>
         <button type="button" class="dropdown-item account-band-menu-delete" id="accountInstrumentMenuRemove"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">remove_circle</span><span class="dropdown-item-text">Remove</span></button>
-    </div>
-    <div class="dropdown-menu account-band-menu" id="accountBandMenu">
-        <button type="button" class="dropdown-item" id="accountBandMenuShare"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">group_add</span><span class="dropdown-item-text">Set up sharing</span></button>
-        <button type="button" class="dropdown-item" id="accountBandMenuMembers"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">group</span><span class="dropdown-item-text">Members</span></button>
-        <button type="button" class="dropdown-item" id="accountBandMenuLeave"><svg class="dropdown-item-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="3.5"/><path d="M2 20.5a6 6 0 0 1 12 0"/><path d="M15 12.5h6.5"/><path d="M18.5 9.5l3 3-3 3"/></svg><span class="dropdown-item-text">Leave shared band</span></button>
-        <button type="button" class="dropdown-item" id="accountBandMenuDirectory"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">link</span><span class="dropdown-item-text">It's a band in the list</span></button>
-        <button type="button" class="dropdown-item" id="accountBandMenuMerge"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">merge</span><span class="dropdown-item-text">Same as another of mine</span></button>
-        <button type="button" class="dropdown-item" id="accountBandMenuHide"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">visibility_off</span><span class="dropdown-item-text">I don't play with them now</span></button>
-        <!-- ML-510: a shared band's name, when someone else is in the band to see it -->
-        <button type="button" class="dropdown-item hidden-group" id="accountBandMenuReport" aria-haspopup="dialog"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">flag</span><span class="dropdown-item-text">Report the name</span></button>
-        <button type="button" class="dropdown-item account-band-menu-delete hidden-group" id="accountBandMenuDelete"><span class="material-symbols-outlined dropdown-item-icon" aria-hidden="true">delete</span><span class="dropdown-item-text">Stop sharing</span></button>
     </div>
 
     <!-- ML-201: notification centre. The update card (only when this device is running an older

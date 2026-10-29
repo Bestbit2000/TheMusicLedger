@@ -1,5 +1,5 @@
 import pool from '../config/db.js';
-import { getAccountBands, joinBandsAskedFor } from './bands.js';
+import { getAccountBands, joinBandsAskedFor, countMyBandInvites } from './bands.js';
 import { sendSignupAlert } from './signupAlert.js';
 import { deletedEmailHash } from './tokenVersions.js';
 import { noticeWaitingBandInvites } from './autoNotices.js';
@@ -105,7 +105,9 @@ export async function getAccountProfile(accountId) {
     [accountId]
   );
   if (!rows.length) { const e = new Error('Account not found'); e.status = 404; throw e; }
-  return toProfile(rows[0], await getAccountBands(accountId));
+  const [bands, bandInvitesWaiting] = await Promise.all([getAccountBands(accountId), countMyBandInvites(accountId)]);
+  // ML-653: the number on My bands in the ☰ menu - band invitations waiting for an answer
+  return { ...toProfile(rows[0], bands), bandInvitesWaiting };
 }
 
 // ML-278: the member has confirmed, before their first upload of music, that they have the right to

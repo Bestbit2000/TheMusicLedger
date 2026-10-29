@@ -51,7 +51,7 @@ export const EMAILS = {
     builtIn: {
       subject: "You're invited to Notably Better",
       body: p('Hi {first name},', "Welcome to Notably Better! You've been invited to join, and we're really glad you're here.",
-        "You'll be in {bands} as soon as you sign in, with the band's music ready to play and practise at your own pace. Its members will see your name.",
+        "You'll be in {bands} as soon as you sign in, with the band's music ready to play and practise at your own pace. Its organisers will see your name.",
         'Getting in takes a minute: {ways in}.', 'See you there!'),
       button: 'Get started'
     },

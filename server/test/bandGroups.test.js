@@ -128,14 +128,15 @@ test('the way in is an organiser\'s invitation to your sign-in address: accept, 
   await bands.declineBandInvite(cara, caras[0].id);
   assert.deepEqual(await bands.listMyBandInvites(cara), []);
 
-  // The members, by name and what they may do - never an email address. Anna (organiser) sees the open
-  // invitation; Ben only that there is one. Ben can't invite or cancel.
+  // The members, by name and what they may do - never an email address. Anna (organiser) sees them and the open
+  // invitation; Ben (not an organiser) sees neither - only how many are in the band (ML-653). Ben can't invite or cancel.
   const forAnna = await bands.listBandMembers(anna, space);
   assert.deepEqual(forAnna.members.map((m) => [m.name, m.level, m.isYou]), [['anna3 Test', 'organiser', true], ['ben3 Test', 'change', false]]);
   assert.ok(!JSON.stringify(forAnna.members).includes('@'));
   assert.deepEqual(forAnna.invites.map((i) => [i.email, i.level]), [[`nobody-${stamp}@example.com`, 'play']]);
   const forBen = await bands.listBandMembers(ben, space);
-  assert.deepEqual([forBen.isOrganiser, forBen.yourLevel, forBen.invites.length, forBen.openInvites], [false, 'change', 0, 1]);
+  assert.deepEqual([forBen.isOrganiser, forBen.yourLevel, forBen.seesNames, forBen.memberCount, forBen.members, forBen.invites.length, forBen.openInvites], [false, 'change', false, 2, [], 0, 0]);
+  assert.ok(!JSON.stringify(forBen).includes('anna3'), "Ben's answer has no other member's name");
   await assert.rejects(bands.inviteToBand(ben, space, emailOf('dan3')), status(403));
   await assert.rejects(bands.cancelBandInvite(ben, space, forAnna.invites[0].id), status(403));
   await bands.cancelBandInvite(anna, space, forAnna.invites[0].id);
@@ -157,7 +158,8 @@ test('organisers: only they remove or set what a member may do; a band always ha
   const space = await startBandGroup(anna, await directoryBand(anna));
   await join(anna, space, ben, 'ben4', 'change');
   await join(anna, space, cara, 'cara4', 'play');
-  const levels = async () => (await bands.listBandMembers(cara, space)).members.map((m) => `${m.name.split(' ')[0]}:${m.level}`);
+  // (read by an organiser - ML-653: nobody else is sent the names)
+  const levels = async (as = anna) => (await bands.listBandMembers(as, space)).members.map((m) => `${m.name.split(' ')[0]}:${m.level}`);
   assert.deepEqual(await levels(), ['anna4:organiser', 'ben4:change', 'cara4:play']);
 
   await assert.rejects(bands.removeBandMember(ben, space, cara), status(403));
@@ -170,7 +172,8 @@ test('organisers: only they remove or set what a member may do; a band always ha
   await bands.setBandMemberLevel(anna, space, cara, 'change');
   await bands.setBandMemberLevel(anna, space, ben, 'organiser');
   await bands.setBandMemberLevel(anna, space, anna, 'play'); // steps down: Ben is left
-  assert.deepEqual(await levels(), ['anna4:play', 'ben4:organiser', 'cara4:change']);
+  assert.deepEqual(await levels(ben), ['anna4:play', 'ben4:organiser', 'cara4:change']);
+  assert.deepEqual(await levels(anna), [], 'not an organiser now, so no names');
   // The last organiser leaves: whoever has been in the band longest takes over
   await bands.leaveBand(ben, space);
   assert.deepEqual(await levels(), ['anna4:organiser', 'cara4:change']);

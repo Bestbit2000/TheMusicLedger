@@ -602,15 +602,24 @@ async function requireAdult(db, accountId) {
   if (!rows.length || !rows[0].organiser_adult_confirmed_on) throw Object.assign(fail(409, ADULT_BEFORE_ORGANISING), { reason: 'needs-adult' });
 }
 export const NAME_BEFORE_INVITING = 'The invitation says who it is from, so add your name before you invite anyone. It is on My account, under My details.';
-export const NAME_BEFORE_JOINING = 'Everyone in the band will see your name, so add it before you join. It is on My account, under My details.';
+export const NAME_BEFORE_JOINING = "The band's organisers will see your name, so add it before you join. It is on My account, under My details.";
 const purgeOldInvites = (db) => db.query(`DELETE FROM band_invites WHERE created_at < now() - make_interval(days => $1)`, [INVITE_DAYS]);
 
-// Who is in the band and what each may do, for its members. The invitations still open are the
-// organisers' to see; other members see only how many there are.
+// ML-653 (owner, 29 Oct 2026): who sees the names of the people in a band. Only its organisers - everyone else
+// sees how many there are, and the band leader's name (so a player knows who a shared Levels summary goes to).
+// "This might change later": switching it to ['organiser', 'change', 'play'] shows the list to everyone again.
+export const MEMBER_NAMES_SEEN_BY = ['organiser'];
+export const seesMemberNames = (level) => MEMBER_NAMES_SEEN_BY.includes(level);
+
+// The band's page and its Members page, for one of its members. What everyone in the band gets: what they may
+// do, the logo, how many people are in it, the band leader(s) by name, and their own say-so on sharing Levels.
+// Who is in it and what each may do - names, never email addresses - and the invitations still open are only
+// for those who see member names (MEMBER_NAMES_SEEN_BY); nobody else is sent them at all, not just not shown.
 export async function listBandMembers(accountId, bandId) {
   const role = await assertMember(pool, accountId, bandId);
   await purgeOldInvites(pool);
   const isOrganiser = ORGANISER_ROLES.includes(role);
+  const seesNames = seesMemberNames(levelOf(role));
   const [{ rows: members }, { rows: invites }] = await Promise.all([
     pool.query(
       `SELECT a.id, a.display_name, a.first_name, a.surname, bm.role, bm.joined_at, bm.is_band_leader, bm.shares_levels
@@ -620,29 +629,48 @@ export async function listBandMembers(accountId, bandId) {
     ),
     pool.query('SELECT id, email, role, created_at FROM band_invites WHERE band_id = $1 ORDER BY created_at', [bandId])
   ]);
+  // a name, never the email address (accountDisplayName falls back to it; other members don't get it)
+  const nameOf = (m) => accountDisplayName({ ...m, email: null }) || 'A member';
+  const isYou = (m) => Number(m.id) === Number(accountId);
   return {
     isOrganiser,
     yourLevel: levelOf(role),
+    seesNames,
     logoUrl: await bandLogoUrl(bandId), // ML-534
-    members: members.map((m) => ({
+    memberCount: members.length,
+    // ML-581: everyone sees who the band leader is - so a player knows who would see a summary (the owner, 29 Oct 2026:
+    // "so you know who you're sharing it with"). The only other member's name a player is sent.
+    bandLeaders: members.filter((m) => m.is_band_leader).map((m) => ({ name: nameOf(m), isYou: isYou(m) })),
+    members: seesNames ? members.map((m) => ({
       accountId: Number(m.id),
-      // a name, never the email address (accountDisplayName falls back to it; other members don't get it)
-      name: accountDisplayName({ ...m, email: null }) || 'A member',
+      name: nameOf(m),
       level: levelOf(m.role),
-      isBandLeader: !!m.is_band_leader, // ML-581: everyone sees who the band leader is - so a player knows who would see a summary
-      isYou: Number(m.id) === Number(accountId),
+      isBandLeader: !!m.is_band_leader,
+      isYou: isYou(m),
       joinedAt: m.joined_at
-    })),
+    })) : [],
     // ML-581: whether YOU share your Levels with the band leader. Nobody else's is ever in this answer - not even an
     // organiser's or the band leader's to see.
-    yourSharesLevels: !!(members.find((m) => Number(m.id) === Number(accountId)) || {}).shares_levels,
+    yourSharesLevels: !!(members.find(isYou) || {}).shares_levels,
     invites: isOrganiser ? invites.map((i) => ({ id: Number(i.id), email: i.email, level: levelOf(i.role), sentAt: i.created_at })) : [],
-    openInvites: invites.length,
+    openInvites: isOrganiser ? invites.length : 0,
     // ML-479: whether an invitation's email really goes from this site (not on dev or sandbox)
     emailsAreSent: emailOutcome().emailed,
     // ML-646: an organiser's invitations left today and this quarter, and when the quarter starts again
     inviteAllowance: isOrganiser ? await bandInviteAllowance(accountId) : null
   };
+}
+
+// ML-653: how many band invitations are waiting for this account - the number on My bands in the ☰ menu
+export async function countMyBandInvites(accountId) {
+  const { rows } = await pool.query(
+    `SELECT COUNT(*)::int AS n FROM band_invites i
+       JOIN accounts me ON lower(me.email) = lower(i.email)
+       JOIN bands g ON g.id = i.band_id AND g.kind = 'group' AND g.active
+      WHERE me.id = $1 AND i.created_at >= now() - make_interval(days => $2)`,
+    [accountId, INVITE_DAYS]
+  );
+  return rows[0].n;
 }
 
 // Only an organiser invites, and the invitation carries what the new member may do ('play' unless

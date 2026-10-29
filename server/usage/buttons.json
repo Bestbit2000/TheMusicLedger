@@ -13,7 +13,9 @@
   "accountView",
   "addPieceView",
   "bandMembersView",
+  "bandNoticeView",
   "bandSummaryView",
+  "bandView",
   "bandWelcomeView",
   "drillResultsView",
   "earPlayView",
@@ -272,6 +274,13 @@
    "where": "top bar",
    "name": "#myMusicNavItem",
    "label": "My music",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "top bar",
+   "name": "view-menu(accountBandsView)",
+   "label": "My bands",
    "html": true
   },
   {
@@ -809,13 +818,6 @@
   {
    "group": "My account, instruments, settings",
    "where": "accountView",
-   "name": "view(accountBandsView)",
-   "label": "My bands",
-   "html": true
-  },
-  {
-   "group": "My account, instruments, settings",
-   "where": "accountView",
    "name": "#accountTeachersRow",
    "label": "My teachers",
    "html": true
@@ -941,23 +943,86 @@
   },
   {
    "group": "My bands",
-   "where": "bandMembersView",
-   "name": "#bandNoticeSendBtn",
-   "label": "Send to the band",
-   "html": true
-  },
-  {
-   "group": "My bands",
-   "where": "bandMembersView",
+   "where": "bandView",
    "name": "#bandLogoBtn",
    "label": "Add a logo",
    "html": true
   },
   {
    "group": "My bands",
-   "where": "bandMembersView",
+   "where": "bandView",
    "name": "#bandLogoRemoveBtn",
    "label": "Take the logo off",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandView",
+   "name": "#bandPageMembersLink",
+   "label": "Members",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandView",
+   "name": "#bandPageNoticeLink",
+   "label": "Tell the band",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandView",
+   "name": "#bandPageDirectoryBtn",
+   "label": "It's a band in the list",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandView",
+   "name": "#bandPageMergeBtn",
+   "label": "Same as another band of mine",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandView",
+   "name": "#bandPageHideBtn",
+   "label": "I don't play with them now",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandView",
+   "name": "#bandPageLeaveBtn",
+   "label": "Leave the shared band",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandView",
+   "name": "#bandPageStopBtn",
+   "label": "Stop sharing",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandView",
+   "name": "#bandPageReportBtn",
+   "label": "Report the band's name",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandView",
+   "name": "#bandPageShareBtn",
+   "label": "Set up sharing",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandNoticeView",
+   "name": "#bandNoticeSendBtn",
+   "label": "Send to the band",
    "html": true
   },
   {
@@ -1007,62 +1072,6 @@
    "where": "top bar",
    "name": "#accountInstrumentMenuRemove",
    "label": "Remove",
-   "html": true
-  },
-  {
-   "group": "My bands",
-   "where": "top bar",
-   "name": "#accountBandMenuShare",
-   "label": "Set up sharing",
-   "html": true
-  },
-  {
-   "group": "My bands",
-   "where": "top bar",
-   "name": "#accountBandMenuMembers",
-   "label": "Members",
-   "html": true
-  },
-  {
-   "group": "My bands",
-   "where": "top bar",
-   "name": "#accountBandMenuLeave",
-   "label": "Leave shared band",
-   "html": true
-  },
-  {
-   "group": "My bands",
-   "where": "top bar",
-   "name": "#accountBandMenuDirectory",
-   "label": "It's a band in the list",
-   "html": true
-  },
-  {
-   "group": "My bands",
-   "where": "top bar",
-   "name": "#accountBandMenuMerge",
-   "label": "Same as another of mine",
-   "html": true
-  },
-  {
-   "group": "My bands",
-   "where": "top bar",
-   "name": "#accountBandMenuHide",
-   "label": "I don't play with them now",
-   "html": true
-  },
-  {
-   "group": "My bands",
-   "where": "top bar",
-   "name": "#accountBandMenuReport",
-   "label": "Report the name",
-   "html": true
-  },
-  {
-   "group": "My bands",
-   "where": "top bar",
-   "name": "#accountBandMenuDelete",
-   "label": "Stop sharing",
    "html": true
   },
   {
@@ -4974,7 +4983,7 @@
   {
    "group": "My bands",
    "where": "renderAccountBandsList()",
-   "name": "data-band-menu-id",
+   "name": "data-band-open",
    "label": "",
    "html": false
   },
@@ -5241,7 +5250,7 @@
    "group": "Menu, notices and the rest",
    "where": "renderBuild()",
    "name": "data-slot",
-   "label": "…–… …</",
+   "label": "…–… …",
    "html": false
   },
   {
@@ -5829,7 +5838,7 @@
    "group": "Pieces: Rehearse, play, edit",
    "where": "renderFlowFermataAddSection()",
    "name": "data-pause-kind",
-   "label": "… … … </button",
+   "label": "… … … </bu",
    "html": false
   },
   {
@@ -6193,7 +6202,7 @@
    "group": "Pieces: Rehearse, play, edit",
    "where": "outlineExtrasStepHtml()",
    "name": "data-outline-extra",
-   "label": "…</stron",
+   "label": "…</str",
    "html": false
   },
   {

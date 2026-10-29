@@ -1512,7 +1512,7 @@
         data.lists.forEach(l => rows.push(row('event', l.name, [l.eventDate ? plDateText(l.eventDate) : '', plural(l.pieces, 'piece')].filter(Boolean).join(' · '))));
         if (data.recordings) rows.push(row('graphic_eq', plural(data.recordings, 'recording'), 'Of the band, to practise along with'));
         document.getElementById('bandWelcomeShares').innerHTML = rows.length ? rows.join('') : '<p class="metro-help-text">Nothing yet - the band\'s organisers put its music here.</p>';
-        document.getElementById('bandWelcomeNote').textContent = `You will be able to ${bandLevel(invite.level).youCan}. Everyone in the band will see your name, and you will see theirs - never anyone's practice.`;
+        document.getElementById('bandWelcomeNote').textContent = `You will be able to ${bandLevel(invite.level).youCan}. The band's organisers will see your name - never your practice.`; // ML-653: only they see the names
         document.getElementById('bandWelcomeJoinBtn').textContent = `Join ${data.bandName}`;
     }
     async function joinFromWelcome(labelId) {
@@ -1995,7 +1995,9 @@
     const NAV_PARENT_VIEW = { statsView: 'statsHomeView', streakStatsView: 'statsHomeView', historyView: 'statsHomeView', toolResultsView: 'statsHomeView', flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', bandSummaryView: 'metroBuilderView', flowPlayView: 'rehearseView', piecePathView: 'rehearseView', prepareRunView: 'rehearseView', levelsPaintView: 'rehearseView', levelsCutView: 'rehearseView', practiceListView: 'rehearseView',
         settingsDisplayView: 'settingsView', settingsStatsView: 'settingsView', settingsTunerView: 'settingsView', settingsPlaybackView: 'settingsView',
         aboutReleasesView: 'aboutView', aboutPrivacyView: 'aboutView', aboutTermsView: 'aboutView', aboutGradesView: 'aboutView',
-        accountDetailsView: 'accountView', accountSecurityView: 'accountView', accountBandsView: 'accountView', bandMembersView: 'accountView', bandWelcomeView: 'accountView', tidyBandsView: 'accountView', accountTeachersView: 'accountView',
+        accountDetailsView: 'accountView', accountSecurityView: 'accountView', accountTeachersView: 'accountView',
+        // ML-653: My bands is its own ☰ item
+        bandView: 'accountBandsView', bandMembersView: 'accountBandsView', bandNoticeView: 'accountBandsView', bandWelcomeView: 'accountBandsView', tidyBandsView: 'accountBandsView',
         theoryOptionsView: 'theoryView', theoryPlayView: 'theoryView', theoryResultsView: 'theoryView',
         // ML-406: Pitch, Tempo, Pulse and Rhythm live under Skills
         tapTempoView: 'skillsHubView', gapTrainerView: 'skillsHubView', earView: 'skillsHubView', rhythmView: 'skillsHubView', drillResultsView: 'skillsHubView',
@@ -2032,6 +2034,14 @@
         navAccountLoaded = true;
         if (!accountProfile) { accountProfile = profile; renderHomeGreeting(); } // ML-330: "Hi, <name>" on home
         document.getElementById('navAccountEmail').textContent = profile.email || '';
+        if (profile.bandInvitesWaiting !== undefined) renderBandInvitesCount(profile.bandInvitesWaiting); // ML-653
+    }
+    // ML-653: the number on My bands in the ☰ menu - band invitations waiting for an answer
+    function renderBandInvitesCount(n) {
+        const badge = document.getElementById('bandInvitesNavCount');
+        if (!badge) return;
+        badge.innerHTML = `${n}<span class="visually-hidden"> band invitation${n === 1 ? '' : 's'} waiting</span>`;
+        setShown(badge, n > 0);
     }
     async function renderNavMenu() {
         checkAdminWaiting(); // ML-572
@@ -2128,7 +2138,8 @@
         rehearseView: { hint: 'Pick a piece to play.', details: ['flowPlayView'] },
         metroBuilderView: { hint: 'Pick a piece to open it.', details: ['flowPlayView'] },
         settingsView: { hint: 'Pick a setting.', details: ['settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'settingsNoticesView'] },
-        accountView: { hint: 'Pick what to look at.', details: ['accountSecurityView', 'accountDetailsView', 'accountBandsView', 'accountTeachersView'] },
+        accountView: { hint: 'Pick what to look at.', details: ['accountSecurityView', 'accountDetailsView', 'accountTeachersView'] },
+        accountBandsView: { hint: 'Pick a band to open it.', details: ['bandView'] }, // ML-653
         aboutView: { hint: 'Pick what to read.', details: ['aboutReleasesView', 'aboutPrivacyView', 'aboutTermsView', 'aboutGradesView'] }
     };
     // The list a screen belongs beside: itself if it is a list, or the list it was opened from.
@@ -2371,7 +2382,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutPrivacyView', 'aboutTermsView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandMembersView', 'bandWelcomeView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'settingsNoticesView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'levelsProgressView', 'bandSummaryView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView', 'setupView', 'tuningForkView', 'instrumentSupportView'];
+    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutPrivacyView', 'aboutTermsView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandView', 'bandMembersView', 'bandNoticeView', 'bandWelcomeView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'settingsNoticesView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'levelsProgressView', 'bandSummaryView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView', 'setupView', 'tuningForkView', 'instrumentSupportView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     // ML-107 (owner's list, 12 Oct 2026): anywhere you have your instrument up while looking at the screen - the
@@ -2520,7 +2531,9 @@
         if (viewName === 'accountInstrumentsView') { document.getElementById('topTitle').innerText = 'My instruments'; loadAccountInstruments(); }
         if (viewName === 'accountSecurityView') { document.getElementById('topTitle').innerText = 'Sign-in and security'; loadAccountSecurity(); }
         if (viewName === 'accountBandsView') { document.getElementById('topTitle').innerText = 'My bands'; loadAccountBands(); }
-        if (viewName === 'bandMembersView') { document.getElementById('topTitle').innerText = bandMembers.bandName || 'Members'; loadBandMembers(); } // ML-473
+        if (viewName === 'bandView') { document.getElementById('topTitle').innerText = bandMembers.bandName || 'My bands'; loadBandPage(); } // ML-653
+        if (viewName === 'bandMembersView') { document.getElementById('topTitle').innerText = 'Members'; loadBandMembers(); } // ML-473
+        if (viewName === 'bandNoticeView') { document.getElementById('topTitle').innerText = 'Tell the band'; openBandNoticePage(); } // ML-498, ML-653
         if (viewName === 'bandWelcomeView') { document.getElementById('topTitle').innerText = 'Welcome'; renderBandWelcome(); } // ML-534
         if (viewName === 'tidyBandsView') { document.getElementById('topTitle').innerText = 'Tidy my bands'; loadAccountBands(); } // ML-478
         if (viewName === 'entryForm') { renderSessionInstrumentPicker('instrumentGroup', 'sessionInstrument', null); syncWhoGroup(); } // ML-623
@@ -4570,7 +4583,7 @@
     const bandLevelChoices = (current) => BAND_LEVELS.map(l => ({ key: l.key, selected: l.key === current, html: addPieceRow(l.label, l.sub) }));
 
     // The invitations waiting for you, above your bands. Saying yes is the only way into a band someone
-    // else set up. ML-468: it says, before you join, that the others will see your name.
+    // else set up. ML-468: it says, before you join, who will see your name (ML-653: the band's organisers).
     function renderAccountBandInvites() {
         const box = document.getElementById('accountBandInvites');
         if (!box) return;
@@ -4578,7 +4591,7 @@
         setShown(box, invites.length > 0);
         box.innerHTML = invites.map(i => `
             <div class="section-title">You are invited to join ${escapeHtml(i.bandName)}</div>
-            <p class="metro-help-text">${escapeHtml(i.invitedBy)} invited you. You will be able to ${escapeHtml(bandLevel(i.level).youCan)}. Everyone in the band will see your name, and you will see theirs.</p>
+            <p class="metro-help-text">${escapeHtml(i.invitedBy)} invited you. You will be able to ${escapeHtml(bandLevel(i.level).youCan)}. The band's organisers will see your name - never your practice.</p>
             <div class="flex-row items-center gap-sm mb-4">
                 <button type="button" class="btn-submit btn-inline" data-invite-accept="${i.id}">Join ${escapeHtml(i.bandName)}</button>
                 <button type="button" class="btn-cancel btn-inline" data-invite-decline="${i.id}" aria-label="No thanks - don't join ${escapeHtml(i.bandName)}">No thanks</button>
@@ -4630,18 +4643,14 @@
         if (!shown.length) {
             container.innerHTML = '<div class="text-muted">No bands yet. Add the ones you play with below.</div>';
         } else {
-            container.innerHTML = shown.map(b => `
-                <div class="history-item">
-                    <span class="band-row-main">${b.shared && b.shared.logoUrl ? `<img class="band-logo band-logo-sm" src="${escapeHtml(b.shared.logoUrl)}" alt="">` : ''}<span class="band-row-text"><span>${escapeHtml(b.displayName)}</span><span class="text-sm text-muted">${escapeHtml(b.shared ? `Shared - ${bandLevel(b.shared.level).label}${bandSummaryOn() && b.shared.isBandLeader ? ' · Band leader' : ''}${bandSummaryOn() && b.shared.sharesLevels ? ' · Sharing my Levels summary' : ''}` : 'Not shared')}</span>${bandWebsiteLinkHtml(b.website)}</span></span>
-                    <button type="button" class="list-item-menu-btn" data-band-menu-id="${b.id}" aria-label="Options for ${escapeHtml(b.displayName)}" aria-haspopup="menu" aria-expanded="false"><span class="material-symbols-outlined">more_vert</span></button>
-                </div>
-            `).join('');
-            container.querySelectorAll('[data-band-menu-id]').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    openAccountBandMenu(e, btn.dataset.bandMenuId);
-                });
-            });
+            // ML-653: one row a band - its logo, its name, what I can do and how many are in it (or that it is just for
+            // my practice log). A tap opens the band's page; everything the ⋮ menu did is there.
+            container.innerHTML = shown.map(b => {
+                const s = b.shared;
+                const sub = s ? `${bandLevel(s.level).label}${bandSummaryOn() && s.isBandLeader ? ' · Band leader' : ''} · ${s.members} ${s.members === 1 ? 'member' : 'members'}` : 'Just for my practice log';
+                const pic = s && s.logoUrl ? `<img class="band-logo band-logo-sm" src="${escapeHtml(s.logoUrl)}" alt="">` : `<span class="material-symbols-outlined settings-link-icon" aria-hidden="true">${s ? 'groups' : 'person'}</span>`;
+                return `<button type="button" class="history-item settings-link" data-band-open="${b.id}">${pic}<span class="settings-link-text"><span class="settings-link-title">${escapeHtml(b.displayName)}</span><span class="settings-link-sub">${escapeHtml(sub)}</span></span><span class="material-symbols-outlined settings-link-chevron" aria-hidden="true">chevron_right</span></button>`;
+            }).join('');
         }
 
         const picker = document.getElementById('accountBandPicker');
@@ -4670,53 +4679,86 @@
         renderBandPickerWebsite();
     }
 
-    // One shared floating menu for every band row (ML-89 follow-up), repositioned against whichever
-    // row's own button opened it - same pattern as Metronome Blocks' per-tile menu
-    // (openMetroBlkTileMenu). Leaving only removes this account's own membership - the band itself, and
-    // everyone else's membership in it, is untouched, so it's never framed as a delete. Delete itself
-    // is only offered (canDelete, from getAccountBands) when this account is the band's sole member
-    // with no session history anywhere - otherwise deleting it would pull it out from under someone/
-    // something else.
-    let accountBandMenuTargetId = null;
-    function openAccountBandMenu(e, bandId) {
-        const menu = document.getElementById('accountBandMenu');
-        if (!menu) return;
-        accountBandMenuTargetId = bandId;
-        // ML-478: what the menu offers follows the band - shared or not, and who else is in it
-        const band = myBandById(bandId);
-        const shared = band && band.shared;
-        const item = (id, show) => document.getElementById(id)?.classList.toggle('hidden-group', !show);
-        item('accountBandMenuShare', band && !shared);
-        item('accountBandMenuMembers', !!shared);
-        item('accountBandMenuLeave', shared && !shared.onlyYou);
-        item('accountBandMenuDelete', shared && shared.onlyYou);
-        item('accountBandMenuReport', shared && !shared.onlyYou); // ML-510: a name somebody else can see
-        item('accountBandMenuDirectory', band && !shared && !band.directoryBandId);
-        item('accountBandMenuMerge', band && myBandsShown().length > 1);
-        item('accountBandMenuHide', band && !shared);
-
-        const btnRect = e.currentTarget.getBoundingClientRect();
-        menu.classList.add('show');
-        const menuWidth = menu.offsetWidth;
-        const menuHeight = menu.offsetHeight;
-        let left = btnRect.right - menuWidth;
-        left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
-        let top = btnRect.bottom + 4;
-        top = Math.min(top, window.innerHeight - menuHeight - 8);
-        placeAt(menu, left, top);
-    }
-    function closeAccountBandMenu() {
-        document.getElementById('accountBandMenu')?.classList.remove('show');
-    }
-    document.addEventListener('click', closeAccountBandMenu);
-    document.getElementById('accountBandMenuMembers')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const band = myBandById(accountBandMenuTargetId);
-        closeAccountBandMenu();
-        if (!band || !band.shared) return;
-        bandMembers = { bandId: band.shared.bandId, bandName: band.displayName || 'Members', data: null, inviteLevel: 'play' };
-        switchView('bandMembersView');
+    // ---- ML-653 (owner, 29 Oct 2026): one row a band, one page a band. A row on My bands opens the band's page
+    // (bandView): its logo, name, what I can do there and its website; for a shared band, "The band" - Members (a
+    // page for its organisers; everyone else sees how many, never who) and Tell the band - and "Me in this band", my
+    // own say-so on sharing Levels; then what I can do with it on my list, which the ⋮ menu used to offer. Leaving
+    // only removes my own membership - the band and everyone else's place in it are untouched. Stop sharing is only
+    // there when I'm the only one in it.
+    let bandPage = { labelId: null };
+    document.getElementById('accountBandsList')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-band-open]');
+        if (btn) openBandPage(btn.dataset.bandOpen);
     });
+    function openBandPage(labelId) {
+        const band = myBandById(labelId);
+        if (!band) return;
+        bandPage = { labelId: band.id };
+        bandMembers = { bandId: band.shared ? band.shared.bandId : null, bandName: band.displayName, data: null, inviteLevel: 'play' };
+        bandNotices = null;
+        switchView('bandView');
+    }
+    // The band has gone from my list (made one with another, or hidden): back to the list
+    function leaveBandPage() {
+        if (viewStack[viewStack.length - 1] === 'bandView') goBack(); else switchView('accountBandsView');
+    }
+    async function loadBandPage() {
+        const band = myBandById(bandPage.labelId);
+        if (!band || band.hidden) { leaveBandPage(); return; }
+        const sharedId = band.shared ? band.shared.bandId : null;
+        if (bandMembers.bandId !== sharedId) { bandMembers = { bandId: sharedId, bandName: band.displayName, data: null, inviteLevel: 'play' }; bandNotices = null; }
+        bandMembers.bandName = band.displayName;
+        document.getElementById('topTitle').innerText = band.displayName;
+        renderBandPage();
+        if (!sharedId) return;
+        try {
+            const data = await API.account.bandMembers(sharedId);
+            if (bandMembers.bandId !== sharedId) return; // another band opened meanwhile
+            bandMembers.data = data;
+        } catch (error) {
+            showWarningToast('Error loading the band: ' + error.message);
+        }
+        renderBandPage();
+        loadBandNotices();
+    }
+    function renderBandPage() {
+        const band = myBandById(bandPage.labelId);
+        if (!band) return;
+        const shared = band.shared;
+        const d = shared ? bandMembers.data : null;
+        const logo = shared && (d ? d.logoUrl : shared.logoUrl);
+        const img = document.getElementById('bandPageLogo');
+        setShown(img, !!logo);
+        if (logo) { img.src = logo; img.alt = `${band.displayName}'s logo`; }
+        document.getElementById('bandPageTitle').textContent = band.displayName;
+        document.getElementById('bandPageWho').textContent = shared
+            ? `You: ${bandLevel(shared.level).label}${bandSummaryOn() && shared.isBandLeader ? ' · Band leader' : ''}`
+            : 'Just for my practice log';
+        document.getElementById('bandPageWebsite').innerHTML = bandWebsiteLinkHtml(band.website);
+        renderBandLogo();
+        setShown('bandPageShared', !!shared);
+        setShown('bandPageOwn', !shared);
+        if (shared) {
+            const n = d ? d.memberCount : shared.members;
+            const people = `${n} ${n === 1 ? 'member' : 'members'}`;
+            const seesNames = d ? !!d.seesNames : shared.isOrganiser;
+            setShown('bandPageMembersLink', seesNames);
+            setShown('bandPageMembersCount', !seesNames);
+            document.getElementById('bandPageMembersSub').textContent = people + (d && d.openInvites ? ` · ${d.openInvites} ${d.openInvites === 1 ? 'invitation' : 'invitations'} waiting` : '');
+            document.getElementById('bandPageMembersCountSub').textContent = people;
+        }
+        renderBandShareLevels();
+        renderBandNotices();
+        setShown('bandPageDirectoryBtn', !shared && !band.directoryBandId);
+        setShown('bandPageMergeBtn', myBandsShown().length > 1);
+        setShown('bandPageHideBtn', !shared);
+        setShown('bandPageLeaveBtn', !!shared && !shared.onlyYou);
+        setShown('bandPageStopBtn', !!shared && shared.onlyYou);
+        setShown('bandPageReportBtn', !!shared && !shared.onlyYou); // ML-510: a name somebody else can see
+        setShown('bandPageShareBox', !shared);
+    }
+    document.getElementById('bandPageMembersLink')?.addEventListener('click', () => switchView('bandMembersView'));
+    document.getElementById('bandPageNoticeLink')?.addEventListener('click', () => switchView('bandNoticeView'));
 
     // ---- ML-478: My bands - what a member does to a band on their own list. Each is one menu item (or
     // one choice in Tidy my bands); a choice from a set opens the usual choice pop-up.
@@ -4744,6 +4786,7 @@
             await action();
             await loadAccountBands();
             renderAccountSummaries();
+            if (viewStack[viewStack.length - 1] === 'bandView') loadBandPage(); // ML-653: the band's page shows what changed
             if (done) showSuccessToast(done);
         } catch (error) {
             if (!organiserAdultNeeded(error, () => myBandDo(action, done))) showWarningToast(error.message);
@@ -4784,16 +4827,30 @@
                 () => myBandDo(() => API.account.mergeBands(band.id, into.id), `Now one band: ${into.displayName}`), false, 'Make them one');
         });
     }
-    const bandMenuItem = (id, run) => document.getElementById(id)?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const band = myBandById(accountBandMenuTargetId);
-        closeAccountBandMenu();
+    // ML-478: leaving the shared band keeps it on my list, as a band of my own
+    function bandLeaveShared(band) {
+        if (!band.shared) return;
+        showConfirmModal('Leave shared band', `Leave the shared ${band.displayName}? You will no longer see its pieces or practice lists. It stays on your list for your own practice log, and everyone else carries on.`,
+            () => myBandDo(() => API.account.leaveBand(band.shared.bandId), 'Left the shared band'), false, 'Leave');
+    }
+    // ML-478: only you are in it, so stopping takes nothing from anyone else. The band stays on my list.
+    function bandStopSharing(band) {
+        if (!band.shared) return;
+        showConfirmModal('Stop sharing', `Stop sharing ${band.displayName}? You're the only one in it. The band's pieces and practice lists are deleted. The band stays on your list.`,
+            () => myBandDo(() => API.account.deleteBandFull(band.shared.bandId), 'Sharing stopped'), true, 'Stop sharing');
+    }
+    // ML-653: the band's page - what the ⋮ menu used to offer, for the band whose page it is
+    const bandPageAction = (id, run) => document.getElementById(id)?.addEventListener('click', () => {
+        const band = myBandById(bandPage.labelId);
         if (band) run(band);
     });
-    bandMenuItem('accountBandMenuShare', bandSetUpSharing);
-    bandMenuItem('accountBandMenuDirectory', bandPickDirectory);
-    bandMenuItem('accountBandMenuMerge', bandPickMerge);
-    bandMenuItem('accountBandMenuHide', bandHide);
+    bandPageAction('bandPageShareBtn', bandSetUpSharing);
+    bandPageAction('bandPageDirectoryBtn', bandPickDirectory);
+    bandPageAction('bandPageMergeBtn', bandPickMerge);
+    bandPageAction('bandPageHideBtn', bandHide);
+    bandPageAction('bandPageLeaveBtn', bandLeaveShared);
+    bandPageAction('bandPageStopBtn', bandStopSharing);
+    bandPageAction('bandPageReportBtn', (band) => { if (band.shared) openReport('band', band.shared.bandId, band.shared.name || band.displayName); });
 
     // The bands I don't play with now, at the bottom of My bands - each can be shown again
     function renderHiddenBands() {
@@ -4838,10 +4895,9 @@
         });
     });
 
-    // ---- ML-473: a band's members (bandMembersView). Everyone in the band sees who is in it and what
-    // each may do - names, never email addresses. An organiser also invites (by the address the other
-    // person signs in with - they are sent an email, where the site sends email), changes what a member
-    // may do, and removes.
+    // ---- ML-473: a band's members (bandMembersView) - names, never email addresses. ML-653 (owner, 29 Oct 2026): the
+    // page is for the band's organisers - nobody else is sent the names. An organiser invites (by the address the other
+    // person signs in with - they are sent an email, where the site sends email), changes what a member may do, and removes.
     let bandMembers = { bandId: null, bandName: '', data: null, inviteLevel: 'play' };
     async function loadBandMembers() {
         if (!bandMembers.bandId) { switchView('accountBandsView'); return; }
@@ -4849,10 +4905,9 @@
             bandMembers.data = await API.account.bandMembers(bandMembers.bandId);
         } catch (error) {
             showWarningToast('Error loading the members: ' + error.message);
-            bandMembers.data = { isOrganiser: false, yourLevel: 'play', members: [], invites: [], openInvites: 0 };
+            bandMembers.data = { isOrganiser: false, seesNames: false, yourLevel: 'play', members: [], bandLeaders: [], invites: [], openInvites: 0 };
         }
         renderBandMembers();
-        loadBandNotices();
     }
 
     // ---- ML-498: Tell the band - a notice to everyone in it, from an organiser, a member who can change its music or
@@ -4861,7 +4916,7 @@
     function bandNoticesOn() { return isFeatureEnabled('band_notices') && isFeatureEnabled('notifications'); }
     async function loadBandNotices() {
         bandNotices = null;
-        setShown('bandNoticeSection', false);
+        setShown('bandPageNoticeLink', false);
         if (!bandNoticesOn() || !bandMembers.bandId) return;
         const bandId = bandMembers.bandId;
         try {
@@ -4873,11 +4928,13 @@
         }
         renderBandNotices();
     }
+    // ML-653: a row on the band's page (for whoever can send) opens Tell the band, a page of its own
     function renderBandNotices() {
         const d = bandNotices;
-        setShown('bandNoticeSection', !!(d && d.canSend));
+        setShown('bandPageNoticeLink', !!(d && d.canSend));
         if (!d || !d.canSend) return;
         const when = d.nextAt ? new Date(d.nextAt).toLocaleString('en-GB', { weekday: 'long', hour: '2-digit', minute: '2-digit' }) : '';
+        document.getElementById('bandPageNoticeSub').textContent = `A notice to everyone · ${d.leftToday ? `${d.leftToday} more can go now` : `none more until ${when}`}`;
         document.getElementById('bandNoticeHelp').textContent =
             `Send everyone in ${bandMembers.bandName || 'the band'} a notice in the app, with your name on it. Nobody can reply to it. The band can send ${d.perDay} a day and ${d.perWeek} a week - `
             + (d.leftToday ? `${d.leftToday} more can go now.` : `none more until ${when}.`);
@@ -4885,6 +4942,10 @@
         setShown('bandNoticeSentTitle', d.sent.length > 0);
         document.getElementById('bandNoticeSentList').innerHTML = d.sent.map(n =>
             `<div class="history-item"><span class="band-row-text"><span>${escapeHtml(n.title)}</span><span class="text-sm text-muted">${escapeHtml(n.from)} &middot; ${escapeHtml(formatNotificationDate(n.sentAt))}${n.withdrawn ? ' &middot; taken down' : ''}</span></span></div>`).join('');
+    }
+    function openBandNoticePage() {
+        if (!bandMembers.bandId) { switchView('accountBandsView'); return; }
+        if (bandNotices) renderBandNotices(); else loadBandNotices();
     }
     document.getElementById('bandNoticeSendBtn')?.addEventListener('click', () => {
         const title = document.getElementById('bandNoticeTitle');
@@ -4911,15 +4972,13 @@
             renderBandNotices();
         }
     }
-    // ML-534: the band's logo on its Members page - an organiser adds, changes or takes it off
+    // ML-534: the band's logo - an organiser adds, changes or takes it off. ML-653: under the logo at the top of the
+    // band's page (the picture itself is renderBandPage's)
     function renderBandLogo() {
         const d = bandMembers.data;
         const on = !!(d && d.isOrganiser && isFeatureEnabled('band_welcome'));
         setShown('bandLogoSection', on);
         if (!on) return;
-        const img = document.getElementById('bandLogoPreview');
-        setShown(img, !!d.logoUrl);
-        if (d.logoUrl) img.src = d.logoUrl;
         document.getElementById('bandLogoBtn').textContent = d.logoUrl ? 'Change the logo' : 'Add a logo';
         setShown('bandLogoRemoveBtn', !!d.logoUrl);
     }
@@ -4946,7 +5005,8 @@
                 handleUploadUrl: `${API_BASE_URL}/api/account/bands/${bandId}/logo/upload-token`
             });
             bandMembers.data = await API.account.setBandLogo(bandId, { blobUrl: blob.url, blobPathname: blob.pathname, fileSizeBytes: file.size, mimeType: file.type });
-            renderBandMembers();
+            renderBandPage();
+            loadAccountBands(); // the small logo on its My bands row
             showSuccessToast('The logo is on the band now');
         } catch (error) {
             if (!organiserAdultNeeded(error, () => uploadBandLogo(file))) showWarningToast('The logo could not be added: ' + error.message);
@@ -4963,11 +5023,13 @@
     function renderBandMembers() {
         const d = bandMembers.data;
         if (!d) return;
-        renderBandLogo();
         const n = d.members.length;
-        document.getElementById('bandMembersIntro').textContent = d.isOrganiser
-            ? `${n} ${n === 1 ? 'person' : 'people'} in this band. Tap someone to change what they can do.`
-            : `${n} ${n === 1 ? 'person' : 'people'} in this band. You ${bandLevel(d.yourLevel).key === 'play' ? "can see and play the band's music" : "can add to and change the band's music"}. An organiser can change that.`;
+        // (ML-653: only those who see the names get them - anyone else who lands here, say after stepping down, is told why)
+        document.getElementById('bandMembersIntro').textContent = !d.seesNames
+            ? `Only the band's organisers see who is in ${bandMembers.bandName || 'the band'}.`
+            : d.isOrganiser
+                ? `${n} ${n === 1 ? 'person' : 'people'} in ${bandMembers.bandName || 'this band'}. Tap someone to change what they can do.`
+                : `${n} ${n === 1 ? 'person' : 'people'} in ${bandMembers.bandName || 'this band'}.`;
         document.getElementById('bandMembersList').innerHTML = d.members.map(m => {
             const name = m.name + (m.isYou ? ' (you)' : '');
             const level = bandLevel(m.level).label + (bandSummaryOn() && m.isBandLeader ? ' · Band leader' : ''); // ML-581: everyone sees who it is
@@ -4975,10 +5037,6 @@
                 ? `<button type="button" class="metroBlk-ctrl-value-btn w-full mb-2" data-member="${m.accountId}" aria-haspopup="dialog" aria-label="${escapeHtml(name)}: ${escapeHtml(level)} - tap to change"><strong>${escapeHtml(level)}</strong><span class="metroBlk-ctrl-value-label">${escapeHtml(name)}</span></button>`
                 : `<div class="history-item"><span class="band-row-text"><span>${escapeHtml(name)}</span><span class="text-sm text-muted">${escapeHtml(level)}</span></span></div>`;
         }).join('');
-        renderBandShareLevels();
-        const waiting = document.getElementById('bandMembersWaiting');
-        setShown(waiting, !d.isOrganiser && d.openInvites > 0);
-        waiting.textContent = d.openInvites === 1 ? 'One more person has been invited.' : `${d.openInvites} more people have been invited.`;
         setShown('bandMembersOrganiser', d.isOrganiser);
         if (!d.isOrganiser) return;
         // ML-479: dev and sandbox keep their emails and send none - say so before anyone waits for one
@@ -5000,10 +5058,12 @@
     function bandSummaryOn() { return isFeatureEnabled('band_levels_summary'); }
     function renderBandShareLevels() {
         const d = bandMembers.data;
-        setShown('bandShareLevelsSection', bandSummaryOn());
-        if (!bandSummaryOn()) return;
+        const on = bandSummaryOn() && !!d;
+        setShown('bandShareLevelsSection', on);
+        if (!on) return;
         document.getElementById('bandShareLevelsToggle').checked = !!d.yourSharesLevels;
-        const leaders = d.members.filter(m => m.isBandLeader).map(m => (m.isYou ? 'you' : m.name));
+        // ML-653: the band leader's name is the one other name everyone in the band is sent - "so you know who you're sharing it with"
+        const leaders = (d.bandLeaders || []).map(l => (l.isYou ? 'you' : l.name));
         const names = leaders.length === 1 ? leaders[0] : leaders.slice(0, -1).join(', ') + ' and ' + leaders[leaders.length - 1];
         const who = !leaders.length ? 'This band has no band leader yet, so nobody would see anything.'
             : `The band leader${leaders.length === 1 ? '' : 's'}: ${names}.`;
@@ -5020,7 +5080,7 @@
             showWarningToast(error.message);
         }
     });
-    // ML-479: a band shows its members by name and an invitation says who it is from, so the server
+    // ML-479: a band shows its members by name (to its organisers - ML-653) and an invitation says who it is from, so the server
     // refuses to invite or join for an account with no name ('needs-name'). Offer the way to add one.
     function bandNameNeeded(error) {
         if (error.reason !== 'needs-name') return false;
@@ -5032,6 +5092,7 @@
         try {
             bandMembers.data = await action();
             renderBandMembers();
+            renderBandPage(); // ML-653: the count, the logo and the band leader on the band's page too
             if (done) showSuccessToast(done);
         } catch (error) {
             if (!bandNameNeeded(error) && !organiserAdultNeeded(error, () => bandMembersDo(action, done))) showWarningToast(error.message);
@@ -5099,42 +5160,10 @@
         });
     });
 
-    document.getElementById('accountBandMenuLeave')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const band = myBandById(accountBandMenuTargetId);
-        closeAccountBandMenu();
-        if (!band || !band.shared) return;
-        // ML-478: leaving the shared band keeps it on my list, as a band of my own
-        showConfirmModal('Leave shared band', `Leave the shared ${band.displayName}? You will no longer see its pieces, practice lists or members. It stays on your list for your own practice log, and everyone else carries on.`, async () => {
-            try {
-                await API.account.leaveBand(band.shared.bandId);
-                await loadAccountBands();
-                showSuccessToast('Left the shared band');
-            } catch (error) {
-                showWarningToast('Error leaving band: ' + error.message);
-            }
-        }, false, 'Leave');
-    });
-    document.getElementById('accountBandMenuDelete')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const band = myBandById(accountBandMenuTargetId);
-        closeAccountBandMenu();
-        if (!band || !band.shared) return;
-        // ML-478: only you are in it, so stopping takes nothing from anyone else. The band stays on my list.
-        showConfirmModal('Stop sharing', `Stop sharing ${band.displayName}? You're the only one in it. The band's pieces and practice lists are deleted. The band stays on your list.`, async () => {
-            try {
-                await API.account.deleteBandFull(band.shared.bandId);
-                await loadAccountBands();
-                showSuccessToast('Sharing stopped');
-            } catch (error) {
-                showWarningToast('Error stopping sharing: ' + error.message);
-            }
-        }, true, 'Stop sharing');
-    });
-
     async function loadAccountBands() {
         try {
             accountBandsData = await API.account.getBands();
+            renderBandInvitesCount((accountBandsData.invites || []).length); // ML-653
             // ML-478: the "Who with?" box is this list - keep it in step without waiting for the next start
             appData.organisations = (accountBandsData.bands || []).map(b => ({ name: b.name, archived: b.hidden }));
             populateWhoDropdowns();
@@ -5343,9 +5372,6 @@
         set('accountDetailsSummary', name || document.getElementById('accountEmailReadout')?.textContent || 'Add your name');
         const main = myInstruments.find(i => i.isPrimary);
         set('accountInstrumentsSummary', main ? main.name + (myInstruments.length > 1 ? ` + ${myInstruments.length - 1} more` : '') : 'Choose what you play');
-        const bands = myBandsShown().length; // ML-478: every band I play with
-        const invited = (accountBandsData.invites || []).length; // ML-473: an invitation waiting is said first
-        set('accountBandsSummary', invited ? `${invited} invitation${invited === 1 ? '' : 's'} waiting` : bands ? `${bands} band${bands === 1 ? '' : 's'}` : 'No bands yet');
         const teachers = (appData.teachers || []).filter(t => !t.archived).length;
         set('accountTeachersSummary', teachers ? `${teachers} teacher${teachers === 1 ? '' : 's'}` : 'None added yet');
     }
@@ -11270,12 +11296,6 @@
         e.stopPropagation();
         closeFlowPlayMenu();
         if (currentFlowDetail) openReport('piece', currentFlowDetail.id, currentFlowDetail.title);
-    });
-    document.getElementById('accountBandMenuReport')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const band = myBandById(accountBandMenuTargetId);
-        closeAccountBandMenu();
-        if (band && band.shared) openReport('band', band.shared.bandId, band.shared.name || band.displayName);
     });
     document.getElementById('plReportBtn')?.addEventListener('click', () => {
         const l = plState.list;

@@ -3,7 +3,7 @@
 **Made by `node scripts/usage-buttons.mjs` - don't edit it by hand.** What counts as a use, and how a tap is
 counted, is in [usage-stats.md](usage-stats.md) ("Every button").
 
-892 buttons: 892 have a name a tap can be counted by, 0 need one.
+893 buttons: 893 have a name a tap can be counted by, 0 need one.
 A button on a screen is listed under the screen or pop-up it is on; one the app builds as it goes, under
 the function that builds it (shown with ()). The words are only to help find it - a tap is never counted by
 its words.
@@ -28,10 +28,10 @@ its words.
 | Stats | 25 | 0 |
 | Instrument support | 11 | 0 |
 | Set-up | 10 | 0 |
-| My bands | 25 | 0 |
-| My account, instruments, settings | 58 | 0 |
+| My bands | 26 | 0 |
+| My account, instruments, settings | 57 | 0 |
 | Signing in | 15 | 0 |
-| Menu, notices and the rest | 101 | 0 |
+| Menu, notices and the rest | 102 | 0 |
 
 ## Practice session
 
@@ -648,7 +648,7 @@ its words.
 | flowGlyphPickerTileHtml() | `data-option` |  |
 | renderFlowFermataList() | `data-pause-edit` |  |
 | renderFlowFermataList() | `data-pause-menu` | Pause options |
-| renderFlowFermataAddSection() | `data-pause-kind` | … … … </button |
+| renderFlowFermataAddSection() | `data-pause-kind` | … … … </bu |
 | renderFlowRampList() | `data-ramp-edit` |  |
 | renderFlowRampList() | `data-ramp-menu` | Ramp options |
 | renderFlowRampAddSection() | `data-ramp-target` |  |
@@ -675,7 +675,7 @@ its words.
 | outlineSpeedRowHtml() | `data-speed-note` |  |
 | outlineTableRowHtml() | `data-xkind` |  |
 | outlineTableRowHtml() | `data-xends` |  |
-| outlineExtrasStepHtml() | `data-outline-extra` | …</stron |
+| outlineExtrasStepHtml() | `data-outline-extra` | …</str |
 | outlineExtrasStepHtml() | `data-outline=addExtra` | + … |
 | outlineMediaStepHtml() | `data-outline-media-remove` |  |
 | outlineMediaStepHtml() | `data-outline=addVideo` | + Add the link |
@@ -826,22 +826,23 @@ its words.
 | accountBandsView | `#accountAddBandBtn` | Add |
 | bandWelcomeView | `#bandWelcomeJoinBtn` | Join the band |
 | bandWelcomeView | `#bandWelcomeLaterBtn` | Not now |
-| bandMembersView | `#bandNoticeSendBtn` | Send to the band |
-| bandMembersView | `#bandLogoBtn` | Add a logo |
-| bandMembersView | `#bandLogoRemoveBtn` | Take the logo off |
+| bandView | `#bandLogoBtn` | Add a logo |
+| bandView | `#bandLogoRemoveBtn` | Take the logo off |
+| bandView | `#bandPageMembersLink` | Members |
+| bandView | `#bandPageNoticeLink` | Tell the band |
+| bandView | `#bandPageDirectoryBtn` | It's a band in the list |
+| bandView | `#bandPageMergeBtn` | Same as another band of mine |
+| bandView | `#bandPageHideBtn` | I don't play with them now |
+| bandView | `#bandPageLeaveBtn` | Leave the shared band |
+| bandView | `#bandPageStopBtn` | Stop sharing |
+| bandView | `#bandPageReportBtn` | Report the band's name |
+| bandView | `#bandPageShareBtn` | Set up sharing |
+| bandNoticeView | `#bandNoticeSendBtn` | Send to the band |
 | bandMembersView | `#bandInviteLevelBtn` | Can play what they can do |
 | bandMembersView | `#bandInviteBtn` | Invite |
-| top bar | `#accountBandMenuShare` | Set up sharing |
-| top bar | `#accountBandMenuMembers` | Members |
-| top bar | `#accountBandMenuLeave` | Leave shared band |
-| top bar | `#accountBandMenuDirectory` | It's a band in the list |
-| top bar | `#accountBandMenuMerge` | Same as another of mine |
-| top bar | `#accountBandMenuHide` | I don't play with them now |
-| top bar | `#accountBandMenuReport` | Report the name |
-| top bar | `#accountBandMenuDelete` | Stop sharing |
 | renderAccountBandInvites() | `data-invite-accept` | Join … |
 | renderAccountBandInvites() | `data-invite-decline` | No thanks |
-| renderAccountBandsList() | `data-band-menu-id` |  |
+| renderAccountBandsList() | `data-band-open` |  |
 | renderTidyBands() | `data-tidy-band` | … … - tap to say what it is |
 | renderBandMembers() | `data-member` |  |
 | renderBandMembers() | `data-invite` |  |
@@ -863,7 +864,6 @@ its words.
 | settingsPlaybackView | `#metroCalibLatencyResetBtn` | reset |
 | accountView | `view(accountDetailsView)` | My details |
 | accountView | `#accountSecurityRow` | Sign-in and security |
-| accountView | `view(accountBandsView)` | My bands |
 | accountView | `#accountTeachersRow` | My teachers |
 | accountDetailsView | `#accountEditNameBtn` | Name - , edit |
 | accountDetailsView | `#accountEditDisplayNameBtn` | Display name - , edit |
@@ -947,6 +947,7 @@ its words.
 | top bar | `#navToolsBtn` | Tools |
 | top bar | `view-menu(statsHomeView)` | Stats |
 | top bar | `#myMusicNavItem` | My music |
+| top bar | `view-menu(accountBandsView)` | My bands |
 | top bar | `view-menu(settingsView)` | My app settings |
 | top bar | `view-menu(accountInstrumentsView)` | My instruments |
 | top bar | `#inviteNavItem` | Invite someone |
@@ -1016,7 +1017,7 @@ its words.
 | renderHiddenBands() | `data-band-show` | Show again |
 | renderInvite() | `data-resend-invite` | Send again |
 | renderInvite() | `data-cancel-invite` |  |
-| renderBuild() | `data-slot` | …–… …</ |
+| renderBuild() | `data-slot` | …–… … |
 | renderBuild() | `data-add` |  |
 | openChooser() | `data-opt` |  |
 | openChooser() | `data-extra` |  |

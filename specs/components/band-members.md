@@ -1,27 +1,37 @@
 # My bands, band members and invitations
 
 ## 1. Metadata
-- **Name:** My bands, band members and invitations (`#accountBandsView` with `#accountBandInvites`,
-  `#tidyBandsView`, `#bandMembersView` - no classes of their own: `.metro-help-text`, `.section-title`,
-  `.form-group`, the value box `.metroBlk-ctrl-value-btn.w-full`, `.btn-submit`, `.btn-cancel.btn-inline`,
-  `.btn-text`, `.history-item` (`.settings-link`, `.is-muted`), `.band-row-text`, the floating `.dropdown-menu`);
-  ML-534 adds `#bandWelcomeView`, `#bandLogoSection` and three classes: `.band-logo` (`.band-logo-sm`,
-  `.band-logo-lg`) and `.band-row-main`
+- **Name:** My bands, a band's page, band members and invitations (`#accountBandsView` with `#accountBandInvites`,
+  `#tidyBandsView`, `#bandView`, `#bandMembersView`, `#bandNoticeView` - no classes of their own: `.metro-help-text`,
+  `.section-title`, `.form-group`, the value box `.metroBlk-ctrl-value-btn.w-full`, `.btn-submit`, `.btn-cancel.btn-inline`,
+  `.btn-text`, `.history-item` (`.settings-link`, `.is-muted`), `.band-row-text`, the toggle row); ML-534 adds
+  `#bandWelcomeView`, `#bandLogoSection` and three classes: `.band-logo` (`.band-logo-sm`, `.band-logo-lg`) and
+  `.band-row-main`
 - **Category:** Flow / input
-- **Status:** New (ML-473); My bands as one list, ML-478; a band's logo and its welcome, ML-534
+- **Status:** New (ML-473); My bands as one list, ML-478; a band's logo and its welcome, ML-534; one row a band, one
+  page a band, and only organisers see who is in it, ML-653
 
 ## 2. Overview
 **My bands is every band you play with** (ML-478, the owner's model, 6 Oct 2026) - and exactly what the
 "Who with?" box of a rehearsal or performance offers.
 - **Adding a band is private.** Pick it from the list, or type its name if it isn't there (a website is
   only needed to put it on the list for everyone). Nothing is shared and nobody is told.
-- **Sharing is something a band on the list may have.** Under each name: "Shared - Organiser / Can change
-  music / Can play", or "Not shared". A band becomes shared by an invitation, or by **Set up sharing** on its
-  ⋮ menu (a confirm pop-up first; you become its organiser).
-- **The ⋮ menu follows the band.** Not shared: Set up sharing · It's a band in the list (when it isn't yet) ·
-  Same as another of mine · I don't play with them now. Shared: Members · Same as another of mine · Leave
-  shared band - or **Stop sharing** when you are the only one in it (its music is deleted; the band stays on
-  your list either way).
+- **My bands is its own item in the ☰ menu** (ML-653, the owner, 29 Oct 2026), in "You" after My music, with a
+  `.notif-count` while a band invitation is waiting - no longer a row on My account.
+- **One row a band, one page a band** (ML-653). Each band is a `.settings-link` row: its logo (or the `groups` icon -
+  `person` for a band just for my log), its name, and under it what I can do and how many are in it ("Organiser · 6
+  members") or "Just for my practice log", and a chevron. A tap opens **the band's page** (`#bandView`); there is no ⋮
+  menu. On a wide screen My bands is a list page: the list stays on the left and the band opens on the right.
+- **The band's page** (`#bandView`, `renderBandPage`): the logo (`.band-logo-lg`), the name (`h2`), "You: Organiser"
+  (or "Just for my practice log") and the website; an organiser's **Add a logo / Change the logo** and **Take the logo
+  off** under it. For a shared band, **The band**: **Members** - a `.settings-link` row ("6 members · 1 invitation
+  waiting") that opens the Members page **for its organisers only**; everyone else gets the same row without a
+  chevron, as plain text ("14 members") - and **Tell the band** for those who can send ("A notice to everyone · 3 more
+  can go now"); then **Me in this band**, the switch for sharing Levels. Then what I can do with it on my list, as
+  `.btn-text` links, each only when it applies: It's a band in the list · Same as another band of mine · I don't play
+  with them now · Leave the shared band · **Stop sharing** (danger, when I'm the only one in it) · Report the band's
+  name. A band just for my log says only I see it, and its one primary button is **Set up sharing** (a confirm pop-up
+  first; you become its organiser).
 - **An invitation attaches to the band you already have.** The same band from the list, or the same name:
   no question. Otherwise **Join** asks once, in the choice pop-up, "Is this the same band as one of yours?" -
   a row per band of yours that isn't shared, and "No, it is a new band".
@@ -37,12 +47,13 @@
 A band's shared space is **by invitation only** (the owner's decision, 6 Oct 2026 - nobody has to confirm
 who runs a band). Two places:
 - **My bands** shows, above your bands, any **invitation waiting for you**: who invited you, what you will be
-  able to do, and that everyone in the band will see your name (ML-468). **Join** or **No thanks**. This is the
-  only way into a band someone else set up. Each of your bands shows what you can do in it under its name.
-- **Members** (a band's ⋮ menu) is a **page, not a pop-up** - its rows open the choice pop-up, and pop-ups
-  don't stack. Everyone in the band sees who is in it and what each may do: names, never email addresses.
-  An **organiser** also invites (by the email address the other person signs in with - they are sent a short email),
-  changes what a member may do, and removes.
+  able to do, and that the band's organisers will see your name (ML-468, ML-653). **Join** or **No thanks**. This is
+  the only way into a band someone else set up. Each of your bands shows what you can do in it under its name.
+- **Members** (from the band's page) is a **page, not a pop-up** - its rows open the choice pop-up, and pop-ups
+  don't stack. **Only the band's organisers see who is in it** (ML-653, the owner, 29 Oct 2026) and what each may
+  do: names, never email addresses. The server sends the names to nobody else. On it an organiser sees the
+  invitations **Waiting for an answer**, invites (by the email address the other person signs in with - they are sent
+  a short email), changes what a member may do, and removes.
 - **Where the site doesn't send email** (dev and sandbox, ML-479) the help line (`#bandInviteHelp`), the toast
   after Invite and the "Send the email again" row all say so, and say to tell the person yourself.
 - **A name comes first** (ML-479): inviting, sending again and **Join** are refused for an account with no name.
@@ -55,16 +66,18 @@ who runs a band). Two places:
   value box (the answer over what it is) that opens `#flowChoiceModal`. Remove and Cancel are options in that
   pop-up, not buttons on the row.
 - **The band leader's summary** (ML-581, feature `band_levels_summary`; the owner's decisions, 22 Oct 2026): on the
-  Members page every member has a **My Levels** switch (`#bandShareLevelsSection`, the toggle row used elsewhere -
-  no new styles), in the owner's words: "I'm happy to share my piece levels anonymously at a summary level only to the
-  band leader". Off until they switch it on; never asked anywhere else. Its line names the band leader (or says there
-  isn't one) and what they would see. A **band leader** shows as "· Band leader" beside what they can do, for everyone
-  in the band; an organiser makes someone one, or not, from that member's pop-up ("Make them the band leader" / "Not
+  band's page, under **Me in this band**, every member has the switch (`#bandShareLevelsSection`, the toggle row used
+  elsewhere - no new styles), in the owner's words: "I'm happy to share my piece levels anonymously at a summary level
+  only to the band leader". Off until they switch it on; never asked anywhere else. Its line names the band leader (or
+  says there isn't one) and what they would see - the one other member's name everyone in a band is sent (ML-653: "so
+  you know who you're sharing it with"). A **band leader** shows as "· Band leader" beside what they can do on the
+  Members page; an organiser makes someone one, or not, from that member's pop-up ("Make them the band leader" / "Not
   the band leader any more") - themselves included, from their own row ("Make me the band leader" / "Stop being the
   band leader"). Only an organiser can; there may be more than one band leader. Nobody else's switch is ever shown - not even to an organiser. What the band leader sees
   is [band-summary](band-summary.md).
-- **Tell the band** (ML-498, feature `band_notices`; the owner's decisions, 23 Oct 2026): on the Members page, for the
-  band's organisers, the members who can change its music and its band leader only (`#bandNoticeSection` - no new
+- **Tell the band** (ML-498, feature `band_notices`; the owner's decisions, 23 Oct 2026): its own page (`#bandNoticeView`,
+  ML-653), opened from a row on the band's page, for the band's organisers, the members who can change its music and
+  its band leader only (no new
   styles: `.section-title`, `.metro-help-text`, two `.form-group`s, `.btn-submit`, `.history-item` rows). A title
   (up to 120) and a message (up to 1000), **Send to the band** asks first ("Everyone in X gets it in the app, with
   your name on it. It can't be changed once it has gone."), and goes as a notice to everyone in the band. **One way
@@ -77,24 +90,25 @@ who runs a band). Two places:
 - **Don't use** it for the directory (Admin → Bands).
 
 **A band's logo and its welcome** (ML-534, feature `band_welcome`; the owner's decisions, 19 Oct 2026):
-- **The logo** - an organiser adds, changes or takes it off on the band's **Members** page (`#bandLogoSection`,
-  above Invite someone): a preview (`.band-logo.band-logo-lg`), **Add a logo** / **Change the logo** and
+- **The logo** - an organiser adds, changes or takes it off at the top of the band's page (`#bandLogoSection`, under
+  the logo itself, ML-653): the logo (`.band-logo.band-logo-lg`), **Add a logo** / **Change the logo** and
   **Take the logo off** (asks first). A PNG, JPEG or WebP up to 1 MB, kept in the file store under
   `band-logos/<band>/`. It is shown whole on a plain ground (`object-fit: contain`), never cropped.
-- **On My bands** a shared band with a logo shows it small beside its name (`.band-row-main` › `.band-logo-sm`).
+- **On My bands** a shared band with a logo shows it small at the start of its row (`.band-logo-sm`, where the icon is).
   The picture is decoration there (`alt=""`) - the name is beside it.
 - **The welcome** (`#bandWelcomeView`) - for someone arriving from a band's invitation email, once signed in.
   The logo, "Welcome to <band>", who invited them, then **What the band shares here**, built only from the
   band's own data: how many pieces, each practice list (its concert date and how many pieces), how many
-  recordings. Then what they will be able to do and that the band will see their name - never anyone's practice.
+  recordings. Then what they will be able to do and that the band's organisers will see their name - never anyone's practice.
   Nothing an organiser writes. **Join <band>** (one tap - it is still their own yes; the same "Is this the same
   band as one of yours?" question when it might be) and **Not now** (the invitation waits on My bands). After
   joining, set-up starts straight away when it hasn't been done; otherwise My bands.
 
 ## 3. Anatomy
 - `#accountBandsView` › `#accountBandInvites` › `button.history-item.settings-link#tidyBandsLink` (hidden when
-  nothing is unsorted) › `#accountBandsList`: a `.history-item` per band › `.band-row-text` (name; "Shared - ..."
-  or "Not shared" in `.text-sm.text-muted`; the band's website) + `.list-item-menu-btn` (⋮) › help line › the
+  nothing is unsorted) › `#accountBandsList`: a `button.history-item.settings-link[data-band-open]` per band ›
+  `.band-logo.band-logo-sm` or `.settings-link-icon` › `.settings-link-text` (`.settings-link-title` the name,
+  `.settings-link-sub` what I can do · how many, or "Just for my practice log") › `.settings-link-chevron` › help line › the
   list picker and **Add** › "Can't find your band? Add it" (name; website, optional, with a help line) ›
   `.section-title` "Bands I don't play with now" › `.history-item.is-muted` per hidden band (name, "N sessions
   on my history", `.btn-text` **Show again**).
@@ -102,16 +116,20 @@ who runs a band). Two places:
 - `#accountBandInvites` › per invitation: `.section-title` "You are invited to join ..." › `p.metro-help-text` ›
   `.flex-row.items-center.gap-sm` with **Join ...** (`.btn-submit.btn-inline`) and **No thanks**
   (`.btn-cancel.btn-inline`).
-- `#bandMembersView` › `p.metro-help-text` (how many people; for an organiser, "Tap someone to change what they
-  can do") › a row per member - for an organiser `button.metroBlk-ctrl-value-btn.w-full` (level over name), for
-  everyone else `.history-item` › `.band-row-text` (name, then level in `.text-sm.text-muted`) › (not an
-  organiser) `p.metro-help-text` "One more person has been invited." › (organiser) `.section-title` "Invite
-  someone" › help line › `.form-group` (their email address) › the level value box › **Invite** (`.btn-submit`) ›
-  `.section-title` "Waiting for an answer" › a value box per invitation (the address over level · invited date).
-- ML-498, between the members (and My Levels) and the organiser's part: `#bandNoticeSection` › `.section-title`
-  "Tell the band" › `p.metro-help-text#bandNoticeHelp` › `.form-group` (Title) › `.form-group` (Message, a
-  `textarea`) › **Send to the band** (`.btn-submit`) › `.section-title` "Sent lately" › a `.history-item` ›
-  `.band-row-text` per notice.
+- `#bandView` (ML-653) › `.flex-col.items-center.text-center` (`img.band-logo.band-logo-lg`, `h2`, "You: ..." in
+  `p.metro-help-text`, the website, `#bandLogoSection` for an organiser) › `#bandPageShared`: `.section-title` "The
+  band" › `button.history-item.settings-link#bandPageMembersLink` (organisers) or `div.history-item.settings-link#bandPageMembersCount`
+  (everyone else: no chevron, nothing to tap) › `button.history-item.settings-link#bandPageNoticeLink` › `#bandShareLevelsSection`
+  (`.section-title` "Me in this band" and the toggle row) › or `#bandPageOwn` (a band just for my log) › `#bandPageActions`:
+  `.btn-text` per action › `#bandPageShareBox` (help line and **Set up sharing**, `.btn-submit`).
+- `#bandMembersView` (organisers) › `p.metro-help-text` (how many people, "Tap someone to change what they can do") ›
+  a `button.metroBlk-ctrl-value-btn.w-full` per member (level over name) › `.section-title` "Waiting for an answer" › a
+  value box per invitation (the address over level · invited date) › `.section-title` "Invite someone" › help line ›
+  `.form-group` (their email address) › the level value box › **Invite** (`.btn-submit`). Anyone else who lands on it
+  is told "Only the band's organisers see who is in ...".
+- `#bandNoticeView` (ML-498, its own page since ML-653) › `p.metro-help-text#bandNoticeHelp` › `.form-group` (Title) ›
+  `.form-group` (Message, a `textarea`) › **Send to the band** (`.btn-submit`) › `.section-title` "Sent lately" › a
+  `.history-item` › `.band-row-text` per notice.
 
 ## 4. Tokens used
 None of its own - see [form-field](form-field.md), [button](button.md), [list-row](list-row.md) and
@@ -142,9 +160,11 @@ None of its own - see [form-field](form-field.md), [button](button.md), [list-ro
 - **No invitations:** `#accountBandInvites` is hidden.
 - **Arriving from the email** (`/?band-invite=1`): the sign-in screen's line says "You have been invited to join
   a band. Sign in with the email address the invitation was sent to..."; once signed in, My bands opens.
-- **Organiser:** members are value boxes; the invite form and the waiting list show.
-- **Not an organiser:** members are plain rows; no form; a count of people invited, if any.
-- **Yourself:** your own pop-up has no "Remove from the band" (Leave is on the band's menu). The only
+- **Organiser:** the band's page has Members as a row to tap and the logo buttons; on Members, members are value boxes
+  and the invite form and the waiting list show.
+- **Not an organiser:** the band's page says how many members, as text - no names, no invitations, nothing to tap.
+- **A band just for my log:** no "The band" or "Me in this band"; "Only you see this band" and **Set up sharing**.
+- **Yourself:** your own pop-up has no "Remove from the band" (Leave is on the band's page). The only
   organiser can't step down until someone else is one - the server says so in a toast.
 - **A "Can play" member** elsewhere: a band piece has no Edit, and a band's practice list has its name and
   date boxes disabled and no "+ Add pieces" or "Delete this list".
@@ -167,7 +187,9 @@ None of its own - see [form-field](form-field.md), [button](button.md), [list-ro
 - The level is words on every row, never a colour or an icon alone.
 - **No thanks** carries an `aria-label` naming the band, so two invitations can be told apart.
 - Touch targets: the value boxes and buttons are the shared ones (44px or more). No new colour pairs, no gestures.
-- My bands (ML-478): whether a band is shared is said in words under its name. Each ⋮ button and each **Show
+- My bands (ML-478, ML-653): each band's row is one `<button>` whose text is its name, what I can do and how many are
+  in it - whether it is shared is said in words. The count on the ☰ menu item has words for a screen reader
+  ("1 band invitation waiting", `.visually-hidden`). Each **Show
   again** names its band in its `aria-label`; a Tidy value box's label says the name, how many sessions and
   "tap to say what it is". Merging asks first, in words, and says it can't be undone.
 - The email box is `type="email"` with `autocapitalize="off"`; an error is a toast, in words.
