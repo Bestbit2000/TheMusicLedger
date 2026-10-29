@@ -221,7 +221,7 @@
                 <td class="admin-bc-text"><strong>${esc(k.name)}</strong></td>
                 <td>${esc(when(k.createdAt))}</td>
                 <td>${esc(when(k.lastUsedAt))}</td>
-                <td><button type="button" class="admin-stat-exclude-btn" data-passkey="rename" data-id="${k.id}" aria-label="Rename ${esc(k.name)}">Rename</button> <button type="button" class="admin-stat-exclude-btn" data-passkey="remove" data-id="${k.id}" aria-label="Remove ${esc(k.name)}">Remove</button></td>
+                <td><button type="button" class="admin-stat-exclude-btn" data-passkey="rename" data-id="${k.id}" aria-label="Rename ${esc(k.name)}">Rename</button> <button type="button" class="admin-stat-exclude-btn is-danger" data-passkey="remove" data-id="${k.id}" aria-label="Remove ${esc(k.name)}">Remove</button></td>
             </tr>`).join('');
         page().innerHTML = `
             <h2 class="admin-stat-section-title">Passkeys for ${esc(data.address)}</h2>

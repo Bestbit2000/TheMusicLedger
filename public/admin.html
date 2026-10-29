@@ -430,7 +430,13 @@
         <!-- ML-580: the waiting list - requests to join from the public page (public/admin-join-requests.js, docs/waiting-list.md) -->
         <section id="waiting-list-section" class="admin-section hidden-group">
             <h1>Waiting list</h1>
-            <p class="admin-intro">People who asked to join on the public page. <strong>Let in</strong> sends them the ordinary invitation email as a Standard member. <strong>Pass to the organiser</strong>, when the band they named shares its music here, sends that band's organisers a notice with who asked - they decide whether to invite them. <strong>Not now</strong> removes the request; nobody is told. A request goes once it is dealt with, and otherwise after 90 days.</p>
+            <!-- owner, 29 Oct 2026: the three ways to deal with a request as a list, easy to scan -->
+            <p class="admin-intro">People who asked to join on the public page. A request goes once it is dealt with, and otherwise after 90 days.</p>
+            <ul class="admin-intro-list">
+                <li><strong>Let in</strong> - sends them the invitation email as a Standard member, and can put them straight into one of your bands.</li>
+                <li><strong>Pass to the organiser</strong> - when the band they named shares its music here: its organisers get a notice with who asked, and decide.</li>
+                <li><strong>Not now</strong> - removes the request. Nobody is told.</li>
+            </ul>
             <div id="adminJoinRequests"><p class="admin-intro">Loading&hellip;</p></div>
         </section>
         <!-- ML-464: the retention rule, who is next, and Run now (public/admin-retention.js, docs/retention.md) -->
@@ -1176,7 +1182,7 @@
             <div class="form-group"><label for="bcCostNote">Note</label><textarea id="bcCostNote" rows="3" maxlength="600"></textarea></div>
             <div class="form-group"><label for="bcCostSource">Where the price was read (a link, optional)</label><input type="url" id="bcCostSource" maxlength="300" placeholder="https://..." autocomplete="off"></div>
             <p class="admin-intro hidden-group" id="bcCostStartRow"><span id="bcCostStartText"></span> <button type="button" class="admin-stat-exclude-btn" id="bcCostStartBtn">Put it back</button></p>
-            <button type="button" class="admin-stat-exclude-btn hidden-group" id="bcCostDeleteBtn">Delete this cost</button>
+            <button type="button" class="admin-stat-exclude-btn is-danger hidden-group" id="bcCostDeleteBtn">Delete this cost</button>
         </div>
         <div class="metroSeg-sticky-footer">
             <button class="btn-cancel btn-nav no-margin" id="bcCostCancelBtn" type="button">Cancel</button>
@@ -1201,6 +1207,7 @@
 <script src="theoryEngine.js"></script>
 <script src="scaleGrades.js"></script>
 <script src="warmups.js"></script>
+<script src="restingArt.js"></script><!-- the "you're all done here" drawing: Notifications and Admin -> Waiting list -->
 <script src="avatars.js"></script>
 <script src="admin-passkeys.js"></script>
 <script src="admin.js"></script>

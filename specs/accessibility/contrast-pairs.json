@@ -875,6 +875,12 @@
       "fg": "--heat-time-4",
       "bg": "--container-bg",
       "use": "a tool's press bar on Admin -> Usage (ML-22)"
+    },
+    {
+      "kind": "text",
+      "fg": "--primary-action-strong",
+      "bg": "--bg-color",
+      "use": "Admin panel: the secondary button's words and outline on the page (owner, 29 Oct 2026)"
     }
   ]
 }

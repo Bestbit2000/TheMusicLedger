@@ -39,7 +39,7 @@
             const reruns = i === 0 ? r.reruns.map(x => `<div class="admin-stat-tile-sub">Read again ${esc(when(x.at))}: ${x.status === 'read' ? (x.pieces || []).map(q => `${q.bars} bars, ${esc(q.rating)}${q.changes ? `, differs: ${changedText(q.changes).toLowerCase()}` : ''}`).join(' · ') : `failed - ${esc(x.failure || '')}`} <span class="text-muted">(${esc(x.promptVersion || '')}, ${money(x.costUsd)})</span></div>`).join('') : '';
             const actions = [
                 p.savedAt ? `<button type="button" class="admin-stat-exclude-btn" data-checked="${p.id}" data-on="${p.checkedAt ? '0' : '1'}" aria-pressed="${!!p.checkedAt}">${p.checkedAt ? 'Checked ✓' : 'Mark as checked'}</button>` : '',
-                i === 0 && r.isTest ? `<button type="button" class="admin-stat-exclude-btn" data-rerun="${r.id}">Read again</button><button type="button" class="admin-stat-exclude-btn" data-drop="${r.id}">Stop keeping the file</button>` : ''
+                i === 0 && r.isTest ? `<button type="button" class="admin-stat-exclude-btn" data-rerun="${r.id}">Read again</button><button type="button" class="admin-stat-exclude-btn is-danger" data-drop="${r.id}">Stop keeping the file</button>` : ''
             ].join(' ');
             return `<tr>
                 <td>${i === 0 ? esc(when(r.at)) : ''}</td>

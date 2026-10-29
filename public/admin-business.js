@@ -389,7 +389,7 @@
                     ${numField('£ each', `income.extras.${i}.price`, x.price, '0.5')}
                     ${valueBox('extra-every', x.every === 'year' ? 'A year' : 'A month', 'paid', ` data-i="${i}"`)}
                     ${years.map((y) => numField(`How many, year ${y}`, `income.extras.${i}.counts.${y - 1}`, x.counts[y - 1])).join('')}
-                    <button type="button" class="admin-stat-exclude-btn" data-act="extra-remove" data-i="${i}">Remove</button>
+                    <button type="button" class="admin-stat-exclude-btn is-danger" data-act="extra-remove" data-i="${i}">Remove</button>
                 </div>
             </div>`;
         return `

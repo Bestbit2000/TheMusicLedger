@@ -9,7 +9,7 @@
 // ML-242: the app moved to /app (the front door is the public page), so the cache name went up and /app is
 // kept; a page address never kept falls back to the app, not to the public page.
 const CACHE_NAME = 'music-ledger-v4';
-const APP_SHELL = ['/app', '/', '/public-hop.js', '/tokens.css', '/style.css', '/display-prefs.js', '/brand.js', '/images/brands/notably-better-mark.svg', '/flowJourney.js', '/practicePlan.js', '/filters.js', '/pieceOutline.js', '/notation.js', '/range.js', '/rangeBar.js', '/avatars.js', '/homeGreeting.js', '/theoryEngine.js', '/scaleGrades.js', '/warmups.js', '/drills.js', '/rhythm.js', '/fonts/bravura.5c25278c.woff2', '/fonts/inter-latin.3100e775.woff2', '/fonts/material-symbols-outlined.56764a27.woff2', '/offline.js', '/usage.js', '/app.js', '/a11y.js'];
+const APP_SHELL = ['/app', '/', '/public-hop.js', '/tokens.css', '/style.css', '/display-prefs.js', '/brand.js', '/images/brands/notably-better-mark.svg', '/flowJourney.js', '/practicePlan.js', '/filters.js', '/pieceOutline.js', '/pieceRead.js', '/notation.js', '/range.js', '/rangeBar.js', '/avatars.js', '/restingArt.js', '/homeGreeting.js', '/theoryEngine.js', '/scaleGrades.js', '/warmups.js', '/drills.js', '/rhythm.js', '/fonts/bravura.5c25278c.woff2', '/fonts/inter-latin.3100e775.woff2', '/fonts/material-symbols-outlined.56764a27.woff2', '/offline.js', '/usage.js', '/app.js', '/a11y.js'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

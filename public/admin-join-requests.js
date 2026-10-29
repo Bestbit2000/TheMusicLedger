@@ -18,7 +18,10 @@
     function render() {
         A.setNavCount('waitingListNavCount', data.requests.length);
         if (!data.requests.length) {
-            $('adminJoinRequests').innerHTML = '<p class="admin-intro">Nobody is waiting to join.</p>';
+            // owner, 29 Oct 2026: the notifications' "all caught up" drawing (public/restingArt.js) and a heading
+            $('adminJoinRequests').innerHTML = `<div class="admin-empty">${window.RestingArt ? window.RestingArt.svg() : ''}
+                <h2 class="notifications-empty-title">Nobody is waiting to join</h2>
+                <p class="text-muted no-margin">You're all done here. A new request from the public page shows up here, with a number on the menu.</p></div>`;
             return;
         }
         // ML-624: data-label names each cell on a phone, where each request is a card (.admin-stack-table)
@@ -77,7 +80,7 @@
         $('letInTitle').textContent = r.isMember ? `Add ${r.firstName} ${r.lastName} to a band` : `Let ${r.firstName} ${r.lastName} in`;
         $('letInIntro').textContent = r.isMember
             ? `They already have an account. They're put in the band now and told in the app.`
-            : `They're sent the invitation email at ${r.email}, as a Standard member. Pick a band and they're in it as soon as they sign in - its members will see their name.`
+            : `They're sent the invitation email at ${r.email}, as a Standard member. Pick a band and they're in it as soon as they sign in - its organisers will see their name.`
               + (r.band && !r.myBandIds.length ? ` They asked for ${r.band}, which isn't one of yours - use Pass to the organiser for that.` : '');
         bandSwitches(r.myBandIds, false);
         $('letInGo').textContent = r.isMember ? 'Add to band' : 'Let them in';
@@ -87,7 +90,7 @@
     function letInAll(band, count) {
         letInFor = { band };
         $('letInTitle').textContent = `Let in everyone asking for ${band.name}`;
-        $('letInIntro').textContent = `${count} people asked to join ${band.name}. Each is sent the invitation email (or, with an account already, is added now), and is in the band as soon as they sign in. Its members will see their names.`;
+        $('letInIntro').textContent = `${count} people asked to join ${band.name}. Each is sent the invitation email (or, with an account already, is added now), and is in the band as soon as they sign in. Its organisers will see their names.`;
         bandSwitches([band.id], true);
         $('letInGo').textContent = `Let in all ${count}`;
         $('letInAllowance').textContent = allowanceLine();

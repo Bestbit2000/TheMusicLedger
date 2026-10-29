@@ -1629,7 +1629,7 @@
                     <td>${r.keyCount || '–'}</td>
                     <td>${escapeHtml(r.deviceKind || '–')}</td>
                     <td>${escapeHtml(r.appVersion || '–')}</td>
-                    <td><button class="admin-stat-exclude-btn" data-exclude-id="${r.id}" data-excluded="${r.isExcluded}" type="button">${r.isExcluded ? 'Include' : 'Exclude'}</button></td>
+                    <td><button class="admin-mini-btn" data-exclude-id="${r.id}" data-excluded="${r.isExcluded}" type="button">${r.isExcluded ? 'Include' : 'Exclude'}</button></td>
                 </tr>`).join('')
             : `<tr><td colspan="15" class="admin-stat-empty">Nothing recorded yet.</td></tr>`;
 
@@ -3038,7 +3038,7 @@
                     <td>${fmtDay(r.addedAt)}</td>
                     <td>${r.kind === 'band'
                         ? `<button class="admin-stat-exclude-btn" data-band-rename="${r.id}" type="button" aria-label="Rename ${escapeHtml(r.title)}">Rename</button>`
-                        : `<button class="admin-stat-exclude-btn" data-recording-remove="${r.kind}:${r.id}" type="button" aria-label="Remove ${escapeHtml(r.title)}">Remove</button>`}</td>
+                        : `<button class="admin-stat-exclude-btn is-danger" data-recording-remove="${r.kind}:${r.id}" type="button" aria-label="Remove ${escapeHtml(r.title)}">Remove</button>`}</td>
                 </tr>`).join('') : `<tr><td colspan="7" class="admin-stat-empty">${all.length ? 'Nothing matches.' : empty}</td></tr>`}</tbody>
         </table></div>`;
     }
@@ -3080,7 +3080,7 @@
                     <td>${r.pieces.length ? escapeHtml(piecesText(r.pieces)) : 'No piece yet'}</td>
                     <td>${r.sizeBytes ? `${(r.sizeBytes / (1024 * 1024)).toFixed(1)} MB` : '–'}</td>
                     <td>${fmtDay(r.addedAt)}</td>
-                    <td><button class="admin-stat-exclude-btn" data-recording-remove="${r.kind}:${r.id}" type="button" aria-label="Remove ${escapeHtml(r.title)}">Remove</button></td>
+                    <td><button class="admin-stat-exclude-btn is-danger" data-recording-remove="${r.kind}:${r.id}" type="button" aria-label="Remove ${escapeHtml(r.title)}">Remove</button></td>
                 </tr>`).join('') : `<tr><td colspan="7" class="admin-stat-empty">${d.recordings.length ? 'Nothing matches.' : 'No recordings or videos have been added.'}</td></tr>`}</tbody>
         </table></div>`;
         document.getElementById('adminRecordingRemovals').innerHTML = `<div class="admin-stat-table-wrap"><table class="admin-stat-table admin-stack-table">
@@ -3511,7 +3511,7 @@
                 <td>${fmtDay(r.startedOn)}</td>
                 <td>${r.endedOn ? fmtDay(r.endedOn) : (r.cadence === 'one_off' ? '–' : 'still running')}</td>
                 <td>${money(r.spent)}<div class="admin-stat-tile-sub">${dollars(r.spent)} · ${r.charges} payment${r.charges === 1 ? '' : 's'}</div></td>
-                <td><button class="admin-stat-exclude-btn" data-cost-edit="${r.id}" type="button">Change</button> <button class="admin-stat-exclude-btn" data-cost-delete="${r.id}" type="button">Delete</button></td>
+                <td><button class="admin-stat-exclude-btn" data-cost-edit="${r.id}" type="button">Change</button> <button class="admin-stat-exclude-btn is-danger" data-cost-delete="${r.id}" type="button">Delete</button></td>
             </tr>`).join('') : '<tr><td colspan="8" class="admin-stat-empty">No costs recorded yet. Add what you pay for - Claude Code, a domain, the ICO fee...</td></tr>';
         return `
             <h2 class="admin-stat-section-title">What it costs</h2>

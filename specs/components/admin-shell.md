@@ -1,7 +1,7 @@
 # Admin shell
 
 ## 1. Metadata
-- **Name:** Admin shell (`admin.css`: `.admin-shell`, `.admin-sidebar*`, `.admin-nav-item`, `.admin-nav-group*`, `.admin-nav-fold`, `.is-nav-folded`, `.admin-dash-*`, `.admin-content`, `.admin-intro`, `.admin-link`, `.admin-subtabs`, `.admin-feature*`, `.admin-stat-*`, `.admin-run-*`, `.admin-test-case*`, `.admin-flows-*`, `.admin-feedback-*`, `.admin-badge`, `.admin-chip`, `.admin-*`, `.admin-accounts-table`)
+- **Name:** Admin shell (`admin.css`: `.admin-shell`, `.admin-sidebar*`, `.admin-nav-item`, `.admin-nav-group*`, `.admin-nav-fold`, `.is-nav-folded`, `.admin-dash-*`, `.admin-content`, `.admin-intro`, `.admin-intro-list`, `.admin-empty`, `.admin-stat-exclude-btn` (`.is-danger`), `.admin-mini-btn`, `.admin-link`, `.admin-subtabs`, `.admin-feature*`, `.admin-stat-*`, `.admin-run-*`, `.admin-test-case*`, `.admin-flows-*`, `.admin-feedback-*`, `.admin-badge`, `.admin-chip`, `.admin-*`, `.admin-accounts-table`)
 - **Category:** Page layout (admin panel only)
 - **Status:** Stable (ML-26 onward)
 
@@ -11,12 +11,27 @@ with feature cards, stat tiles, data tables, test-run history and the Flows impo
 It reuses `tokens.css` and the app's `style.css` components (buttons, modals, form fields).
 **Don't** redefine tokens or re-implement app components in `admin.css`.
 
+**Buttons (owner, 29 Oct 2026): the app's own levels.** A page's main action is `.btn-submit` (in a row,
+`.admin-security-toolbar` keeps it to its words). Every other action is the panel's secondary button,
+`.admin-stat-exclude-btn`: the app's own secondary (`.btn-cancel`) - the same height, size and weight as the primary beside
+it, outlined in `--primary-action-strong`, never filled; in a row it stretches to the primary's height. A button that
+deletes or removes something adds `.is-danger` (outlined in `--danger-text`, like the confirm pop-up's
+`.btn-submit.is-danger`). Only two places keep the old small pill, `.admin-mini-btn`: Email wording's formatting bar, and
+the Include / Exclude button in every row of the usage stats table - full size would crowd them; on a phone it is still
+`--touch-target` tall. (The class name is older than the job - it began as that Exclude button.)
+
+**A page's choices, listed** (`ul.admin-intro-list`, Admin → Waiting list): under a one-line `.admin-intro`, each choice is a
+bullet - its button's name in bold (`--text-color`), then what it does (`--label-color`). **Nothing waiting**
+(`.admin-empty`, Waiting list): the notifications' "all caught up" drawing (`public/restingArt.js`,
+`.notifications-empty-art` at `--empty-art-width`), the `.notifications-empty-title` heading ("Nobody is waiting to join")
+and one `.text-muted` line, centred - the same drawing as [notification-centre](notification-centre.md).
+
 ## 3. Anatomy
 `body.admin-body` › `.admin-shell` › `.admin-sidebar` (`.admin-sidebar-head` › `.admin-sidebar-title` (+ `.admin-sidebar-current`) , `.admin-nav-fold` and `.admin-nav-toggle`; `.admin-nav-items` › `.admin-back-link`, the Dashboard `.admin-nav-item`, then `.admin-nav-group` × 4 › `button.admin-nav-group-head` (`.admin-nav-group-name`, a `.admin-nav-count`, an arrow icon) + `.admin-nav-group-items` › `.admin-nav-item` × n with `.admin-nav-count`) › `.admin-content` (`h1`, `.admin-intro`, section content).
 
 ## 4. Tokens used
 `--bg-color`, `--container-bg`, `--secondary-color`, `--input-bg`, `--input-border`, `--text-color`,
-`--label-color`, `--primary-action`, `--success-color`, `--danger-color`, `--warning-color`,
+`--label-color`, `--primary-action`, `--primary-action-strong`, `--danger-text`, `--opacity-disabled`, `--empty-art-width`, `--success-color`, `--danger-color`, `--warning-color`,
 `--nav-action`, `--nav-action-text`, `--status-amber-bg`/`-fg`, `--status-blue-bg`/`-fg`, `--info-text`, `--touch-target`, `--text-on-accent`, `--font-mono`, `--radius-xs`/`-md`/`-pill`,
 `--space-*`, `--font-xs`…`--font-lg`, `--font-weight-semibold`, `--font-weight-bold`, `--app-max-width`.
 

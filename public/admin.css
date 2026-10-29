@@ -196,8 +196,25 @@ body.admin-body { display: block; background: var(--bg-color); }
 .admin-stat-row-excluded td { opacity: 0.45; text-decoration: line-through; }
 .admin-stat-empty { color: var(--label-color); font-size: var(--font-sm); padding: var(--space-4) 0; }
 .admin-stat-pill { display: inline-block; font-size: var(--font-sm); padding: var(--space-0-5) var(--space-2); border-radius: var(--radius-md); background: var(--input-bg); border: 1px solid var(--input-border); color: var(--label-color); }
-.admin-stat-exclude-btn { background: none; border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-0-5) var(--space-2); font-size: var(--font-sm); font-family: var(--font-sans); color: var(--label-color); cursor: pointer; }
-.admin-stat-exclude-btn:hover { color: var(--text-color); }
+/* The panel's secondary button (owner, 29 Oct 2026): the app's own secondary (.btn-cancel) - the same height, size and
+   weight as the primary beside it, outlined in the primary's strong colour instead of filled; it stretches to the
+   primary's height in a row. .is-danger: something deleted or removed, outlined in red (as .btn-submit.is-danger).
+   (The class name is older than the job - it began as the Exclude button on the stats.) */
+.admin-stat-exclude-btn { display: inline-flex; align-items: center; justify-content: center; align-self: stretch; min-height: var(--touch-target); padding: 0 var(--space-5); border: 2px solid var(--primary-action-strong); border-radius: var(--radius-md); background: transparent; color: var(--primary-action-strong); font-size: var(--font-md); font-weight: var(--font-weight-bold); font-family: var(--font-sans); text-align: center; box-sizing: border-box; cursor: pointer; }
+.admin-stat-exclude-btn:hover { background: var(--input-bg); }
+.admin-stat-exclude-btn.is-danger { border-color: var(--danger-text); color: var(--danger-text); }
+.admin-stat-exclude-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+/* A page's choices listed under its intro, the name of each in bold (Admin -> Waiting list, owner 29 Oct 2026) */
+.admin-intro-list { color: var(--label-color); font-size: var(--font-sm); max-width: 900px; margin: 0 0 var(--space-4); padding-left: var(--space-5); }
+.admin-intro-list li { margin-bottom: var(--space-1); }
+.admin-intro-list strong { color: var(--text-color); }
+/* Nothing waiting: the notifications' drawing (public/restingArt.js), a heading and a quiet line, centred */
+.admin-empty { text-align: center; max-width: 520px; margin: var(--space-6) auto; }
+.admin-empty .notifications-empty-art { width: var(--empty-art-width); max-width: 100%; }
+/* Kept small where a full-size button would crowd: a formatting bar (Email wording) and a button in every row of a
+   wide table (the usage stats' Include / Exclude) - the panel's old pill, still --touch-target tall on a phone. */
+.admin-mini-btn { background: none; border: 1px solid var(--input-border); border-radius: var(--radius-md); padding: var(--space-0-5) var(--space-2); font-size: var(--font-sm); font-family: var(--font-sans); color: var(--label-color); cursor: pointer; }
+.admin-mini-btn:hover { color: var(--text-color); }
 
 /* ML-170 - Feedback triage. */
 .admin-nav-count { display: inline-block; min-width: 18px; padding: 0 var(--space-1); border-radius: var(--radius-sm); background: var(--primary-action); color: var(--text-on-accent); font-size: var(--font-sm); text-align: center; }
@@ -249,6 +266,7 @@ body.admin-body { display: block; background: var(--bg-color); }
   .admin-stat-table.admin-stack-table td[data-label]::before { content: attr(data-label); display: block; color: var(--label-color); font-size: var(--font-xs); font-weight: var(--font-weight-semibold); }
   .admin-stat-table.admin-stack-table .admin-security-toolbar { margin: var(--space-2) 0 0; }
   .admin-stat-table.admin-stack-table .admin-stat-exclude-btn { min-height: var(--touch-target); padding: 0 var(--space-4); } /* a thumb, not a mouse */
+  .admin-mini-btn { min-height: var(--touch-target); }
 }
 
 /* ML-201 - Notifications */

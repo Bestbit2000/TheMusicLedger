@@ -54,7 +54,8 @@ important one (**Who has seen it**) has a button opening `#notificationWhoModal`
 `.admin-stat-section-title` "Not seen yet (n)" › `ul.admin-who-list` (name, then the email in `.text-muted` when the name
 isn't the email) › "Seen (n)" › the same list with the day each saw it. For the owner only - never offered to a band
 organiser about their members.
-Empty: `.notifications-empty` › a line drawing (`svg.notifications-empty-art`, someone relaxing back in a deckchair
+Empty: `.notifications-empty` › a line drawing (`svg.notifications-empty-art`, from `public/restingArt.js` - Admin → Waiting
+list's empty page uses the same one, owner 29 Oct 2026; someone relaxing back in a deckchair
 with a euphonium; `aria-hidden`; lines in `--label-color`, the instrument a `.is-solid` group filled with
 `--container-bg` so it hides the lines behind it) › `h2.notifications-empty-title` "You're all caught up!" ›
 a `.text-muted` line: "This is where you'll see what's new in each release, and news from the Notably Better

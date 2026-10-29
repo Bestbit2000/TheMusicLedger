@@ -32,7 +32,7 @@
         return `<div class="form-group">
             <label id="${id}Label" for="${id}Html">${esc(label)}</label>
             <div class="admin-rich-toolbar" role="toolbar" aria-label="Formatting: ${esc(label)}">
-                ${tools.map((t) => `<button type="button" class="admin-stat-exclude-btn" data-format="${t}" data-editor="${id}" aria-label="${TOOLS[t].label}">${TOOLS[t].html}</button>`).join('')}
+                ${tools.map((t) => `<button type="button" class="admin-mini-btn" data-format="${t}" data-editor="${id}" aria-label="${TOOLS[t].label}">${TOOLS[t].html}</button>`).join('')}
             </div>
             <div class="admin-rich-text" id="${id}" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="${id}Label">${html}</div>
             <textarea id="${id}Html" class="hidden-group" rows="10" spellcheck="false"></textarea>
@@ -101,8 +101,8 @@
             <div class="admin-security-toolbar">
                 <button type="button" class="btn-submit no-margin" id="emailSignatureSave" disabled>Save the signature</button>
                 <button type="button" class="admin-stat-exclude-btn" id="emailSignatureLogo">${s.logoUrl ? 'Replace the logo' : 'Upload a logo'}</button>
-                ${s.logoUrl ? '<button type="button" class="admin-stat-exclude-btn" id="emailSignatureLogoRemove">Remove the logo</button>' : ''}
-                ${s.changedOn ? '<button type="button" class="admin-stat-exclude-btn" id="emailSignatureRemove">Remove the signature</button>' : ''}
+                ${s.logoUrl ? '<button type="button" class="admin-stat-exclude-btn is-danger" id="emailSignatureLogoRemove">Remove the logo</button>' : ''}
+                ${s.changedOn ? '<button type="button" class="admin-stat-exclude-btn is-danger" id="emailSignatureRemove">Remove the signature</button>' : ''}
                 <span class="admin-test-case-meta" id="emailSignatureStatus" role="status" aria-live="polite">${s.logoUrl ? 'A logo is uploaded - Insert the logo puts it where the cursor is.' : 'A logo: PNG, JPEG or WebP, up to 1 MB.'}</span>
             </div>
             <input type="file" id="emailSignatureLogoFile" accept="image/png,image/jpeg,image/webp" aria-label="A logo for the signature" hidden>`;
