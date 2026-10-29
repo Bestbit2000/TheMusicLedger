@@ -186,7 +186,7 @@ on 2026-09-08 with no version bump and no release notes at all.
 
 **Every release, ask the Online Safety question** (ML-512): does it change what one member can show another, or let members contact each other? If so, the run-through in [`docs/online-safety-assessment.md`](docs/online-safety-assessment.md) is done again first and the Children's Code self-assessment is checked; either way the Jira issue says so. See step 1 in `docs/release-process.md`.
 
-**Release notes are written for members, not copied from Jira** (owner's rule, 9 Oct 2026): every issue
+**Release notes are written for members, not copied from Jira** (owner's rule, 9 Oct 2026; an issue only the owner sees - an admin page, tooling - is marked `{ "internal": true, "why": "..." }` instead and not shown, owner 29 Oct 2026): every issue
 in a release has one line in `release-notes.json` - what changed for a member, starting "We ...", never a
 person's name - and that line is what About → Release history shows. Write it with the work (it goes
 through sandbox like any code); `cut-release` and `sync-releases` refuse to run without it. See "Release

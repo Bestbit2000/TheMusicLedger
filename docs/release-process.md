@@ -219,13 +219,21 @@ How to write one:
   not how it was built. No issue numbers, no "step A", no table, file or feature-switch names.
 - **A fix says what now works**, or what stopped going wrong: "We fixed a YouTube video that carried on
   playing after you saved a piece."
-- **Work a member never sees still gets a line**, in plain words: "We tightened the app's security
-  behind the scenes." Don't dress it up, and don't claim more than was released.
+- **First ask: is it for members, or internal only?** (owner's rule, 29 Oct 2026.) A change only the owner
+  sees - an admin page (Costs and usage, Photo reads, the Waiting list's own screen), the build, tooling,
+  tests - gets **no public line**. Its entry is marked instead, with why:
+  `"ML-652": { "internal": true, "why": "Admin -> Costs and usage only" }`. It is still checked, so nothing
+  is left out by accident, but About → Release history doesn't show it (a release that was all internal shows
+  one line: "We made some improvements behind the scenes."). Anything a member could notice - a screen,
+  an email they get, speed, security they benefit from - is for members.
+- **Work a member never sees but benefits from still gets a line**, in plain words: "We tightened the app's
+  security behind the scenes." Don't dress it up, and don't claim more than was released.
 - The young players rule applies here too: no pressure, nothing that sells.
 
 Claude writes the lines; the owner can change any of them in the file before the release is cut.
 
-`npm run cut-release` checks the line for every issue it is given before it touches Jira, and
+`npm run cut-release` checks the line for every issue it is given before it touches Jira - and lists which
+issues are for members and which are internal only, so each choice is looked at - and
 `npm run sync-releases` refuses to write `public/releases.json` if an issue in a release from 0.51.0 on
 has no line, or a line that breaks the rules above (`scripts/releaseNotes.mjs`). Older releases show
 their Jira summaries until a line is written for them - adding one to `release-notes.json` and running

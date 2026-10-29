@@ -15,7 +15,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import axios from 'axios';
-import { problemsFor, printProblems } from './releaseNotes.mjs';
+import { problemsFor, printProblems, printKinds } from './releaseNotes.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
@@ -47,6 +47,8 @@ if (noteProblems.length) {
   printProblems(noteProblems);
   process.exit(1);
 }
+// The owner, 29 Oct 2026: is each change for members, or internal only? Said every time, so it is looked at
+printKinds(issueKeys);
 
 async function findOrCreateVersion() {
   const { data } = await axios.get(

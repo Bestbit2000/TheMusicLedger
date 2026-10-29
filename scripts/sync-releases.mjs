@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import axios from 'axios';
-import { loadReleaseNotes, needsNotes, noteProblem, printProblems } from './releaseNotes.mjs';
+import { loadReleaseNotes, needsNotes, noteProblem, printProblems, isInternal, changesForMembers } from './releaseNotes.mjs';
 const RELEASE_NOTES = loadReleaseNotes();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -68,11 +68,13 @@ function applyReleaseNotes(releases) {
   for (const release of releases) {
     for (const change of release.changes) {
       const problem = noteProblem(notes[change.key]);
-      if (!problem) change.summary = notes[change.key];
+      if (!problem) { if (!isInternal(notes[change.key])) change.summary = notes[change.key]; }
       else if (needsNotes(release.version) || notes[change.key] !== undefined) {
         problems.push({ key: `${change.key} (${release.version})`, problem });
       }
     }
+    // The owner, 29 Oct 2026: a change marked internal (admin-only, tooling) isn't shown to members
+    release.changes = changesForMembers(release.changes, notes);
   }
   return problems;
 }
