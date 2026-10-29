@@ -261,3 +261,25 @@ test('a merged band takes the other one\'s shared space and directory entry when
   assert.deepEqual([only.id, only.name, only.directoryBandId, only.shared.bandId, only.sessions], [plain, `Carry ${stamp}`, dir, space, 1]);
   assert.deepEqual((await bands.getAccountBands(anna)).map((b) => b.id), [space], 'still its organiser');
 });
+
+test('ML-653: a band just for my log can be renamed from its page - its sessions keep it; a shared band cannot', { skip }, async () => {
+  const anna = await account('anna-rename');
+  const ben = await account('ben-rename');
+  const quartet = await rehearsal(anna, `Quartet ${stamp}`);
+  await bands.addOwnBand(anna, `Trio ${stamp}`);
+
+  await bands.renameMyBand(anna, quartet, `  Kitchen Quartet ${stamp} `);
+  const renamed = await entry(anna, `Kitchen Quartet ${stamp}`);
+  assert.equal(renamed.id, quartet, 'the same band, under its new name');
+  assert.equal(renamed.sessions, 1, 'its rehearsal goes with it');
+
+  await assert.rejects(bands.renameMyBand(anna, quartet, '  '), status(400));
+  await assert.rejects(bands.renameMyBand(anna, quartet, 'x'.repeat(81)), status(400));
+  await assert.rejects(bands.renameMyBand(anna, quartet, `trio ${stamp}`), status(409)); // another of mine: merge instead
+  await assert.rejects(bands.renameMyBand(ben, quartet, 'Hijacked'), status(404)); // never another member's
+  await bands.renameMyBand(anna, quartet, `kitchen QUARTET ${stamp}`); // its own name, typed differently, is fine
+
+  const shared = await bands.addOwnBand(anna, `Shared Band ${stamp}`);
+  await bands.setUpSharing(anna, shared);
+  await assert.rejects(bands.renameMyBand(anna, shared, 'Something else'), status(409));
+});

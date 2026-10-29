@@ -972,6 +972,13 @@
   {
    "group": "My bands",
    "where": "bandView",
+   "name": "#bandPageRenameBtn",
+   "label": "Change its name",
+   "html": true
+  },
+  {
+   "group": "My bands",
+   "where": "bandView",
    "name": "#bandPageDirectoryBtn",
    "label": "It's a band in the list",
    "html": true

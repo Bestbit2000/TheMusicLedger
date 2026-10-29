@@ -20,7 +20,7 @@ import { adminWaitingCounts } from '../services/adminDashboard.js'; // ML-572
 import { sendError } from '../utils/httpErrors.js';
 import pool from '../config/db.js';
 import { listBands, getOrCreateBand, renameBand, isBandUsedInHistory, archiveOrDeleteBand, unarchiveBand, listAllBands, getAccountBands, leaveBand, deleteBandIfSoleMember, listWhoOptions,
-  listMyBands, addBandFromDirectory, addOwnBand, setUpSharing, hideMyBand, showMyBand, keepMyBand, mergeMyBands, linkMyBandToDirectory,
+  listMyBands, addBandFromDirectory, addOwnBand, setUpSharing, hideMyBand, showMyBand, keepMyBand, renameMyBand, mergeMyBands, linkMyBandToDirectory,
   listBandMembers, inviteToBand, cancelBandInvite, listMyBandInvites, acceptBandInvite, declineBandInvite, removeBandMember, setBandMemberLevel, setBandLeader, setSharesLevels,
   assertBandOrganiser, setBandLogo, removeBandLogo, bandInviteWelcome } from '../services/bands.js';
 import { readMeters, sendUsageWarnings } from '../services/thirdPartyUsage.js';
@@ -1218,6 +1218,9 @@ router.post('/account/my-bands/:labelId/show', requireAuth, resolveAccount,
   myBandAction((req) => showMyBand(req.accountId, req.params.labelId)));
 router.post('/account/my-bands/:labelId/keep', requireAuth, resolveAccount,
   myBandAction((req) => keepMyBand(req.accountId, req.params.labelId)));
+// ML-653: rename a band that is just for my log
+router.put('/account/my-bands/:labelId/name', requireAuth, resolveAccount,
+  myBandAction((req) => renameMyBand(req.accountId, req.params.labelId, (req.body || {}).name)));
 router.post('/account/my-bands/:labelId/directory', requireAuth, resolveAccount,
   myBandAction(async (req) => ({ labelId: await linkMyBandToDirectory(req.accountId, req.params.labelId, (req.body || {}).directoryBandId) })));
 router.post('/account/my-bands/:labelId/merge', requireAuth, resolveAccount,

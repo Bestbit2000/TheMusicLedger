@@ -28,7 +28,8 @@
   waiting") that opens the Members page **for its organisers only**; everyone else gets the same row without a
   chevron, as plain text ("14 members") - and **Tell the band** for those who can send ("A notice to everyone · 3 more
   can go now"); then **Me in this band**, the switch for sharing Levels. Then what I can do with it on my list, as
-  `.btn-text` links, each only when it applies: It's a band in the list · Same as another band of mine · I don't play
+  `.btn-text` links, each only when it applies: Change its name (a band just for my log: the prompt pop-up; its
+  sessions keep it - a shared band's name is the one everyone in it sees) · It's a band in the list · Same as another band of mine · I don't play
   with them now · Leave the shared band · **Stop sharing** (danger, when I'm the only one in it) · Report the band's
   name. A band just for my log says only I see it, and its one primary button is **Set up sharing** (a confirm pop-up
   first; you become its organiser).

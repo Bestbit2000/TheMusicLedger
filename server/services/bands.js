@@ -437,6 +437,19 @@ export async function keepMyBand(accountId, labelId) {
   await pool.query('UPDATE bands SET needs_tidy = false WHERE id = $1', [label.id]);
 }
 
+// ML-653 (owner, 29 Oct 2026): rename a band that is just for my practice log, from its page. Its rehearsals and
+// performances follow it (they hold the band, not its name). A shared band's name is the one the whole band sees,
+// so it isn't renamed here - nor to the name of another band of mine (that is "Same as another band of mine").
+export async function renameMyBand(accountId, labelId, name) {
+  const label = await myLabel(pool, accountId, labelId);
+  const trimmed = String(name || '').trim();
+  if (!trimmed) throw fail(400, 'Type a name for the band.');
+  if (trimmed.length > LABEL_NAME_MAX) throw fail(400, `A band's name can be up to ${LABEL_NAME_MAX} letters.`);
+  if (await sharedSpaceOf(pool, accountId, label)) throw fail(409, "A shared band's name is the one everyone in it sees, so it can't be changed here.");
+  if (await labelNamed(pool, accountId, trimmed, label.id)) throw fail(409, `You already have a band called ${trimmed}. To make the two one band, use "Same as another band of mine".`);
+  await pool.query('UPDATE bands SET name = $1 WHERE id = $2', [trimmed, label.id]);
+}
+
 // "Same as another of mine": two names for one band become one. The rehearsals and performances
 // logged with `fromId` move onto `intoId`, which also takes its directory entry and shared space if it
 // has none of its own; then `fromId` goes. Two shared bands can't be made one - each has its own

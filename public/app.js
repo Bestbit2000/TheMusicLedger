@@ -705,6 +705,7 @@
             hideBand: (labelId) => apiCall(`/api/account/my-bands/${labelId}/hide`, 'POST'),
             showBand: (labelId) => apiCall(`/api/account/my-bands/${labelId}/show`, 'POST'),
             keepBand: (labelId) => apiCall(`/api/account/my-bands/${labelId}/keep`, 'POST'),
+            renameBand: (labelId, name) => apiCall(`/api/account/my-bands/${labelId}/name`, 'PUT', { name }), // ML-653
             linkBandToDirectory: (labelId, directoryBandId) => apiCall(`/api/account/my-bands/${labelId}/directory`, 'POST', { directoryBandId }),
             mergeBands: (fromId, intoId) => apiCall(`/api/account/my-bands/${fromId}/merge`, 'POST', { intoId }),
             declineBandInvite: (inviteId) => apiCall(`/api/account/band-invites/${inviteId}/decline`, 'POST')
@@ -4749,6 +4750,7 @@
         }
         renderBandShareLevels();
         renderBandNotices();
+        setShown('bandPageRenameBtn', !shared); // a shared band's name is the one everyone in it sees
         setShown('bandPageDirectoryBtn', !shared && !band.directoryBandId);
         setShown('bandPageMergeBtn', myBandsShown().length > 1);
         setShown('bandPageHideBtn', !shared);
@@ -4844,6 +4846,14 @@
         const band = myBandById(bandPage.labelId);
         if (band) run(band);
     });
+    // ML-653 (owner, 29 Oct 2026): rename a band that is just for my log - its sessions keep it, under the new name
+    function bandRename(band) {
+        showPromptModal(`Change the name of ${band.displayName}`, band.displayName, (name) => {
+            if (!name || name === band.displayName) return;
+            myBandDo(() => API.account.renameBand(band.id, name), `Now called ${name}`);
+        });
+    }
+    bandPageAction('bandPageRenameBtn', bandRename);
     bandPageAction('bandPageShareBtn', bandSetUpSharing);
     bandPageAction('bandPageDirectoryBtn', bandPickDirectory);
     bandPageAction('bandPageMergeBtn', bandPickMerge);
