@@ -1,5 +1,36 @@
 [
   {
+    "version": "0.78.0",
+    "date": "2026-10-29",
+    "changes": [
+      {
+        "key": "ML-662",
+        "type": "Fixes",
+        "summary": "We made Fill all on Prepare give a level only to the bars that haven't got one yet, so levels you've already set are kept."
+      },
+      {
+        "key": "ML-661",
+        "type": "Fixes",
+        "summary": "We try again when your settings don't load as the app opens, then show what your device last had and say so - instead of quietly showing the basics."
+      },
+      {
+        "key": "ML-659",
+        "type": "New",
+        "summary": "We made a band's logo and name changeable in one place - tap the pencil beside the name - and a band's organisers can now change its name."
+      },
+      {
+        "key": "ML-658",
+        "type": "New",
+        "summary": "We let you choose who a piece is for and its practice list on Quick entry's first step, so you don't have to move it afterwards."
+      },
+      {
+        "key": "ML-657",
+        "type": "New",
+        "summary": "We check photos of a piece before reading them, ask its time signature first when it can't be made out, and can read it again with what you can see."
+      }
+    ]
+  },
+  {
     "version": "0.77.0",
     "date": "2026-10-29",
     "changes": [
