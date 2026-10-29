@@ -512,3 +512,30 @@ describe('ML-657: the time signature first, a read again with what the member sa
     }
   });
 });
+
+describe('ML-657 part 3: what the quick look at the pages means', () => {
+  test('a clean look stops nothing; a page on its side is turned, not stopped for', () => {
+    const j = PR.judgePages({ pages: [{ page: 1, music: true, printedNumber: null, cutOff: [], readable: true, turned: 'left' }], beats: 2, beatType: 4, timeSure: true, lastPageEnds: true }, 1);
+    assert.deepEqual(j.problems, []);
+    assert.deepEqual(j.turns, [{ page: 1, quarters: 1 }]);
+    assert.deepEqual(j.time, { beats: 2, beatType: 4 });
+  });
+  test('a missing page, a cut-off edge, an unreadable page and no end are each said, page by page', () => {
+    const page = (n, over) => ({ page: n, music: true, printedNumber: n, cutOff: [], readable: true, turned: 'upright', ...over });
+    const j = PR.judgePages({ pages: [page(1), page(2, { cutOff: ['right', 'right', 'nowhere'] }), page(3, { printedNumber: 4, readable: false })], beats: null, beatType: null, timeSure: false, lastPageEnds: false }, 3);
+    assert.deepEqual(j.problems.map(p => p.kind), ['cut', 'unreadable', 'missing', 'end']);
+    assert.match(j.problems[0].text, /Page 2's right edge is cut off/);
+    const missing = j.problems.find(p => p.kind === 'missing');
+    assert.match(missing.text, /Page 3 seems to be missing \(the pages are numbered 1, 2, 4\)/);
+    assert.equal(missing.before, 3, 'it goes before the page numbered 4');
+    assert.equal(j.time, null, 'no time signature read: the member is asked before the read');
+  });
+  test('a page that is not music is said, and nothing else about it', () => {
+    const j = PR.judgePages({ pages: [{ page: 1, music: false, printedNumber: null, cutOff: ['top'], readable: false, turned: 'upright' }], timeSure: false, lastPageEnds: true }, 1);
+    assert.deepEqual(j.problems.map(p => p.kind), ['notMusic']);
+  });
+  test('turned pages told to the reader are checked: real pages, a quarter, half or three quarters', () => {
+    assert.deepEqual(PR.cleanTurns([{ page: 2, quarters: 1 }, { page: 0, quarters: 1 }, { page: 3, quarters: 4 }, { page: 'x', quarters: 2 }, { page: 4, quarters: 3 }]), [{ page: 2, quarters: 1 }, { page: 4, quarters: 3 }]);
+    assert.deepEqual(PR.cleanTurns('nope'), []);
+  });
+});

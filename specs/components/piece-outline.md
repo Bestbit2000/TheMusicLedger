@@ -138,7 +138,11 @@ and media, and goes back to where Add a piece was opened from (never the edit sc
   and `.read-page-actions` (`.btn-text` of their own width): **Turn it** (on its side - a quarter turn clockwise each
   tap, and it looks again) and **Retake** (that page chosen again, the rest kept). Then Cancel / **Read it anyway**
   (`.btn-submit`) - a false alarm never blocks. New classes: `.read-page-list`, `.read-page-row`, `.read-page-thumb`,
-  `.read-page-text`, `.read-page-actions`; new token `--read-page-thumb`.
+  `.read-page-text`, `.read-page-actions`; new token `--read-page-thumb`. **The quick look** (part 3) uses the same
+  pop-up for what it found: a row per finding, in words - a photo's with its thumbnail and **Retake**, **Add the
+  missing page** or **Add a page after it**; a PDF's with no thumbnail and **Choose the PDF again** - then **Read it
+  anyway**. When it couldn't read the time signature, `#pieceReadGivensModal` comes first as **What time is it in?**
+  ("Choose" until one is picked; **Not sure** reads it without one; **Read it in 2/4**).
 - **The time signature comes first** (ML-657): a time signature not read, or read as a guess, is the first check on How
   long. Its answers include **It's in a different time - read it again**: the usual time signature picker, then **Read
   it again** (`#pieceReadGivensModal`, no new styles): `.modal-intro`, the time signature as a value box

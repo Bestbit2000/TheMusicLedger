@@ -12,7 +12,7 @@ import { createCustomTimeSignature } from './timeSignatures.js';
 import { isOwnBlobUrl, readCappedBody } from './musicXmlImport.js';
 import { assertFlowAccess } from './flows.js';
 import { getLimit } from './features.js';
-import { readPieceFromFiles, PieceRead, READ_VERSION, readerModel, mediaTypeOf, MAX_READ_BYTES, MAX_READ_FILES } from './pieceReader.js';
+import { readPieceFromFiles, PieceRead, READ_VERSION, readerModel, mediaTypeOf, MAX_READ_BYTES, MAX_READ_FILES, checkPagesFromFiles, pageCheckModel, PAGE_CHECK_VERSION } from './pieceReader.js';
 
 // Where the browser puts the pages: read once and deleted. And where a kept test's pages stay.
 export const readUploadPrefix = (accountId) => `piece-read/${accountId}/`;
@@ -22,7 +22,8 @@ const MAX_SAVED_JSON = 80000;
 
 // The model's list price in US dollars per million units in and out, as read on Vercel's model list on
 // 10 Oct 2026 - for the estimate on Admin -> Photo reads only. Vercel's own page is the bill.
-const PRICES = { 'anthropic/claude-opus-5.5': [4, 20] };
+// ($ per million units in / out, at list price - the trial of 10 Oct 2026; ML-657 adds the page check's candidates)
+const PRICES = { 'anthropic/claude-opus-5.5': [4, 20], 'anthropic/claude-haiku-5.5': [0.10, 0.50], 'google/gemini-3.8-flash': [0.75, 3.75] };
 export function costUsd(model, unitsIn, unitsOut) {
   const p = PRICES[model];
   return p ? (unitsIn * p[0] + unitsOut * p[1]) / 1e6 : null;
@@ -196,17 +197,18 @@ export function cleanPageWarnings(raw) {
   return out.length ? out : null;
 }
 
-export async function readForAccount(accountId, rawFiles, { joinMovements = false, clientRef = null, estimateMs = null, givens: rawGivens = null, pageWarnings: rawWarnings = null } = {}) {
+export async function readForAccount(accountId, rawFiles, { joinMovements = false, clientRef = null, estimateMs = null, givens: rawGivens = null, pageWarnings: rawWarnings = null, pageCheckId = null, turns: rawTurns = null } = {}) {
   const ref = REF.test(String(clientRef || '')) ? String(clientRef) : null;
   const givens = PieceRead.cleanGivens(rawGivens); // ML-657: what the member told a read again
   const warnings = cleanPageWarnings(rawWarnings);
+  const turns = PieceRead.cleanTurns(rawTurns); // ML-657 part 3: a PDF's pages the quick look found turned
   const estimate = Number.isFinite(Number(estimateMs)) && Number(estimateMs) > 0 ? Math.round(Number(estimateMs)) : null;
   const files = checkedFiles(rawFiles, readUploadPrefix(accountId));
   let buffers = [];
   let result;
   try {
     buffers = await fetchBuffers(files);
-    result = await readPieceFromFiles(buffers, { givens });
+    result = await readPieceFromFiles(buffers, { givens, turns });
   } catch (error) {
     await pool.query(
       `INSERT INTO piece_reads (account_id, status, failure, model, prompt_version, file_count, file_bytes, givens) VALUES ($1, 'failed', $2, $3, $4, $5, $6, $7)`,
@@ -226,6 +228,8 @@ export async function readForAccount(accountId, rawFiles, { joinMovements = fals
      VALUES ($1, 'read', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CASE WHEN $13 THEN now() END, $14, $15) RETURNING id`,
     [accountId, result.model, READ_VERSION, kind, files.length, buffers.reduce((n, b) => n + b.length, 0), result.usage.inputTokens, result.usage.outputTokens, result.ms, pages, estimate, ref, stopped, givens ? JSON.stringify(givens) : null, warnings ? JSON.stringify(warnings) : null]);
   const readId = Number(rows[0].id);
+  // ML-657 part 3: the quick look that came before it, if there was one (only this account's)
+  if (/^d+$/.test(String(pageCheckId || ''))) await pool.query('UPDATE piece_page_checks SET read_id = $1 WHERE id = $2 AND account_id = $3 AND read_id IS NULL', [readId, pageCheckId, accountId]).catch(() => {});
 
   const pieces = [];
   const found = joinMovements && result.whole ? [...result.pieces, result.whole] : result.pieces;
@@ -240,6 +244,65 @@ export async function readForAccount(accountId, rawFiles, { joinMovements = fals
     pieces.push({ index, about: p.about, outline: o, rating, ...(p === result.whole ? { whole: true, movements: o.movements.length } : {}) });
   }
   return { readId, ms: result.ms, pieces };
+}
+
+// ---- ML-657 part 3: the quick look at the pages before the full read ----
+// The same uploaded pages (they stay for the full read, or go in the daily sweep), a cheaper model, logged in
+// piece_page_checks. It never counts against the allowance, but the allowance has to have a read left to look for.
+export async function pageCheckForAccount(accountId, rawFiles) {
+  const files = checkedFiles(rawFiles, readUploadPrefix(accountId));
+  let buffers = [];
+  try {
+    buffers = await fetchBuffers(files);
+    const r = await checkPagesFromFiles(buffers);
+    const kind = mediaTypeOf(buffers[0]) === 'application/pdf' ? 'pdf' : 'photos';
+    const { rows } = await pool.query(
+      `INSERT INTO piece_page_checks (account_id, status, model, prompt_version, file_kind, file_count, units_in, units_out, ms, judged, choice)
+       VALUES ($1, 'checked', $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+      [accountId, r.model, PAGE_CHECK_VERSION, kind, files.length, r.usage.inputTokens, r.usage.outputTokens, r.ms, JSON.stringify(r.judged), r.judged.problems.length ? null : 'carried on']);
+    return { checkId: Number(rows[0].id), kind, ...r.judged };
+  } catch (error) {
+    await pool.query(`INSERT INTO piece_page_checks (account_id, status, failure, model, prompt_version, file_count) VALUES ($1, 'failed', $2, $3, $4, $5)`,
+      [accountId, String(error.message || 'failed').slice(0, 300), pageCheckModel(), PAGE_CHECK_VERSION, files.length]).catch(() => {});
+    throw error;
+  }
+}
+// What the member did when it stopped: read anyway, retake (or add a page), or stopped there
+const PAGE_CHECK_CHOICES = ['read anyway', 'retake', 'stopped'];
+export async function choosePageCheck(accountId, checkId, choice) {
+  if (!PAGE_CHECK_CHOICES.includes(choice)) throw withStatus(400, 'Choose what to do.');
+  await pool.query('UPDATE piece_page_checks SET choice = $1 WHERE id = $2 AND account_id = $3', [choice, checkId, accountId]);
+  return { ok: true };
+}
+// Admin -> Photo reads: does it earn its few seconds? How often it stopped a read and for what; how often a member read
+// anyway and whether those reads then came back with page problems (an edge cut off, the end not seen); for the reads
+// it passed, how often the full read still found one (its misses); and what it adds in time and cost.
+const PAGE_PROBLEM_KINDS = ['cropped', 'end', 'dropped'];
+export async function pageCheckSummary() {
+  const { rows } = await pool.query(
+    `SELECT c.id, c.status, c.model, c.units_in, c.units_out, c.ms, c.judged, c.choice, c.read_id,
+            EXISTS (SELECT 1 FROM piece_read_pieces p, jsonb_array_elements(COALESCE(p.checks, '[]'::jsonb)) x
+                     WHERE p.read_id = c.read_id AND x->>'kind' = ANY($1)) AS read_found_problem
+       FROM piece_page_checks c ORDER BY c.created_at DESC LIMIT 1000`, [PAGE_PROBLEM_KINDS]);
+  const checked = rows.filter(r => r.status === 'checked');
+  const stopped = checked.filter(r => r.judged && r.judged.problems && r.judged.problems.length);
+  const byKind = {};
+  stopped.forEach(r => r.judged.problems.forEach(p => { byKind[p.kind] = (byKind[p.kind] || 0) + 1; }));
+  const anyway = stopped.filter(r => r.choice === 'read anyway');
+  const passed = checked.filter(r => r.choice === 'carried on' && r.read_id);
+  const cost = checked.reduce((n, r) => n + (costUsd(r.model, r.units_in, r.units_out) || 0), 0);
+  return {
+    checks: checked.length, failed: rows.length - checked.length,
+    stopped: stopped.length, byKind,
+    choices: { 'read anyway': anyway.length, retake: stopped.filter(r => r.choice === 'retake').length, stopped: stopped.filter(r => r.choice === 'stopped').length },
+    readAnywayFoundProblem: anyway.filter(r => r.read_id && r.read_found_problem).length, readAnywayRead: anyway.filter(r => r.read_id).length,
+    passedRead: passed.length, missed: passed.filter(r => r.read_found_problem).length,
+    turned: checked.filter(r => r.judged && r.judged.turns && r.judged.turns.length).length,
+    timeNotRead: checked.filter(r => r.judged && !r.judged.time).length,
+    seconds: checked.length ? Math.round(checked.reduce((n, r) => n + (r.ms || 0), 0) / checked.length / 100) / 10 : null,
+    costPerCheck: checked.length ? cost / checked.length : null, costUsd: cost,
+    model: pageCheckModel()
+  };
 }
 
 async function ownRead(accountId, readId) {
@@ -307,7 +370,7 @@ export async function listReads() {
             created_at >= date_trunc('month', now() AT TIME ZONE 'Europe/London') AT TIME ZONE 'Europe/London' AS this_month,
             created_at >= date_trunc('quarter', now() AT TIME ZONE 'Europe/London') AT TIME ZONE 'Europe/London' AS this_quarter
        FROM piece_read_stops ORDER BY created_at DESC LIMIT 2000`)).rows;
-  return { reads: list, summary: summarise(list, stops), model: readerModel(), promptVersion: READ_VERSION };
+  return { reads: list, summary: summarise(list, stops), model: readerModel(), promptVersion: READ_VERSION, pageChecks: await pageCheckSummary() }; // ML-657 part 3
 }
 // ML-645: stops this month, this quarter and in all - while sending and while reading - how long people had waited
 // (the middle one), and what the reads that were stopped but still finished cost

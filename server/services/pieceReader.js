@@ -178,7 +178,14 @@ export function parseAnswer(text) {
 // where read is the checked answer, outline is ready for Quick entry (time signatures as "3/4" keys, with
 // `sigs` saying what each is, for the caller to turn into the account's own) and rating is
 // { level, checks }. Throws withStatus 4xx with a message for the member; nothing is stored.
-export async function readPieceFromFiles(buffers, { fetchImpl = fetch, givens = null } = {}) {
+// ML-657 part 3: pages of a PDF the quick look found printed on their side (photos are turned in the browser first)
+const WAYS = { 1: 'a quarter turn to the left', 2: 'upside down', 3: 'a quarter turn to the right' };
+export function turnsText(turns) {
+  if (!turns || !turns.length) return '';
+  return turns.map((t) => `Page ${t.page} is turned ${WAYS[t.quarters]}: read it as if it were turned the right way up.`).join('\n');
+}
+
+export async function readPieceFromFiles(buffers, { fetchImpl = fetch, givens = null, turns = [] } = {}) {
   const key = gatewayKey();
   if (!key) throw withStatus(422, "Reading a piece from a photo isn't set up here yet.");
   const files = (buffers || []).filter(Boolean);
@@ -212,7 +219,7 @@ export async function readPieceFromFiles(buffers, { fetchImpl = fetch, givens = 
         ...(process.env.PIECE_READER_EFFORT ? { reasoning: { effort: process.env.PIECE_READER_EFFORT } } : {}),
         messages: [
           { role: 'system', content: READ_PROMPT },
-          { role: 'user', content: [...parts, { type: 'text', text: ['Read the structure of the music on these pages.', givensText(givens)].filter(Boolean).join('\n\n') }] }
+          { role: 'user', content: [...parts, { type: 'text', text: ['Read the structure of the music on these pages.', turnsText(turns), givensText(givens)].filter(Boolean).join('\n\n') }] }
         ],
         response_format: { type: 'json_schema', json_schema: { name: 'piece_read', description: 'The structure of the music on the pages', schema: READ_SCHEMA } },
         // Only providers that have agreed not to keep or train on what is sent.
@@ -244,6 +251,87 @@ export async function readPieceFromFiles(buffers, { fetchImpl = fetch, givens = 
     pieces: pieces.map(asRead),
     whole: PieceRead.looksLikeOneWork(pieces) ? asRead(PieceRead.join(pieces)) : null,
     model,
+    usage: { inputTokens: Number(answer?.usage?.prompt_tokens) || 0, outputTokens: Number(answer?.usage?.completion_tokens) || 0 },
+    ms: Date.now() - started
+  };
+}
+
+// ---- ML-657 part 3: the quick look at the pages before the full read ----
+// A cheaper model, the same pages and the same gateway with zero data retention, a few questions a page: is it music,
+// the page number printed on it, any edge cut off, can it be read, which way up it is - and, for the start, the time
+// signature if it can be read; for the end, whether the piece ends there. What it means is PieceRead.judgePages.
+// PAGE_CHECK_MODEL changes the model without a release (the owner chooses it from the trial: scripts/page-check-trial.mjs).
+const DEFAULT_PAGE_CHECK_MODEL = 'anthropic/claude-haiku-5.5';
+export const pageCheckModel = () => process.env.PAGE_CHECK_MODEL || DEFAULT_PAGE_CHECK_MODEL;
+export const PAGE_CHECK_SCHEMA = object({
+  pages: list({
+    page: int,
+    music: { type: 'boolean' },
+    printedNumber: nullable('integer'),
+    cutOff: { type: 'array', items: { type: 'string', enum: ['top', 'bottom', 'left', 'right'] } },
+    readable: { type: 'boolean' },
+    turned: { type: 'string', enum: ['upright', 'left', 'right', 'upsideDown'] }
+  }),
+  beats: nullable('integer'),
+  beatType: nullable('integer'),
+  timeSure: { type: 'boolean' },
+  lastPageEnds: { type: 'boolean' }
+});
+export const PAGE_CHECK_PROMPT = `You take a QUICK LOOK at photos or a PDF of one player's part of printed music, before it is read properly. Do not count bars or read notes. For each page, in the order given (for a PDF, each page of it):
+- page: its place in the order given, from 1.
+- music: true if it is a page of printed or handwritten music.
+- printedNumber: the page number printed on it (a number at the top or bottom corner of the page), or null when none is printed. Not a bar number.
+- cutOff: each edge of the page where the music runs off the edge of the photo or scan, so that some of it may be missing. Leave it empty when there is margin all round the music.
+- readable: false only when the music is too blurred, dark, faint or small to make out the bar lines.
+- turned: "upright" when the lines of music run left to right the right way up; "left" when the page has been turned a quarter turn to the left (the lines run upwards from the bottom); "right" when turned a quarter turn to the right (the lines run downwards from the top); "upsideDown" when upside down.
+Then:
+- beats, beatType: the time signature printed at the very start of the music (common time is 4/4, cut time is 2/2), or null for both when there is none or you can't make it out.
+- timeSure: true only when that time signature is printed and you can read it clearly.
+- lastPageEnds: true when the last page ends the piece - a final double barline, or Fine, D.C. or D.S. at the end of its last line.`;
+export const PAGE_CHECK_VERSION = createHash('sha256').update(PAGE_CHECK_PROMPT + JSON.stringify(PAGE_CHECK_SCHEMA)).digest('hex').slice(0, 10);
+
+export async function checkPagesFromFiles(buffers, { fetchImpl = fetch, model = pageCheckModel() } = {}) {
+  const key = gatewayKey();
+  if (!key) throw withStatus(422, "Checking the pages isn't set up here yet.");
+  const files = (buffers || []).filter(Boolean);
+  if (!files.length) throw withStatus(422, 'There is no photo or PDF to look at.');
+  const parts = files.map(buffer => {
+    const mediaType = mediaTypeOf(buffer);
+    if (!mediaType) throw withStatus(422, 'That file is not a photo (JPEG, PNG or WebP) or a PDF.');
+    return filePart(buffer, mediaType);
+  });
+  const started = Date.now();
+  let response;
+  try {
+    response = await fetchImpl(GATEWAY_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(Number(process.env.PAGE_CHECK_TIMEOUT_MS) || 60000),
+      body: JSON.stringify({
+        model,
+        stream: false,
+        max_tokens: 4000,
+        messages: [
+          { role: 'system', content: PAGE_CHECK_PROMPT },
+          { role: 'user', content: [...parts, { type: 'text', text: 'Take a quick look at these pages.' }] }
+        ],
+        response_format: { type: 'json_schema', json_schema: { name: 'page_check', description: 'A quick look at the pages', schema: PAGE_CHECK_SCHEMA } },
+        providerOptions: { gateway: { zeroDataRetention: true } }
+      })
+    });
+  } catch (err) {
+    throw withStatus(422, "Couldn't check the pages just now.");
+  }
+  if (!response.ok) {
+    console.error('pageCheck: gateway answered', response.status, (await response.text().catch(() => '')).slice(0, 300));
+    throw withStatus(422, "Couldn't check the pages just now.");
+  }
+  const answer = await response.json().catch(() => null);
+  const raw = parseAnswer(answer?.choices?.[0]?.message?.content);
+  if (!raw) throw withStatus(422, "Couldn't check the pages just now.");
+  return {
+    raw, model,
+    judged: PieceRead.judgePages(raw, files.length === 1 && mediaTypeOf(files[0]) === 'application/pdf' ? 200 : files.length),
     usage: { inputTokens: Number(answer?.usage?.prompt_tokens) || 0, outputTokens: Number(answer?.usage?.completion_tokens) || 0 },
     ms: Date.now() - started
   };

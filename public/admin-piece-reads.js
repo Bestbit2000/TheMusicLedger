@@ -94,12 +94,24 @@
             </table></div>`;
     }
 
+    // ML-657 part 3: the quick look at the pages - does it earn its few seconds? How often it stopped a read and for
+    // what, what people did, whether reads it was right to stop (read anyway) came back with page problems, and how
+    // often a read it passed still found one (its misses)
+    const LOOK_KINDS = { notMusic: 'not music', unreadable: 'hard to read', cut: 'an edge cut off', missing: 'a page missing', end: 'no end' };
+    function pageChecksHtml(c) {
+        if (!c || !c.checks) return '';
+        const kinds = Object.entries(c.byKind).map(([k, n]) => `${esc(LOOK_KINDS[k] || k)} ${n}`).join(', ');
+        return `<h2 class="admin-stat-section-title">The quick look at the pages</h2>
+            <p class="admin-intro">${many(c.checks, 'look', 'looks')}${c.failed ? ` (${c.failed} failed - the read carried on)` : ''} with <strong>${esc(c.model)}</strong>, about ${c.seconds} seconds and ${money(c.costPerCheck)} each (${money(c.costUsd)} in all). It stopped ${many(c.stopped, 'read', 'reads')}${kinds ? ` (${kinds})` : ''}: ${c.choices['read anyway']} read anyway, ${c.choices.retake} retaken, ${c.choices.stopped} left there. Of those read anyway, ${c.readAnywayFoundProblem} of ${c.readAnywayRead} came back with a page problem. Of the reads it let through, ${c.missed} of ${c.passedRead} still found one (its misses). It turned ${many(c.turned, 'read', 'reads')}' pages upright and couldn't read the time signature on ${c.timeNotRead}.</p>`;
+    }
+
     function render() {
         const s = data.summary;
         const ratingRows = s.byRating.map(r => `<tr><td class="admin-bc-text">${badge(r.level)}</td><td>${r.saved}</td><td>${r.saved ? `${r.barsRight} of ${r.saved}` : '–'}</td><td>${r.saved ? `${r.same} of ${r.saved}` : '–'}</td></tr>`).join('');
         $('adminPieceReads').innerHTML = `
             <p class="admin-intro">${many(s.reads, 'read', 'reads')}${s.failed ? ` (${s.failed} failed)` : ''}, ${many(s.pieces, 'piece', 'pieces')} found, ${s.saved} saved, ${many(s.tests, 'test kept', 'tests kept')}. ${s.costPerRead === null ? '' : `About ${money(s.costPerRead)} and ${s.seconds} seconds a read; ${money(s.costUsd)} in all at the model's list price - Vercel's AI Gateway page is the bill.`} Reading now with <strong>${esc(data.model)}</strong>, prompt <strong>${esc(data.promptVersion)}</strong>.</p>
             ${stoppedHtml(s.stopped)}
+            ${pageChecksHtml(data.pageChecks)}
             ${answersHtml(s.answers)}
             ${answersByLevelHtml(s.answersByLevel)}
             <h2 class="admin-stat-section-title">Is the rating right?</h2>

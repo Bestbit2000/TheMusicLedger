@@ -42,7 +42,7 @@ import { assertRangeEnabled, getRange, setRange, recordGo, moveRange } from '../
 import { createFlow, listFlows, getFlowDetail, savePlaySettings, updateFlowMetadata, moveFlowToBand, removeFlowFromBand, publishFlow, setFlowAudience, setFlowArchived, setFlowsArchived, unpublishFlow, deleteFlow, duplicateFlow, assertFlowAccess, assertBandMembership, addUploadedRecording, addYouTubeRecording, deleteRecording, setRecordingClip, setRecordingMarks, setRecordingMovement, addDocument, deleteDocument, getFlowDefaultBlockSettings, withStatus, assertCanAddFiles } from '../services/flows.js';
 import { listFlowBlocks, createFlowBlock, updateFlowBlock, deleteFlowBlock, duplicateFlowBlock, reorderFlowBlocks, copyAllFlowBlocks, replaceAllFlowBlocks } from '../services/flowBlocks.js';
 import { importMusicXmlFile, isOwnBlobUrl, readCappedBody, MAX_SCORE_FILE_BYTES } from '../services/musicXmlImport.js';
-import { readForAccount, discardReadFiles, sweepReadUploads, markSaved as markPieceReadSaved, readUploadPrefix, testUploadPrefix, READ_CONTENT_TYPES, readAllowance, assertReadLeft, readEstimate, stopRead } from '../services/pieceReads.js';
+import { readForAccount, discardReadFiles, sweepReadUploads, markSaved as markPieceReadSaved, readUploadPrefix, testUploadPrefix, READ_CONTENT_TYPES, readAllowance, assertReadLeft, readEstimate, stopRead, pageCheckForAccount, choosePageCheck } from '../services/pieceReads.js';
 import { MAX_READ_BYTES } from '../services/pieceReader.js';
 import { MAX_PIECE_FILE_BYTES, MAX_BAND_LOGO_BYTES, BAND_LOGO_TYPES } from '../services/blobUrls.js';
 import { isFeatureEnabled, listEnabledFeatureKeys, getLimit, listLimits } from '../services/features.js';
@@ -2188,9 +2188,29 @@ router.post('/piece-read', requireAuth, resolveAccount, requireFeature('piece_fr
   try {
     await limitCalls('piece-read', req.accountId);
     await assertReadLeft(req.accountId);
-    res.json(await readForAccount(req.accountId, req.body?.files, { joinMovements: await isFeatureEnabled('piece_movements'), clientRef: req.body?.ref, estimateMs: req.body?.estimateMs, givens: req.body?.givens, pageWarnings: req.body?.pageWarnings }));
+    res.json(await readForAccount(req.accountId, req.body?.files, { joinMovements: await isFeatureEnabled('piece_movements'), clientRef: req.body?.ref, estimateMs: req.body?.estimateMs, givens: req.body?.givens, pageWarnings: req.body?.pageWarnings, pageCheckId: req.body?.pageCheckId, turns: req.body?.turns }));
   } catch (error) {
     await discardReadFiles(req.accountId, req.body?.files); // ML-553: refused or failed - the pages still go
+    sendError(res, error);
+  }
+});
+
+// ML-657 part 3: the quick look at the pages before the full read - its own switch, a read left to look for, never
+// counted; and what the member did when it stopped
+router.post('/piece-read/page-check', requireAuth, resolveAccount, requireFeature('piece_from_photo'), requireFeature('piece_page_check'), async (req, res) => {
+  try {
+    await limitCalls('piece-read', req.accountId);
+    await assertReadLeft(req.accountId);
+    res.json(await pageCheckForAccount(req.accountId, req.body?.files));
+  } catch (error) {
+    sendError(res, error); // the pages stay: the full read, a retake or the daily sweep deals with them
+  }
+});
+router.put('/piece-read/page-check/:id/choice', requireAuth, resolveAccount, requireFeature('piece_from_photo'), async (req, res) => {
+  try {
+    if (!/^d+$/.test(req.params.id)) return res.status(404).json({ error: 'Not found' });
+    res.json(await choosePageCheck(req.accountId, req.params.id, req.body?.choice));
+  } catch (error) {
     sendError(res, error);
   }
 });

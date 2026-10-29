@@ -445,6 +445,54 @@
         return { beats, beatType, changes: raw.changes === true, pickup: raw.pickup === true, bars: bars >= 1 && bars <= (maxBars || 2000) ? bars : null };
     }
 
+    // ---------- ML-657 part 3: the quick look at the pages before the full read ----------
+    // The page check's answer (server/services/pieceReader.js, PAGE_CHECK_SCHEMA) made safe, and what it means:
+    //   problems - what is worth stopping for, page by page, in words: { page, kind, text } with kind 'notMusic',
+    //              'unreadable', 'cut', 'missing' or 'end' (each one offers Read it anyway in the app);
+    //   turns    - pages printed on their side or upside down: { page, quarters } - quarter turns clockwise to put
+    //              it upright (done before the full read; never a problem to stop for);
+    //   time     - { beats, beatType } when a time signature at the start could be read, else null (then the
+    //              member is asked before the first read).
+    const TURNS = { upright: 0, left: 1, upsideDown: 2, right: 3 };
+    const EDGES = ['top', 'bottom', 'left', 'right'];
+    function judgePages(raw, fileCount) {
+        const pages = rows(raw && raw.pages).map((p, i) => ({
+            page: whole(p.page) >= 1 ? whole(p.page) : i + 1,
+            music: p.music !== false, readable: p.readable !== false,
+            printed: whole(p.printedNumber) >= 1 ? whole(p.printedNumber) : null,
+            cut: Array.isArray(p.cutOff) ? [...new Set(p.cutOff.filter(e => EDGES.includes(e)))] : [],
+            quarters: Object.hasOwn(TURNS, p.turned) ? TURNS[p.turned] : 0
+        })).slice(0, Math.max(1, fileCount || 50)).sort((a, b) => a.page - b.page);
+        const many = pages.length > 1;
+        const name = (p) => (many ? `Page ${p.page}` : 'The page');
+        const problems = [];
+        pages.forEach(p => {
+            if (!p.music) { problems.push({ page: p.page, kind: 'notMusic', text: `${name(p)} doesn't look like music.` }); return; }
+            if (!p.readable) problems.push({ page: p.page, kind: 'unreadable', text: `${name(p)} is hard to read - the bar lines may not come out right.` });
+            if (p.cut.length) problems.push({ page: p.page, kind: 'cut', text: `${name(p)}'s ${p.cut.join(' and ')} ${p.cut.length > 1 ? 'edges are' : 'edge is'} cut off - bars may be missing.` });
+        });
+        // A page number printed on each page: a gap is a page not sent (1, 2, 4)
+        const numbered = pages.filter(p => p.printed);
+        if (numbered.length >= 2) {
+            const nums = numbered.map(p => p.printed);
+            const missing = [];
+            for (let n = Math.min(...nums); n <= Math.max(...nums) && missing.length < 5; n++) if (!nums.includes(n)) missing.push(n);
+            // (`before`: where in the order sent the missing page goes - before the first page numbered after it)
+            const after = pages.findIndex(p => p.printed && p.printed > missing[0]);
+            if (missing.length) problems.push({ page: null, before: after < 0 ? pages.length + 1 : after + 1, kind: 'missing', text: `${missing.length > 1 ? `Pages ${missing.join(' and ')} seem` : `Page ${missing[0]} seems`} to be missing (the pages are numbered ${nums.join(', ')}).` });
+        }
+        if (pages.length && raw && raw.lastPageEnds === false) problems.push({ page: pages[pages.length - 1].page, kind: 'end', text: `The last page doesn't seem to end the piece - is there a page after it?` });
+        const beats = whole(raw && raw.beats), beatType = whole(raw && raw.beatType);
+        const time = raw && raw.timeSure === true && beats >= 1 && beats <= 32 && [1, 2, 4, 8, 16, 32].includes(beatType) ? { beats, beatType } : null;
+        return { problems, turns: pages.filter(p => p.quarters).map(p => ({ page: p.page, quarters: p.quarters })), time };
+    }
+    // Pages the full read is told are turned (a PDF's - photos are turned in the browser first): [{ page, quarters }]
+    function cleanTurns(raw, maxPages) {
+        if (!Array.isArray(raw)) return [];
+        return raw.slice(0, 50).map(t => ({ page: whole(t && t.page), quarters: whole(t && t.quarters) }))
+            .filter(t => t.page >= 1 && t.page <= (maxPages || 200) && [1, 2, 3].includes(t.quarters));
+    }
+
     // ---------- compare: the outline as read against the outline as saved ----------
     // What the member changed before saving, as plain counts - the measure of "right first time". Both are
     // Quick entry outlines with the same time signature keys. Returns
@@ -474,5 +522,5 @@
         return out;
     }
 
-    return { NOTE_VALUES, SIGN_KEYS, UNANCHORED_BARS, DEFAULT_BPM, normalise, bpmForWords, fit, rate, compare, fromBarOne, looksLikeOneWork, join, strains, cleanGivens };
+    return { NOTE_VALUES, SIGN_KEYS, UNANCHORED_BARS, DEFAULT_BPM, normalise, bpmForWords, fit, rate, compare, fromBarOne, looksLikeOneWork, join, strains, cleanGivens, judgePages, cleanTurns };
 }));

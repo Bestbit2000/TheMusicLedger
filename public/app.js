@@ -24710,37 +24710,60 @@
     // light enough, the right way up (public/pageCheck.js; free, no AI). All well: straight on to the read. Otherwise
     // #pieceReadPagesModal says what, on each page's thumbnail, with Turn it (on its side) and Retake for that page,
     // and Read it anyway - so a wrong warning never blocks. A PDF has nothing to look at here.
-    let pieceReadPages = null; // { files, problems, previews, retake } while the pop-up is open
+    // (ML-657 part 3: the same pop-up says what the quick look found - pieceReadPagesShowLook - with ctx, the read waiting)
+    let pieceReadPages = null; // { files, problems, previews, pick, ctx, opts } while the pop-up is open
     const pieceReadIsPdf = (f) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
     async function pieceReadCheckPages(files, opts) {
         const problem = pieceReadProblem(files);
         if (problem || !window.PageCheck || files.some(pieceReadIsPdf)) { pieceReadStart(files, opts); return; }
         const problems = await Promise.all(files.map((f) => PageCheck.checkFile(f).catch(() => null)));
         if (!problems.some((p) => p && p.length)) { pieceReadPagesClose(); pieceReadStart(files, opts); return; }
-        pieceReadPagesShow(files, problems.map((p) => p || []));
+        pieceReadPagesShow(files, problems.map((p) => p || []), opts);
     }
-    function pieceReadPagesShow(files, problems) {
+    function pieceReadPagesOpen(state, rowsHtml) {
         if (pieceReadPages) pieceReadPages.previews.forEach((u) => URL.revokeObjectURL(u));
-        pieceReadPages = { files, problems, previews: files.map((f) => URL.createObjectURL(f)), retake: null };
+        pieceReadPages = state;
+        document.getElementById('pieceReadPagesList').innerHTML = rowsHtml(state);
+        showModal('pieceReadPagesModal');
+    }
+    const pieceReadThumb = (url, name) => (url ? `<img class="read-page-thumb" src="${url}" alt="${escapeHtml(name)}">` : '');
+    function pieceReadPagesShow(files, problems, opts) {
         const many = files.length > 1;
-        document.getElementById('pieceReadPagesList').innerHTML = files.map((f, i) => {
+        pieceReadPagesOpen({ files, problems, opts: opts || {}, previews: files.map((f) => URL.createObjectURL(f)), pick: null, ctx: null }, (st) => files.map((f, i) => {
             const p = problems[i];
             if (!p.length) return '';
             const name = many ? `Page ${i + 1}` : 'The photo';
             const said = p.map((x) => escapeHtml(x.text)).join('; and it ');
-            return `<li class="read-page-row">
-                <img class="read-page-thumb" src="${pieceReadPages.previews[i]}" alt="${escapeHtml(name)}">
+            return `<li class="read-page-row">${pieceReadThumb(st.previews[i], name)}
                 <div class="read-page-text"><span><strong>${escapeHtml(name)}</strong> ${said}.</span>
                     <span class="read-page-actions">${p.some((x) => x.kind === 'sideways') ? `<button type="button" class="btn-text" data-page-turn="${i}">Turn it</button>` : ''}<button type="button" class="btn-text" data-page-retake="${i}">Retake</button></span>
                 </div>
             </li>`;
-        }).join('');
-        showModal('pieceReadPagesModal');
+        }).join(''));
+    }
+    // What the quick look found, page by page: a photo's thumbnail and Retake (or Add the missing page); a PDF is
+    // chosen again whole. Read it anyway carries on to the full read with the pages already sent.
+    function pieceReadPagesShowLook(ctx) {
+        const files = ctx.files;
+        pieceReadPagesOpen({ files, problems: null, opts: ctx.opts, previews: ctx.isPdf ? [] : files.map((f) => URL.createObjectURL(f)), pick: null, ctx }, (st) => ctx.look.problems.map((x) => {
+            const i = x.page ? x.page - 1 : null;
+            const thumb = !ctx.isPdf && i !== null ? pieceReadThumb(st.previews[i], `Page ${x.page}`) : '';
+            const act = ctx.isPdf ? '<button type="button" class="btn-text" data-page-again="1">Choose the PDF again</button>'
+                : x.kind === 'missing' ? `<button type="button" class="btn-text" data-page-add="${(x.before || files.length + 1) - 1}">Add the missing page</button>`
+                    : x.kind === 'end' ? `<button type="button" class="btn-text" data-page-add="${files.length}">Add a page after it</button>`
+                        : i !== null ? `<button type="button" class="btn-text" data-page-retake="${i}">Retake</button>` : '';
+            return `<li class="read-page-row">${thumb}<div class="read-page-text"><span>${escapeHtml(x.text)}</span><span class="read-page-actions">${act}</span></div></li>`;
+        }).join(''));
     }
     function pieceReadPagesClose() {
         hideModal('pieceReadPagesModal');
         if (pieceReadPages) pieceReadPages.previews.forEach((u) => URL.revokeObjectURL(u));
         pieceReadPages = null;
+    }
+    // A page to choose: Retake (at, replacing it) or Add (at, put in before the page there); then all are looked at again
+    function pieceReadPagesPick(at, insert) {
+        pieceReadPages.pick = { at, insert };
+        document.getElementById('pieceReadRetakeInput')?.click();
     }
     document.getElementById('pieceReadPagesList')?.addEventListener('click', async (e) => {
         const btn = e.target.closest('button');
@@ -24752,34 +24775,48 @@
             try { files[i] = await PageCheck.turnFile(files[i]); } catch (err) { showWarningToast("That photo couldn't be turned here."); btn.disabled = false; return; }
             const problems = [...pieceReadPages.problems];
             problems[i] = (await PageCheck.checkFile(files[i]).catch(() => null)) || [];
-            if (!problems.some((p) => p.length)) { const all = files; pieceReadPagesClose(); pieceReadStart(all); return; }
-            pieceReadPagesShow(files, problems.map((p, k) => (k === i && !p.length ? [{ kind: 'turned', text: 'is the right way up now' }] : p)));
+            const opts = pieceReadPages.opts;
+            if (!problems.some((p) => p.length)) { pieceReadPagesClose(); pieceReadStart(files, opts); return; }
+            pieceReadPagesShow(files, problems.map((p, k) => (k === i && !p.length ? [{ kind: 'turned', text: 'is the right way up now' }] : p)), opts);
             return;
         }
-        if (btn.dataset.pageRetake !== undefined) {
-            pieceReadPages.retake = Number(btn.dataset.pageRetake);
-            document.getElementById('pieceReadRetakeInput')?.click();
+        if (btn.dataset.pageRetake !== undefined) { pieceReadPagesPick(Number(btn.dataset.pageRetake), false); return; }
+        if (btn.dataset.pageAdd !== undefined) { pieceReadPagesPick(Number(btn.dataset.pageAdd), true); return; }
+        if (btn.dataset.pageAgain !== undefined) {
+            // a PDF: the whole file again, keeping where the piece goes and anything already said (ML-657)
+            const ctx = pieceReadPages.ctx;
+            if (ctx) { pieceReadLookChoice(ctx.look, 'retake'); pieceReadNext = { target: ctx.target, givens: ctx.givens }; }
+            pieceReadPagesClose();
+            withUploadRights(() => pieceReadInput.click());
         }
     });
-    // Retake: that page is chosen again (the camera on a phone) and the others are kept; then all are looked at again
     document.getElementById('pieceReadRetakeInput')?.addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
         e.target.value = '';
-        if (!file || !pieceReadPages || pieceReadPages.retake === null) return;
+        if (!file || !pieceReadPages || !pieceReadPages.pick) return;
         const files = [...pieceReadPages.files];
-        files[pieceReadPages.retake] = file;
-        hideModal('pieceReadPagesModal');
-        pieceReadCheckPages(files);
+        const { at, insert } = pieceReadPages.pick;
+        if (insert) files.splice(Math.max(0, Math.min(files.length, at)), 0, file); else files[at] = file;
+        const ctx = pieceReadPages.ctx;
+        if (ctx) { pieceReadLookChoice(ctx.look, 'retake'); pieceReadNext = { target: ctx.target, givens: ctx.givens }; } // a fresh send and look
+        const opts = pieceReadPages.opts;
+        pieceReadPagesClose();
+        pieceReadCheckPages(files, opts);
     });
     document.getElementById('pieceReadPagesGo')?.addEventListener('click', () => {
         if (!pieceReadPages) return;
+        const ctx = pieceReadPages.ctx;
+        if (ctx) { pieceReadLookChoice(ctx.look, 'read anyway'); pieceReadPagesClose(); pieceReadRun(ctx); return; } // the pages already sent
         const { files, problems } = pieceReadPages;
         // what was read anyway goes in the log, so Admin -> Photo reads can say whether the warning was right
         const pageWarnings = problems.map((p, i) => ({ page: i + 1, kinds: p.map((x) => x.kind).filter((k) => k !== 'turned') })).filter((w) => w.kinds.length);
         pieceReadPagesClose();
         pieceReadStart(files, { pageWarnings });
     });
-    document.getElementById('pieceReadPagesCancel')?.addEventListener('click', pieceReadPagesClose);
+    document.getElementById('pieceReadPagesCancel')?.addEventListener('click', () => {
+        if (pieceReadPages && pieceReadPages.ctx) pieceReadLookChoice(pieceReadPages.ctx.look, 'stopped');
+        pieceReadPagesClose();
+    });
     // What stops a choice of files being sent, in words - or null. One PDF, or photos; never both.
     function pieceReadProblem(files) {
         const isPdf = (f) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
@@ -24817,17 +24854,37 @@
         const next = pieceReadNext;
         pieceReadNext = null;
         const target = (next && next.target) || addPieceTakeTarget();
+        const isPdf = files.length === 1 && /pdf/i.test(files[0].type + files[0].name);
+        await pieceReadRun({ files, opts: opts || {}, next, target, isPdf, allowance, givens: (next && next.givens) || null, sent: null, looked: false, look: null, timeAsked: false, turns: [] });
+    }
+    // ML-657 part 3: the read in stages - send the pages, the quick look at them (pieceReadLook), then the full read. A
+    // stage that needs the member (what the look found, or a time signature it couldn't read) stops here and comes back
+    // to pieceReadRun(ctx) with their answer; the pages already sent are used again.
+    async function pieceReadRun(ctx) {
+        const { files, isPdf, target, opts } = ctx;
         pieceReadBusy = true;
         pieceReadBtn.disabled = true;
         pieceReadBtn.setAttribute('aria-busy', 'true');
-        const isPdf = files.length === 1 && /pdf/i.test(files[0].type + files[0].name);
-        const wait = pieceReadWaitOpen(files, isPdf, allowance);
+        const wait = pieceReadWaitOpen(files, isPdf, ctx.allowance);
         try {
             if (!accountProfile) accountProfile = await API.account.get();
-            const sent = await pieceReadUpload(files, 'piece-read', (text, pct) => wait.sending(pct));
-            if (wait.stopped) { pieceReadWaitStop(wait, 'sending'); return; } // stopped while sending: nothing is read
+            if (!ctx.sent) {
+                ctx.sent = await pieceReadUpload(files, 'piece-read', (text, pct) => wait.sending(pct));
+                if (wait.stopped) { pieceReadWaitStop(wait, 'sending'); return; } // stopped while sending: nothing is read
+            }
+            if (!ctx.looked && isFeatureEnabled('piece_page_check')) {
+                ctx.looked = true;
+                if (!(await pieceReadLook(ctx, wait))) return; // it stopped for the member, or they stopped it
+            }
+            if (ctx.look && !ctx.look.time && !ctx.givens && !ctx.timeAsked) { wait.close(); pieceReadGivensOpen({ first: ctx, sig: null, changes: false, pickup: false, bars: '' }); return; }
             wait.reading();
-            const result = await apiCall('/api/piece-read', 'POST', { files: sent, ref: wait.ref, estimateMs: wait.estimateMs(), ...(next && next.givens ? { givens: next.givens } : {}), ...(opts && opts.pageWarnings && opts.pageWarnings.length ? { pageWarnings: opts.pageWarnings } : {}) });
+            const result = await apiCall('/api/piece-read', 'POST', {
+                files: ctx.sent, ref: wait.ref, estimateMs: wait.estimateMs(),
+                ...(ctx.givens ? { givens: ctx.givens } : {}),
+                ...(opts.pageWarnings && opts.pageWarnings.length ? { pageWarnings: opts.pageWarnings } : {}),
+                ...(ctx.look ? { pageCheckId: ctx.look.checkId } : {}),
+                ...(ctx.turns.length ? { turns: ctx.turns } : {})
+            });
             if (wait.stopped) return; // stopped while reading: the answer is let go, and the read doesn't count
             wait.close();
             const read = { id: result.readId, files, kind: isPdf ? 'PDF' : (files.length > 1 ? 'photos' : 'photo') };
@@ -24847,8 +24904,37 @@
             pieceReadShowAllowance(); // one fewer left - or not, if it was stopped
         }
     }
-
-    // ---------- ML-645: the waiting screen while a photo or PDF is read ----------
+    // The quick look (ML-657 part 3, owner 29 Oct 2026): a cheaper model, a few seconds, never one of the member's reads.
+    // Pages on their side are put upright - a photo turned here and sent again, a PDF's page told to the reader. A page
+    // missing, cut off or unreadable stops it before the full read is spent, page by page, with Read it anyway. A look
+    // that fails never stops a read. Returns true to carry on to the full read.
+    async function pieceReadLook(ctx, wait) {
+        wait.checking();
+        let look = null;
+        try { look = await apiCall('/api/piece-read/page-check', 'POST', { files: ctx.sent }); } catch (e) { look = null; }
+        if (wait.stopped) { if (look) pieceReadLookChoice(look, 'stopped'); return false; }
+        if (!look) return true;
+        ctx.look = look;
+        if (look.turns.length) {
+            if (ctx.isPdf) ctx.turns = look.turns;
+            else {
+                for (const t of look.turns) {
+                    const i = t.page - 1;
+                    if (!ctx.files[i]) continue;
+                    try {
+                        let f = ctx.files[i];
+                        for (let q = 0; q < t.quarters; q++) f = await PageCheck.turnFile(f);
+                        const [again] = await pieceReadUpload([f], 'piece-read', () => {});
+                        ctx.files[i] = f;
+                        ctx.sent[i] = again;
+                    } catch (e) { /* it is read as it was sent */ }
+                }
+            }
+        }
+        if (look.problems.length) { wait.close(); pieceReadPagesShowLook(ctx); return false; }
+        return true;
+    }
+    const pieceReadLookChoice = (look, choice) => apiCall(`/api/piece-read/page-check/${look.checkId}/choice`, 'PUT', { choice }).catch(() => { /* counted when it can be */ });
     // A turning ring, what it is doing, a bar - the upload's own % while sending, then an estimate while reading (how
     // long reads like this usually take: GET /api/piece-read/estimate) - the time so far, the member's reads left and
     // when they start again, and Cancel. The bar never reaches 100% before the answer and holds at 95%; past the
@@ -24916,6 +25002,15 @@
             setBar(pct);
             el('pieceReadWaitDone').textContent = `${Math.round(pct)}% sent`;
         };
+        // ML-657 part 3: the quick look first - "Checking your pages", then straight on into "Reading the music"
+        w.checking = () => {
+            w.stage = 'checking';
+            el('pieceReadWaitIcon').textContent = 'search';
+            stageText('Checking your pages');
+            el('pieceReadWaitSub').textContent = "A quick look for a missing page, a cut-off edge or a page on its side. It doesn't use one of your reads.";
+            el('pieceReadWaitDone').textContent = '';
+            setBar(null);
+        };
         w.reading = () => {
             w.stage = 'reading';
             w.readingFrom = Date.now();
@@ -24943,7 +25038,7 @@
     function pieceReadWaitCancel() {
         const w = pieceReadWait;
         if (!w || !w.open || w.stopped) return;
-        if (w.stage === 'sending') { w.stopped = true; w.close(); showInfoToast("Stopped - it doesn't count as one of your reads."); return; }
+        if (w.stage === 'sending' || w.stage === 'checking') { w.stopped = true; w.close(); showInfoToast("Stopped - it doesn't count as one of your reads."); return; }
         showConfirmModal('Stop reading?', "It won't count as one of your reads.", () => pieceReadWaitStop(w, 'reading'), false, 'Stop', 'Keep waiting');
     }
     function pieceReadWaitStop(w, stage) {
@@ -25284,16 +25379,24 @@
     function outlineReadAgainGiven(c) {
         outlinePickSig(outline.o.mainSig, (sig) => pieceReadGivensOpen({ check: c, sig, changes: false, pickup: false, bars: '' }));
     }
-    function pieceReadGivensOpen(state) {
+    // ML-657 part 3: the same box before the first read (state.first, the read waiting), when the quick look couldn't
+    // read a time signature at the start - "What time is it in?", with Not sure to read it without one
+    async function pieceReadGivensOpen(state) {
         pieceReadGivens = state;
-        const label = outlineSigLabel(state.sig);
+        if (!metroBlkTimeSigCache.public.length) { try { await loadMetroBlkTimeSignatures(); } catch (e) { /* the picker says so */ } }
+        const label = state.sig ? outlineSigLabel(state.sig) : 'Choose';
         const timeBtn = document.getElementById('pieceReadGivensTime');
         timeBtn.innerHTML = `<strong>${escapeHtml(label)}</strong><span class="metroBlk-ctrl-value-label">time signature at the start</span>`;
         timeBtn.setAttribute('aria-label', `Time signature at the start: ${label} - tap to change`);
         document.getElementById('pieceReadGivensChanges').checked = state.changes;
         document.getElementById('pieceReadGivensPickup').checked = state.pickup;
         document.getElementById('pieceReadGivensBars').value = state.bars;
-        document.getElementById('pieceReadGivensGo').textContent = `Read it again in ${label}`;
+        document.getElementById('pieceReadGivensTitle').textContent = state.first ? 'What time is it in?' : 'Read it again';
+        document.getElementById('pieceReadGivensHelp').textContent = state.first
+            ? "The time signature at the start couldn't be read. Say what you can see at a glance, and the bars are counted from the notes."
+            : 'Say what you can see at a glance. Knowing the beats in a bar, the bars are counted from the notes.';
+        document.getElementById('pieceReadGivensCancel').textContent = state.first ? 'Not sure' : 'Cancel';
+        document.getElementById('pieceReadGivensGo').textContent = state.first ? (state.sig ? `Read it in ${label}` : 'Read it') : `Read it again in ${label}`;
         showModal('pieceReadGivensModal');
     }
     const pieceReadGivensKeep = () => {
@@ -25310,16 +25413,27 @@
         hideModal('pieceReadGivensModal'); // pop-ups don't stack: the picker, then back here
         outlinePickSig(g.sig, (sig) => pieceReadGivensOpen({ ...g, sig }));
     });
-    document.getElementById('pieceReadGivensCancel')?.addEventListener('click', () => { hideModal('pieceReadGivensModal'); pieceReadGivens = null; });
+    document.getElementById('pieceReadGivensCancel')?.addEventListener('click', () => {
+        const g = pieceReadGivens;
+        hideModal('pieceReadGivensModal');
+        pieceReadGivens = null;
+        if (g && g.first) { g.first.timeAsked = true; pieceReadRun(g.first); } // Not sure: read it without one
+    });
     document.getElementById('pieceReadGivensGo')?.addEventListener('click', () => {
         const g = pieceReadGivensKeep();
-        if (!g || !outline) return;
+        if (!g || (!outline && !g.first)) return;
         const bars = g.bars === '' ? null : Number(g.bars);
         if (bars !== null && !(Number.isInteger(bars) && bars >= 1 && bars <= 2000)) { showWarningToast('Bars in all is a whole number - or leave it empty.'); return; }
         const sig = outlineSigInfo(g.sig);
-        if (!sig) { showWarningToast('Choose the time signature it starts with.'); return; }
+        if (!sig) { showWarningToast('Choose the time signature it starts with - or Not sure.'); return; }
         const label = outlineSigLabel(g.sig);
         hideModal('pieceReadGivensModal');
+        if (g.first) { // before the first read: the same read, with what was said
+            Object.assign(g.first, { timeAsked: true, givens: { beats: sig.numerator, beatType: sig.denominator, changes: g.changes, pickup: g.pickup, bars } });
+            pieceReadGivens = null;
+            pieceReadRun(g.first);
+            return;
+        }
         showConfirmModal(`Read it again in ${label}?`, 'Choose the pages again. This uses another of your photo reads.', () => {
             const c = g.check;
             if (outline && c) { outline.read.answers[c.id] = 'checked'; outline.read.said[c.id] = `Reading again in ${label}`; renderOutline(); }

@@ -232,6 +232,8 @@ doubted.
 | `AI_GATEWAY_API_KEY` | The key the server calls the gateway with (Vercel → AI Gateway → API keys). On a developer's machine it goes in `server/.env`. | Reading says it isn't set up; nothing else is affected. |
 | `PIECE_READER_MODEL` | Another model, to compare cost and accuracy on the same files. **Never one outside zero data retention** (the register entry names it). | `anthropic/claude-opus-5.5`. |
 | `PIECE_READER_TIMEOUT_MS` | How long to wait for an answer. | 110 seconds. |
+| `PAGE_CHECK_MODEL` | The quick look's model (ML-657). **Zero data retention only**, as above. | `anthropic/claude-haiku-5.5`. |
+| `PAGE_CHECK_TIMEOUT_MS` | How long the quick look waits; past it the read carries on without it. | 60 seconds. |
 
 ## Trying it
 
@@ -386,6 +388,33 @@ anyway** - a false alarm never blocks. What was read anyway goes with the read (
 into `piece_reads.page_warnings` (migration 171), and Admin → Photo reads shows it beside the read ("Read anyway:
 page 2 blurred"), so the warnings can be checked against what the read then found. A PDF has nothing to look at
 here: the quick AI look (part 3) looks at its pages.
+
+**The quick look at the pages** (ML-657 part 3, owner 29 Oct 2026; feature `piece_page_check`, Super admin only until
+switched on - and switched off there if it doesn't pay its way): once the pages are sent, a cheaper model
+(`PAGE_CHECK_MODEL`, `checkPagesFromFiles`, `PAGE_CHECK_PROMPT`) takes about ten seconds to look at them - the same
+pages, the same gateway, zero data retention - and answers per page: is it music, the page number printed on it, any
+edge cut off, can it be read, which way up; then the time signature at the start if it can be read, and whether the
+last page ends the piece. `PieceRead.judgePages` turns that into:
+- **pages on their side** - put upright before the full read, never stopped for: a photo is turned in the browser and
+  sent again; a PDF's page is told to the reader (`turns`, `PieceRead.cleanTurns`, `turnsText`) - the reader counting
+  a sideways page was Wassail's worst case;
+- **problems** - a page that isn't music, hard to read, an edge cut off, a page missing by its printed numbers (1, 2,
+  4), or no end on the last page. They stop it before the full read, in **Before it's read** (the pop-up the browser's
+  checks use), one row each, in words, with **Retake** / **Add the missing page** / **Add a page after it** (photos;
+  the others kept and everything looked at again) or **Choose the PDF again**, and **Read it anyway** (the pages already
+  sent - every finding offers it, so a false alarm never blocks);
+- **no time signature it could read** - the same box as reading again comes first, as **What time is it in?**, with
+  **Not sure** to read it without one; what is said goes with the read as `givens`.
+The waiting screen's first stage is "Checking your pages", then straight on to "Reading the music". The look never
+uses one of the member's reads (only a read that gives a result counts), but the allowance has to have one left, and
+a look that fails never stops a read. Every look is logged in `piece_page_checks` (migration 172): what it found, its
+model, cost and seconds, what the member did (carried on, read anyway, retake, stopped) and the read that followed.
+Admin → Photo reads, **The quick look at the pages**, says whether it earns its few seconds: how often it stopped a
+read and for what, what people did, whether the reads it stopped and that were read anyway came back with a page
+problem (an edge cut off, the end not seen, things past the end), and how often a read it let through still found one
+(its misses). Its cost is in the "Photo reads, in dollars" meter. The full read's own `cropped` and `end` checks stay,
+as a backup. **Which model** is the owner's choice from the trial (`scripts/page-check-trial.mjs`: each model on the
+test library and Wassail, false alarms and misses side by side); until then `anthropic/claude-haiku-5.5`.
 
 **Waiting for the read** (ML-645, owner 28 Oct 2026): from the moment the files are chosen, a pop-up
 (`#pieceReadWaitModal`, `specs/components/read-wait.md`) shows a turning ring, what it is doing ("Sending your PDF",

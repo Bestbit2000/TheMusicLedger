@@ -50,6 +50,7 @@ first ("Stop reading?" - Keep waiting / Stop, the ordinary confirm pop-up).
 | State | Ring icon | Stage | Bar |
 |---|---|---|---|
 | Sending | upload | Sending your PDF / photo / photos | the upload's % |
+| Checking (ML-657, with `piece_page_check`) | search | Checking your pages - "A quick look for a missing page, a cut-off edge or a page on its side. It doesn't use one of your reads." Cancel stops at once, as while sending. Something found: the screen closes and **Before it's read** says what (`piece-outline.md`); a time signature it couldn't read: **What time is it in?** | no value - just the time |
 | Reading | photo_camera | Reading the music | the estimate, up to 95% |
 | Past the estimate | photo_camera | Taking a little longer than usual - still reading | held at 95% |
 | No estimate | photo_camera | Reading the music | no value - just the time |
