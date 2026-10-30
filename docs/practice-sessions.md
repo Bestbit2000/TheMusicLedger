@@ -359,12 +359,14 @@ Super admin only until switched on.
     on-track / behind verdict - there's nothing to compare against.
   - **"Plan a session for this"** opens the three steps on the list's pieces with the Concert plan (ML-390).
 - **Each member's forecast** uses their own Levels.
-- **Your own pace (ML-557, SmartLearn only):** the forecast above assumes one block moves a focus section up one Level.
-  Once a member has gone up **10 Levels** in practice (Level up while playing, or "How did you get on?" - across all their
-  pieces), a member with SmartLearn (`theory_smart_learn`) gets a forecast that uses their own pace instead: practice
-  blocks on pieces per Level gained (`GET /api/practice/pace`, `server/services/levelsProgress.js`;
-  `PracticePlan.forecast({ pace })` rounds each piece up). The card says so ("Worked out from your own pace: about 2.3
-  blocks to move a focus section up a Level"), and before then how many Level-ups it has so far. Without SmartLearn,
+- **Your own pace (ML-557, ML-675, SmartLearn only):** the forecast above assumes one block moves a focus section up one Level.
+  Once there are 10 Level-ups to go on (across all their pieces), a member with SmartLearn (`theory_smart_learn`) gets a
+  forecast that uses their own pace instead: **the median blocks a focus section took to go up from each Level** (the owner,
+  30 Oct 2026: not an average, so a few tricky bars that take a lot of revisits don't move the forecast for the rest). A
+  Level with fewer than 3 steps uses the median over all Levels, and so do play-through blocks (`GET /api/practice/pace`,
+  `server/services/levelsProgress.js`; `FlowJourney.paceSteps`, `paceByLevel`; `PracticePlan.forecast({ pace })` rounds each
+  piece up). The card says so ("Worked out from your own pace: about 2 blocks to move a focus section up from Level 1, 3 from
+  Level 2 and 2 from Level 3"), and before then how many Level-ups it has so far. Without SmartLearn,
   or before 10, nothing changes.
 - **A weekly plan (ML-557, owner 20 Oct 2026):** three value boxes beside the target date - **a week** (sessions),
   **minutes** (a session) and **warm-up** (the part of it spent warming up), each a pop-up with None first. **It is the

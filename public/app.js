@@ -10176,9 +10176,9 @@
     }
     // An archived piece stays on its lists but isn't counted: the forecast is worked out without it, and its
     // place in the answer (pieces[i] lines up with list.pieces[i]) says so.
-    // ML-557: SmartLearn uses the member's own pace (blocks per Level) once there are 10 Level-ups to go on
+    // ML-557: SmartLearn uses the member's own pace once there are 10 Level-ups to go on (ML-675: a median for each Level)
     let plPace = null;
-    const plPaceUsed = () => (isFeatureEnabled('theory_smart_learn') && plPace && plPace.ready ? plPace.blocksPerLevel : null);
+    const plPaceUsed = () => (isFeatureEnabled('theory_smart_learn') && plPace && plPace.ready ? { byLevel: plPace.byLevel, overall: plPace.blocksPerLevel } : null);
     async function loadPlPace() {
         if (!isFeatureEnabled('theory_smart_learn')) return;
         try { plPace = await API.levels.pace(); if (plState.list) renderPracticeList(); } catch { /* the plain forecast stands */ }
@@ -10250,7 +10250,7 @@
         }
         const pace = document.getElementById('plPaceText');
         const used = plPaceUsed();
-        pace.textContent = used ? `Worked out from your own pace: about ${used} block${used === 1 ? '' : 's'} to move a focus section up a Level.`
+        pace.textContent = used ? `Worked out from your own pace: about ${used.byLevel[1]} block${used.byLevel[1] === 1 ? '' : 's'} to move a focus section up from Level 1, ${used.byLevel[2]} from Level 2 and ${used.byLevel[3]} from Level 3.`
             : isFeatureEnabled('theory_smart_learn') && plPace && !plPace.ready ? `After ${plPace.needed} Level-ups this uses your own pace (${plPace.levelUps} so far).` : '';
         setShown(pace, !!pace.textContent);
     }

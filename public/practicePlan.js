@@ -278,10 +278,19 @@
     // Returns the per-piece blocks (prep: true for a piece still to prepare), the total, what isn't
     // counted, the days to go and the daily pace.
     function forecast(input) {
-        const pace = input.pace > 0 ? input.pace : 1;
+        // ML-675: pace is a number of blocks a Level, or { byLevel, overall }: the member's own median for each Level
+        const own = input.pace && typeof input.pace === 'object' ? input.pace : null;
+        const pace = own ? own.overall : input.pace > 0 ? input.pace : 1;
+        const paced = (chunks, b) => {
+            if (!own) return b.blocks * pace;
+            const set = chunks.filter(c => c.kind !== 'group' && c.level != null);
+            let focus = 0, plain = 0;
+            set.forEach(c => { for (let lv = c.level; lv < TARGET_LEVEL; lv++) { focus += own.byLevel[lv] || own.overall; plain += 1; } });
+            return focus + (b.blocks - plain) * own.overall; // the play-through's blocks go at the overall pace
+        };
         const pieces = (input.pieces || []).map(p => {
             const b = pieceBlocks(p.chunks);
-            return b.blocks === null ? { title: p.title, ...b, prep: true, blocks: PREP_BLOCKS } : { title: p.title, ...b, blocks: Math.ceil(b.blocks * pace), prep: false };
+            return b.blocks === null ? { title: p.title, ...b, prep: true, blocks: PREP_BLOCKS } : { title: p.title, ...b, blocks: Math.ceil(paced(p.chunks, b)), prep: false };
         });
         const total = pieces.reduce((s, p) => s + p.blocks, 0);
         const notCounted = [];

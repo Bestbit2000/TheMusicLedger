@@ -158,6 +158,26 @@ describe('getting a piece ready (ML-390)', () => {
         assert.deepEqual(FJ.pieceSections([blk({ barCount: 20 })]).map(x => [x.startBar, x.endBar]), [[1, 8], [9, 16], [17, 20]]);
         assert.deepEqual(FJ.pieceSections([blk({ barCount: 6, isSectionBoundary: true }), blk({ barCount: 6 })]).map(x => [x.startBar, x.endBar]), [[1, 6], [7, 12]]);
     });
+    test('ML-675: a Level gained takes the blocks since the last one', () => {
+        const t = 1000;
+        const sessions = [{ startMs: t, endMs: t + 100, blocks: 2 }, { startMs: t + 200, endMs: t + 300, blocks: 3 }, { startMs: t + 400, endMs: t + 500, blocks: 1 }];
+        const changes = [{ atMs: t + 250, before: 1, after: 2, rise: true }, { atMs: t + 450, before: 2, after: 4, rise: true }];
+        assert.deepEqual(FJ.paceSteps(sessions, changes), [{ level: 1, blocks: 5 }, { level: 2, blocks: 1 }, { level: 3, blocks: 1 }]);
+        assert.deepEqual(FJ.paceSteps([], [{ atMs: 1, before: 2, after: 3, rise: true }]), [{ level: 2, blocks: 1 }], 'no block logged counts as one');
+        assert.deepEqual(FJ.paceSteps([{ startMs: 1, endMs: 2, blocks: 9 }], [{ atMs: 5, before: 1, after: 3, rise: false }, { atMs: 6, before: 3, after: 4, rise: true }]),
+            [{ level: 3, blocks: 1 }], 'a Level set by hand starts the count again');
+    });
+    test('ML-675: the median for each Level, so a hard piece does not move it', () => {
+        const at = (level, ...blocks) => blocks.map(b => ({ level, blocks: b }));
+        const pace = FJ.paceByLevel([...at(1, 2, 2, 3, 40), ...at(2, 1, 1, 2), ...at(3, 5), ...at(4, 90)]);
+        assert.equal(pace.byLevel[1], 2.5, 'the 40 hardly counts');
+        assert.equal(pace.byLevel[2], 1);
+        assert.equal(pace.steps, 8, 'Level 4 up to 5 is the play-through, not a focus section');
+        assert.equal(pace.byLevel[3], pace.overall, 'one step at a Level says little: the overall median stands in');
+        assert.equal(pace.overall, 2);
+        assert.equal(FJ.paceByLevel([]).overall, null);
+    });
+
     test('ML-670: bars join up within one Level, and a split shows only within one', () => {
         const levels = [3, 3, 3, 2, 2, null, null, 4];
         const j = FJ.barJoins(levels, 1, 8, [2, 4]);

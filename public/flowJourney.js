@@ -621,6 +621,62 @@
         });
         return out;
     }
+    // ML-675: the member's own pace. One focus section's history as steps: each Level gained and the blocks it took.
+    // sessions: [{ startMs, endMs, blocks }], the blocks on this section in each session, logged when the session ends;
+    // changes: [{ atMs, before, after, rise }], rise for a Level gained while practising. Blocks wait until a Level is
+    // gained. Levels gained in one session share its blocks, and each step counts as at least one block (a Level can be
+    // gained with no block logged, in Rehearse). A Level set by hand starts the count again.
+    function paceSteps(sessions, changes) {
+        const steps = [];
+        let waiting = 0;
+        const gain = (group) => {
+            const levels = [];
+            group.forEach(c => { for (let lv = c.before; lv < c.after; lv++) levels.push(lv); });
+            const each = Math.max(1, waiting / Math.max(1, levels.length));
+            levels.forEach(level => steps.push({ level, blocks: each }));
+            waiting = 0;
+        };
+        const ordered = changes.slice().sort((a, b) => a.atMs - b.atMs);
+        let i = 0;
+        const upTo = (ms) => {
+            const group = [];
+            while (i < ordered.length && ordered[i].atMs <= ms) {
+                const c = ordered[i++];
+                if (c.rise) group.push(c);
+                else { if (group.length) gain(group.splice(0)); waiting = 0; }
+            }
+            if (group.length) gain(group);
+        };
+        sessions.slice().sort((a, b) => a.startMs - b.startMs).forEach(s => {
+            upTo(s.startMs - 1);
+            waiting += s.blocks;
+            upTo(s.endMs);
+        });
+        upTo(Infinity);
+        return steps;
+    }
+    // The median, not the average: a few tricky bars that take a lot of revisits shouldn't move the forecast for the rest.
+    function median(values) {
+        const v = values.slice().sort((a, b) => a - b);
+        if (!v.length) return null;
+        const mid = Math.floor(v.length / 2);
+        return v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2;
+    }
+    // Steps as a pace: the median for each Level below the target, and overall. A Level with fewer than
+    // PACE_MIN_AT_LEVEL steps uses the overall median, as a couple of steps say little.
+    const PACE_MIN_AT_LEVEL = 3;
+    function paceByLevel(steps) {
+        const counted = (steps || []).filter(s => s.level < LEVELS.TARGET);
+        const round = (x) => Math.round(x * 10) / 10;
+        const overall = counted.length ? round(median(counted.map(s => s.blocks))) : null;
+        const byLevel = {};
+        for (let lv = 1; lv < LEVELS.TARGET; lv++) {
+            const here = counted.filter(s => s.level === lv).map(s => s.blocks);
+            byLevel[lv] = here.length >= PACE_MIN_AT_LEVEL ? round(median(here)) : overall;
+        }
+        return { steps: counted.length, overall, byLevel };
+    }
+
     // ML-670: how a run of bars reads on the levels page. joinsPrev, joinsNext: a line to the bar before or after - the
     // same Level, in the same focus section. split: a focus section started by hand, which only shows within one Level
     // (a change of Level starts one by itself, and the colour already says so).
@@ -1155,7 +1211,7 @@
         repeatBarInvalid, introInvalid, pauseInvalid, rampInvalid,
         barRangeLabel, checkFlow,
         LEVELS, levelPercents, levelPercent, sessionSubBeats, slowestTempo, barSeconds, chunkFit, suggestSplit, barLevels,
-        pieceRunSeconds, pieceSections, bitsFromBars, barJoins, playthroughParts, partBlockMinutes,
+        pieceRunSeconds, pieceSections, bitsFromBars, barJoins, paceSteps, paceByLevel, playthroughParts, partBlockMinutes,
         movements, movementOfBar, movementLabel, movementJourney, movementPrefix, playthroughLabels, matchSpeeds
     };
 }));

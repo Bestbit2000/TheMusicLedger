@@ -188,5 +188,6 @@
   "ML-674": {
     "internal": true,
     "why": "Admin panel only: how long a piece takes to prepare, and how many taps, by version"
-  }
+  },
+  "ML-675": "We now work out your own pace from the typical blocks at each Level, so a few tricky bars no longer stretch the time on a practice list."
 }

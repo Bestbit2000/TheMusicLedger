@@ -6,8 +6,10 @@
 //   recorded Level - and a bar with none is "start not known".
 // - Bar by bar: each bar's Level now and at the start, and the practice sessions and minutes spent on it (the
 //   blocks whose bars cover it - session_segments.start_bar/end_bar, kept when the piece is cut again).
-// - Pace (owner, 20 Oct 2026): blocks per Level gained, across all the member's pieces. The forecast uses it
-//   (SmartLearn only) once there are 10 Level-ups to go on; until then one block is one Level, as before.
+// - Pace (owner, 20 Oct 2026; ML-675, 30 Oct 2026): the blocks each Level took, as a median for each Level across all
+//   the member's pieces, so a few tricky bars that take a lot of revisits don't move the forecast for the rest
+//   (FlowJourney.paceSteps, paceByLevel). The forecast uses it (SmartLearn only) once there are 10 Level-ups to go on;
+//   until then one block is one Level, as before.
 import pool from '../config/db.js';
 import { assertFlowReadAccess, FlowJourney } from './flows.js';
 
@@ -99,18 +101,30 @@ export async function getLevelsProgress(accountId, scoreId, totalBars) {
 // The member's own pace: practice blocks on pieces per Level gained in practice (Level up while playing, or
 // "Did you nail it?"), across every piece. ready once there are PACE_MIN_LEVEL_UPS Levels gained.
 export async function getPracticePace(accountId) {
-  const [{ rows: ups }, { rows: blocks }] = await Promise.all([
+  const [{ rows: changes }, { rows: blocks }] = await Promise.all([
     pool.query(
-      `SELECT COALESCE(SUM(level_after - level_before), 0)::int AS gained FROM chunk_level_changes
-        WHERE account_id = $1 AND source IN ('during', 'rating') AND level_before IS NOT NULL AND level_after > level_before`,
+      `SELECT chunk_id, level_before, level_after, source, created_at FROM chunk_level_changes
+        WHERE account_id = $1 AND chunk_id IS NOT NULL ORDER BY created_at`,
       [accountId]),
     pool.query(
-      `SELECT COUNT(*)::int AS n FROM session_segments seg JOIN sessions s ON s.id = seg.session_id AND s.account_id = $1
-        WHERE seg.segment_type = 'performance' AND (seg.start_bar IS NOT NULL OR seg.chunk_id IS NOT NULL)`,
+      `SELECT seg.chunk_id, s.started_at, s.total_duration_minutes, s.created_at, COUNT(*)::int AS n
+         FROM session_segments seg JOIN sessions s ON s.id = seg.session_id AND s.account_id = $1
+        WHERE seg.segment_type = 'performance' AND seg.chunk_id IS NOT NULL
+        GROUP BY seg.chunk_id, s.id`,
       [accountId]),
   ]);
-  const gained = ups[0].gained;
-  const n = blocks[0].n;
-  const ready = gained >= PACE_MIN_LEVEL_UPS && n > 0;
-  return { levelUps: gained, blocks: n, needed: PACE_MIN_LEVEL_UPS, ready, blocksPerLevel: ready ? Math.round((n / gained) * 10) / 10 : null };
+  const chunks = new Map();
+  const of = (id) => { if (!chunks.has(id)) chunks.set(id, { sessions: [], changes: [] }); return chunks.get(id); };
+  blocks.forEach(r => {
+    const startMs = new Date(r.started_at).getTime();
+    of(r.chunk_id).sessions.push({ startMs, endMs: Math.max(new Date(r.created_at).getTime(), startMs + r.total_duration_minutes * 60000), blocks: r.n });
+  });
+  changes.forEach(r => of(r.chunk_id).changes.push({
+    atMs: new Date(r.created_at).getTime(), before: r.level_before, after: r.level_after,
+    rise: ['during', 'rating'].includes(r.source) && r.level_before != null && r.level_after > r.level_before
+  }));
+  const steps = [...chunks.values()].flatMap(c => FlowJourney.paceSteps(c.sessions, c.changes));
+  const pace = FlowJourney.paceByLevel(steps);
+  const ready = pace.steps >= PACE_MIN_LEVEL_UPS;
+  return { levelUps: pace.steps, needed: PACE_MIN_LEVEL_UPS, ready, blocksPerLevel: ready ? pace.overall : null, byLevel: ready ? pace.byLevel : null };
 }

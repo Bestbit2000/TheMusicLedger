@@ -296,6 +296,9 @@ describe('how far a piece has come, and a weekly plan (ML-557)', () => {
         assert.equal(PP.forecast({ pieces, today: '2026-10-20' }).total, 5);
         assert.equal(PP.forecast({ pieces, today: '2026-10-20', pace: 2.3 }).total, 12);
         assert.equal(PP.forecast({ pieces, today: '2026-10-20', pace: 0 }).total, 5); // no pace: one block a Level
+        // ML-675: a median for each Level: 2 + 3 + 1 from Level 1, 1 from Level 3, the play-through at the overall 2
+        const own = { overall: 2, byLevel: { 1: 2, 2: 3, 3: 1 } };
+        assert.equal(PP.forecast({ pieces, today: '2026-10-20', pace: own }).total, 9);
         // a piece still to prepare stays one block whatever the pace
         assert.equal(PP.forecast({ pieces: [{ title: 'B', chunks: [] }], today: '2026-10-20', pace: 3 }).total, 1);
     });
