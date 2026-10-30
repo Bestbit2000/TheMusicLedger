@@ -178,5 +178,6 @@
   "ML-654": {
     "internal": true,
     "why": "Admin panel only: its secondary buttons look like the app's, and the Waiting list lists its choices and has an empty page"
-  }
+  },
+  "ML-671": "We tidied the logo, so the note now joins the N as it would in printed music."
 }
