@@ -3015,7 +3015,7 @@
     // ===== ML-564: a new version is ready =====
     // When the code this device is running is older than the deployed release (an installed app resumed from the
     // background keeps its old code - docs/notifications.md), a strip across the top of every screen says so, with
-    // Reload and "See what's new" (the notes for everything newer, in a pop-up). Its X hides it for this visit - kept
+    // Reload (ML-667: one line - the notes are under About, Release history). Its X hides it for this visit - kept
     // per version, so a newer one still shows. Nothing reloads unless Reload is tapped. It waits while a practice
     // session is running, so nobody is asked to reload mid-session (owner, 21 Oct 2026 - ML-565 decision 6): the
     // session's start and end call renderUpdateBanner again.
@@ -3030,21 +3030,6 @@
         try { sessionStorage.setItem(UPDATE_HIDDEN_KEY, latestAppVersion); } catch { /* hidden until the next check */ }
         setShown('updateBanner', false);
     });
-    document.getElementById('updateBannerMore')?.addEventListener('click', async () => {
-        document.getElementById('whatsNewTitle').textContent = `What's new in v${latestAppVersion}`;
-        document.getElementById('whatsNewIntro').textContent = `You're on v${runningAppVersion}. Reload to get everything below.`;
-        const notesEl = document.getElementById('whatsNewNotes');
-        notesEl.textContent = 'Loading...';
-        showModal('whatsNewModal');
-        try {
-            const releases = await (await fetch('/releases.json', { cache: 'no-store' })).json();
-            const newer = releases.filter(r => compareVersions(r.version, runningAppVersion) > 0);
-            notesEl.innerHTML = newer.map(r => `<div class="notification-release"><div class="text-muted">v${escapeHtml(r.version)}</div>${renderChangeList(r.changes)}</div>`).join('');
-        } catch {
-            notesEl.textContent = "The notes can't be shown just now - Reload still gets the new version.";
-        }
-    });
-
     // ===== ML-463: an important notice - "Before you continue..." =====
     // Something a member should not find out by accident (a change to how their information is used).
     // It is shown when they next open the app or come back to it - never in the middle of something,
@@ -7381,7 +7366,7 @@
     async function openPrepareList(isBack) {
         if (!isBack) { prepareState = { ...PREPARE_START }; prepareQuery = ''; document.getElementById('prepareSearch').value = ''; }
         if (flowsListCache.length) renderPrepareList();
-        try { flowsListCache = await API.flows.list(); } catch (e) { showWarningToast('Pieces not loaded: ' + e.message); }
+        try { flowsListCache = (await API.flows.list()).sort(Filters.byTitle); } catch (e) { showWarningToast('Pieces not loaded: ' + e.message); }
         if (isShown('prepareListView')) renderPrepareList();
     }
     document.getElementById('prepareSearch')?.addEventListener('input', (e) => { prepareQuery = e.target.value; renderPrepareList(); });
@@ -7633,7 +7618,7 @@
         const ui = document.getElementById('metroBlkSetupsList');
         if (ui) ui.innerHTML = 'Loading...';
         try {
-            flowsListCache = await API.flows.list();
+            flowsListCache = (await API.flows.list()).sort(Filters.byTitle);
             renderFlowsList();
             rehearseLoaded = true;
             rehearseShowTile();
@@ -7661,7 +7646,7 @@
     function rehearseRefresh() {
         if (rehearseLoading) return rehearseLoading;
         rehearseLoading = API.flows.list()
-            .then(list => { flowsListCache = list; rehearseLoaded = true; rehearseShowTile(); if (viewStack[viewStack.length - 1] === 'rehearseView') renderRehearseList(); })
+            .then(list => { flowsListCache = list.sort(Filters.byTitle); rehearseLoaded = true; rehearseShowTile(); if (viewStack[viewStack.length - 1] === 'rehearseView') renderRehearseList(); })
             .catch(() => { /* offline - the tile keeps its last state */ })
             .finally(() => { rehearseLoading = null; });
         return rehearseLoading;
@@ -8073,7 +8058,7 @@
         openPaintState();
         const painted = paint.levels.filter(v => v);
         paint.pot = o.pot || (painted.length ? [1, 2, 3, 4, 5].sort((a, b) => painted.filter(v => v === b).length - painted.filter(v => v === a).length)[0] : 3);
-        paint.tool = painted.length ? 'brush' : 'all';
+        paint.tool = 'brush'; // ML-672: always Fill bar - Fill all is a choice, not where it starts
         paint.afterRun = o.afterRun ? paint.pot : false; // the Level the run-through was played at (the pot can change after)
         switchView('levelsPaintView');
         renderPaint();
@@ -8085,7 +8070,7 @@
     function renderPaint() {
         const hint = document.getElementById('paintHint');
         hint.textContent = paint.afterRun
-            ? `The bars you played cleanly are Level ${paint.afterRun}: tap Fill all, then give the bars that went wrong a lower level.`
+            ? `The bars you played cleanly are Level ${paint.afterRun}: choose Fill all and tap a bar, then give the bars that went wrong a lower level.`
             : 'Give every bar a level: 1 means very slow, 5 means full speed. The lower the number, the sooner those bars get practised.';
         document.getElementById('paintSections').innerHTML = paint.sections.map((s, k) => {
             const done = paint.levels.slice(s.startBar - 1, s.endBar).filter(v => v).length;
@@ -9351,7 +9336,7 @@
         const otherPiece = async () => {
             box.innerHTML = '<p class="text-sm text-muted">Loading your pieces...</p>';
             if (!flowsListCache.length) await rehearseRefresh().catch(() => {});
-            const all = rehearsePlayable().slice().sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base', numeric: true }));
+            const all = rehearsePlayable().slice().sort(Filters.byTitle);
             document.getElementById('sessionBlockTitle').textContent = `Block ${i + 1}: which piece?`;
             box.innerHTML = all.length ? all.map(f => option(`f:${f.id}`, f.title, `${f.composer ? f.composer + ' · ' : ''}${f.totalBars} bar${f.totalBars === 1 ? '' : 's'}`, b.kind === 'rehearsal' && b.scoreId === f.id)).join('')
                 : '<p class="text-sm text-muted">No pieces yet - add one in My music.</p>';
@@ -11029,8 +11014,8 @@
     });
     function flowLibraryVisible() {
         return Filters.apply(flowLibraryBase(), flowLibraryGroups(), flowLibraryState, pieceFilterMatch).filter(f => pieceSearchMatch(f, flowLibraryQuery))
-        // By name, A to Z (owner, 4 Oct 2026) - not the order they were added; capitals don't matter and "Piece 2" comes before "Piece 10"
-            .sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base', numeric: true }));
+        // By name, A to Z (owner, 4 Oct 2026) - not the order they were added (ML-666: Filters.byTitle)
+            .sort(Filters.byTitle);
     }
 
     function renderFlowsList() {
@@ -11194,7 +11179,7 @@
             match: pieceFilterMatch, shown: () => filtered().length, total: () => flowBulkArchiveOffered().length, onChange: renderFlowBulkArchive
         });
         const shown = filtered()
-            .sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base', numeric: true }));
+            .sort(Filters.byTitle);
         const rows = shown.map(f => ({ key: f.id, html: `<strong>${escapeHtml(f.title)}</strong><br><span class="text-sm text-muted">${f.composer ? escapeHtml(f.composer) + ' &bull; ' : ''}${f.totalBars} bar${f.totalBars === 1 ? '' : 's'} &bull; ${escapeHtml(ownerName(flowLibraryFilterKey(f)))}${flowArchivedText(f)}</span>` }));
         renderPickList(document.getElementById('flowBulkArchiveOptions'), document.getElementById('flowBulkArchivePickBar'), rows, flowBulkArchive.picked, renderFlowBulkArchiveDone,
             `<p class="metro-help-text">${offered.length ? 'No pieces match.' : 'There are no pieces here to choose.'}</p>`);

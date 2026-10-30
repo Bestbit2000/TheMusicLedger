@@ -35,7 +35,7 @@ and **Bar by bar**.
 - **From the Prepare tool** (ML-537) the page is Prepare alone: no stops, a short explanation of what's about to
   happen (the lower the number, the sooner those bars get practised), the levels now as one bar chart
   (`.level-bar`) when the bars have them, **Play it through** and **Skip play through and set the level directly**.
-- **Setting the levels** (ML-536): the bars sit in the piece's sections as big squares, **6 across on a phone** (more
+- **Setting the levels** (ML-536; it always starts on Fill bar, ML-672): the bars sit in the piece's sections as big squares, **6 across on a phone** (more
   from 700px) - the bar number small in the corner, the Level big in the middle, the Level colour behind it. The
   toolbox stays pinned to the bottom: first the Level to set (`.level-picker` + `.level-pick`), then six tools, 6
   across - **Fill bar** (a bar), **Fill section** (its empty bars), **Fill all** (every bar with no level yet - one already

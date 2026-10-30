@@ -1,7 +1,7 @@
 # Notice banner
 
 ## 1. Metadata
-- **Name:** Notice banner (`style.css`: `.notice-banner`, `.notice-banner-icon`, `.notice-banner-text`, `.notice-banner-close`, `.notice-banner-full`; the update strip `.update-banner`, `.update-banner-title`, `.update-banner-actions`, `.update-banner-reload` - ML-564)
+- **Name:** Notice banner (`style.css`: `.notice-banner`, `.notice-banner-icon`, `.notice-banner-text`, `.notice-banner-close`, `.notice-banner-full`; the update strip `.update-banner`, `.update-banner-title`, `.update-banner-reload` - ML-564)
 - **Category:** Status
 - **Status:** New (ML-495)
 
@@ -29,13 +29,12 @@ notification centre), for the connection (that is the [offline bar](offline-stat
 
 ### A new version is ready (ML-564)
 `div.notice-banner.update-banner#updateBanner` (`role="region"`, "New version"), under the notice strip in
-`.top-bar-sticky-group`, signed in only: a `refresh` icon, the words "A new version is ready"
-(`.update-banner-title`), then `.update-banner-actions` - **Reload** (`.update-banner-reload`, filled: the strip's
-own colours the other way round, `--status-blue-fg` with `--status-blue-bg` words, so it reads as the button - ML-647) and **See what's new** (`.notice-banner-text`, underlined, opens `#whatsNewModal`: the notes
-for every release newer than the one this device is running, and Reload now) - and the × (`.notice-banner-close`),
-which hides it **for this visit, for this version** (a newer version shows again). On a phone it is a grid: icon,
-words and × on the first line, the two buttons under the words, with `--space-0-5` above and below them. From 700px it
-is one line, with `--space-1` above and below Reload.
+`.top-bar-sticky-group`, signed in only: a `refresh` icon, the words "New version ready"
+(`.update-banner-title`), **Reload** (`.update-banner-reload`, filled: the strip's
+own colours the other way round, `--status-blue-fg` with `--status-blue-bg` words, so it reads as the button - ML-647)
+and the × (`.notice-banner-close`), which hides it **for this visit, for this version** (a newer version shows again).
+**One line at every width** (ML-667, owner 30 Oct 2026), with `--space-1` above and below Reload. The notes for a
+release are under ☰ About, Release history, and at the top of Notifications.
 
 **Full width on a wide screen** (ML-647, owner 28 Oct 2026): from 700px every strip - this one, a notice and the
 offline bar - runs the whole width beside the rail, with its words kept over the page in the middle (padding worked

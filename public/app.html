@@ -255,15 +255,12 @@
     </div>
 
     <!-- ML-564: a new version is ready (the code this device is running is older than the deployed release) - every
-         screen, signed in. Reload, or See what's new (#whatsNewModal); the X hides it for this visit.
+         screen, signed in. ML-667: one line - Reload, and the X hides it for this visit.
          specs/components/notice-banner.md -->
     <div class="notice-banner update-banner hidden-group" id="updateBanner" role="region" aria-label="New version">
         <span class="material-symbols-outlined notice-banner-icon" aria-hidden="true">refresh</span>
-        <span class="update-banner-title">A new version is ready</span>
-        <span class="update-banner-actions">
-            <button type="button" class="update-banner-reload" data-act="reload">Reload</button>
-            <button type="button" class="notice-banner-text" id="updateBannerMore" aria-haspopup="dialog">See what's new</button>
-        </span>
+        <span class="update-banner-title">New version ready</span>
+        <button type="button" class="update-banner-reload" data-act="reload">Reload</button>
         <button type="button" class="notice-banner-close" id="updateBannerClose" aria-label="Hide until next time"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
     </div>
 
@@ -3483,17 +3480,6 @@
             <div class="notification-date" id="urgentNotificationDate"></div>
             <p class="notification-body" id="urgentNotificationBody"></p>
             <button type="button" class="btn-submit no-margin mt-4" id="urgentNotificationOkBtn">Got it</button>
-        </div>
-    </div>
-
-    <!-- ML-564: "See what's new" on the update strip - the notes for everything newer than this device is running -->
-    <div class="modal" id="whatsNewModal" role="dialog" aria-modal="true" aria-labelledby="whatsNewTitle">
-        <div class="modal-content">
-            <button type="button" class="modal-close-x" data-modal-x aria-label="Close">&times;</button>
-            <h2 id="whatsNewTitle">What's new</h2>
-            <p class="modal-intro text-muted" id="whatsNewIntro"></p>
-            <div id="whatsNewNotes"></div>
-            <button type="button" class="btn-submit no-margin mt-4" data-act="reload">Reload now</button>
         </div>
     </div>
 

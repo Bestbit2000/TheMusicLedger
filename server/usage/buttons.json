@@ -370,13 +370,6 @@
   {
    "group": "Menu, notices and the rest",
    "where": "top bar",
-   "name": "#updateBannerMore",
-   "label": "See what's new",
-   "html": true
-  },
-  {
-   "group": "Menu, notices and the rest",
-   "where": "top bar",
    "name": "#updateBannerClose",
    "label": "Hide until next time",
    "html": true
@@ -3379,20 +3372,6 @@
   },
   {
    "group": "Menu, notices and the rest",
-   "where": "whatsNewModal",
-   "name": "close (X)",
-   "label": "Close",
-   "html": true
-  },
-  {
-   "group": "Menu, notices and the rest",
-   "where": "whatsNewModal",
-   "name": "reload",
-   "label": "Reload now",
-   "html": true
-  },
-  {
-   "group": "Menu, notices and the rest",
    "where": "policyModal",
    "name": "close (X)",
    "label": "Close",
@@ -5348,7 +5327,7 @@
    "group": "Menu, notices and the rest",
    "where": "renderBuild()",
    "name": "data-slot",
-   "label": "…–… …</",
+   "label": "…–… …",
    "html": false
   },
   {
@@ -5936,7 +5915,7 @@
    "group": "Pieces: Rehearse, play, edit",
    "where": "renderFlowFermataAddSection()",
    "name": "data-pause-kind",
-   "label": "… … … </button",
+   "label": "… … … </bu",
    "html": false
   },
   {
@@ -6293,7 +6272,7 @@
    "group": "Pieces: Rehearse, play, edit",
    "where": "outlineExtrasStepHtml()",
    "name": "data-outline-extra",
-   "label": "…</stron",
+   "label": "…</str",
    "html": false
   },
   {

@@ -2810,22 +2810,13 @@
     .splash-screen:has(.notice-banner:not(.hidden-group)) { padding-top: calc(var(--touch-target) + var(--space-5)); } /* the sign-in picture starts under it */
     .notice-banner-full .notification-body { display: block; -webkit-line-clamp: unset; }
     .notice-banner-full h2 { padding-right: var(--touch-target); } /* a long title stops short of the X */
-    /* ML-564: a new version is ready - the notice strip with Reload and "See what's new". On a phone the two buttons
-       go on a second line under the words; from 700px it is one line, the X at the end. */
-    .update-banner { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "icon title close" ". actions actions"; column-gap: var(--space-2); padding-bottom: var(--space-1); }
-    .update-banner .notice-banner-icon { grid-area: icon; }
-    .update-banner-title { grid-area: title; }
-    .update-banner-actions { grid-area: actions; display: flex; align-items: center; gap: var(--space-4); padding: var(--space-0-5) 0; } /* ML-647: room above and below Reload */
-    .update-banner .notice-banner-close { grid-area: close; }
-    .update-banner .notice-banner-text { flex: 0 1 auto; }
+    /* ML-564: a new version is ready - ML-667: one line at every width: the words, Reload, the X. */
+    .update-banner { padding-top: var(--space-1); padding-bottom: var(--space-1); } /* ML-647: room above and below Reload */
+    .update-banner-title { flex: 1; min-width: 0; }
     /* ML-647: Reload is filled - the strip's own colours the other way round, so it reads as the button (and dark mode
        turns it round again by itself) */
     .update-banner-reload { flex-shrink: 0; min-height: var(--touch-target); padding: 0 var(--space-4); background: var(--status-blue-fg); border: 1px solid var(--status-blue-fg); border-radius: var(--radius-sm); color: var(--status-blue-bg); font: inherit; font-weight: var(--font-weight-bold); cursor: pointer; }
     .update-banner-reload:hover { text-decoration: underline; }
-    @media (min-width: 700px) {
-        .update-banner { display: flex; padding-top: var(--space-1); padding-bottom: var(--space-1); } /* ML-647: room above and below Reload */
-        .update-banner-actions { flex: 1; min-width: 0; padding: 0; }
-    }
     #noticeBannerModal { z-index: var(--z-over-splash); } /* opened from the sign-in screen too, which sits on top of everything */
     .offline-bar-btn { flex-shrink: 0; min-height: var(--touch-target); padding: 0 var(--space-3); background: none; border: 1px solid var(--status-amber-fg); border-radius: var(--radius-sm); color: var(--status-amber-fg); font-family: var(--font-sans); font-size: var(--font-sm); font-weight: var(--font-weight-bold); cursor: pointer; }
     .offline-item { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--input-border); text-align: left; }

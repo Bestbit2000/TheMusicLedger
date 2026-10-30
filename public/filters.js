@@ -47,5 +47,10 @@
         return out;
     }
 
-    root.Filters = { apply, count, activeCount, chips, toggle, clean };
+    // ML-666: pieces A to Z by name, as a shelf would have them. A "The" at the start doesn't count ("The Christmas Song"
+    // is under C), capitals don't matter, and "Piece 2" comes before "Piece 10".
+    const sortName = (title) => String(title || '').trim().replace(/^the\s+/i, '');
+    const byTitle = (a, b) => sortName(a.title).localeCompare(sortName(b.title), undefined, { sensitivity: 'base', numeric: true });
+
+    root.Filters = { apply, count, activeCount, chips, toggle, clean, byTitle };
 })(typeof self !== 'undefined' ? self : globalThis);

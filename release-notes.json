@@ -178,5 +178,8 @@
   "ML-654": {
     "internal": true,
     "why": "Admin panel only: its secondary buttons look like the app's, and the Waiting list lists its choices and has an empty page"
-  }
+  },
+  "ML-666": "We now list pieces A to Z everywhere, and a The at the start does not count, so The Christmas Song is under C.",
+  "ML-667": "We shortened the new version message to one line on a phone; the notes stay under About, Release history.",
+  "ML-672": "We made setting the levels start on Fill bar, so a first tap only ever changes one bar."
 }

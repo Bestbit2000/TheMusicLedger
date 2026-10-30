@@ -3,7 +3,7 @@
 **Made by `node scripts/usage-buttons.mjs` - don't edit it by hand.** What counts as a use, and how a tap is
 counted, is in [usage-stats.md](usage-stats.md) ("Every button").
 
-912 buttons: 912 have a name a tap can be counted by, 0 need one.
+909 buttons: 909 have a name a tap can be counted by, 0 need one.
 A button on a screen is listed under the screen or pop-up it is on; one the app builds as it goes, under
 the function that builds it (shown with ()). The words are only to help find it - a tap is never counted by
 its words.
@@ -31,7 +31,7 @@ its words.
 | My bands | 31 | 0 |
 | My account, instruments, settings | 57 | 0 |
 | Signing in | 15 | 0 |
-| Menu, notices and the rest | 115 | 0 |
+| Menu, notices and the rest | 112 | 0 |
 
 ## Practice session
 
@@ -648,7 +648,7 @@ its words.
 | flowGlyphPickerTileHtml() | `data-option` |  |
 | renderFlowFermataList() | `data-pause-edit` |  |
 | renderFlowFermataList() | `data-pause-menu` | Pause options |
-| renderFlowFermataAddSection() | `data-pause-kind` | … … … </button |
+| renderFlowFermataAddSection() | `data-pause-kind` | … … … </bu |
 | renderFlowRampList() | `data-ramp-edit` |  |
 | renderFlowRampList() | `data-ramp-menu` | Ramp options |
 | renderFlowRampAddSection() | `data-ramp-target` |  |
@@ -674,7 +674,7 @@ its words.
 | outlineSpeedRowHtml() | `data-speed-note` |  |
 | outlineTableRowHtml() | `data-xkind` |  |
 | outlineTableRowHtml() | `data-xends` |  |
-| outlineExtrasStepHtml() | `data-outline-extra` | …</stron |
+| outlineExtrasStepHtml() | `data-outline-extra` | …</str |
 | outlineExtrasStepHtml() | `data-outline=addExtra` | + … |
 | outlineMediaStepHtml() | `data-outline-media-remove` |  |
 | outlineMediaStepHtml() | `data-outline=addVideo` | + Add the link |
@@ -965,7 +965,6 @@ its words.
 | top bar | `data-notice-banner-open` | Notice |
 | top bar | `data-notice-banner-close` | Hide this notice until next time |
 | top bar | `reload` | Reload |
-| top bar | `#updateBannerMore` | See what's new |
 | top bar | `#updateBannerClose` | Hide until next time |
 | top bar | `#startupBarBtn` | Try again |
 | top bar | `#offlineBarBtn` | See them |
@@ -981,8 +980,6 @@ its words.
 | aboutView | `view(aboutGradesView)` | Exam grades Where the grade lists come from |
 | importantNoticeModal | `#importantNoticeOkBtn` | Got it |
 | urgentNotificationModal | `#urgentNotificationOkBtn` | Got it |
-| whatsNewModal | `close (X)` | Close |
-| whatsNewModal | `reload` | Reload now |
 | policyModal | `close (X)` | Close |
 | top bar | `#submitBtn` | Save session |
 | top bar | `#cancelAddBtn` | Cancel |
@@ -1031,7 +1028,7 @@ its words.
 | renderHiddenBands() | `data-band-show` | Show again |
 | renderInvite() | `data-resend-invite` | Send again |
 | renderInvite() | `data-cancel-invite` |  |
-| renderBuild() | `data-slot` | …–… …</ |
+| renderBuild() | `data-slot` | …–… … |
 | renderBuild() | `data-add` |  |
 | openChooser() | `data-opt` |  |
 | openChooser() | `data-extra` |  |

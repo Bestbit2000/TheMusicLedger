@@ -9,6 +9,12 @@ vm.runInNewContext(fs.readFileSync(new URL('../../public/filters.js', import.met
 const F = sandbox.self.Filters;
 const plain = (v) => JSON.parse(JSON.stringify(v));
 
+test('ML-666: pieces go A to Z, and a The at the start does not count', () => {
+  const titled = ['The Christmas Song', 'Bugler\'s Holiday', 'the Arrival', 'Zadok', 'Piece 10', 'Piece 2', 'Theme from Z', 'The', ''].map((title) => ({ title }));
+  assert.deepEqual(plain(titled.slice().sort(F.byTitle).map((p) => p.title)),
+    ['', 'the Arrival', 'Bugler\'s Holiday', 'The Christmas Song', 'Piece 2', 'Piece 10', 'The', 'Theme from Z', 'Zadok']);
+});
+
 const pieces = [
     { id: 1, whose: 'mine', recordings: 1, prepared: false },
     { id: 2, whose: 'mine', recordings: 0, prepared: true },
