@@ -17217,9 +17217,10 @@
     // The rest bars between goes (and the count-in before the first) aren't on the recording. While they click - as
     // rest bars, on the metronome's own clock, at the speed the recording comes back in at - the recording waits at the
     // repeat's start, paused; as the rest ends it is set going to meet the clicks at the repeat's first bar (ML-640), so
-    // the go's number carries on. Not with a practice's count-in every time round, which has its own (ML-587).
+    // the go's number carries on. A practice's count-in every time round is these rest bars too (ML-673: it had a count-in
+    // player of its own, which clicked over the rest bars, each click doubled about 80 ms apart).
     let alongResting = false;
-    const alongRests = () => !!flowLoopPlan && alongClicks() && flowLoopPlan.between.some(s => s.kind === 'rest') && !(recInPractice() && flowCountInEveryGo());
+    const alongRests = () => !!flowLoopPlan && alongClicks() && flowLoopPlan.between.some(s => s.kind === 'rest');
     function alongRestBegin(slide) {
         const player = recPlayerOf(slide);
         const map = recMapFor(slide.data);
@@ -17360,8 +17361,9 @@
         const map = recMapFor(slide.data);
         if (map && playing && flowLoopPlan && !alongStart) {
             const loop = FlowJourney.mapLoop(map, flowLoop.startBar, flowLoop.endBar, REC_LOOP_LEAD_MS);
-            if (loop.ok && at >= loop.endMs && flowCountInEveryGo()) {
-                // ML-587: the count-in every time round - stop at the end of the go, count in, go again
+            if (loop.ok && at >= loop.endMs && flowCountInEveryGo() && !flowPlayer.isPlaying()) {
+                // ML-587: the count-in every time round - stop at the end of the go, count in, go again. Only with the clicks
+                // off: with them on, their rest bars are the count-in (ML-673)
                 pauseFlowMediaSlide(slide);
                 recPracticeCountIn(slide);
                 renderRecScoreControls();

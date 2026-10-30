@@ -138,8 +138,9 @@ on (`alongRestBegin` / `alongRestBeat`, ML-634). A video not played yet is loade
 go's first click (`alongGoRound`). The count-in and every rest count down in the bar line ("Count-in **3**",
 `showFlowBarCount`, ML-638) - after the bar it leads into, so what is about to play is never hidden by it ("Repeat 2 ·
 Bars 1 to 2 · Bar 1 · Rest **3**", ML-643) - nothing may cover a YouTube video (its terms), and the beats and buttons stay in view
-(the owner, 28 Oct 2026); a practice's own count-in before a recording does the same. Not with a practice's count-in
-every time round, which has its own (ML-587). A fermata held on a bar's first beat repeats that beat for each beat of the hold - not a new bar,
+(the owner, 28 Oct 2026); a practice's own count-in before a recording does the same. A practice's count-in every time
+round is these rest bars too (ML-673: it had a count-in player of its own, which clicked over them, each click doubled
+about 80 ms apart); only with the clicks off does it count in by itself. A fermata held on a bar's first beat repeats that beat for each beat of the hold - not a new bar,
 so it is never checked. When the clicks join again because they got ahead (a pause the band held longer than written),
 they never go back over a beat already heard - they wait, silent, for the recording to reach the next one; in a bar with
 a pause they join at the next bar line (its beats aren't evenly spaced). Pausing or joining again takes back any click
