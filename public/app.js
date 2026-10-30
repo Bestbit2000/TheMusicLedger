@@ -8155,7 +8155,7 @@
                 const parts = FlowJourney.suggestSplit(levels.blocks, { startBar: b.startBar, endBar: b.endBar, level: b.level }).length;
                 return `<div class="cut-bit is-too-long">
                     <span class="grow text-sm"><strong>${levelsRange(b.startBar, b.endBar)}</strong> is too long for 5 goes in a block.${parts > 1 ? ` Split it into at least ${parts}.` : ''}</span>
-                    ${b.endBar > b.startBar ? `<button type="button" class="btn-nav no-margin" data-split-tool="${b.startBar}">Split</button>` : ''}
+                    ${b.endBar > b.startBar ? `<button type="button" class="paint-tool" data-split-tool="${b.startBar}"><span class="material-symbols-outlined" aria-hidden="true">content_cut</span><span class="paint-tool-label">Split</span></button>` : ''}
                 </div>`;
             }).join('');
             return levelsMovementHeadAt(s.startBar) + `<section class="paint-section" aria-labelledby="paintSec${k}">

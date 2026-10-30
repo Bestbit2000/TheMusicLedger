@@ -58,7 +58,7 @@ and **Bar by bar**.
   section by itself, and the colour already says so, so it gets no edge.
 - **Too long** (ML-670): a focus section that can't fit 5 goes in a block gets a **red border and red lines** on its bars
   (`.paint-bar.is-too-long`, so it shows as a shape, not only a colour), a `.cut-bit.is-too-long` row under its part saying how
-  many parts it needs, with **Split** (picks the tool and goes to it), and a count on Done. **Done asks** (`#paintTooLongModal`):
+  many parts it needs, with **Split** (the toolbox's own `.paint-tool` tile, as it does the same thing: picks the tool and goes to the section), and a count on Done. **Done asks** (`#paintTooLongModal`):
   **Split them** or **Done anyway** - it never stops anyone, as the section still plays, with fewer goes. Sections that fit
   say nothing. At the end, **My focus sections**: the Levels bar chart, counting bars (ML-668 - it was a square a focus section),
   and the line about blocks.
@@ -71,7 +71,7 @@ and **Bar by bar**.
 - Paint: `.paint-page` › `.paint-section` › `.paint-section-head` + `.paint-bars` › `button.paint-bar.lv-N` ›
   `.paint-bar-num` + `.paint-bar-level`; `.paint-toolbox` › `.level-picker.paint-pots` › `.paint-tools` ›
   `button.paint-tool` (icon + `.paint-tool-label`) › hint › `.paint-actions` (Undo, Redo, Done).
-- Under a part's bars: a `.cut-bit.is-too-long` row for each focus section too long (the words, Split).
+- Under a part's bars: a `.cut-bit.is-too-long` row for each focus section too long (the words, the Split tile).
 
 ## 4. Tokens used
 `--level-1`…`--level-5` and their `-text` (via `.lv-N`), `--level-unset-border`, `--primary-action`,
