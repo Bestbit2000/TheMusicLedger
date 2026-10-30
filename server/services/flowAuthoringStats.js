@@ -42,7 +42,7 @@ export function currentAppVersion() {
   return cachedAppVersion;
 }
 
-const KINDS = ['create', 'edit'];
+const KINDS = ['create', 'edit', 'prepare']; // prepare: ML-674, a sitting on the levels page
 const CREATION_SOURCES = ['manual', 'from_file', 'quick', 'photo']; // photo: ML-246, read from a photo and finished in Quick entry // quick: ML-424, a piece entered as an outline
 // 'extras' is the single Extras step of 0.39 (ML-424); ML-428 split it into one question a step and added About and Media.
 const QUICK_STEPS = ['about', 'howLong', 'marks', 'time', 'speed', 'extras', 'xIntro', 'xRepeats', 'xPauses', 'xRamps', 'xSigns', 'mAudio', 'mVideo', 'mDocs', 'media', 'tempo']; // media: the one Media step (it was three until 0.44); tempo: time and speed as one step (0.44)
@@ -56,6 +56,13 @@ function cleanSteps(steps) {
 function cleanOutlineCounts(c) {
   if (!c || typeof c !== 'object') return null;
   return JSON.stringify({ marks: clampCount(c.marks), exceptions: clampCount(c.exceptions), speeds: clampCount(c.speeds), extras: clampCount(c.extras) });
+}
+// ML-674: what preparing a piece took - only known counts are kept, and never which bars
+const PREPARE_TOOLS = ['brush', 'range', 'section', 'all', 'rubber', 'split'];
+const PREPARE_COUNTS = [...PREPARE_TOOLS, 'barTaps', 'undo', 'redo', 'typed', 'toolChanges', 'gapTenths', 'alreadySet', 'runSeconds', 'fromDraft', 'focus', 'tooLong'];
+function cleanPrepareCounts(c) {
+  if (!c || typeof c !== 'object') return null;
+  return JSON.stringify(Object.fromEntries(PREPARE_COUNTS.map(k => [k, clampCount(c[k])])));
 }
 const DEVICE_KINDS = ['mobile', 'tablet', 'desktop'];
 const FINAL_OUTCOMES = ['completed', 'abandoned'];
@@ -146,6 +153,7 @@ export async function updateAuthoringSession(accountId, sessionId, {
   keyCount,
   steps,
   outlineCounts,
+  prepareCounts,
   outcome = null
 } = {}) {
   if (outcome !== null && !FINAL_OUTCOMES.includes(outcome)) {
@@ -166,6 +174,7 @@ export async function updateAuthoringSession(accountId, sessionId, {
             key_count = $13,
             steps = COALESCE($14::jsonb, steps),
             outline_counts = COALESCE($15::jsonb, outline_counts),
+            prepare_counts = COALESCE($16::jsonb, prepare_counts),
             outcome = COALESCE($11, outcome),
             ended_at = CASE WHEN $11 IS NULL THEN ended_at ELSE now() END,
             last_heartbeat_at = now(),
@@ -191,7 +200,8 @@ export async function updateAuthoringSession(accountId, sessionId, {
       clampCount(tapCount),
       clampCount(keyCount),
       cleanSteps(steps),
-      cleanOutlineCounts(outlineCounts)
+      cleanOutlineCounts(outlineCounts),
+      cleanPrepareCounts(prepareCounts)
     ]
   );
   // Not a 404: an already-closed row is the normal outcome of a racing keepalive write, and the
@@ -327,7 +337,7 @@ export async function getFlowAuthoringStats() {
 
     pool.query(
       `SELECT kind, creation_source, ${STAT_COLUMNS} FROM flow_authoring_sessions
-        WHERE ${ELIGIBLE} GROUP BY kind, creation_source ORDER BY kind, creation_source`
+        WHERE ${ELIGIBLE} AND kind <> 'prepare' GROUP BY kind, creation_source ORDER BY kind, creation_source`
     ),
 
     pool.query(
@@ -360,7 +370,7 @@ export async function getFlowAuthoringStats() {
          COUNT(*) FILTER (WHERE outcome = 'in_progress'
                             AND last_heartbeat_at >= now() - ($1 || ' minutes')::interval)::int AS live,
          COUNT(*) FILTER (WHERE is_excluded)::int AS excluded
-       FROM flow_authoring_sessions`,
+       FROM flow_authoring_sessions WHERE kind <> 'prepare'`,
       [STALE_AFTER_MINUTES]
     ),
 
@@ -376,6 +386,7 @@ export async function getFlowAuthoringStats() {
               CASE WHEN a.deleted_at IS NULL THEN a.email ELSE 'Deleted account' END AS email
          FROM flow_authoring_sessions fas
          JOIN accounts a ON a.id = fas.account_id
+        WHERE fas.kind <> 'prepare'
         ORDER BY fas.started_at DESC
         LIMIT 100`
     )
@@ -403,12 +414,46 @@ export async function getFlowAuthoringStats() {
       GROUP BY 1 ORDER BY 1`
   );
 
+  // ML-674: preparing a piece, kept apart from entering one. By version, so a change to the screens can be compared.
+  const prepareNumber = (key) => `COALESCE((prepare_counts->>'${key}')::int, 0)`;
+  const prepareByVersion = await pool.query(
+    `SELECT app_version, COUNT(*)::int AS n,
+            ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY active_seconds))::int AS seconds,
+            MIN(active_seconds)::int AS min_seconds, MAX(active_seconds)::int AS max_seconds,
+            ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY active_seconds::numeric / NULLIF(total_bars_end, 0)))::numeric, 1) AS per_bar,
+            ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tap_count))::int AS taps,
+            ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tap_count::numeric / NULLIF(total_bars_end, 0)))::numeric, 2) AS taps_per_bar,
+            ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${prepareNumber('gapTenths')}))::numeric / 10, 1) AS gap_seconds,
+            ${[...PREPARE_TOOLS, 'undo', 'redo', 'typed'].map(k => `SUM(${prepareNumber(k)})::int AS "${k}"`).join(', ')}
+       FROM flow_authoring_sessions
+      WHERE ${ELIGIBLE} AND kind = 'prepare'
+      GROUP BY app_version
+      ORDER BY MAX(started_at) DESC`
+  );
+  const prepareRecent = await pool.query(
+    `SELECT fas.id, fas.flow_title, fas.outcome, fas.active_seconds, fas.total_bars_end, fas.tap_count, fas.prepare_counts,
+            fas.device_kind, fas.app_version, fas.is_excluded, fas.score_id IS NULL AS flow_deleted,
+            CASE WHEN a.deleted_at IS NULL THEN a.email ELSE 'Deleted account' END AS email
+       FROM flow_authoring_sessions fas
+       JOIN accounts a ON a.id = fas.account_id
+      WHERE fas.kind = 'prepare'
+      ORDER BY fas.started_at DESC
+      LIMIT 50`
+  );
+
   const o = outcomes.rows[0];
   const abandonedTotal = o.abandoned + o.stale;
   const decided = o.completed + abandonedTotal;
 
   return {
     staleAfterMinutes: STALE_AFTER_MINUTES,
+    prepare: {
+      byVersion: prepareByVersion.rows.map(r => ({ ...r, appVersion: r.app_version, minSeconds: r.min_seconds, maxSeconds: r.max_seconds,
+        perBar: r.per_bar === null ? null : Number(r.per_bar), tapsPerBar: r.taps_per_bar === null ? null : Number(r.taps_per_bar), gapSeconds: Number(r.gap_seconds) })),
+      recent: prepareRecent.rows.map(r => ({ id: Number(r.id), flowTitle: r.flow_title, flowDeleted: r.flow_deleted, outcome: r.outcome, email: r.email,
+        activeSeconds: r.active_seconds, bars: r.total_bars_end, taps: r.tap_count, counts: r.prepare_counts || {}, deviceKind: r.device_kind,
+        appVersion: r.app_version, isExcluded: r.is_excluded }))
+    },
     headline: toStatsDto(headline.rows[0]),
     byVersion: byVersion.rows.map(r => toStatsDto(r, { appVersion: r.app_version, creationSource: r.creation_source })),
     byKind: byKind.rows.map(r => toStatsDto(r, { kind: r.kind, creationSource: r.creation_source })),

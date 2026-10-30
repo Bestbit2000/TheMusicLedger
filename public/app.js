@@ -191,6 +191,7 @@
             localStorage.removeItem('userId');
             localStorage.removeItem('tml.offlineCopyOn'); // ML-220: the copy for offline use goes too
             window.Usage?.forget(); // ML-22: which items were used today on this device
+            if (!keepWaiting) Object.keys(localStorage).filter(k => k.startsWith('tml.prepareDraft.')).forEach(k => localStorage.removeItem(k)); // ML-670: unfinished Prepare work
             this.token = null;
             this.userId = null;
             this.isAuthenticated = false;
@@ -2019,7 +2020,7 @@
     }
     // The current screen: its own item, or for a screen the menu doesn't list directly (a tool's inner
     // screens, Flow's editor...), the item it belongs under.
-    const NAV_PARENT_VIEW = { statsView: 'statsHomeView', streakStatsView: 'statsHomeView', historyView: 'statsHomeView', toolResultsView: 'statsHomeView', flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', bandSummaryView: 'metroBuilderView', flowPlayView: 'rehearseView', piecePathView: 'rehearseView', prepareRunView: 'rehearseView', levelsPaintView: 'rehearseView', levelsCutView: 'rehearseView', practiceListView: 'rehearseView',
+    const NAV_PARENT_VIEW = { statsView: 'statsHomeView', streakStatsView: 'statsHomeView', historyView: 'statsHomeView', toolResultsView: 'statsHomeView', flowDetailsHubView: 'metroBuilderView', flowFromFileView: 'metroBuilderView', bandSummaryView: 'metroBuilderView', flowPlayView: 'rehearseView', piecePathView: 'rehearseView', prepareRunView: 'rehearseView', levelsPaintView: 'rehearseView', practiceListView: 'rehearseView',
         settingsDisplayView: 'settingsView', settingsStatsView: 'settingsView', settingsTunerView: 'settingsView', settingsPlaybackView: 'settingsView',
         aboutReleasesView: 'aboutView', aboutPrivacyView: 'aboutView', aboutTermsView: 'aboutView', aboutGradesView: 'aboutView',
         accountDetailsView: 'accountView', accountSecurityView: 'accountView', accountTeachersView: 'accountView',
@@ -2410,7 +2411,7 @@
     // ========================================
     // VIEW NAVIGATION
     // ========================================
-    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutPrivacyView', 'aboutTermsView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandView', 'bandMembersView', 'bandNoticeView', 'bandWelcomeView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'settingsNoticesView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'levelsProgressView', 'bandSummaryView', 'prepareRunView', 'levelsPaintView', 'levelsCutView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView', 'setupView', 'tuningForkView', 'instrumentSupportView'];
+    const views = ['mainView', 'pieceOutlineView', 'toolsView', 'statsHomeView', 'toolResultsView', 'historyView', 'streakStatsView', 'statsView', 'entryForm', 'accountView', 'aboutReleasesView', 'aboutPrivacyView', 'aboutTermsView', 'aboutGradesView', 'accountDetailsView', 'accountSecurityView', 'accountInstrumentsView', 'accountBandsView', 'bandView', 'bandMembersView', 'bandNoticeView', 'bandWelcomeView', 'tidyBandsView', 'accountTeachersView', 'settingsView', 'settingsDisplayView', 'settingsStatsView', 'settingsTunerView', 'settingsPlaybackView', 'settingsNoticesView', 'aboutView', 'notificationsView', 'quickPlayView', 'metroBuilderView', 'flowDetailsHubView', 'flowFromFileView', 'addPieceView', 'skillsHubView', 'inviteView', 'prepareListView', 'recordingsView', 'flowPlayView', 'tunerView', 'timerView', 'theoryView', 'theoryOptionsView', 'theoryPlayView', 'theoryResultsView', 'scalesView', 'warmupsView', 'rehearseView', 'tapTempoView', 'tapTempoPlayView', 'gapTrainerView', 'gapTrainerPlayView', 'earView', 'earPlayView', 'drillResultsView', 'piecePathView', 'levelsProgressView', 'bandSummaryView', 'prepareRunView', 'levelsPaintView', 'sessionLengthView', 'sessionPickView', 'sessionBuildView', 'sessionContentView', 'sessionPlanView', 'sessionRunView', 'sessionRestView', 'practiceListView', 'skillsView', 'rangeView', 'rhythmView', 'rhythmPlayView', 'setupView', 'tuningForkView', 'instrumentSupportView'];
     // Screens with the top-bar tuner toggle and the mini tuner widget under the top bar (ML-91; Play Flow
     // added in ML-283). One shared widget, moved into whichever of these is showing.
     // ML-107 (owner's list, 12 Oct 2026): anywhere you have your instrument up while looking at the screen - the
@@ -2499,6 +2500,9 @@
             pauseAllFlowMedia();
             sessionLineAwake(); // ML-621: off again - unless a practice session is running
         }
+
+        // ML-674: off the levels page is the end of that sitting; Done has already closed it as completed
+        if (viewName !== 'levelsPaintView') prepStatsFinish('abandoned');
 
         // ML-199: leaving the Hub any way other than the two explicit success paths (Create's
         // "Open player", Edit's Save - both finalise themselves just before navigating) is an
@@ -2636,10 +2640,9 @@
         // ML-390: a piece's path and its Prepare steps (the path's own title is the piece's, set as it renders).
         if (viewName === 'levelsProgressView') document.getElementById('topTitle').innerText = levels.title || 'Bar by bar'; // ML-557
         if (viewName === 'bandSummaryView') document.getElementById('topTitle').innerText = bandSummary.title; // ML-581
-        if (viewName === 'piecePathView') { document.getElementById('topTitle').innerText = levels.title || 'My Levels'; if (isBack) renderPiecePath(); }
-        if (viewName === 'prepareRunView') document.getElementById('topTitle').innerText = 'Prepare · 2 of 4';
-        if (viewName === 'levelsPaintView') document.getElementById('topTitle').innerText = pieceStage() === 'prepare' ? 'Prepare · 3 of 4' : 'Set the levels';
-        if (viewName === 'levelsCutView') document.getElementById('topTitle').innerText = pieceStage() === 'prepare' ? 'Prepare · 4 of 4' : 'Focus sections';
+        if (viewName === 'piecePathView') { document.getElementById('topTitle').innerText = prep.onlyPrepare ? 'Prepare' : 'My path'; if (isBack) renderPiecePath(); }
+        if (viewName === 'prepareRunView') document.getElementById('topTitle').innerText = 'Prepare';
+        if (viewName === 'levelsPaintView') document.getElementById('topTitle').innerText = pieceStage() === 'prepare' ? 'Set the levels' : 'Edit levels';
         // ML-317: leaving the play screen any other way than Finish ends the practice without a rating.
         if (flowSession && viewName !== 'flowPlayView') endLevelPractice();
         if (['sessionLengthView', 'sessionPickView', 'sessionContentView', 'sessionPlanView', 'sessionRunView'].includes(viewName)) document.getElementById('topTitle').innerText = 'Practice session';
@@ -7786,6 +7789,7 @@
         levels.scope = levelsScopeFor(opts && opts.movement); // ML-530
         prep.fromSession = false;
         prep.onlyPrepare = !!(opts && opts.onlyPrepare);
+        prep.runSeconds = 0;
         switchView('piecePathView');
         renderPiecePath();
     }
@@ -7828,7 +7832,8 @@
         <span><span class="level-cell lv-3">3</span><span class="level-cell lv-4">4</span>Gold</span>
         <span><span class="level-cell lv-5">5</span>Full speed</span></div>`;
     function renderPiecePath() {
-        document.getElementById('topTitle').innerText = levels.title;
+        document.getElementById('topTitle').innerText = prep.onlyPrepare ? 'Prepare' : 'My path'; // ML-669: the piece's name is on the page
+        document.getElementById('pathTitle').textContent = levels.title;
         const sc = levels.scope;
         const scBars = levelsTo() - levelsFrom() + 1;
         document.getElementById('pathSub').textContent = sc ? `${FlowJourney.movementLabel(sc, true)} · bars ${sc.startBar}-${sc.endBar} (${scBars} bar${scBars === 1 ? '' : 's'})` : `${levels.total} bar${levels.total === 1 ? '' : 's'}`;
@@ -7847,7 +7852,18 @@
             sizeLevelBars(bar);
             fillPathCame();
         }
-        setShown('pathPrepIntro', only);
+        // ML-670: unfinished work on this device - how far it got, then Carry on
+        const draft = readPrepareDraft();
+        setShown('pathPrepIntro', only && !draft);
+        setShown('pathDraftBox', only && !!draft);
+        setShown('pathStartAgainBtn', !!draft);
+        if (only && draft) {
+            const kept = draft.levels.slice(levelsFrom() - 1, levelsTo());
+            const bar = document.getElementById('pathDraftBar');
+            bar.innerHTML = levelBarHtml(kept) + levelLegendHtml([kept], 'Not set', 'bar');
+            sizeLevelBars(bar);
+            document.getElementById('pathDraftCount').textContent = `${kept.filter(v => v).length} of ${scBars} bars have a level so far.`;
+        }
         setShown('pathLevelBarBox', only && anySet);
         if (only && anySet) {
             const bar = document.getElementById('pathLevelBar');
@@ -7858,8 +7874,8 @@
         setShown('piecePath', !only);
         setShown('pathSkipBtn', only);
         if (only) {
-            document.getElementById('pathGoBtn').textContent = 'Play it through';
-            ['pathThroughCard', 'pathPaintBtn', 'pathCutBtn'].forEach(id => setShown(id, false));
+            document.getElementById('pathGoBtn').textContent = draft ? 'Carry on' : anySet ? 'Edit levels' : 'Set the levels';
+            ['pathThroughCard', 'pathPaintBtn'].forEach(id => setShown(id, false));
             return;
         }
         const stage = pieceStage();
@@ -7867,14 +7883,13 @@
         const at = order.indexOf(stage);
         const bits = focusBits();
         const byLevel = [1, 2, 3].map(n => [n, bits.filter(c => c.level === n).length]).filter(([, c]) => c);
-        const chips = (list) => `<span class="focus-summary">${list.map(c => `<span class="level-chip lv-${c.level || 0}">${c.level || ''}</span>`).join('')}</span>`;
         const partsText = scopedGroups().length
             ? scopedGroups().map(g => `${levelsChunkName(g)}: ${g.level == null ? 'not yet' : `Level ${g.level}`}`).join(' · ')
             : `${sc ? 'The whole movement' : 'The whole piece'}, or two halves if it's long`;
         const stages = [
-            { key: 'prepare', icon: 'construction', title: 'Prepare', sub: 'About 10 minutes, once: a run-through, then set the levels and split it into focus sections.',
-                steps: at === 0 ? ['Get the music (it\'s in My music)', 'Play it through once', 'Set the level of each bar', 'Split it into focus sections'] : null },
-            { key: 'practise', icon: 'music_note', title: 'Practise', sub: bits.length ? `${bits.length} focus section${bits.length === 1 ? '' : 's'} below Level ${PracticePlan.TARGET_LEVEL}: ${byLevel.map(([n, c]) => `${c} at ${n}`).join(', ')}.` : `Five-minute blocks until every bar is at Level ${PracticePlan.TARGET_LEVEL}.`, extra: bits.length ? chips(bits) : '' },
+            { key: 'prepare', icon: 'construction', title: 'Prepare', sub: 'About 10 minutes, once: a run-through if you want one, then set the level of each bar.',
+                steps: at === 0 ? ['Get the music (it\'s in My music)', 'Play it through once, if you want to', 'Set the level of each bar', 'Split any long runs into focus sections'] : null },
+            { key: 'practise', icon: 'music_note', title: 'Practise', sub: bits.length ? `${bits.length} focus section${bits.length === 1 ? '' : 's'} below Level ${PracticePlan.TARGET_LEVEL}: ${byLevel.map(([n, c]) => `${c} at ${n}`).join(', ')}.` : `Five-minute blocks until every bar is at Level ${PracticePlan.TARGET_LEVEL}.` },
             { key: 'playthrough', icon: 'play_circle', title: 'Play-through', sub: `${sc ? 'The whole movement' : 'The whole piece'}, Level ${PracticePlan.TARGET_LEVEL} up to 5 (full speed). ${partsText}.` }
         ];
         document.getElementById('piecePath').innerHTML = stages.map((s, i) => {
@@ -7888,8 +7903,8 @@
         }).join('') + (stage === 'ready' ? '<li class="path-stage is-now" aria-current="step"><span class="path-dot" aria-hidden="true"><span class="material-symbols-outlined">workspace_premium</span></span><span class="path-text"><strong>Ready!</strong><br><span class="text-sm text-muted">Every bar at full speed. Keep it there with a play-through now and then.</span></span></li>' : '');
         const go = document.getElementById('pathGoBtn');
         go.textContent = { prepare: 'Start preparing', practise: 'Practise the weakest bars', playthrough: 'Play it through', ready: 'Play it through again' }[stage];
-        setShown('pathPaintBtn', stage !== 'prepare');
-        setShown('pathCutBtn', stage !== 'prepare');
+        setShown('pathPaintBtn', stage !== 'prepare' || !!draft);
+        document.getElementById('pathPaintBtn').textContent = draft ? 'Carry on' : 'Edit levels'; // ML-670: "Set the levels again" sounded as if it wiped them
         renderPathThrough(stage);
     }
     // ===== ML-557: how far a piece has come =====
@@ -8004,17 +8019,21 @@
     }
     document.getElementById('pathGoBtn')?.addEventListener('click', () => {
         const stage = pieceStage();
-        if (stage === 'prepare' || prep.onlyPrepare) { openPrepareRun(); return; }
+        if (prep.onlyPrepare) { openPaint(); return; } // ML-669: the levels first, the run-through is the second choice
+        if (stage === 'prepare') { openPrepareRun(); return; }
         if (stage === 'practise') { const c = levelsWeakest(); if (c) startLevelPractice(c); else openPaint(); return; }
         const part = nextPart() || levels.groups[0];
         if (part) startLevelPractice({ ...part, level: part.level || PracticePlan.TARGET_LEVEL });
     });
     document.getElementById('pathPaintBtn')?.addEventListener('click', () => openPaint());
-    document.getElementById('pathSkipBtn')?.addEventListener('click', () => openPaint());
-    document.getElementById('pathCutBtn')?.addEventListener('click', () => { openPaintState(); openCut(); });
+    document.getElementById('pathSkipBtn')?.addEventListener('click', () => openPrepareRun());
+    document.getElementById('pathLevelsInfoBtn')?.addEventListener('click', () => showModal('levelsInfoModal'));
+    document.getElementById('pathStartAgainBtn')?.addEventListener('click', () => {
+        showConfirmModal('Start again?', 'This clears the bars kept on this device. Levels you have already saved stay as they are.', () => { clearPrepareDraft(); renderPiecePath(); }, true, 'Start again');
+    });
     document.getElementById('flowPlayMenuLevels')?.addEventListener('click', (e) => { e.stopPropagation(); closeFlowPlayMenu(); if (currentFlowId) openPiecePath(currentFlowId); });
 
-    // --- Prepare 2 of 4: the run-through - at full speed (ML-537); a slower Level is picked while it plays ---
+    // --- The run-through - at full speed (ML-537); a slower Level is picked while it plays ---
     function openPrepareRun() {
         switchView('prepareRunView');
         renderPrepareRun();
@@ -8025,36 +8044,75 @@
     }
     document.getElementById('prepPlayBtn')?.addEventListener('click', () => {
         const sc = levels.scope; // ML-530: one movement's run-through
+        prep.runStartedAt = Date.now(); // ML-674
         startLevelPractice({ id: null, kind: 'runthrough', startBar: levelsFrom(), endBar: levelsTo(), level: 5, label: sc ? FlowJourney.movementLabel(sc, true) : 'The whole piece', movement: sc ? sc.number : null }, 'runthrough');
     });
     document.getElementById('prepSkipBtn')?.addEventListener('click', () => openPaint());
     // The run-through has reached the end (or Done): on to setting the levels, with the Level it was played at.
     function runThroughDone() {
         window.Usage?.finish('prepare'); // ML-22: a step of a piece's path done
+        prep.runSeconds = prep.runStartedAt ? Math.round((Date.now() - prep.runStartedAt) / 1000) : 0; // ML-674
         const lv = flowSession ? flowSession.level : 5;
         endLevelPractice();
         if (viewStack[viewStack.length - 1] === 'flowPlayView') viewStack.pop();
         openPaint({ pot: lv, afterRun: true });
     }
 
-    // --- Prepare 3 of 4: set the level of each bar (ML-536: it was "paint" - the names in the code stay) ---
-    // rangeStart: the Range tool's first bar, waiting for the last (null when it isn't).
-    const paint = { levels: [], sections: [], tool: 'brush', pot: 3, undo: [], afterRun: false, rangeStart: null };
+    // --- Setting the levels and splitting, one page (ML-670: they were two; the names in the code stay paint, cut, bits) ---
+    // rangeStart: the Range tool's first bar, waiting for the last (null when it isn't). cuts: the bars where a focus
+    // section was started by hand. undo, redo: whole states, levels and cuts together. note: a word about the last tap.
+    const paint = { levels: [], sections: [], cuts: new Set(), tool: 'brush', pot: 3, undo: [], redo: [], afterRun: false, rangeStart: null, note: '', savedState: '' };
     const PAINT_HINTS = {
         brush: 'Tap a bar to give it this level.',
-        section: 'Tap any bar: the bars in its section with no level yet get this one.',
-        all: 'Tap any bar: every bar with no level yet gets this one. Then give the bars that went wrong a lower one.',
-        range: 'Tap the first bar, then the last: every bar from one to the other gets this level.',
-        rubber: 'Tap a bar to remove its level.'
+        range: 'Tap the first bar, then the last.',
+        section: 'Tap a bar: the empty bars in its part get this level.',
+        all: 'Tap any bar: every empty bar gets this level.',
+        rubber: 'Tap a bar to remove its level.',
+        split: 'Tap a bar to start a new focus section there.'
     };
+    const paintStateText = () => JSON.stringify([paint.levels, [...paint.cuts].sort((a, b) => a - b)]);
+
+    // ML-670: unfinished work stays on this device, one draft a piece (a movement's path has its own), so going back,
+    // leaving or a refresh loses nothing. It isn't saved to the piece until Done, because saving records where the bars
+    // started (ML-557). It carries the stopwatch's counts, so ML-674's figures cover the whole Prepare. A sign-out
+    // the member chose removes every draft (auth.logout); docs/offline.md.
+    const prepareDraftKey = () => `tml.prepareDraft.${auth.userId}.${levels.flowId}.${levels.scope ? levels.scope.number : 'all'}`;
+    function readPrepareDraft() {
+        try {
+            const d = JSON.parse(localStorage.getItem(prepareDraftKey()));
+            return d && Array.isArray(d.levels) && d.levels.length === levels.total && Array.isArray(d.cuts) ? d : null; // the bars have changed: it no longer fits
+        } catch { return null; }
+    }
+    function clearPrepareDraft() {
+        try { localStorage.removeItem(prepareDraftKey()); } catch { /* nothing kept, that's all */ }
+    }
+    function writePrepareDraft() {
+        if (paintStateText() === paint.savedState) { clearPrepareDraft(); return; }
+        try { localStorage.setItem(prepareDraftKey(), JSON.stringify({ levels: paint.levels, cuts: [...paint.cuts], at: Date.now(), stats: prepStats ? prepStats.c : null })); } catch { /* the page carries on, it just won't survive a refresh */ }
+    }
+
     function openPaintState() {
         paint.levels = FlowJourney.barLevels(levels.total, levels.chunks);
         paint.sections = FlowJourney.pieceSections(levels.blocks).filter(inLevelsScope); // ML-530: the path's movement only
+        // The old chunks' own starts stay as cuts (unless a section or a Level change already starts a bit there), so
+        // changing the levels keeps the bits you'd made.
+        const starts = new Set(sectionStarts());
+        paint.cuts = new Set();
+        levels.chunks.forEach(c => {
+            const n = c.startBar;
+            if (n > 1 && !starts.has(n) && paint.levels[n - 1] === paint.levels[n - 2]) paint.cuts.add(n);
+        });
+        paint.savedState = paintStateText();
+        const draft = readPrepareDraft();
+        if (draft) { paint.levels = draft.levels; paint.cuts = new Set(draft.cuts); }
         paint.undo = [];
+        paint.redo = [];
         paint.rangeStart = null;
+        paint.note = '';
     }
     function openPaint(opts) {
         const o = opts || {};
+        prepStatsBegin();
         openPaintState();
         const painted = paint.levels.filter(v => v);
         paint.pot = o.pot || (painted.length ? [1, 2, 3, 4, 5].sort((a, b) => painted.filter(v => v === b).length - painted.filter(v => v === a).length)[0] : 3);
@@ -8064,62 +8122,132 @@
         renderPaint();
     }
     const sectionName = (s) => s.label || levelsRange(s.startBar, s.endBar);
+    const sectionStarts = () => paint.sections.map(s => s.startBar);
     function paintBarHtml(n, lv, extraClass, label) {
         return `<button type="button" class="paint-bar lv-${lv || 0}${extraClass || ''}" data-bar="${n}" aria-label="${label}"><span class="paint-bar-num">${n}</span><span class="paint-bar-level">${lv || ''}</span></button>`;
     }
+    // ML-530: on a movement's path, only its bits (the bar after it is a break, so none runs out of it)
+    const currentBits = () => FlowJourney.bitsFromBars(paint.levels, [...sectionStarts(), levelsTo() + 1], [...paint.cuts]).filter(inLevelsScope);
+    function bitFit(b) {
+        if (b.level == null) return null;
+        const f = FlowJourney.chunkFit(levels.blocks, { startBar: b.startBar, endBar: b.endBar, level: b.level });
+        return f.ok ? f : null;
+    }
+    const bitTooLong = (b) => { if (b.level == null || b.level >= PracticePlan.TARGET_LEVEL) return false; const f = bitFit(b); return !!f && f.fits === 'tooLong'; };
     function renderPaint() {
         const hint = document.getElementById('paintHint');
-        hint.textContent = paint.afterRun
-            ? `The bars you played cleanly are Level ${paint.afterRun}: choose Fill all and tap a bar, then give the bars that went wrong a lower level.`
-            : 'Give every bar a level: 1 means very slow, 5 means full speed. The lower the number, the sooner those bars get practised.';
+        setShown(hint, !!paint.afterRun);
+        if (paint.afterRun) hint.textContent = `The bars you played cleanly are Level ${paint.afterRun}: choose Fill all and tap a bar, then give the bars that went wrong a lower level.`;
+        document.getElementById('paintTitle').textContent = levels.scope ? `${levels.title}: ${FlowJourney.movementLabel(levels.scope, true)}` : levels.title;
+        const bits = currentBits();
+        const long = bits.filter(bitTooLong);
         document.getElementById('paintSections').innerHTML = paint.sections.map((s, k) => {
             const done = paint.levels.slice(s.startBar - 1, s.endBar).filter(v => v).length;
-            const bars = [];
-            for (let n = s.startBar; n <= s.endBar; n++) {
+            const bars = FlowJourney.barJoins(paint.levels, s.startBar, s.endBar, [...paint.cuts]).map(j => {
+                const n = j.bar;
                 const lv = paint.levels[n - 1];
                 const start = paint.rangeStart === n;
-                bars.push(paintBarHtml(n, lv, start ? ' is-range-start' : '', `Bar ${n}, ${lv ? `Level ${lv}` : 'no level yet'}${start ? ' - the first bar of the range' : ''}`));
-            }
+                const tooLong = long.some(b => n >= b.startBar && n <= b.endBar);
+                const cls = `${j.joinsPrev ? ' joins-prev' : ''}${j.joinsNext ? ' joins-next' : ''}${j.split ? ' is-cut-before' : ''}${tooLong ? ' is-too-long' : ''}${start ? ' is-range-start' : ''}`;
+                return paintBarHtml(n, lv, cls, `Bar ${n}, ${lv ? `Level ${lv}` : 'no level yet'}${j.split ? ' - a focus section starts here' : ''}${tooLong ? ' - in a focus section that is too long' : ''}${start ? ' - the first bar of the range' : ''}`);
+            }).join('');
+            const warnings = long.filter(b => b.startBar >= s.startBar && b.endBar <= s.endBar).map(b => {
+                const parts = FlowJourney.suggestSplit(levels.blocks, { startBar: b.startBar, endBar: b.endBar, level: b.level }).length;
+                return `<div class="cut-bit is-too-long">
+                    <span class="grow text-sm"><strong>${levelsRange(b.startBar, b.endBar)}</strong> is too long for 5 goes in a block.${parts > 1 ? ` Split it into at least ${parts}.` : ''}</span>
+                    ${b.endBar > b.startBar ? `<button type="button" class="btn-nav no-margin" data-split-tool="${b.startBar}">Split</button>` : ''}
+                </div>`;
+            }).join('');
             return levelsMovementHeadAt(s.startBar) + `<section class="paint-section" aria-labelledby="paintSec${k}">
                 <div class="paint-section-head"><strong id="paintSec${k}">${escapeHtml(sectionName(s))}</strong><span class="text-sm text-muted">${s.label ? `${levelsRange(s.startBar, s.endBar)} · ` : ''}${done} of ${s.endBar - s.startBar + 1} set</span></div>
-                <div class="paint-bars">${bars.join('')}</div>
+                <div class="paint-bars">${bars}</div>
+                ${warnings}
             </section>`;
         }).join('');
         document.querySelectorAll('#paintTools [data-paint-tool]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.paintTool === paint.tool)));
-        const pots = document.getElementById('paintPots');
-        pots.innerHTML = [1, 2, 3, 4, 5].map(n => `<button type="button" class="level-pick lv-${n}${paint.pot === n && paint.tool !== 'rubber' ? ' selected' : ''}" aria-pressed="${paint.pot === n && paint.tool !== 'rubber'}" data-pot="${n}" aria-label="Set Level ${n}">${n}</button>`).join('');
-        document.getElementById('paintToolHint').textContent = paint.tool === 'range' && paint.rangeStart
-            ? `From bar ${paint.rangeStart}: now tap the last bar.` : PAINT_HINTS[paint.tool];
+        const noLevel = paint.tool === 'rubber' || paint.tool === 'split';
+        document.getElementById('paintPots').innerHTML = [1, 2, 3, 4, 5].map(n => `<button type="button" class="level-pick lv-${n}${paint.pot === n && !noLevel ? ' selected' : ''}" aria-pressed="${paint.pot === n && !noLevel}" data-pot="${n}" aria-label="Set Level ${n}">${n}</button>`).join('');
+        document.getElementById('paintToolHint').textContent = paint.note || (paint.tool === 'range' && paint.rangeStart
+            ? `From bar ${paint.rangeStart}: now tap the last bar.` : PAINT_HINTS[paint.tool]);
         document.getElementById('paintUndoBtn').disabled = !paint.undo.length;
-        const unpainted = paint.levels.filter(v => !v).length;
-        document.getElementById('paintNextBtn').textContent = unpainted ? `Next (${unpainted} with no level)` : 'Next: split into focus sections';
+        document.getElementById('paintRedoBtn').disabled = !paint.redo.length;
+        const scoped = paint.levels.slice(levelsFrom() - 1, levelsTo());
+        const unpainted = scoped.filter(v => !v).length;
+        document.getElementById('paintDoneBtn').textContent = unpainted ? `Done (${unpainted} with no level)` : long.length ? `Done (${long.length} too long)` : pieceStage() === 'prepare' ? 'Done preparing' : 'Done';
+        // ML-668: how many bars are at each Level, the chart the rest of the app uses
+        const chart = document.getElementById('cutSummaryChart');
+        const anySet = unpainted < scoped.length;
+        setShown(chart, anySet);
+        if (anySet) {
+            chart.innerHTML = levelBarHtml(scoped) + levelLegendHtml([scoped], 'Not set', 'bar');
+            sizeLevelBars(chart);
+        }
+        const focus = bits.filter(b => b.level != null && b.level < PracticePlan.TARGET_LEVEL);
+        const blocks = focus.reduce((n, b) => n + (PracticePlan.TARGET_LEVEL - b.level), 0);
+        document.getElementById('cutSummaryText').textContent = (focus.length
+            ? `${focus.length} focus section${focus.length === 1 ? '' : 's'} below Level ${PracticePlan.TARGET_LEVEL} · about ${blocks} five-minute block${blocks === 1 ? '' : 's'} to get them all there.`
+            : !anySet ? 'Set the levels of the bars first.' : `Every bar with a level is at Level ${PracticePlan.TARGET_LEVEL} or more - on to the play-through!`)
+            + (long.length ? ` ${long.length} still too long - split ${long.length === 1 ? 'it' : 'them'} up.` : '')
+            + (unpainted && anySet ? ` ${unpainted} bar${unpainted === 1 ? '' : 's'} with no level yet.` : '');
+    }
+    // Every change goes through here, so Undo, Redo and the draft all see the same thing
+    function paintChange(change) {
+        const before = { levels: paint.levels.slice(), cuts: new Set(paint.cuts) };
+        const was = paintStateText();
+        change();
+        paint.note = '';
+        if (paintStateText() === was) return;
+        paint.undo.push(before);
+        if (paint.undo.length > 30) paint.undo.shift();
+        paint.redo = [];
+        writePrepareDraft();
+    }
+    function paintSplitAt(n) {
+        const s = paint.sections.find(x => n >= x.startBar && n <= x.endBar);
+        if (s && n === s.startBar) { paint.note = 'A new part of the piece starts here already.'; return; }
+        if (!paint.levels[n - 1]) { paint.note = 'Give this bar a level first.'; return; }
+        if (paint.levels[n - 1] !== paint.levels[n - 2]) { paint.note = 'A change of level starts a new focus section here already.'; return; }
+        paintChange(() => { if (paint.cuts.has(n)) paint.cuts.delete(n); else paint.cuts.add(n); });
     }
     function paintApply(n) {
+        prepStatsTap(paint.tool);
+        if (paint.tool === 'split') {
+            paintSplitAt(n);
         // Range (ML-536): the first tap marks a bar, the second sets every bar from one to the other
-        if (paint.tool === 'range' && paint.rangeStart == null) {
+        } else if (paint.tool === 'range' && paint.rangeStart == null) {
             paint.rangeStart = n;
-            renderPaint();
-            document.querySelector(`#paintSections [data-bar="${n}"]`)?.focus();
-            return;
+            paint.note = '';
+        } else {
+            paintChange(() => {
+                if (paint.tool === 'range') {
+                    for (let k = Math.min(paint.rangeStart, n); k <= Math.max(paint.rangeStart, n); k++) paint.levels[k - 1] = paint.pot;
+                    paint.rangeStart = null;
+                } else if (paint.tool === 'brush') paint.levels[n - 1] = paint.pot;
+                else if (paint.tool === 'rubber') paint.levels[n - 1] = null;
+                // Fill all (ML-662, the owner: "a bit too powerful"): only the bars with no level yet - one already set keeps it
+                else if (paint.tool === 'all') paint.levels = paint.levels.map((v, i) => (!v && i + 1 >= levelsFrom() && i + 1 <= levelsTo() ? paint.pot : v));
+                else if (paint.tool === 'section') {
+                    const s = paint.sections.find(x => n >= x.startBar && n <= x.endBar);
+                    if (s) for (let k = s.startBar; k <= s.endBar; k++) if (!paint.levels[k - 1]) paint.levels[k - 1] = paint.pot;
+                }
+            });
+            if (paint.tool === 'all') paint.tool = 'brush'; // then the bars that went wrong, one by one
         }
-        const before = paint.levels.slice();
-        if (paint.tool === 'range') {
-            for (let k = Math.min(paint.rangeStart, n); k <= Math.max(paint.rangeStart, n); k++) paint.levels[k - 1] = paint.pot;
-            paint.rangeStart = null;
-        } else if (paint.tool === 'brush') paint.levels[n - 1] = paint.pot;
-        else if (paint.tool === 'rubber') paint.levels[n - 1] = null;
-        // Fill all (ML-662, the owner: "a bit too powerful"): only the bars with no level yet - one already set keeps it
-        else if (paint.tool === 'all') paint.levels = paint.levels.map((v, i) => (!v && i + 1 >= levelsFrom() && i + 1 <= levelsTo() ? paint.pot : v));
-        else if (paint.tool === 'section') {
-            const s = paint.sections.find(x => n >= x.startBar && n <= x.endBar);
-            if (s) for (let k = s.startBar; k <= s.endBar; k++) if (!paint.levels[k - 1]) paint.levels[k - 1] = paint.pot;
-        }
-        if (before.some((v, i) => v !== paint.levels[i])) { paint.undo.push(before); if (paint.undo.length > 30) paint.undo.shift(); }
-        if (paint.tool === 'all') paint.tool = 'brush'; // then the bars that went wrong, one by one
         renderPaint();
         document.querySelector(`#paintSections [data-bar="${n}"]`)?.focus();
     }
+    // Pick the Split tool and go to the bars that need it - from a warning, or the pop-up on Done
+    function paintGoSplit(bar) {
+        paint.tool = 'split';
+        paint.rangeStart = null;
+        paint.note = '';
+        prepStatsNote('toolChanges');
+        renderPaint();
+        document.querySelector(`#paintSections [data-bar="${bar}"]`)?.scrollIntoView({ block: 'center' });
+    }
     document.getElementById('paintSections')?.addEventListener('click', (e) => {
+        const split = e.target.closest('[data-split-tool]');
+        if (split) { paintGoSplit(Number(split.dataset.splitTool)); return; }
         const b = e.target.closest('[data-bar]');
         if (b) paintApply(Number(b.dataset.bar));
     });
@@ -8128,18 +8256,34 @@
         if (!b) return;
         paint.tool = b.dataset.paintTool;
         paint.rangeStart = null;
+        paint.note = '';
+        prepStatsNote('toolChanges');
         renderPaint();
     });
     document.getElementById('paintPots')?.addEventListener('click', (e) => {
         const b = e.target.closest('[data-pot]');
         if (!b) return;
         paint.pot = Number(b.dataset.pot);
-        if (paint.tool === 'rubber') paint.tool = 'brush';
+        if (paint.tool === 'rubber' || paint.tool === 'split') paint.tool = 'brush';
+        paint.note = '';
         renderPaint();
     });
-    document.getElementById('paintUndoBtn')?.addEventListener('click', () => { const last = paint.undo.pop(); if (last) { paint.levels = last; paint.rangeStart = null; renderPaint(); } });
-    document.getElementById('paintNextBtn')?.addEventListener('click', () => openCut());
-    // Type bars instead - the typed way of painting (bars from-to at a Level).
+    // Undo and Redo: one state from one list to the other
+    function paintStep(from, to, name) {
+        const last = from.pop();
+        if (!last) return;
+        to.push({ levels: paint.levels, cuts: paint.cuts });
+        paint.levels = last.levels;
+        paint.cuts = last.cuts;
+        paint.rangeStart = null;
+        paint.note = '';
+        prepStatsNote(name);
+        writePrepareDraft();
+        renderPaint();
+    }
+    document.getElementById('paintUndoBtn')?.addEventListener('click', () => paintStep(paint.undo, paint.redo, 'undo'));
+    document.getElementById('paintRedoBtn')?.addEventListener('click', () => paintStep(paint.redo, paint.undo, 'redo'));
+    // Type bars instead - the typed way of setting levels (bars from-to at a Level), or with Split chosen, of splitting.
     let paintTypeLevel = 3;
     function renderPaintTypePicker() {
         const el = document.getElementById('paintTypePicker');
@@ -8147,136 +8291,72 @@
         el.querySelectorAll('[data-level]').forEach(b => b.addEventListener('click', () => { paintTypeLevel = Number(b.dataset.level); renderPaintTypePicker(); }));
     }
     document.getElementById('paintTypeBtn')?.addEventListener('click', () => {
-        const from = document.getElementById('paintTypeFrom'), to = document.getElementById('paintTypeTo');
+        const splitting = paint.tool === 'split';
+        const from = document.getElementById(splitting ? 'cutTypeFrom' : 'paintTypeFrom'), to = document.getElementById(splitting ? 'cutTypeTo' : 'paintTypeTo');
         from.min = to.min = String(levelsFrom());
         from.max = to.max = String(levelsTo());
         from.value = levelsFrom(); to.value = Math.min(levelsTo(), levelsFrom() + 3);
-        paintTypeLevel = paint.pot;
-        renderPaintTypePicker();
-        showModal('paintTypeModal');
+        if (!splitting) { paintTypeLevel = paint.pot; renderPaintTypePicker(); }
+        showModal(splitting ? 'cutTypeModal' : 'paintTypeModal');
         from.focus();
     });
     document.getElementById('paintTypeCloseBtn')?.addEventListener('click', () => hideModal('paintTypeModal'));
-    document.getElementById('paintTypeDoneBtn')?.addEventListener('click', () => {
+    const paintTypedBars = (fromId, toId) => {
         const clamp = (v) => Math.max(levelsFrom(), Math.min(levelsTo(), Math.round(Number(v) || 1)));
-        const a = clamp(document.getElementById('paintTypeFrom').value), z = clamp(document.getElementById('paintTypeTo').value);
-        paint.undo.push(paint.levels.slice());
-        for (let n = Math.min(a, z); n <= Math.max(a, z); n++) paint.levels[n - 1] = paintTypeLevel;
+        const a = clamp(document.getElementById(fromId).value), z = clamp(document.getElementById(toId).value);
+        return [Math.min(a, z), Math.max(a, z)];
+    };
+    document.getElementById('paintTypeDoneBtn')?.addEventListener('click', () => {
+        const [a, z] = paintTypedBars('paintTypeFrom', 'paintTypeTo');
+        paintChange(() => { for (let n = a; n <= z; n++) paint.levels[n - 1] = paintTypeLevel; });
+        prepStatsNote('typed');
         hideModal('paintTypeModal');
         renderPaint();
-        showSuccessToast(`${levelsRange(Math.min(a, z), Math.max(a, z))} set to Level ${paintTypeLevel}`);
-    });
-
-    // --- Prepare 4 of 4: split into focus sections (ML-536: were "focus bits" - the code still says bit/cut; the knife) ---
-    const cut = { cuts: new Set() };
-    const sectionStarts = () => paint.sections.map(s => s.startBar);
-    function openCut() {
-        // The old chunks' own starts stay as cuts (unless a section or a Level change already starts a bit
-        // there), so re-painting keeps the bits you'd made.
-        const starts = new Set(sectionStarts());
-        cut.cuts = new Set();
-        levels.chunks.forEach(c => {
-            const n = c.startBar;
-            if (n > 1 && !starts.has(n) && paint.levels[n - 1] === paint.levels[n - 2]) cut.cuts.add(n);
-        });
-        switchView('levelsCutView');
-        renderCut();
-    }
-    // ML-530: on a movement's path, only its bits (the bar after it is a break, so none runs out of it)
-    const currentBits = () => FlowJourney.bitsFromBars(paint.levels, [...sectionStarts(), levelsTo() + 1], [...cut.cuts]).filter(inLevelsScope);
-    function bitFit(b) {
-        if (b.level == null) return null;
-        const f = FlowJourney.chunkFit(levels.blocks, { startBar: b.startBar, endBar: b.endBar, level: b.level });
-        return f.ok ? f : null;
-    }
-    function renderCut() {
-        const bits = currentBits();
-        document.getElementById('cutSections').innerHTML = paint.sections.map((s, k) => {
-            const mine = bits.filter(b => b.startBar >= s.startBar && b.endBar <= s.endBar);
-            const bars = [];
-            for (let n = s.startBar; n <= s.endBar; n++) {
-                const lv = paint.levels[n - 1];
-                const isCut = cut.cuts.has(n);
-                bars.push(paintBarHtml(n, lv, isCut ? ' is-cut-before' : '', `Bar ${n}, ${lv ? `Level ${lv}` : 'no level yet'}${isCut ? ' - a focus section starts here, tap to join it back up' : n === s.startBar ? '' : ' - tap to start a new focus section here'}`));
-            }
-            const rows = mine.map(b => {
-                const f = bitFit(b);
-                const focus = b.level != null && b.level < PracticePlan.TARGET_LEVEL;
-                const tooLong = focus && f && f.fits === 'tooLong';
-                const text = b.level == null ? 'No level yet' : !focus ? `Level ${b.level} - ready for the play-through` : f ? `${fmtMinSec(f.runSeconds)} a go · ${tooLong ? `only ${f.runs} go${f.runs === 1 ? '' : 'es'} in a block - too long` : `fits ${f.runs} goes`}` : '';
-                return `<div class="cut-bit${tooLong ? ' is-too-long' : ''}">
-                    <span class="level-chip lv-${b.level || 0}" aria-hidden="true">${b.level || ''}</span>
-                    <span class="grow"><strong>${levelsRange(b.startBar, b.endBar)}</strong><br><span class="text-sm${tooLong ? ' level-fit-warn' : ' text-muted'}">${text}</span></span>
-                    ${tooLong && b.endBar > b.startBar ? `<button type="button" class="btn-nav no-margin" data-split="${b.startBar}-${b.endBar}-${b.level}">Split it for me</button>` : ''}
-                </div>`;
-            }).join('');
-            return levelsMovementHeadAt(s.startBar) + `<section class="paint-section" aria-labelledby="cutSec${k}">
-                <div class="paint-section-head"><strong id="cutSec${k}">${escapeHtml(sectionName(s))}</strong><span class="text-sm text-muted">${levelsRange(s.startBar, s.endBar)}</span></div>
-                <div class="paint-bars">${bars.join('')}</div>
-                ${rows}
-            </section>`;
-        }).join('');
-        const focus = bits.filter(b => b.level != null && b.level < PracticePlan.TARGET_LEVEL);
-        document.getElementById('cutSummaryChips').innerHTML = focus.map(b => `<span class="level-chip lv-${b.level}">${b.level}</span>`).join('');
-        const blocks = focus.reduce((n, b) => n + (PracticePlan.TARGET_LEVEL - b.level), 0);
-        const long = focus.filter(b => { const f = bitFit(b); return f && f.fits === 'tooLong'; }).length;
-        const scopeLevels = paint.levels.slice(levelsFrom() - 1, levelsTo());
-        const unpainted = scopeLevels.filter(v => !v).length;
-        document.getElementById('cutSummaryText').textContent = (focus.length
-            ? `${focus.length} focus section${focus.length === 1 ? '' : 's'} below Level ${PracticePlan.TARGET_LEVEL} · about ${blocks} five-minute block${blocks === 1 ? '' : 's'} to get them all there.`
-            : unpainted === scopeLevels.length ? 'Set the levels of the bars first.' : `Every bar with a level is at Level ${PracticePlan.TARGET_LEVEL} or more - on to the play-through!`)
-            + (long ? ` ${long} still too long - split ${long === 1 ? 'it' : 'them'} up.` : '')
-            + (unpainted && unpainted < scopeLevels.length ? ` ${unpainted} bar${unpainted === 1 ? '' : 's'} with no level yet.` : '');
-    }
-    document.getElementById('cutSections')?.addEventListener('click', (e) => {
-        const split = e.target.closest('[data-split]');
-        if (split) {
-            const [a, z, lv] = split.dataset.split.split('-').map(Number);
-            FlowJourney.suggestSplit(levels.blocks, { startBar: a, endBar: z, level: lv }).forEach(([s], k) => { if (k > 0) cut.cuts.add(s); });
-            renderCut();
-            return;
-        }
-        const b = e.target.closest('[data-bar]');
-        if (!b) return;
-        const n = Number(b.dataset.bar);
-        if (sectionStarts().includes(n)) { showWarningToast('A new section starts here already.'); return; }
-        if (cut.cuts.has(n)) cut.cuts.delete(n); else cut.cuts.add(n);
-        renderCut();
-        document.querySelector(`#cutSections [data-bar="${n}"]`)?.focus();
-    });
-    document.getElementById('cutTypeBtn')?.addEventListener('click', () => {
-        const from = document.getElementById('cutTypeFrom'), to = document.getElementById('cutTypeTo');
-        from.min = to.min = String(levelsFrom());
-        from.max = to.max = String(levelsTo());
-        from.value = levelsFrom(); to.value = Math.min(levelsTo(), levelsFrom() + 3);
-        showModal('cutTypeModal');
-        from.focus();
+        showSuccessToast(`${levelsRange(a, z)} set to Level ${paintTypeLevel}`);
     });
     document.getElementById('cutTypeCloseBtn')?.addEventListener('click', () => hideModal('cutTypeModal'));
     document.getElementById('cutTypeDoneBtn')?.addEventListener('click', () => {
-        const clamp = (v) => Math.max(levelsFrom(), Math.min(levelsTo(), Math.round(Number(v) || 1)));
-        const a = clamp(document.getElementById('cutTypeFrom').value), z = clamp(document.getElementById('cutTypeTo').value);
-        const [s, e] = [Math.min(a, z), Math.max(a, z)];
-        if (s > levelsFrom()) cut.cuts.add(s);
-        if (e < levelsTo()) cut.cuts.add(e + 1);
+        const [s, e] = paintTypedBars('cutTypeFrom', 'cutTypeTo');
+        paintChange(() => {
+            if (s > levelsFrom()) paint.cuts.add(s);
+            if (e < levelsTo()) paint.cuts.add(e + 1);
+        });
+        prepStatsNote('typed');
         hideModal('cutTypeModal');
-        renderCut();
+        renderPaint();
     });
-    // Done preparing: the bits are saved as the piece's chunks (an old chunk with the same bars keeps its
-    // id, so its history stays), with its play-through parts; then back to the path, or the session.
-    document.getElementById('cutDoneBtn')?.addEventListener('click', async () => {
+    // Done: a focus section that won't fit asks first (ML-670), and never stops anyone - it still plays, with fewer goes
+    document.getElementById('paintDoneBtn')?.addEventListener('click', () => {
         const bits = currentBits();
         if (!bits.some(b => b.level != null)) { showWarningToast('Set the level of some bars first.'); return; }
+        const long = bits.filter(bitTooLong);
+        if (!long.length) { paintSave(); return; }
+        const names = long.map(b => levelsRange(b.startBar, b.endBar));
+        document.getElementById('paintTooLongTitle').textContent = `${long.length} focus section${long.length === 1 ? ' is' : 's are'} too long`;
+        const shown = names.length > 4 ? `${names.slice(0, 3).join(', ')} and ${names.length - 3} more` : names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0];
+        document.getElementById('paintTooLongText').textContent = `${shown} won't fit 5 goes in a block.`;
+        showModal('paintTooLongModal');
+    });
+    document.getElementById('paintTooLongSplitBtn')?.addEventListener('click', () => {
+        hideModal('paintTooLongModal');
+        const first = currentBits().find(bitTooLong);
+        if (first) paintGoSplit(first.startBar);
+    });
+    document.getElementById('paintTooLongDoneBtn')?.addEventListener('click', () => { hideModal('paintTooLongModal'); paintSave(); });
+    async function paintSave() {
+        const bits = currentBits();
         const old = new Map(levels.chunks.map(c => [`${c.startBar}-${c.endBar}`, c.id]));
         const labelOf = (b) => { const s = paint.sections.find(x => x.startBar === b.startBar && x.endBar === b.endBar); return s && s.label ? s.label : null; };
         const body = [...bits.map(b => ({ id: old.get(`${b.startBar}-${b.endBar}`), kind: 'chunk', startBar: b.startBar, endBar: b.endBar, level: b.level, label: labelOf(b) })),
             // ML-530: on a movement's path the other movements' bits stay as they are
             ...levels.chunks.filter(outsideLevelsScope).map(c => ({ id: c.id, kind: c.kind, startBar: c.startBar, endBar: c.endBar, level: c.level, label: c.label })),
             ...levels.groups.map(g => ({ id: g.id, kind: 'group', startBar: g.startBar, endBar: g.endBar, level: g.level, label: g.label }))];
-        const btn = document.getElementById('cutDoneBtn');
+        const btn = document.getElementById('paintDoneBtn');
         btn.disabled = true;
         try {
             applyPieceLevels(await API.levels.save(levels.flowId, body));
+            clearPrepareDraft();
+            prepStatsFinish('completed');
             showSuccessToast('Your bars are saved');
             if (prep.fromSession && practiceRun && !practiceRun.done) { prep.fromSession = false; prepareDoneInSession(); return; }
             // ML-558 (owner, 21 Oct 2026): from the Prepare tool, back to its list - the piece has left it, the next is ready
@@ -8289,7 +8369,73 @@
         } finally {
             btn.disabled = false;
         }
-    });
+    }
+
+    // ----- ML-674: how long a piece takes to prepare, and how many taps - the ML-199 stopwatch, kind 'prepare' -----
+    // One row per sitting on this page; the counts go on across a draft, so the row that reaches Done is the whole
+    // Prepare. Same two rules as ML-199: active time only, and it never gets in the way (every write is silent).
+    var prepStats = null; // var: switchView may run before this line has
+    function prepStatsBegin() {
+        if (prepStats && prepStats.flowId === levels.flowId) return;
+        if (prepStats) prepStatsFinish('abandoned');
+        const draft = readPrepareDraft();
+        const s = prepStats = {
+            sessionId: null, flowId: levels.flowId, startedAtMs: Date.now(), lastInputAtMs: Date.now(), lastBarTapMs: 0, gaps: [],
+            fromDraft: !!draft,
+            alreadySet: levelsMap().slice(levelsFrom() - 1, levelsTo()).filter(v => v).length,
+            c: { active: 0, taps: 0, keys: 0, barTaps: 0, tools: {}, undo: 0, redo: 0, typed: 0, toolChanges: 0, ...(draft && draft.stats ? draft.stats : {}) },
+            tickHandle: null, heartbeatHandle: null
+        };
+        if (prep.runSeconds) s.c.runSeconds = prep.runSeconds;
+        s.tickHandle = setInterval(() => {
+            if (document.visibilityState === 'visible' && Date.now() - s.lastInputAtMs <= FLOW_STATS_IDLE_THRESHOLD_SECONDS * 1000) s.c.active += 1;
+        }, 1000);
+        s.heartbeatHandle = setInterval(() => prepStatsSync(null), FLOW_STATS_HEARTBEAT_SECONDS * 1000);
+        flowStatsRequest(`/api/flows/${s.flowId}/authoring-sessions`, 'POST', { kind: 'prepare', creationSource: 'manual', deviceKind: flowStatsDeviceKind(), idleThresholdSeconds: FLOW_STATS_IDLE_THRESHOLD_SECONDS, blockCountStart: levels.blocks.length })
+            .then(row => { if (row) s.sessionId = row.id; });
+    }
+    ['pointerdown', 'keydown'].forEach(evt => document.addEventListener(evt, () => {
+        if (!prepStats) return;
+        prepStats.lastInputAtMs = Date.now();
+        if (evt === 'pointerdown') prepStats.c.taps += 1; else prepStats.c.keys += 1;
+    }, { capture: true, passive: true }));
+    // A tap on a bar with a tool, and the gap since the last one - the nearest thing to the time spent finding a bar
+    function prepStatsTap(tool) {
+        const s = prepStats;
+        if (!s) return;
+        const now = Date.now();
+        if (s.lastBarTapMs && now - s.lastBarTapMs <= FLOW_STATS_IDLE_THRESHOLD_SECONDS * 1000) s.gaps.push(now - s.lastBarTapMs);
+        s.lastBarTapMs = now;
+        s.c.barTaps += 1;
+        s.c.tools[tool] = (s.c.tools[tool] || 0) + 1;
+    }
+    const prepStatsNote = (name) => { if (prepStats) prepStats.c[name] = (prepStats.c[name] || 0) + 1; };
+    function prepStatsSync(outcome) {
+        const s = prepStats;
+        if (!s || !s.sessionId) return;
+        const gaps = s.gaps.slice().sort((a, b) => a - b);
+        const bits = s.flowId === levels.flowId ? currentBits() : [];
+        flowStatsRequest(`/api/flows/authoring-sessions/${s.sessionId}`, 'PUT', {
+            activeSeconds: s.c.active, barsActiveSeconds: s.c.active, elapsedSeconds: Math.round((Date.now() - s.startedAtMs) / 1000),
+            blockCountEnd: levels.blocks.length, totalBarsEnd: levelsTo() - levelsFrom() + 1, blocksAdded: 0, blocksEdited: 0, blocksDeleted: 0,
+            tapCount: s.c.taps, keyCount: s.c.keys,
+            prepareCounts: {
+                ...s.c.tools, barTaps: s.c.barTaps, undo: s.c.undo, redo: s.c.redo, typed: s.c.typed, toolChanges: s.c.toolChanges,
+                gapTenths: gaps.length ? Math.round(gaps[Math.floor(gaps.length / 2)] / 100) : 0,
+                alreadySet: s.alreadySet, runSeconds: s.c.runSeconds || 0, fromDraft: s.fromDraft ? 1 : 0,
+                focus: bits.filter(b => b.level != null && b.level < PracticePlan.TARGET_LEVEL).length, tooLong: bits.filter(bitTooLong).length
+            },
+            ...(outcome ? { outcome } : {})
+        });
+    }
+    function prepStatsFinish(outcome) {
+        const s = prepStats;
+        if (!s) return;
+        clearInterval(s.tickHandle);
+        clearInterval(s.heartbeatHandle);
+        prepStatsSync(outcome);
+        prepStats = null;
+    }
     // Back down the screens to one already open (the path), or open it.
     function backToView(view) {
         const k = viewStack.lastIndexOf(view);
@@ -9581,7 +9727,7 @@
         // ML-391: the scale a Scales block stopped on still gets its answer (taken before leaving ends the block)
         const scaleOpen = scalesLadder && scalesLadder.current && !scalesLadder.busy ? { cur: scalesLadder.current, items: scalesLadder.items } : null;
         if (view === 'flowPlayView') { if (flowPlayer.isPlaying()) flowPlayer.pause(); updateFlowPlayIcon(); } // ML-563
-        else if (view !== 'sessionRunView' && !(prep.fromSession && ['piecePathView', 'prepareRunView', 'levelsPaintView', 'levelsCutView'].includes(view))) switchView('sessionRunView');
+        else if (view !== 'sessionRunView' && !(prep.fromSession && ['piecePathView', 'prepareRunView', 'levelsPaintView'].includes(view))) switchView('sessionRunView');
         if (flowSession && flowSession.mode !== 'runthrough') { r.waitingForRating = true; openLevelRating(); return; }
         if (scaleOpen) { r.waitingForRating = true; askScaleRating(scaleOpen.cur, scaleOpen.items, () => { r.waitingForRating = false; sessionAfterBlock(); }); return; }
         const b = r.blocks[r.index];

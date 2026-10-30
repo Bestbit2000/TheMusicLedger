@@ -28,7 +28,6 @@
   "historyView",
   "instrumentSupportView",
   "inviteView",
-  "levelsCutView",
   "levelsPaintView",
   "levelsProgressView",
   "mainView",
@@ -1574,6 +1573,13 @@
   {
    "group": "Practice session",
    "where": "piecePathView",
+   "name": "#pathLevelsInfoBtn",
+   "label": "More about levels",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "piecePathView",
    "name": "#pathBarByBarBtn",
    "label": "Bar by bar",
    "html": true
@@ -1589,21 +1595,21 @@
    "group": "Practice session",
    "where": "piecePathView",
    "name": "#pathSkipBtn",
-   "label": "Skip play through and set the level directly",
+   "label": "Play it through first",
    "html": true
   },
   {
    "group": "Practice session",
    "where": "piecePathView",
    "name": "#pathPaintBtn",
-   "label": "Set the levels again",
+   "label": "Edit levels",
    "html": true
   },
   {
    "group": "Practice session",
    "where": "piecePathView",
-   "name": "#pathCutBtn",
-   "label": "Focus sections",
+   "name": "#pathStartAgainBtn",
+   "label": "Start again",
    "html": true
   },
   {
@@ -1624,7 +1630,7 @@
    "group": "Practice session",
    "where": "prepareRunView",
    "name": "#prepSkipBtn",
-   "label": "Skip play through and set the level directly",
+   "label": "Set the levels straight away",
    "html": true
   },
   {
@@ -1644,8 +1650,15 @@
   {
    "group": "Practice session",
    "where": "levelsPaintView",
+   "name": "data-paint-tool=range",
+   "label": "Range",
+   "html": true
+  },
+  {
+   "group": "Practice session",
+   "where": "levelsPaintView",
    "name": "data-paint-tool=section",
-   "label": "Fill section",
+   "label": "Fill part",
    "html": true
   },
   {
@@ -1658,15 +1671,15 @@
   {
    "group": "Practice session",
    "where": "levelsPaintView",
-   "name": "data-paint-tool=range",
-   "label": "Range",
+   "name": "data-paint-tool=rubber",
+   "label": "Remove level",
    "html": true
   },
   {
    "group": "Practice session",
    "where": "levelsPaintView",
-   "name": "data-paint-tool=rubber",
-   "label": "Remove level",
+   "name": "data-paint-tool=split",
+   "label": "Split",
    "html": true
   },
   {
@@ -1679,21 +1692,14 @@
   {
    "group": "Practice session",
    "where": "levelsPaintView",
-   "name": "#paintNextBtn",
-   "label": "Next: split into focus sections",
+   "name": "#paintRedoBtn",
+   "label": "Redo",
    "html": true
   },
   {
    "group": "Practice session",
-   "where": "levelsCutView",
-   "name": "#cutTypeBtn",
-   "label": "Type bars instead",
-   "html": true
-  },
-  {
-   "group": "Practice session",
-   "where": "levelsCutView",
-   "name": "#cutDoneBtn",
+   "where": "levelsPaintView",
+   "name": "#paintDoneBtn",
    "label": "Done preparing",
    "html": true
   },
@@ -4093,6 +4099,34 @@
   },
   {
    "group": "Practice session",
+   "where": "levelsInfoModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "paintTooLongModal",
+   "name": "close (X)",
+   "label": "Close",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "paintTooLongModal",
+   "name": "#paintTooLongSplitBtn",
+   "label": "Split them",
+   "html": true
+  },
+  {
+   "group": "Menu, notices and the rest",
+   "where": "paintTooLongModal",
+   "name": "#paintTooLongDoneBtn",
+   "label": "Done anyway",
+   "html": true
+  },
+  {
+   "group": "Practice session",
    "where": "paintTypeModal",
    "name": "#paintTypeCloseBtn",
    "label": "Close",
@@ -5256,6 +5290,13 @@
   {
    "group": "Practice session",
    "where": "renderPaint()",
+   "name": "data-split-tool",
+   "label": "Split",
+   "html": false
+  },
+  {
+   "group": "Practice session",
+   "where": "renderPaint()",
    "name": "data-pot",
    "label": "",
    "html": false
@@ -5265,13 +5306,6 @@
    "where": "renderPaintTypePicker()",
    "name": "data-level",
    "label": "",
-   "html": false
-  },
-  {
-   "group": "Practice session",
-   "where": "renderCut()",
-   "name": "data-split",
-   "label": "Split it for me",
    "html": false
   },
   {

@@ -1,6 +1,6 @@
 {
   "about": "ML-650: the icons in material-symbols-outlined.woff2 - made by npm run icon-font, from Google Fonts (icon_names). Do not edit by hand.",
-  "made": "2026-10-28",
+  "made": "2026-10-30",
   "axes": "opsz 24, wght 400, GRAD 0, FILL 0..1",
   "icons": [
     "360",
@@ -95,6 +95,7 @@
     "conditions",
     "construction",
     "content_copy",
+    "content_cut",
     "contract",
     "contrast",
     "conversation",
@@ -182,7 +183,6 @@
     "grading",
     "graphic_eq",
     "group",
-    "group_add",
     "groups",
     "guardian",
     "handshake",

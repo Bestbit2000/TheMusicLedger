@@ -2863,7 +2863,7 @@
     .step-question { font-size: var(--font-lg); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); margin: 0 0 var(--space-3); text-wrap: balance; }
     /* ML-535: Prepare's steps have no step row above the question, so it gets room of its own under the top bar
        (not :first-child - the mini tuner is moved in ahead of it, hidden until it's opened) */
-    :is(#prepareRunView, #levelsPaintView, #levelsCutView) > .step-question { margin-top: var(--space-4); }
+    :is(#prepareRunView, #levelsPaintView) > .step-question { margin-top: var(--space-4); }
     /* One strip across the width, a block per 5 minutes - more minutes, thinner blocks (owner, 1 Oct 2026: numbered
        squares looked like buttons). Display only. */
     .time-blocks { display: flex; gap: var(--space-1); height: var(--time-strip-height); margin: 0 0 var(--space-4); }
@@ -3029,29 +3029,49 @@
     .path-step { display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-sm); }
     .path-step .material-symbols-outlined { font-size: var(--icon-md); color: var(--label-color); }
     .path-step.is-done .material-symbols-outlined { color: var(--success-text); font-variation-settings: 'FILL' 1; }
-    .focus-summary { display: flex; flex-wrap: wrap; gap: var(--space-1); margin: var(--space-2) 0; }
+    /* ML-669: the start of Prepare - the piece's name on the page, one line, an example and two short rows */
+    .path-title { font-size: var(--font-lg); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); margin: var(--space-4) 0 var(--space-1); text-wrap: balance; }
+    .prepare-lead { font-size: var(--font-md); font-weight: var(--font-weight-bold); line-height: var(--line-height-snug); margin: 0 0 var(--space-4); }
+    .prepare-example { display: grid; gap: var(--space-3); margin-bottom: var(--space-1); }
+    .prepare-example .paint-bar { cursor: default; }
+    .prepare-key { display: flex; align-items: center; gap: var(--space-3); margin: 0; font-size: var(--font-base); line-height: var(--line-height-snug); }
+    .prepare-key-line { flex-shrink: 0; width: var(--icon-xl); height: var(--space-1); background: var(--control-border); }
 
     /* Painting the bars (ML-390): each section's bars as big squares (the bar number small, the Level big -
        colour and number together), and the paint box pinned to the bottom of the screen. */
     .paint-section { display: grid; gap: var(--space-2); margin-bottom: var(--space-4); }
     .paint-section-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
-    .paint-bars { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-1); } /* ML-536: 6 across on a phone, like the tools */
+    .paint-bars { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-2); } /* ML-536: 6 across on a phone, like the tools. ML-670: room for the lines */
     @media (min-width: 700px) { .paint-bars { grid-template-columns: repeat(auto-fill, minmax(var(--touch-target), 1fr)); } } /* a wider page fits more */
-    .paint-bar { position: relative; aspect-ratio: 1; min-height: var(--touch-target); border-radius: var(--radius-md); border-width: 2px; font: inherit; font-size: var(--font-md); font-weight: var(--font-weight-bold); display: grid; place-items: center; cursor: pointer; padding: 0; }
+    .paint-bar { position: relative; box-sizing: border-box; width: 100%; aspect-ratio: 1; min-height: var(--touch-target); border-radius: var(--radius-md); border-width: 2px; font: inherit; font-size: var(--font-md); font-weight: var(--font-weight-bold); display: grid; place-items: center; cursor: pointer; padding: 0; }
     .paint-bar.lv-0 { border-width: 2px; }
     .paint-bar:not(.lv-0) { border: 2px solid transparent; }
     .paint-bar-num { position: absolute; top: var(--space-0-5); left: var(--space-1); font-size: var(--font-xs); font-weight: var(--font-weight-semibold); line-height: var(--line-height-tight); }
-    .paint-bar.is-cut-before { box-shadow: var(--shadow-cut-line); }
+    /* ML-670: bars played together are joined by a line through the gap. At the end of a row it runs into the page's
+       gutter and picks up on the next row. --space-0-5 is the bar's own border. */
+    .paint-bar.joins-prev::before, .paint-bar.joins-next::after { content: ''; position: absolute; top: 50%; width: var(--space-2); height: var(--space-1); margin-top: calc(var(--space-1) / -2); background: var(--control-border); }
+    .paint-bar.joins-prev::before { left: calc(-1 * (var(--space-2) + var(--space-0-5))); }
+    .paint-bar.joins-next::after { right: calc(-1 * (var(--space-2) + var(--space-0-5))); }
+    /* A focus section that won't fit: a red border as well as red lines, so it shows as a shape and not only a colour */
+    .paint-bar.is-too-long:not(.lv-0) { border-color: var(--danger-color); }
+    .paint-bar.is-too-long::before, .paint-bar.is-too-long::after { background: var(--danger-color); }
+    /* A split: the box's own left edge, the shape of a list row's, so it follows the corners. Dark on a light page and
+       light in dark mode. It comes after is-too-long, so a split in a long section keeps its dark edge. */
+    .paint-bar.is-cut-before:not(.lv-0) { border-left: 6px solid var(--text-color); }
     .paint-bar.is-range-start { box-shadow: var(--focus-ring); } /* ML-536: the Range tool's first bar, waiting for the last */
-    .paint-toolbox { position: sticky; bottom: 0; z-index: var(--z-sticky); display: grid; gap: var(--space-2); padding: var(--space-3) 0; background: var(--container-bg); border-top: 1px solid var(--input-border); }
-    .paint-tools { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-1); } /* ML-536: six tools - Undo is one of them */
+    .paint-toolbox { position: sticky; bottom: 0; z-index: var(--z-sticky); display: grid; gap: var(--space-2); padding: var(--space-3) 0; background: var(--container-bg); border-top: 1px solid var(--input-border); box-shadow: 0 0 0 var(--space-3) var(--container-bg); clip-path: inset(0 calc(-1 * var(--space-3))); } /* ML-670: the shadow covers the gutter, where the lines between bars run out at the end of a row */
+    .paint-tools { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-1); } /* ML-536: six tools */
     .paint-tool { min-height: var(--touch-target); display: grid; place-items: center; gap: var(--space-0-5); padding: var(--space-1); border: 2px solid var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); font: inherit; cursor: pointer; }
     .paint-tool[aria-pressed="true"] { border-color: var(--primary-action-strong); background: var(--primary-action-tint); }
-    .paint-tool:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; } /* Undo with nothing to undo */
+    .paint-tool:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; } /* Undo or Redo with nothing to do */
+    .paint-actions { display: flex; gap: var(--space-2); } /* ML-670: Undo, Redo and Done on the last row */
+    .paint-actions .paint-tool { flex-shrink: 0; width: var(--touch-target); padding: 0; }
+    .paint-actions .btn-submit { flex: 1; min-width: 0; margin-bottom: 0; }
     .paint-tool-label { text-align: center; font-size: var(--font-xs); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); }
     .paint-pots { margin-bottom: 0; }
     .cut-bit { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--input-border); border-radius: var(--radius-md); }
     .cut-bit.is-too-long { border: 2px solid var(--danger-color); }
+    .cut-bit .btn-nav { flex-shrink: 0; width: auto; margin-bottom: 0; padding: var(--space-3) var(--space-4); }
 
     /* "Did you nail it?" (ML-390): the Level pair (1 -> 2) and a short star celebration on a Yes. */
     .levelup { display: grid; justify-items: center; gap: var(--space-2); text-align: center; margin-bottom: var(--space-4); } /* room under the 1 -> 2 pair before "Played at..." (owner, 1 Oct 2026) */

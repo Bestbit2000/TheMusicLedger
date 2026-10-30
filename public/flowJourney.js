@@ -621,6 +621,20 @@
         });
         return out;
     }
+    // ML-670: how a run of bars reads on the levels page. joinsPrev, joinsNext: a line to the bar before or after - the
+    // same Level, in the same focus section. split: a focus section started by hand, which only shows within one Level
+    // (a change of Level starts one by itself, and the colour already says so).
+    function barJoins(levels, startBar, endBar, cuts) {
+        const cutAt = new Set(cuts || []);
+        const level = (n) => (n >= startBar && n <= endBar ? levels[n - 1] : null);
+        const sameAsBefore = (n) => level(n) != null && level(n) === level(n - 1);
+        const out = [];
+        for (let n = startBar; n <= endBar; n++) {
+            const split = sameAsBefore(n) && cutAt.has(n);
+            out.push({ bar: n, joinsPrev: sameAsBefore(n) && !split, joinsNext: sameAsBefore(n + 1) && !cutAt.has(n + 1), split });
+        }
+        return out;
+    }
     // The play-through (once every bar is at Level 4): the whole piece in one part when it plays through
     // once in a block at that Level, otherwise the fewest equal parts that each do - two halves for most
     // pieces. Returns [[startBar, endBar], ...].
@@ -1141,7 +1155,7 @@
         repeatBarInvalid, introInvalid, pauseInvalid, rampInvalid,
         barRangeLabel, checkFlow,
         LEVELS, levelPercents, levelPercent, sessionSubBeats, slowestTempo, barSeconds, chunkFit, suggestSplit, barLevels,
-        pieceRunSeconds, pieceSections, bitsFromBars, playthroughParts, partBlockMinutes,
+        pieceRunSeconds, pieceSections, bitsFromBars, barJoins, playthroughParts, partBlockMinutes,
         movements, movementOfBar, movementLabel, movementJourney, movementPrefix, playthroughLabels, matchSpeeds
     };
 }));

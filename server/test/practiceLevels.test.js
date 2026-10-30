@@ -158,6 +158,25 @@ describe('getting a piece ready (ML-390)', () => {
         assert.deepEqual(FJ.pieceSections([blk({ barCount: 20 })]).map(x => [x.startBar, x.endBar]), [[1, 8], [9, 16], [17, 20]]);
         assert.deepEqual(FJ.pieceSections([blk({ barCount: 6, isSectionBoundary: true }), blk({ barCount: 6 })]).map(x => [x.startBar, x.endBar]), [[1, 6], [7, 12]]);
     });
+    test('ML-670: bars join up within one Level, and a split shows only within one', () => {
+        const levels = [3, 3, 3, 2, 2, null, null, 4];
+        const j = FJ.barJoins(levels, 1, 8, [2, 4]);
+        const plain = (x) => JSON.parse(JSON.stringify(x));
+        assert.deepEqual(plain(j[0]), { bar: 1, joinsPrev: false, joinsNext: false, split: false }, 'its next bar is split off');
+        assert.deepEqual(plain(j[1]), { bar: 2, joinsPrev: false, joinsNext: true, split: true }, 'a split within Level 3');
+        assert.deepEqual(plain(j[2]), { bar: 3, joinsPrev: true, joinsNext: false, split: false });
+        assert.equal(j[3].split, false, 'a change of Level starts a focus section by itself: no edge, though a cut is there');
+        assert.equal(j[3].joinsNext, true);
+        assert.equal(j[5].joinsNext, false, 'bars with no level never join');
+        assert.equal(j[7].joinsPrev, false);
+    });
+    test('ML-670: a part of the piece stops the lines at its ends', () => {
+        const j = FJ.barJoins([3, 3, 3, 3], 2, 3, []);
+        assert.equal(j[0].joinsPrev, false, 'bar 1 is in the part before');
+        assert.equal(j[1].joinsNext, false, 'bar 4 is in the part after');
+        assert.equal(j[0].joinsNext, true);
+    });
+
     test('painted bars -> focus bits: same Level in a section, split at every cut', () => {
         assert.deepEqual(FJ.bitsFromBars([3, 3, 1, 1, null, null, 3, 3], [1, 5], [8]), [
             { startBar: 1, endBar: 2, level: 3 }, { startBar: 3, endBar: 4, level: 1 },

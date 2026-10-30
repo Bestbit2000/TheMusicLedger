@@ -1582,6 +1582,39 @@
             </table></div>`;
     }
 
+    // ML-674: preparing a piece - how long, how many taps and with which tools, by version
+    function prepareTables(data) {
+        const p = data.prepare || { byVersion: [], recent: [] };
+        const tools = [['brush', 'Fill bar'], ['range', 'Range'], ['section', 'Fill part'], ['all', 'Fill all'], ['rubber', 'Remove'], ['split', 'Split'], ['undo', 'Undo'], ['redo', 'Redo'], ['typed', 'Typed']];
+        const head = `<div class="admin-stat-section-title">Preparing a piece</div>
+            <p class="admin-intro">From opening the levels page to Done, active time only, carried across a draft. Gap is the median time between taps on a bar: the nearest thing to the time spent finding a bar on the page. Compare the rows by version.</p>`;
+        if (!p.byVersion.length && !p.recent.length) return `${head}<p class="admin-stat-empty">Nothing recorded yet. Prepare a piece through to Done and it'll appear here.</p>`;
+        const versions = p.byVersion.map(v => `<tr><td>${escapeHtml(v.appVersion || 'unknown')}</td><td>${v.n}</td>
+            <td>${fmtSeconds(v.seconds)}<div class="admin-stat-tile-sub">${fmtSpread(v.minSeconds, v.maxSeconds, fmtSeconds)}</div></td>
+            <td>${fmtRate(v.perBar)}</td><td>${v.taps}</td><td>${v.tapsPerBar ?? '–'}</td><td>${fmtRate(v.gapSeconds)}</td></tr>`).join('')
+            || '<tr><td colspan="7" class="admin-stat-empty">No finished runs yet.</td></tr>';
+        const toolRows = p.byVersion.map(v => `<tr><td>${escapeHtml(v.appVersion || 'unknown')}</td>${tools.map(([k]) => `<td>${v[k]}</td>`).join('')}</tr>`).join('')
+            || `<tr><td colspan="${tools.length + 1}" class="admin-stat-empty">No finished runs yet.</td></tr>`;
+        const recent = p.recent.map(r => `<tr class="${r.isExcluded ? 'admin-stat-row-excluded' : ''}">
+            <td>${escapeHtml(r.flowTitle || 'Untitled')}${r.flowDeleted ? ' <span class="admin-stat-pill">deleted</span>' : ''}</td>
+            <td>${escapeHtml(r.email)}</td><td>${escapeHtml(r.outcome)}</td><td>${fmtSeconds(r.activeSeconds)}</td><td>${r.bars}</td>
+            <td>${r.bars > 0 ? fmtRate(Math.round((r.activeSeconds / r.bars) * 10) / 10) : '–'}</td><td>${r.taps}</td><td>${r.counts.focus ?? '–'}</td>
+            <td>${r.counts.runSeconds ? fmtSeconds(r.counts.runSeconds) : '–'}</td><td>${escapeHtml(r.deviceKind || '–')}</td><td>${escapeHtml(r.appVersion || '–')}</td>
+            <td><button class="admin-mini-btn" data-exclude-id="${r.id}" data-excluded="${r.isExcluded}" type="button">${r.isExcluded ? 'Include' : 'Exclude'}</button></td></tr>`).join('');
+        return `${head}
+            <div class="admin-stat-table-wrap"><table class="admin-stat-table">
+                <thead><tr><th>Version</th><th>Runs</th><th>Active time</th><th>Per bar</th><th>Taps</th><th>Taps per bar</th><th>Gap</th></tr></thead>
+                <tbody>${versions}</tbody></table></div>
+            <div class="admin-stat-section-title">Taps on a bar with each tool</div>
+            <div class="admin-stat-table-wrap"><table class="admin-stat-table">
+                <thead><tr><th>Version</th>${tools.map(([, l]) => `<th>${l}</th>`).join('')}</tr></thead>
+                <tbody>${toolRows}</tbody></table></div>
+            <div class="admin-stat-section-title">Recent preparations</div>
+            <div class="admin-stat-table-wrap"><table class="admin-stat-table">
+                <thead><tr><th>Piece</th><th>Who</th><th>Outcome</th><th>Active</th><th>Bars</th><th>Per bar</th><th>Taps</th><th>Focus sections</th><th>Run-through</th><th>Device</th><th>Version</th><th></th></tr></thead>
+                <tbody>${recent}</tbody></table></div>`;
+    }
+
     function renderFlowAuthoringStats(data) {
         const el = document.getElementById('flowAuthoringStats');
         const h = data.headline;
@@ -1590,7 +1623,8 @@
         if (!h.n) {
             el.innerHTML = `<p class="admin-stat-empty">No completed manual Flow builds recorded yet.${
                 o.live || o.stale ? ` (${o.live} in progress, ${o.stale} never finished.)` : ''
-            } Build a Flow from &ldquo;Create your own&rdquo; through to Done and it'll appear here.</p>`;
+            } Build a Flow from &ldquo;Create your own&rdquo; through to Done and it'll appear here.</p>${prepareTables(data)}`;
+            flowAuthoringExcludeButtons(el);
             return;
         }
 
@@ -1669,8 +1703,12 @@
                     </tr></thead>
                     <tbody>${recentRows}</tbody>
                 </table>
-            </div>`;
+            </div>
+            ${prepareTables(data)}`;
+        flowAuthoringExcludeButtons(el);
+    }
 
+    function flowAuthoringExcludeButtons(el) {
         el.querySelectorAll('[data-exclude-id]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const id = btn.dataset.excludeId;

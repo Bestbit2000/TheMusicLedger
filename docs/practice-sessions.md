@@ -200,20 +200,27 @@ opened from a practice list, Play Flow's menu (My Levels) and a session's Prepar
      setting (`tml.practice.countIn` on the device, also in Settings → Metronome & playback), **used by practice
      blocks too** (then one gap bar between goes, as before). It is not the piece's lead-in, which is stored with
      the piece for the notes before bar 1 and plays after the count-in;
-     "Skip play through and set the level directly" skips it;
-   - **set the level of each bar** (`#levelsPaintView`; ML-536 - it was "painting", and the code's names still
-     say paint): the bars in the piece's sections (`FlowJourney.pieceSections`), 6 across on a phone, and a toolbox
-     pinned to the bottom - the Level to set, then **Fill bar**, **Fill section** (its empty bars), **Fill all** (every bar
-     with no level yet - one already set keeps it, ML-662; then Fill bar comes back on), **Range** (tap the first bar, then the last), **Remove level** and
-     **Undo**, with the chosen tool's instruction under them. After a run-through the Level starts at the one it was
-     played at: Fill all, then give the bars that went wrong a lower one. **Type bars instead** keeps the from-to
-     entry;
-   - **split it into focus sections** (`#levelsCutView`): a bit is a run of bars at the same Level in a section
-     (`FlowJourney.bitsFromBars`). **A focus section must fit 5 goes in a block** (4:30, a gap bar between goes - was 3,
-     ideally 4); one that doesn't is red, with **Split it for me** (`suggestSplit`). **The knife:** tap the bar where
-     a new bit should start (tap again to join it up); Type bars instead for from-to. The summary shows the focus
-     bits (below Level 4) and about how many blocks to get them all to 4.
+     from the Prepare tool it is the second choice, **Play it through first** (ML-669); "Set the levels straight away" skips it;
+   - **set the level of each bar and split it into focus sections, on one page** (`#levelsPaintView`; ML-670 - they were two;
+     ML-536 - "painting" before that, and the code's names still say paint, cut and bits): the bars in the piece's sections
+     (`FlowJourney.pieceSections`), 6 across on a phone, joined up by a line where they are one focus section
+     (`FlowJourney.barJoins`), and a toolbox pinned to the bottom - the Level to set, then **Fill bar** (where it always
+     starts, ML-672), **Range** (tap the first bar, then the last), **Fill part** (its empty bars), **Fill all** (every bar with no
+     level yet - one already set keeps it, ML-662; then Fill bar comes back on), **Remove level** and **Split**, with the
+     chosen tool's instruction under them, then **Undo**, **Redo** and **Done**. After a run-through the Level starts at the one
+     it was played at: Fill all, then give the bars that went wrong a lower one. **Type bars instead** keeps the from-to
+     entry, for levels or with Split chosen for a split. A bit is a run of bars at the same Level in a section
+     (`FlowJourney.bitsFromBars`). **Split:** tap the bar where a new bit should start (tap again to join it up); it shows as a
+     dark left edge, only within one Level. **A focus section must fit 5 goes in a block** (4:30, a gap bar between goes -
+     was 3, ideally 4); one that doesn't has a red border and lines, a row saying how many parts it needs with **Split**, and
+     **Done** asks: Split them, or Done anyway. There's no automatic split any more, by the owner's decision (30 Oct 2026):
+     it cut equal lengths with no regard for the music. The summary shows the Levels as a bar chart, and about how many
+     blocks to get the focus sections to 4. **Every change is kept on the device as a draft** until Done (`docs/offline.md`);
+     it isn't saved to the piece on each tap, because saving records where the bars started (ML-557).
    Saving replaces the piece's chunks with the bits (an old chunk with the same bars keeps its id and history).
+   **How long it takes** (ML-674): the ML-199 stopwatch runs on this page (`flow_authoring_sessions`, kind `prepare`,
+   `prepare_counts`), on Admin → Usage → Flow authoring time under "Preparing a piece": active time, seconds and taps per
+   bar, taps with each tool and the median gap between taps, by app version. Counts only, never which bars or what level.
 2. **Practise** - five-minute blocks on the focus sections until **every bar is at Level 4**. While a block plays, the
    session bar at the top says what's being played **now** - "Now: Floral Dance · Bars 12–20" (ML-540; it said what
    came next, so the bars to play were only ever on the rest screen). **When the block's time runs out** part way

@@ -181,5 +181,12 @@
   },
   "ML-666": "We now list pieces A to Z everywhere, and a The at the start does not count, so The Christmas Song is under C.",
   "ML-667": "We shortened the new version message to one line on a phone; the notes stay under About, Release history.",
-  "ML-672": "We made setting the levels start on Fill bar, so a first tap only ever changes one bar."
+  "ML-672": "We made setting the levels start on Fill bar, so a first tap only ever changes one bar.",
+  "ML-668": "We show the Levels as a bar chart at the end of Prepare, instead of a row of numbered squares.",
+  "ML-669": "We made the start of Prepare quicker to read, with the name of the piece on the page and Set the levels first.",
+  "ML-670": "We put setting the levels and splitting on one page, with Redo, lines joining bars played together, and your work kept as you go.",
+  "ML-674": {
+    "internal": true,
+    "why": "Admin panel only: how long a piece takes to prepare, and how many taps, by version"
+  }
 }

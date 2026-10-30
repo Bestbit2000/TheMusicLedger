@@ -3,14 +3,14 @@
 **Made by `node scripts/usage-buttons.mjs` - don't edit it by hand.** What counts as a use, and how a tap is
 counted, is in [usage-stats.md](usage-stats.md) ("Every button").
 
-909 buttons: 909 have a name a tap can be counted by, 0 need one.
+914 buttons: 914 have a name a tap can be counted by, 0 need one.
 A button on a screen is listed under the screen or pop-up it is on; one the app builds as it goes, under
 the function that builds it (shown with ()). The words are only to help find it - a tap is never counted by
 its words.
 
 | Tool | Buttons | Need a name |
 |---|---|---|
-| Practice session | 87 | 0 |
+| Practice session | 89 | 0 |
 | Metronome (Quick Play) | 46 | 0 |
 | Tuner | 11 | 0 |
 | Tuning fork | 7 | 0 |
@@ -31,7 +31,7 @@ its words.
 | My bands | 31 | 0 |
 | My account, instruments, settings | 57 | 0 |
 | Signing in | 15 | 0 |
-| Menu, notices and the rest | 112 | 0 |
+| Menu, notices and the rest | 115 | 0 |
 
 ## Practice session
 
@@ -58,24 +58,25 @@ its words.
 | sessionRunView | `#sessRunEndBtn` | End the session now |
 | sessionRunView | `#sessRunDoneBtn` | Done |
 | piecePathView | `#pathMovementBtn` | all movement |
+| piecePathView | `#pathLevelsInfoBtn` | More about levels |
 | piecePathView | `#pathBarByBarBtn` | Bar by bar |
 | piecePathView | `#pathGoBtn` | Start preparing |
-| piecePathView | `#pathSkipBtn` | Skip play through and set the level directly |
-| piecePathView | `#pathPaintBtn` | Set the levels again |
-| piecePathView | `#pathCutBtn` | Focus sections |
+| piecePathView | `#pathSkipBtn` | Play it through first |
+| piecePathView | `#pathPaintBtn` | Edit levels |
+| piecePathView | `#pathStartAgainBtn` | Start again |
 | prepareRunView | `#prepCountInBtn` | 1 bar count-in before it starts |
 | prepareRunView | `#prepPlayBtn` | Play it through |
-| prepareRunView | `#prepSkipBtn` | Skip play through and set the level directly |
+| prepareRunView | `#prepSkipBtn` | Set the levels straight away |
 | levelsPaintView | `#paintTypeBtn` | Type bars instead |
 | levelsPaintView | `data-paint-tool=brush` | Fill bar |
-| levelsPaintView | `data-paint-tool=section` | Fill section |
-| levelsPaintView | `data-paint-tool=all` | Fill all |
 | levelsPaintView | `data-paint-tool=range` | Range |
+| levelsPaintView | `data-paint-tool=section` | Fill part |
+| levelsPaintView | `data-paint-tool=all` | Fill all |
 | levelsPaintView | `data-paint-tool=rubber` | Remove level |
+| levelsPaintView | `data-paint-tool=split` | Split |
 | levelsPaintView | `#paintUndoBtn` | Undo |
-| levelsPaintView | `#paintNextBtn` | Next: split into focus sections |
-| levelsCutView | `#cutTypeBtn` | Type bars instead |
-| levelsCutView | `#cutDoneBtn` | Done preparing |
+| levelsPaintView | `#paintRedoBtn` | Redo |
+| levelsPaintView | `#paintDoneBtn` | Done preparing |
 | sessTimeUpModal | `#sessTimeUpFinishBtn` | Finish the session |
 | sessTimeUpModal | `#sessTimeUpExtendBtn` | Just another 5 minutes |
 | scaleUpModal | `close (X)` | Close |
@@ -88,6 +89,7 @@ its words.
 | skillRateModal | `#skillRateCloseBtn` | Close without saying |
 | skillRateModal | `#skillRateYesBtn` | Got it - next step |
 | skillRateModal | `#skillRateNoBtn` | Not yet Same step next time |
+| levelsInfoModal | `close (X)` | Close |
 | paintTypeModal | `#paintTypeCloseBtn` | Close |
 | paintTypeModal | `#paintTypeDoneBtn` | Set these bars |
 | cutTypeModal | `#cutTypeCloseBtn` | Close |
@@ -112,9 +114,9 @@ its words.
 | renderPrepareList() | `data-prepare-id` |  |
 | renderPathThrough() | `data-through` |  |
 | paintBarHtml() | `data-bar` |  |
+| renderPaint() | `data-split-tool` | Split |
 | renderPaint() | `data-pot` |  |
 | renderPaintTypePicker() | `data-level` |  |
-| renderCut() | `data-split` | Split it for me |
 | openLevelRating() | `data-rate` |  |
 | openLevelRating() | `data-rate` | Too fast? Back to Level … |
 | openLevelRating() | `data-rate` |  |
@@ -983,6 +985,9 @@ its words.
 | policyModal | `close (X)` | Close |
 | top bar | `#submitBtn` | Save session |
 | top bar | `#cancelAddBtn` | Cancel |
+| paintTooLongModal | `close (X)` | Close |
+| paintTooLongModal | `#paintTooLongSplitBtn` | Split them |
+| paintTooLongModal | `#paintTooLongDoneBtn` | Done anyway |
 | levelRateModal | `#levelRateCloseBtn` | Close without answering |
 | levelRateModal | `#levelRateMoreBtn` | Move up even further |
 | pieceReadWaitModal | `#pieceReadWaitX` | Cancel |

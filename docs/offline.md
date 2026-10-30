@@ -100,6 +100,10 @@ they arrive.
   server and never cleared them, which left one member's data on the device for the next. `CACHE_NAME` was
   bumped to drop that cache.
 - The privacy policy says a copy is kept on the device and when it is removed. Keep the two in step.
+- **Prepare's draft** (ML-670): while a member sets a piece's levels, every change is kept in `localStorage`
+  (`tml.prepareDraft.<account>.<piece>.<movement or all>`) until Done, so going back, leaving or a refresh loses nothing. It
+  is their own practice information, which the policy's sentence covers. It is dropped if the bars have changed, and a
+  sign-out they chose removes every draft; after one they didn't choose, it stays, like the outbox.
 
 ## What the member sees
 
