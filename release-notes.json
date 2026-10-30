@@ -178,5 +178,6 @@
   "ML-654": {
     "internal": true,
     "why": "Admin panel only: its secondary buttons look like the app's, and the Waiting list lists its choices and has an empty page"
-  }
+  },
+  "ML-665": "We made the number on the red count badges in the menu bold, so it is easier to read."
 }
