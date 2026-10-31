@@ -190,5 +190,6 @@
     "why": "Admin panel only: how long a piece takes to prepare, and how many taps, by version"
   },
   "ML-675": "We now work out your own pace from the typical blocks at each Level, so a few tricky bars no longer stretch the time on a practice list.",
-  "ML-673": "We fixed the clicks doubling up in the count-in when practising bars along with a recording or video."
+  "ML-673": "We fixed the clicks doubling up in the count-in when practising bars along with a recording or video.",
+  "ML-665": "We made the number on the red count badges in the menu bold, so it is easier to read."
 }

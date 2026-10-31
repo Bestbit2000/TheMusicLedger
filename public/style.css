@@ -144,7 +144,7 @@
     /* ML-201: notification centre - red dot on ☰, count badge in the menu, the Notifications list */
     #navBurgerMenuBtn { position: relative; }
     .notif-dot { position: absolute; top: 4px; right: 4px; width: 10px; height: 10px; border-radius: var(--radius-circle); background: var(--danger-color); box-shadow: var(--shadow-ring-surface); }
-    .notif-count { display: inline-block; min-width: 20px; padding: 0 var(--space-2); margin-left: var(--space-2); border-radius: var(--radius-md); background: var(--danger-color); color: var(--text-on-accent); font-size: var(--font-sm); line-height: 20px; text-align: center; }
+    .notif-count { display: inline-block; min-width: 20px; padding: 0 var(--space-2); margin-left: var(--space-2); border-radius: var(--radius-md); background: var(--danger-color); color: var(--text-on-accent); font-size: var(--font-sm); font-weight: var(--font-weight-bold); line-height: 20px; text-align: center; }
     /* ML-557: a run of bars on "Bar by bar" - where it started, an arrow, where it is now */
     .level-change { display: inline-flex; align-items: center; gap: var(--space-1); flex-shrink: 0; color: var(--label-color); }
     /* ML-557: how far a practice list's weekly plan has come - the blocks done out of done + still to do (--pct) */

@@ -12,7 +12,7 @@ A small non-interactive label for a count, status or tag. `--radius-pill` is res
 | Variant | Surface | Use |
 |---|---|---|
 | Neutral tag | `--input-bg` + 1px `--input-border`, `--label-color` text | Metadata ("Band", "3 blocks") |
-| Count | `--danger-color` + `--text-on-accent` | Unread counts |
+| Count | `--danger-color` + `--text-on-accent`, number in `--font-weight-bold` | Unread counts |
 | Accent count | `--primary-action` + `--primary-action-text` | Active-filter count |
 | Status (admin) | `--success-color` / `--danger-color` / `--nav-action` / `--input-border` | pass / fail / skipped / never |
 | Status (admin, security review) | `--status-amber-bg`/`-fg` (`.admin-badge.warn`), `--status-blue-bg`/`-fg` (`.admin-badge.info`) | warn / info - ML-192 check results that are neither a pass nor a failure |
