@@ -7824,9 +7824,9 @@
     // 1 Oct 2026); "Not set" on the path and in Prepare, where you set them (ML-536). ML-548: the empty box is only in
     // the key when a bar above it has bars with no level - a prepared piece has none, and one not prepared shows no bar.
     // maps: the Level maps the key is under. noun (ML-608): under a .level-bar, whose numbers are counts, the key starts
-    // "Bars at each Level:" (or "Scales ...") so a number isn't read as a Level.
+    // "Bars:" (or "Scales:") so a number isn't read as a Level.
     const levelLegendHtml = (maps, unset = 'Not known', noun = '') => `<div class="level-legend mt-3" aria-hidden="true">
-        ${noun ? `<span class="fw-bold">${noun === 'scale' ? 'Scales' : 'Bars'} at each Level:</span>` : ''}
+        ${noun ? `<span class="fw-bold">${noun === 'scale' ? 'Scales' : 'Bars'}:</span>` : ''}
         ${maps.some(m => m.some(v => !v)) ? `<span><span class="level-cell lv-0"></span>${unset}</span>` : ''}
         <span><span class="level-cell lv-1">1</span><span class="level-cell lv-2">2</span>Silver</span>
         <span><span class="level-cell lv-3">3</span><span class="level-cell lv-4">4</span>Gold</span>

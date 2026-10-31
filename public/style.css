@@ -2773,8 +2773,8 @@
     .lv-4 { background: var(--level-4); color: var(--level-4-text); }
     .lv-5 { background: var(--level-5); color: var(--level-5-text); }
     .level-cell.is-marked { box-shadow: var(--focus-ring); }
-    .level-legend { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); font-size: var(--font-sm); color: var(--label-color); margin-bottom: var(--space-4); }
-    .level-legend > span { display: inline-flex; align-items: center; gap: var(--space-1); }
+    .level-legend { display: flex; flex-wrap: wrap; gap: var(--space-2); font-size: var(--font-sm); color: var(--label-color); margin-bottom: var(--space-4); }
+    .level-legend > span { display: inline-flex; align-items: center; gap: var(--space-0-5); } /* tight, so the key fits one line on a 360px phone */
     .level-legend .level-cell { width: var(--icon-md); min-height: var(--icon-md); }
     .level-chip { flex-shrink: 0; width: var(--icon-xl); height: var(--icon-xl); border-radius: var(--radius-xs); display: grid; place-items: center; font-size: var(--font-sm); font-weight: var(--font-weight-bold); box-sizing: border-box; }
     .level-picker { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-1); margin-bottom: var(--space-3); }

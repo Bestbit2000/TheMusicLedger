@@ -31,13 +31,13 @@ the same colours on bigger squares ([piece-path](piece-path.md)).
   (or scales) are at that Level** - the colour says which Level and the key says what the colours mean, so the bar no longer
   repeats the key. The number shows when the part is wide enough for it (a container query on the part, by its `data-digits`:
   one digit from 14px, two from 22px, three or four from 30px) and is left off otherwise. **The key** (`.level-legend`) goes
-  under it - once under a list of pieces - and starts "Bars at each Level:" ("Scales at each Level:" under scales;
+  under it - once under a list of pieces - and starts "Bars:" ("Scales:" under scales;
   `levelLegendHtml(maps, unset, noun)`), so a count isn't read as a Level.
   Used on a session's step 3, a practice list's pieces and the next-goal card in "Did you nail it?".
 - **Strip:** `.level-strip` › `.level-cell.lv-N` × items. One thin row with no numbers - now only the Range
   tool's notes past your range. In a strip an unset item is a plain `--level-unset-border` fill, not a dashed
   outline (ML-334). The strip never overflows its row.
-- **Legend (the key):** `.level-legend` › `span` › `.level-cell` + label: Not painted (Not known under a Level bar), 1 2
+- **Legend (the key):** `--space-2` between its groups and `--space-0-5` inside one, so with "Bars:" it fits one line from a 360px phone; `.level-legend` › `span` › `.level-cell` + label: Not painted (Not known under a Level bar), 1 2
   Silver, 3 4 Gold, 5 Full speed. Under a piece's map and under Level bars (`levelLegendHtml`). Space above it (`--space-3`) and below it (`--space-4`), so it never touches the piece above or the button under a list of pieces; no bottom margin only when it ends a card (`.flow-card`), whose padding is the space (owner, 21 Oct 2026).
 - **Chip:** `.level-chip.lv-N`, the Level at the start of a chunk / hard-passage row. The row is a
   `.history-item` with a `.level-row-body` button (the chip plus text) and any action buttons.
