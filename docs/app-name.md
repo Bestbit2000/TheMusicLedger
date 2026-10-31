@@ -92,6 +92,9 @@ two names that were not chosen - only Notably Better's files are copied into the
 If a drawing changes, rebuild it and copy it across again. A phone that already has the app installed keeps
 its old icon and name until the app is removed and installed again.
 
+The pictures for Facebook and YouTube are drawn from the same artwork by `node brand-trials/social.mjs` into
+`brand-trials/social/`. Nothing in the app uses them.
+
 ## Tests
 
 `server/test/appName.test.js`: the pages, the manifest and `Brand.name()` agree on the name; the pictures

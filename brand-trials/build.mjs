@@ -94,13 +94,27 @@ const MARKS = {
     head: [176, 356, 44, 31],
   },
 };
+// The notehead sits as engraved music has it: the stem's right edge meets the head's right-most
+// point, and the stem stops at that point so its round end is hidden inside the head. Only the
+// head's centre height (head[1]) and size are set by hand; its left-right place follows the stem.
+function noteHead(m, width) {
+  const [, cy, rx, ry] = m.head;
+  const [, stemX] = m.strokes.match(/^M(\d+(?:\.\d+)?),/).map(Number);
+  const tilt = -22 * Math.PI / 180;
+  const ax = rx * Math.cos(tilt), bx = -ry * Math.sin(tilt);                  // x = ax cos t + bx sin t
+  const t = Math.atan2(bx, ax);                                               // where x is greatest
+  const dx = ax * Math.cos(t) + bx * Math.sin(t);
+  const dy = rx * Math.cos(t) * Math.sin(tilt) + ry * Math.sin(t) * Math.cos(tilt);
+  const cx = +(stemX + width / 2 - dx).toFixed(1);
+  const stemEnd = +(cy + dy).toFixed(1);
+  return { cx, cy, rx, ry, strokes: m.strokes.replace(/^M(\d+(?:\.\d+)?),\d+(?:\.\d+)?/, `M$1,${stemEnd}`) };
+}
 function mark(key, { stave }) {
-  const m = MARKS[key];
-  const [cx, cy, rx, ry] = m.head;
   const width = stave ? (key === 'fivetto' ? 28 : 24) : (key === 'fivetto' ? 40 : 34);
-  const art = `<path d="${m.strokes}" fill="none" stroke="url(#gold)" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/>
+  const { cx, cy, rx, ry, strokes } = noteHead(MARKS[key], width);
+  const art = `<path d="${strokes}" fill="none" stroke="url(#gold)" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/>
     <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" transform="rotate(-22 ${cx} ${cy})" fill="url(#gold)"/>`;
-  return iconShell(stave ? staveBehind(m.ys, 70, 442) + art : `<g transform="translate(256 256) scale(1.3) translate(-256 -256)">${art}</g>`);
+  return iconShell(stave ? staveBehind(MARKS[key].ys, 70, 442) + art : `<g transform="translate(256 256) scale(1.3) translate(-256 -256)">${art}</g>`);
 }
 
 const pieces = {
