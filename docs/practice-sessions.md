@@ -204,7 +204,8 @@ opened from a practice list, Play Flow's menu (My Levels) and a session's Prepar
    - **set the level of each bar and split it into focus sections, on one page** (`#levelsPaintView`; ML-670 - they were two;
      ML-536 - "painting" before that, and the code's names still say paint, cut and bits): the bars in the piece's sections
      (`FlowJourney.pieceSections`), 6 across on a phone, joined up by a line where they are one focus section
-     (`FlowJourney.barJoins`), and a toolbox pinned to the bottom - what to set, the five Levels or **Remove** (ML-676), then
+     (`FlowJourney.barJoins`; a bar reached by keyboard is scrolled clear of the pinned toolbox and the top bar, WCAG 2.4.11, and a
+     tap never moves the page), and a toolbox pinned to the bottom - what to set, the five Levels or **Remove** (ML-676), then
      where to set it: **Fill bar** (where it always starts, ML-672), **Range** (tap the first bar, then the last), **Fill part** (its
      empty bars, or the whole part if none are empty, ML-676), **Fill all** (every bar with no level yet - one already set keeps it,
      ML-662; then Fill bar comes back on), and **Split**, with the chosen tool's instruction under them. Remove works at all four

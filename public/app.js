@@ -8282,6 +8282,17 @@
         const b = e.target.closest('[data-bar]');
         if (b) paintApply(Number(b.dataset.bar));
     });
+    // WCAG 2.4.11: a bar reached by keyboard never stops behind the pinned toolbox or the top bar. A tap is not
+    // :focus-visible, so a tap never moves the page; the browser's own scroll for Tab is instant, so this is too.
+    document.getElementById('paintSections')?.addEventListener('focusin', (e) => {
+        if (!e.target.matches(':focus-visible')) return;
+        const clear = 8;
+        const box = e.target.getBoundingClientRect();
+        const dockTop = document.querySelector('.paint-toolbox').getBoundingClientRect().top;
+        const headerBottom = document.querySelector('.top-bar-sticky-group').getBoundingClientRect().bottom;
+        if (box.bottom > dockTop - clear) window.scrollBy(0, box.bottom - dockTop + clear);
+        else if (box.top < headerBottom + clear) window.scrollBy(0, box.top - headerBottom - clear);
+    });
     document.getElementById('paintTools')?.addEventListener('click', (e) => {
         const b = e.target.closest('[data-paint-tool]');
         if (!b) return;
