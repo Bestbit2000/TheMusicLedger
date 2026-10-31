@@ -3,14 +3,14 @@
 **Made by `node scripts/usage-buttons.mjs` - don't edit it by hand.** What counts as a use, and how a tap is
 counted, is in [usage-stats.md](usage-stats.md) ("Every button").
 
-914 buttons: 914 have a name a tap can be counted by, 0 need one.
+913 buttons: 913 have a name a tap can be counted by, 0 need one.
 A button on a screen is listed under the screen or pop-up it is on; one the app builds as it goes, under
 the function that builds it (shown with ()). The words are only to help find it - a tap is never counted by
 its words.
 
 | Tool | Buttons | Need a name |
 |---|---|---|
-| Practice session | 89 | 0 |
+| Practice session | 88 | 0 |
 | Metronome (Quick Play) | 46 | 0 |
 | Tuner | 11 | 0 |
 | Tuning fork | 7 | 0 |
@@ -72,7 +72,6 @@ its words.
 | levelsPaintView | `data-paint-tool=range` | Range |
 | levelsPaintView | `data-paint-tool=section` | Fill part |
 | levelsPaintView | `data-paint-tool=all` | Fill all |
-| levelsPaintView | `data-paint-tool=rubber` | Remove level |
 | levelsPaintView | `data-paint-tool=split` | Split |
 | levelsPaintView | `#paintUndoBtn` | Undo |
 | levelsPaintView | `#paintRedoBtn` | Redo |

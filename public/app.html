@@ -1585,7 +1585,8 @@
              have levels, how many are at each Level, as one bar chart. -->
         <div class="hidden-group" id="pathPrepIntro">
             <p class="prepare-lead">Set how easy each bar is, so we can focus on the hard ones.</p>
-            <section class="flow-card prepare-example" aria-label="An example">
+            <section class="flow-card prepare-example" aria-label="An example, not your piece">
+                <div class="flow-card-header"><span class="flow-card-label">An example, not your piece</span></div>
                 <div class="paint-bars" role="img" aria-label="Six bars: two at Level 5 joined up, three at Level 2 joined up, one at Level 4">
                     <span class="paint-bar lv-5 joins-next"><span class="paint-bar-num">1</span><span class="paint-bar-level">5</span></span>
                     <span class="paint-bar lv-5 joins-prev"><span class="paint-bar-num">2</span><span class="paint-bar-level">5</span></span>
@@ -1678,8 +1679,8 @@
 
     <!-- ML-670: setting the levels and splitting into focus sections, one page (ML-390 made them two; the code still says
          paint, cut and bits). The bars sit in the piece's sections, joined up by a line where they're one focus section;
-         a split is a dark edge on the bar's left. The toolbox stays pinned at the bottom: the Level to set, the tools
-         in size order - Fill bar, Range, Fill part, Fill all - then Remove level and Split, the chosen tool's
+         a split is a dark edge on the bar's left. The toolbox stays pinned at the bottom: the Level to set or Remove (ML-676),
+         the tools in size order - Fill bar, Range, Fill part, Fill all - then Split, the chosen tool's
          instruction, and Undo, Redo and Done. Type bars instead keeps the from-to entry, for either. -->
     <div id="levelsPaintView" class="paint-page hidden-group">
         <h2 class="step-question" id="paintTitle"></h2>
@@ -1698,7 +1699,6 @@
                 <button type="button" class="paint-tool" data-paint-tool="range" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true">arrow_range</span><span class="paint-tool-label">Range</span></button>
                 <button type="button" class="paint-tool" data-paint-tool="section" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true">format_color_fill</span><span class="paint-tool-label">Fill part</span></button>
                 <button type="button" class="paint-tool" data-paint-tool="all" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span><span class="paint-tool-label">Fill all</span></button>
-                <button type="button" class="paint-tool" data-paint-tool="rubber" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true">ink_eraser</span><span class="paint-tool-label">Remove level</span></button>
                 <button type="button" class="paint-tool" data-paint-tool="split" aria-pressed="false"><span class="material-symbols-outlined" aria-hidden="true">content_cut</span><span class="paint-tool-label">Split</span></button>
             </div>
             <p class="text-sm text-muted no-margin" id="paintToolHint" aria-live="polite"></p>

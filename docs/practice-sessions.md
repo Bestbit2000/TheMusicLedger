@@ -204,10 +204,11 @@ opened from a practice list, Play Flow's menu (My Levels) and a session's Prepar
    - **set the level of each bar and split it into focus sections, on one page** (`#levelsPaintView`; ML-670 - they were two;
      ML-536 - "painting" before that, and the code's names still say paint, cut and bits): the bars in the piece's sections
      (`FlowJourney.pieceSections`), 6 across on a phone, joined up by a line where they are one focus section
-     (`FlowJourney.barJoins`), and a toolbox pinned to the bottom - the Level to set, then **Fill bar** (where it always
-     starts, ML-672), **Range** (tap the first bar, then the last), **Fill part** (its empty bars), **Fill all** (every bar with no
-     level yet - one already set keeps it, ML-662; then Fill bar comes back on), **Remove level** and **Split**, with the
-     chosen tool's instruction under them, then **Undo**, **Redo** and **Done**. After a run-through the Level starts at the one
+     (`FlowJourney.barJoins`), and a toolbox pinned to the bottom - what to set, the five Levels or **Remove** (ML-676), then
+     where to set it: **Fill bar** (where it always starts, ML-672), **Range** (tap the first bar, then the last), **Fill part** (its
+     empty bars, or the whole part if none are empty, ML-676), **Fill all** (every bar with no level yet - one already set keeps it,
+     ML-662; then Fill bar comes back on), and **Split**, with the chosen tool's instruction under them. Remove works at all four
+     sizes, takes a split off with the level, and on every bar asks first. Then come **Undo**, **Redo** and **Done**. After a run-through the Level starts at the one
      it was played at: Fill all, then give the bars that went wrong a lower one. **Type bars instead** keeps the from-to
      entry, for levels or with Split chosen for a split. A bit is a run of bars at the same Level in a section
      (`FlowJourney.bitsFromBars`). **Split:** tap the bar where a new bit should start (tap again to join it up); it shows as a

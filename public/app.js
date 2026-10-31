@@ -8065,10 +8065,16 @@
     const PAINT_HINTS = {
         brush: 'Tap a bar to give it this level.',
         range: 'Tap the first bar, then the last.',
-        section: 'Tap a bar: the empty bars in its part get this level.',
+        section: 'Tap a bar: the empty bars in its part get this level. If none are empty, the whole part changes.',
         all: 'Tap any bar: every empty bar gets this level.',
-        rubber: 'Tap a bar to remove its level.',
         split: 'Tap a bar to start a new focus section there.'
+    };
+    // With Remove chosen in place of a Level (ML-676)
+    const REMOVE_HINTS = {
+        brush: 'Tap a bar to remove its level.',
+        range: PAINT_HINTS.range,
+        section: 'Tap a bar to remove the levels from its whole part.',
+        all: 'Tap any bar to remove the level from every bar.'
     };
     const paintStateText = () => JSON.stringify([paint.levels, [...paint.cuts].sort((a, b) => a - b)]);
 
@@ -8165,10 +8171,11 @@
             </section>`;
         }).join('');
         document.querySelectorAll('#paintTools [data-paint-tool]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.paintTool === paint.tool)));
-        const noLevel = paint.tool === 'rubber' || paint.tool === 'split';
-        document.getElementById('paintPots').innerHTML = [1, 2, 3, 4, 5].map(n => `<button type="button" class="level-pick lv-${n}${paint.pot === n && !noLevel ? ' selected' : ''}" aria-pressed="${paint.pot === n && !noLevel}" data-pot="${n}" aria-label="Set Level ${n}">${n}</button>`).join('');
+        // The Levels and Remove (ML-676, pot 0): what to set; the tools say where
+        const noLevel = paint.tool === 'split';
+        document.getElementById('paintPots').innerHTML = [1, 2, 3, 4, 5, 0].map(n => `<button type="button" class="level-pick ${n ? `lv-${n}` : 'paint-pot-remove'}${paint.pot === n && !noLevel ? ' selected' : ''}" aria-pressed="${paint.pot === n && !noLevel}" data-pot="${n}" aria-label="${n ? `Set Level ${n}` : 'Remove the level'}">${n || '<span class="material-symbols-outlined" aria-hidden="true">ink_eraser</span>'}</button>`).join('');
         document.getElementById('paintToolHint').textContent = paint.note || (paint.tool === 'range' && paint.rangeStart
-            ? `From bar ${paint.rangeStart}: now tap the last bar.` : PAINT_HINTS[paint.tool]);
+            ? `From bar ${paint.rangeStart}: now tap the last bar.` : (!paint.pot && REMOVE_HINTS[paint.tool]) || PAINT_HINTS[paint.tool]);
         document.getElementById('paintUndoBtn').disabled = !paint.undo.length;
         document.getElementById('paintRedoBtn').disabled = !paint.redo.length;
         const scoped = paint.levels.slice(levelsFrom() - 1, levelsTo());
@@ -8209,29 +8216,53 @@
         if (paint.levels[n - 1] !== paint.levels[n - 2]) { paint.note = 'A change of level starts a new focus section here already.'; return; }
         paintChange(() => { if (paint.cuts.has(n)) paint.cuts.delete(n); else paint.cuts.add(n); });
     }
+    // Remove takes a split off with the bar's level, so a bar set again starts clean
+    function paintSetBar(n) {
+        paint.levels[n - 1] = paint.pot || null;
+        if (!paint.pot) paint.cuts.delete(n);
+    }
+    function paintRemoveAll(n) {
+        paintChange(() => { for (let k = levelsFrom(); k <= levelsTo(); k++) paintSetBar(k); });
+        paint.tool = 'brush';
+        paint.pot = 3; // nothing left to remove
+        renderPaint();
+        document.querySelector(`#paintSections [data-bar="${n}"]`)?.focus();
+    }
     function paintApply(n) {
-        prepStatsTap(paint.tool);
+        prepStatsTap(paint.tool === 'split' || paint.pot ? paint.tool : 'rubber'); // ML-674: removing keeps its name, so versions compare
+        const scoped = paint.levels.slice(levelsFrom() - 1, levelsTo());
         if (paint.tool === 'split') {
             paintSplitAt(n);
         // Range (ML-536): the first tap marks a bar, the second sets every bar from one to the other
         } else if (paint.tool === 'range' && paint.rangeStart == null) {
             paint.rangeStart = n;
             paint.note = '';
+        // Remove on every bar asks first (ML-676): the one tap that can take a whole piece's levels away
+        } else if (paint.tool === 'all' && !paint.pot) {
+            if (scoped.some(v => v)) { showConfirmModal('Remove the levels from every bar?', 'Undo brings them back.', () => paintRemoveAll(n), true, 'Remove'); return; }
+            paint.note = 'No bar has a level yet.';
         } else {
+            const allSet = scoped.every(v => v);
             paintChange(() => {
                 if (paint.tool === 'range') {
-                    for (let k = Math.min(paint.rangeStart, n); k <= Math.max(paint.rangeStart, n); k++) paint.levels[k - 1] = paint.pot;
+                    for (let k = Math.min(paint.rangeStart, n); k <= Math.max(paint.rangeStart, n); k++) paintSetBar(k);
                     paint.rangeStart = null;
-                } else if (paint.tool === 'brush') paint.levels[n - 1] = paint.pot;
-                else if (paint.tool === 'rubber') paint.levels[n - 1] = null;
+                } else if (paint.tool === 'brush') paintSetBar(n);
                 // Fill all (ML-662, the owner: "a bit too powerful"): only the bars with no level yet - one already set keeps it
                 else if (paint.tool === 'all') paint.levels = paint.levels.map((v, i) => (!v && i + 1 >= levelsFrom() && i + 1 <= levelsTo() ? paint.pot : v));
                 else if (paint.tool === 'section') {
+                    // ML-676: its empty bars; with none empty the whole part, and Remove always the whole part
                     const s = paint.sections.find(x => n >= x.startBar && n <= x.endBar);
-                    if (s) for (let k = s.startBar; k <= s.endBar; k++) if (!paint.levels[k - 1]) paint.levels[k - 1] = paint.pot;
+                    if (s) {
+                        const anyEmpty = paint.levels.slice(s.startBar - 1, s.endBar).some(v => !v);
+                        for (let k = s.startBar; k <= s.endBar; k++) if (!paint.pot || !anyEmpty || !paint.levels[k - 1]) paintSetBar(k);
+                    }
                 }
             });
-            if (paint.tool === 'all') paint.tool = 'brush'; // then the bars that went wrong, one by one
+            if (paint.tool === 'all') {
+                if (allSet) paint.note = 'Every bar has a level already, so nothing changed.';
+                paint.tool = 'brush'; // then the bars that went wrong, one by one
+            }
         }
         renderPaint();
         document.querySelector(`#paintSections [data-bar="${n}"]`)?.focus();
@@ -8264,7 +8295,8 @@
         const b = e.target.closest('[data-pot]');
         if (!b) return;
         paint.pot = Number(b.dataset.pot);
-        if (paint.tool === 'rubber' || paint.tool === 'split') paint.tool = 'brush';
+        if (paint.tool === 'split') paint.tool = 'brush';
+        if (!paint.pot) prepStatsNote('toolChanges'); // ML-674: as choosing the Remove level tile did
         paint.note = '';
         renderPaint();
     });
@@ -8296,7 +8328,7 @@
         from.min = to.min = String(levelsFrom());
         from.max = to.max = String(levelsTo());
         from.value = levelsFrom(); to.value = Math.min(levelsTo(), levelsFrom() + 3);
-        if (!splitting) { paintTypeLevel = paint.pot; renderPaintTypePicker(); }
+        if (!splitting) { paintTypeLevel = paint.pot || 3; renderPaintTypePicker(); }
         showModal(splitting ? 'cutTypeModal' : 'paintTypeModal');
         from.focus();
     });

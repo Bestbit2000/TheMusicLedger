@@ -3060,7 +3060,7 @@
     .paint-bar.is-cut-before:not(.lv-0) { border-left: 6px solid var(--text-color); }
     .paint-bar.is-range-start { box-shadow: var(--focus-ring); } /* ML-536: the Range tool's first bar, waiting for the last */
     .paint-toolbox { position: sticky; bottom: 0; z-index: var(--z-sticky); display: grid; gap: var(--space-2); padding: var(--space-3) 0; background: var(--container-bg); border-top: 1px solid var(--input-border); box-shadow: 0 0 0 var(--space-3) var(--container-bg); clip-path: inset(0 calc(-1 * var(--space-3))); } /* ML-670: the shadow covers the gutter, where the lines between bars run out at the end of a row */
-    .paint-tools { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-1); } /* ML-536: six tools */
+    .paint-tools { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-1); } /* ML-536: five tools since ML-676 */
     .paint-tool { min-height: var(--touch-target); display: grid; place-items: center; gap: var(--space-0-5); padding: var(--space-1); border: 2px solid var(--control-border); border-radius: var(--radius-md); background: var(--input-bg); color: var(--text-color); font: inherit; cursor: pointer; }
     .paint-tool[aria-pressed="true"] { border-color: var(--primary-action-strong); background: var(--primary-action-tint); }
     .paint-tool:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; } /* Undo or Redo with nothing to do */
@@ -3068,7 +3068,8 @@
     .paint-actions .paint-tool { flex-shrink: 0; width: var(--touch-target); padding: 0; }
     .paint-actions .btn-submit { flex: 1; min-width: 0; margin-bottom: 0; }
     .paint-tool-label { text-align: center; font-size: var(--font-xs); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); }
-    .paint-pots { margin-bottom: 0; }
+    .paint-pots { grid-template-columns: repeat(6, minmax(0, 1fr)); margin-bottom: 0; } /* ML-676: the five Levels and Remove */
+    .paint-pot-remove { border: 2px dashed var(--level-unset-border); background: transparent; color: var(--text-color); } /* ML-676: looks like a bar with no level */
     .cut-bit { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--input-border); border-radius: var(--radius-md); }
     .cut-bit.is-too-long { border: 2px solid var(--danger-color); }
     .cut-bit .paint-tool { flex-shrink: 0; padding: var(--space-1) var(--space-3); } /* the toolbox's Split, which it picks */

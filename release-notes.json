@@ -191,6 +191,7 @@
   },
   "ML-675": "We now work out your own pace from the typical blocks at each Level, so a few tricky bars no longer stretch the time on a practice list.",
   "ML-673": "We fixed the clicks doubling up in the count-in when practising bars along with a recording or video.",
+  "ML-676": "We made Fill part replace a finished part, and put Remove beside the Levels, so you can clear a bar, a range, a part or every bar.",
   "ML-665": "We made the number on the red count badges in the menu bold, so it is easier to read.",
   "ML-671": "We tidied the logo, so the note now joins the N as it would in printed music."
 }

@@ -1671,13 +1671,6 @@
   {
    "group": "Practice session",
    "where": "levelsPaintView",
-   "name": "data-paint-tool=rubber",
-   "label": "Remove level",
-   "html": true
-  },
-  {
-   "group": "Practice session",
-   "where": "levelsPaintView",
    "name": "data-paint-tool=split",
    "label": "Split",
    "html": true

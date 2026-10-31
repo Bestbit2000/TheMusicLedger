@@ -5,7 +5,7 @@
   `.path-steps`, `.path-step`, `.path-title`, `.prepare-lead`, `.prepare-example`, `.prepare-key`, `.prepare-key-line`), setting the levels - ML-536, was "painting"; the class names stay
   (`.paint-page`, `.paint-section`, `.paint-section-head`, `.paint-bars`, `.paint-bar`, `.paint-bar-num`,
   `.paint-bar-level`, `.joins-prev`, `.joins-next`, `.is-cut-before`, `.is-range-start`, `.paint-toolbox`,
-  `.paint-tools`, `.paint-tool`, `.paint-tool-label`, `.paint-pots`, `.paint-actions`), focus sections (`.cut-bit`, `.is-too-long`),
+  `.paint-tools`, `.paint-tool`, `.paint-tool-label`, `.paint-pots`, `.paint-pot-remove`, `.paint-actions`), focus sections (`.cut-bit`, `.is-too-long`),
   how far it has come (ML-557: `.level-change` on Bar by bar; `.plan-track`, `.plan-track-fill` for a practice list's weekly plan)
 - **Category:** Flow / input
 - **Status:** New (ML-390; replaces ML-316's My Levels screen)
@@ -35,7 +35,7 @@ and **Bar by bar**.
 - **The piece's name is on the page** (ML-669, `.path-title`), not in the top bar, which says **Prepare** from the Prepare
   tool and **My path** otherwise, so a long name no longer wraps up there.
 - **From the Prepare tool** (ML-537) the page is Prepare alone: no stops, one line (`.prepare-lead`), an example of six
-  bars joined up and two short rows (`.prepare-example`, `.prepare-key`), **More about levels** (`#levelsInfoModal`), the
+  bars joined up, headed "An example, not your piece" so it can't be taken for the piece itself, and short rows (`.prepare-example`, `.prepare-key`), **More about levels** (`#levelsInfoModal`), the
   levels now as one bar chart (`.level-bar`) when the bars have them, then **Set the levels** (primary; **Edit levels** when
   they have levels) and **Play it through first** (secondary, `.btn-nav`).
 - **Coming back to unfinished work** (ML-670): the page says "Your bars are kept on this device", the chart and how many
@@ -45,12 +45,15 @@ and **Bar by bar**.
   levels** the first time and **Edit levels** after. The bars sit in the piece's sections as big squares, **6 across on a
   phone** (more from 700px) - the bar number small in the corner, the Level big in the middle, the Level colour behind
   it. **Bars in one focus section are joined up by a line** (`.joins-prev`, `.joins-next`; at the end of a row it runs into
-  the gutter and picks up on the next). The toolbox stays pinned to the bottom: first the Level to set (`.level-picker` +
-  `.level-pick`), then six tools, 6 across, in size order - **Fill bar** (a bar; always where it starts, ML-672), **Range** (tap
-  the first bar - it's ringed, `.is-range-start` - then the last), **Fill part** (the empty bars in its part of the piece;
-  "section" alone would be confused with a focus section), **Fill all** (every bar with no level yet - one already set keeps it,
-  ML-662; then Fill bar goes back on), **Remove level** and **Split** - then the chosen tool's instruction right under
-  them, then **Undo**, **Redo** and **Done** (`.paint-actions`), which cover levels and splits together. Tap only - no drag, so
+  the gutter and picks up on the next). The toolbox stays pinned to the bottom: first what to set, the five Levels (`.level-picker` +
+  `.level-pick`) and **Remove** (`.paint-pot-remove`, dashed like a bar with no level, 6 across, ML-676); then where to set
+  it, five tools in size order - **Fill bar** (a bar; always where it starts, ML-672), **Range** (tap
+  the first bar - it's ringed, `.is-range-start` - then the last), **Fill part** (the empty bars in its part of the piece, or
+  the whole part if none are empty, ML-676; "section" alone would be confused with a focus section), **Fill all** (every bar with
+  no level yet - one already set keeps it, ML-662, and it says so if every bar has one; then Fill bar goes back on) - and
+  **Split**; then the chosen tool's instruction right under them. Remove works with all four sizes and takes a split off with
+  the level; on a part it is always the whole part, and on every bar it asks first ("Remove the levels from every bar?").
+  Then **Undo**, **Redo** and **Done** (`.paint-actions`), which cover levels and splits together. Tap only - no drag, so
   scrolling is never fought.
 - **Split:** tap the bar where a new focus section should start: the line goes and the box gets a dark left edge
   (`.is-cut-before`: `border-left: 6px solid var(--text-color)`, the shape of a list row's edge, so it follows the corners and
@@ -122,6 +125,7 @@ section - 3:1 non-text), `--focus-ring` (also the Range tool's first bar), `--op
 - A line or a split is never the only sign: every bar's label says where a focus section starts, and a too-long section is
   said in words in its row and on Done.
 - **Type bars instead** (a from-to form in a modal) is the non-visual way to set the levels or cut.
+- **Remove** beside the Levels is a `<button>` with the label "Remove the level" and `aria-pressed`, and the dashed outline is not the only sign of it: the eraser and the hint under the tools say what it does.
 - The Range tool's first bar says so in its label ("Bar 13, Level 2 - the first bar of the range"), and the hint
   under the tools (`aria-live`) says what to tap next.
 - The path is an `<ol>` with `aria-current="step"` on the stop you're at.
