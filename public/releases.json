@@ -1,5 +1,66 @@
 [
   {
+    "version": "0.79.0",
+    "date": "2026-10-31",
+    "changes": [
+      {
+        "key": "ML-676",
+        "type": "New",
+        "summary": "We made Fill part replace a finished part, and put Remove beside the Levels, so you can clear a bar, a range, a part or every bar."
+      },
+      {
+        "key": "ML-675",
+        "type": "New",
+        "summary": "We now work out your own pace from the typical blocks at each Level, so a few tricky bars no longer stretch the time on a practice list."
+      },
+      {
+        "key": "ML-673",
+        "type": "Fixes",
+        "summary": "We fixed the clicks doubling up in the count-in when practising bars along with a recording or video."
+      },
+      {
+        "key": "ML-672",
+        "type": "Fixes",
+        "summary": "We made setting the levels start on Fill bar, so a first tap only ever changes one bar."
+      },
+      {
+        "key": "ML-671",
+        "type": "New",
+        "summary": "We tidied the logo, so the note now joins the N as it would in printed music."
+      },
+      {
+        "key": "ML-670",
+        "type": "New",
+        "summary": "We put setting the levels and splitting on one page, with Redo, lines joining bars played together, and your work kept as you go."
+      },
+      {
+        "key": "ML-669",
+        "type": "New",
+        "summary": "We made the start of Prepare quicker to read, with the name of the piece on the page and Set the levels first."
+      },
+      {
+        "key": "ML-668",
+        "type": "New",
+        "summary": "We show the Levels as a bar chart at the end of Prepare, instead of a row of numbered squares."
+      },
+      {
+        "key": "ML-667",
+        "type": "Fixes",
+        "summary": "We shortened the new version message to one line on a phone; the notes stay under About, Release history."
+      },
+      {
+        "key": "ML-666",
+        "type": "New",
+        "summary": "We now list pieces A to Z everywhere, and a The at the start does not count, so The Christmas Song is under C."
+      },
+      {
+        "key": "ML-665",
+        "type": "New",
+        "summary": "We made the number on the red count badges in the menu bold, so it is easier to read."
+      }
+    ]
+  },
+  {
     "version": "0.78.0",
     "date": "2026-10-29",
     "changes": [
